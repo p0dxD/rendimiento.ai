@@ -210,3 +210,18 @@ ul.reasons { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size
 .chip-btn.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 .chip-btn.on span { color: rgba(255,255,255,.8); }
 .svc-section h2 { font-size: 15px; margin: 22px 0 10px; }
+
+/* ---- switch ---- */
+.switch { position: relative; width: 40px; height: 22px; padding: 0; border-radius: 999px; background: var(--border); border: none; flex: none; cursor: pointer; transition: background .15s; }
+.switch span { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
+.switch.on { background: var(--ok); }
+.switch.on span { transform: translateX(18px); }
+.switch:disabled { opacity: .5; cursor: default; }
+
+/* ---- add-ons ---- */
+.addon-head { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; }
+.addon-repos { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px 16px; }
+.addon-repos label { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.addon-repos .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+textarea.code { width: 100%; min-height: 280px; font-family: var(--mono); font-size: 12.5px; }
+.addon-h { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 8px 0 8px; }

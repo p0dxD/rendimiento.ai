@@ -9,6 +9,7 @@ import { RunPage } from "./pages/RunPage";
 import { Setup } from "./pages/Setup";
 import { Environment } from "./pages/Environment";
 import { Services } from "./pages/Services";
+import { Addons } from "./pages/Addons";
 import "./styles.css";
 
 function Logo() {
@@ -68,6 +69,7 @@ function Shell() {
         <Link to="/" className="brand"><Logo /> rendimiento.ai</Link>
         <NavLink to="/" end className="nav-link">Apps</NavLink>
         <NavLink to="/services" className="nav-link">Services</NavLink>
+        <NavLink to="/addons" className="nav-link">Add-ons</NavLink>
         <NavLink to="/environment" className="nav-link">Environment</NavLink>
         <span className="spacer" />
         <Link to="/new" className="btn primary">New app</Link>
@@ -80,6 +82,7 @@ function Shell() {
           <Route path="/new" element={<NewApp />} />
           <Route path="/environment" element={<Environment />} />
           <Route path="/services" element={<Services />} />
+          <Route path="/addons" element={<Addons />} />
           <Route path="/services/:ns/:name" element={<Services />} />
           <Route path="/apps/:name" element={<AppPage />} />
           <Route path="/apps/:name/:tab" element={<AppPage />} />

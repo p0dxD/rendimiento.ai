@@ -368,3 +368,70 @@ export interface Catalog {
 export const catalogApi = {
   list: (refresh = false) => request<Catalog>("GET", `/api/services${refresh ? "?refresh=1" : ""}`),
 };
+
+// ---- add-ons ----
+
+export interface RenovateSettings {
+  schedule: string;
+  image: string;
+  extraRepos: string[];
+  config: string;
+  logLevel?: "info" | "debug";
+}
+
+export interface RenovateRepoResult {
+  result?: string;
+  prs?: string[];
+  automerged?: string[];
+  errors?: string[];
+}
+
+export interface AddonRun {
+  id: number;
+  addon: string;
+  trigger: "schedule" | "manual";
+  status: "running" | "succeeded" | "failed";
+  message: string;
+  repos: string[];
+  results: Record<string, RenovateRepoResult>;
+  log?: string;
+  startedAt: string;
+  finishedAt?: string;
+}
+
+export interface Addon {
+  name: string;
+  title: string;
+  description: string;
+  enabled: boolean;
+  settings: RenovateSettings;
+  running: boolean;
+  nextRun?: string;
+  repos: string[];
+  apps: { name: string; repo: string; enabled: boolean }[];
+  lastRun?: AddonRun;
+  defaults?: RenovateSettings;
+  problems: string[];
+  permissionsUrl: string;
+}
+
+export interface AppAddons {
+  renovate: {
+    enabled: boolean;
+    addonEnabled: boolean;
+    prsUrl: string;
+    lastRun?: { id: number; status: AddonRun["status"]; startedAt: string; result: RenovateRepoResult };
+  };
+}
+
+export const addonsApi = {
+  list: () => request<Addon[]>("GET", "/api/addons"),
+  get: (name: string) => request<Addon>("GET", `/api/addons/${name}`),
+  save: (name: string, enabled: boolean, settings: RenovateSettings) => request<Addon>("PUT", `/api/addons/${name}`, { enabled, settings }),
+  run: (name: string) => request<AddonRun>("POST", `/api/addons/${name}/runs`),
+  runs: (name: string) => request<AddonRun[]>("GET", `/api/addons/${name}/runs`),
+  runLog: (name: string, id: number) => request<AddonRun>("GET", `/api/addons/${name}/runs/${id}`),
+  forApp: (app: string) => request<AppAddons>("GET", `/api/apps/${encodeURIComponent(app)}/addons`),
+  setForApp: (app: string, addon: string, enabled: boolean) =>
+    request<AppAddons>("PUT", `/api/apps/${encodeURIComponent(app)}/addons/${addon}`, { enabled }),
+};

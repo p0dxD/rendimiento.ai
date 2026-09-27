@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -221,4 +222,58 @@ func VerifyWebhook(secret string, body []byte, signature string) bool {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(body)
 	return hmac.Equal(mac.Sum(nil), want)
+}
+
+// FreshInstallationToken mints a new token (valid one hour) instead of
+// reusing a cached one, for jobs that need the full hour, such as Renovate.
+func (a *App) FreshInstallationToken(ctx context.Context, installationID int64) (string, error) {
+	jwt, err := a.JWT(time.Now())
+	if err != nil {
+		return "", err
+	}
+	var out struct {
+		Token string `json:"token"`
+	}
+	return out.Token, a.do(ctx, "Bearer "+jwt, http.MethodPost, fmt.Sprintf("/app/installations/%d/access_tokens", installationID), nil, &out)
+}
+
+// InstallationPermissions are what the account owner granted, e.g.
+// {"contents": "write", "issues": "write"}. They lag the app's requested
+// permissions until the owner accepts a change.
+func (a *App) InstallationPermissions(ctx context.Context, installationID int64) (map[string]string, error) {
+	jwt, err := a.JWT(time.Now())
+	if err != nil {
+		return nil, err
+	}
+	var out struct {
+		Permissions map[string]string `json:"permissions"`
+	}
+	return out.Permissions, a.do(ctx, "Bearer "+jwt, http.MethodGet, fmt.Sprintf("/app/installations/%d", installationID), nil, &out)
+}
+
+// BotIdentity is the app's bot user, as commits and PRs show it:
+// login "<slug>[bot]" and a noreply email tied to its user ID.
+type BotIdentity struct {
+	Login, Email string
+}
+
+func (a *App) Bot(ctx context.Context) (*BotIdentity, error) {
+	jwt, err := a.JWT(time.Now())
+	if err != nil {
+		return nil, err
+	}
+	var app struct {
+		Slug string `json:"slug"`
+	}
+	if err := a.do(ctx, "Bearer "+jwt, http.MethodGet, "/app", nil, &app); err != nil {
+		return nil, err
+	}
+	login := app.Slug + "[bot]"
+	var user struct {
+		ID int64 `json:"id"`
+	}
+	if err := a.do(ctx, "", http.MethodGet, "/users/"+url.PathEscape(login), nil, &user); err != nil {
+		return nil, err
+	}
+	return &BotIdentity{Login: login, Email: fmt.Sprintf("%d+%s@users.noreply.github.com", user.ID, login)}, nil
 }
