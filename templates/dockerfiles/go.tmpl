@@ -1,0 +1,14 @@
+FROM golang:{{.Version}} AS build
+WORKDIR /src
+COPY go.mod go.sum* ./
+RUN go mod download
+COPY . .
+ARG GIT_SHA=""
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${GIT_SHA}" -o /out/app .
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /out/app /app
+USER nonroot:nonroot
+EXPOSE {{.Port}}
+ENV PORT={{.Port}}
+ENTRYPOINT ["/app"]

@@ -1,0 +1,527 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.22.0
+  name: apps.rendimiento.ai
+spec:
+  group: rendimiento.ai
+  names:
+    kind: App
+    listKind: AppList
+    plural: apps
+    singular: app
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.release
+      name: Release
+      type: integer
+    - jsonPath: .spec.repo
+      name: Repo
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          App is one application managed by rendimiento. It is cluster-scoped
+          because it owns the application's namespace.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              AppSpec is the desired state: the repo's rendimiento.yaml plus the
+              release pointer (one image per service) chosen by the pipeline or a rollback.
+            properties:
+              adopt:
+                description: |-
+                  Adopt takes over an existing namespace of the same name (an app
+                  deployed another way, e.g. by ArgoCD). New workloads start next to the
+                  old ones; traffic switches only when they are ready, then the old
+                  workloads serving the app's domains are removed.
+                type: boolean
+              images:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Images maps service name to an image reference, ideally pinned by digest.
+                  Empty until the first successful build.
+                type: object
+              jobs:
+                description: Jobs mirrors the scheduled jobs in rendimiento.yaml.
+                items:
+                  description: |-
+                    Job is a scheduled task. Its image comes from exactly one of: Service (use
+                    that service's released image), Path (build this directory), or Image.
+                  properties:
+                    args:
+                      items:
+                        type: string
+                      type: array
+                    build:
+                      properties:
+                        args:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        builder:
+                          description: |-
+                            Builder is "dockerfile", "railpack" or empty for automatic: the
+                            Dockerfile when the service folder has one, Railpack otherwise.
+                          type: string
+                        dockerfile:
+                          type: string
+                        start:
+                          description: Start overrides the start command Railpack
+                            detects.
+                          type: string
+                      type: object
+                    command:
+                      items:
+                        type: string
+                      type: array
+                    env:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    image:
+                      type: string
+                    name:
+                      type: string
+                    path:
+                      type: string
+                    resources:
+                      description: Resources overrides the size preset's requests
+                        and limits.
+                      properties:
+                        cpu:
+                          type: string
+                        cpuLimit:
+                          type: string
+                        memory:
+                          type: string
+                        memoryLimit:
+                          type: string
+                      type: object
+                    schedule:
+                      type: string
+                    secretEnv:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    secrets:
+                      items:
+                        type: string
+                      type: array
+                    service:
+                      type: string
+                    size:
+                      type: string
+                    timeZone:
+                      description: 'TimeZone for the schedule, e.g. America/New_York
+                        (default: cluster time, UTC).'
+                      type: string
+                    timeout:
+                      description: Timeout stops a run after this many seconds (0
+                        = no limit).
+                      type: integer
+                    watch:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - name
+                  - schedule
+                  type: object
+                type: array
+              release:
+                description: Release is the platform's release number the images belong
+                  to.
+                format: int64
+                type: integer
+              repo:
+                description: Repo is owner/name on GitHub, informational.
+                type: string
+              services:
+                description: Services mirrors rendimiento.yaml.
+                items:
+                  properties:
+                    aliases:
+                      description: Aliases are extra hostnames served like Domain,
+                        on the same certificate.
+                      items:
+                        type: string
+                      type: array
+                    args:
+                      items:
+                        type: string
+                      type: array
+                    build:
+                      properties:
+                        args:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        builder:
+                          description: |-
+                            Builder is "dockerfile", "railpack" or empty for automatic: the
+                            Dockerfile when the service folder has one, Railpack otherwise.
+                          type: string
+                        dockerfile:
+                          type: string
+                        start:
+                          description: Start overrides the start command Railpack
+                            detects.
+                          type: string
+                      type: object
+                    catalog:
+                      description: |-
+                        Catalog documents the service for other apps on the Services page:
+                        what it is, which variable consumers usually set and what it offers.
+                      properties:
+                        description:
+                          type: string
+                        docs:
+                          description: Docs links to the API documentation.
+                          type: string
+                        endpoints:
+                          description: 'Endpoints are short descriptions such as "POST
+                            /analyze: classify a message".'
+                          items:
+                            type: string
+                          type: array
+                        env:
+                          description: Env is the variable consumers usually put the
+                            address in (OLLAMA_HOST).
+                          type: string
+                        path:
+                          description: Path is appended to the address in the suggested
+                            value (/analyze).
+                          type: string
+                        title:
+                          type: string
+                      type: object
+                    command:
+                      description: |-
+                        Command and Args override the image's entrypoint and arguments
+                        (mostly for ready-made images).
+                      items:
+                        type: string
+                      type: array
+                    configFiles:
+                      description: ConfigFiles mounts existing ConfigMaps as read-only
+                        files.
+                      items:
+                        properties:
+                          configMap:
+                            type: string
+                          mount:
+                            type: string
+                        required:
+                        - configMap
+                        - mount
+                        type: object
+                      type: array
+                    domain:
+                      type: string
+                    env:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    gpu:
+                      description: |-
+                        GPU requests this many GPUs. How a GPU is attached (runtime class,
+                        driver libraries) is cluster configuration, not part of the app.
+                      type: integer
+                    health:
+                      properties:
+                        path:
+                          description: |-
+                            Path is an HTTP GET check; TCP checks the port accepts connections
+                            (databases and other non-HTTP services).
+                          type: string
+                        tcp:
+                          type: boolean
+                        timeout:
+                          description: 'Timeout per check in seconds (Kubernetes default:
+                            1).'
+                          type: integer
+                      type: object
+                    image:
+                      description: |-
+                        Image runs a ready-made image (e.g. postgres:15-alpine) instead of
+                        building the repo: no build or test step, released as given.
+                      type: string
+                    ingress:
+                      description: Ingress fine-tunes how the service is exposed on
+                        its domain.
+                      properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            Annotations are extra ingress-nginx settings (rate limits, body size...).
+                            Only nginx.ingress.kubernetes.io/* keys; snippets are not allowed.
+                          type: object
+                        name:
+                          description: Name keeps an existing ingress's name so a
+                            migration updates it in place.
+                          type: string
+                        tlsSecrets:
+                          additionalProperties:
+                            type: string
+                          description: 'TLSSecrets puts some hosts on their own certificate:
+                            host → secret.'
+                          type: object
+                      type: object
+                    language:
+                      type: string
+                    name:
+                      type: string
+                    path:
+                      type: string
+                    port:
+                      type: integer
+                    replicas:
+                      type: integer
+                    resources:
+                      description: Resources overrides the size preset's requests
+                        and limits.
+                      properties:
+                        cpu:
+                          type: string
+                        cpuLimit:
+                          type: string
+                        memory:
+                          type: string
+                        memoryLimit:
+                          type: string
+                      type: object
+                    routes:
+                      description: |-
+                        Routes send a path on a host owned by another service of this app to
+                        this service, as "host/path" (e.g. "wellness.jobsentry.net/api").
+                        They use the certificate of the service that owns the host.
+                      items:
+                        type: string
+                      type: array
+                    secretEnv:
+                      additionalProperties:
+                        type: string
+                      description: 'SecretEnv sets single variables from secret keys,
+                        as NAME: secret/key.'
+                      type: object
+                    secretFiles:
+                      description: SecretFiles mounts secrets as read-only files.
+                      items:
+                        properties:
+                          mount:
+                            type: string
+                          secret:
+                            type: string
+                        required:
+                        - mount
+                        - secret
+                        type: object
+                      type: array
+                    secrets:
+                      description: Secrets are loaded whole as environment variables
+                        (envFrom).
+                      items:
+                        type: string
+                      type: array
+                    size:
+                      type: string
+                    streaming:
+                      description: |-
+                        Streaming keeps responses unbuffered and long-lived at the ingress
+                        (server-sent events, streamed AI answers, websockets).
+                      type: boolean
+                    test:
+                      properties:
+                        command:
+                          type: string
+                        image:
+                          type: string
+                      required:
+                      - command
+                      - image
+                      type: object
+                    tlsSecret:
+                      description: |-
+                        TLSSecret names the certificate secret (default <name>-tls); set it to
+                        keep an existing certificate when migrating an app.
+                      type: string
+                    volume:
+                      properties:
+                        existingClaim:
+                          description: |-
+                            ExistingClaim mounts a PersistentVolumeClaim that already exists (its
+                            data is kept) instead of creating <name>-data. Used when migrating.
+                          type: string
+                        fsGroup:
+                          description: |-
+                            FSGroup makes the volume writable by this group. Defaults to 1001 for
+                            built apps and to none for ready-made images: databases such as
+                            Postgres refuse to start on a group-writable data directory.
+                          format: int64
+                          type: integer
+                        mount:
+                          type: string
+                        size:
+                          description: Size of a new volume; not needed with ExistingClaim.
+                          type: string
+                      required:
+                      - mount
+                      type: object
+                    watch:
+                      description: |-
+                        Watch lists extra repo paths whose changes also rebuild this service
+                        (code shared with other folders). Its own path always counts.
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - name
+                  type: object
+                minItems: 1
+                type: array
+              sharedNamespace:
+                description: 'SharedNamespace mirrors rendimiento.yaml: leave the
+                  namespace itself alone.'
+                type: boolean
+              suspend:
+                description: Suspend stops reconciliation (manual changes are left
+                  alone).
+                type: boolean
+            required:
+            - services
+            type: object
+          status:
+            properties:
+              conditions:
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              message:
+                type: string
+              observedGeneration:
+                format: int64
+                type: integer
+              phase:
+                type: string
+              release:
+                format: int64
+                type: integer
+              services:
+                items:
+                  properties:
+                    certReady:
+                      description: CertReady reports the cert-manager Certificate
+                        for the service's domain.
+                      type: boolean
+                    dnsReady:
+                      type: boolean
+                    image:
+                      type: string
+                    message:
+                      type: string
+                    name:
+                      type: string
+                    readyReplicas:
+                      format: int32
+                      type: integer
+                    replicas:
+                      format: int32
+                      type: integer
+                    url:
+                      type: string
+                  required:
+                  - certReady
+                  - dnsReady
+                  - name
+                  - readyReplicas
+                  - replicas
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

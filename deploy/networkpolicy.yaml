@@ -1,0 +1,40 @@
+# CI steps run code from the repos being built (tests, Dockerfile RUN lines).
+# Keep them away from everything else: they may reach DNS, the shared
+# BuildKit daemon and the public internet (git, package registries), but
+# not other apps, databases, the Kubernetes API or the home network.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-builds
+  namespace: rendimiento-builds
+  labels:
+    app.kubernetes.io/managed-by: rendimiento
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress: []   # nothing connects to build pods
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: devops-tools }
+          podSelector:
+            matchLabels: { app: buildkitd }
+      ports:
+        - { protocol: TCP, port: 1234 }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8       # cluster pods and services (10.42/16, 10.43/16)
+              - 172.16.0.0/12
+              - 192.168.0.0/16   # home network, including the router
+              - 169.254.0.0/16   # link-local / cloud metadata
+              - 100.64.0.0/10    # carrier-grade NAT

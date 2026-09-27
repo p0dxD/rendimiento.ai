@@ -1,0 +1,14 @@
+FROM maven:3-eclipse-temurin-{{.Version}} AS build
+WORKDIR /src
+COPY pom.xml .
+RUN mvn -B -q dependency:go-offline
+COPY src ./src
+RUN mvn -B -q package -DskipTests && cp target/*.jar /app.jar
+
+FROM eclipse-temurin:{{.Version}}-jre
+COPY --from=build /app.jar /app.jar
+RUN useradd --uid 1001 --no-create-home app
+USER app
+EXPOSE {{.Port}}
+ENV SERVER_PORT={{.Port}}
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app.jar"]
