@@ -120,9 +120,16 @@ type Service struct {
 	Catalog *Catalog `json:"catalog,omitempty"`
 }
 
+// Categories group services on the Services page by what they do.
+var Categories = map[string]bool{"database": true, "messaging": true, "ai": true, "storage": true,
+	"monitoring": true, "web": true, "devtools": true, "platform": true}
+
 // Catalog is what the Services page shows about a service besides what it
 // can work out itself (addresses, ports, origin, who uses it).
 type Catalog struct {
+	// Category overrides the guessed one: database, messaging, ai, storage,
+	// monitoring, web, devtools or platform.
+	Category    string `json:"category,omitempty"`
 	Title       string `json:"title,omitempty"`
 	Description string `json:"description,omitempty"`
 	// Env is the variable consumers usually put the address in (OLLAMA_HOST).
@@ -539,6 +546,9 @@ func (s *Spec) Validate() error {
 			errs = append(errs, fmt.Errorf("%s: GPU services run one replica (each replica needs its own GPU)", p))
 		}
 		if c := svc.Catalog; c != nil {
+			if c.Category != "" && !Categories[c.Category] {
+				errs = append(errs, fmt.Errorf("%s.catalog.category %q must be one of database, messaging, ai, storage, monitoring, web, devtools, platform", p, c.Category))
+			}
 			if c.Env != "" && !envKey.MatchString(c.Env) {
 				errs = append(errs, fmt.Errorf("%s.catalog.env %q is not a valid variable name", p, c.Env))
 			}
