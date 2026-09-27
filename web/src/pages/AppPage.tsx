@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, duration, secretNames, subscribe, timeAgo } from "../api";
-import { ErrorBox, PhaseBadge, ResourceTree, RunBadge, usePoll } from "../components/ui";
+import { addonsApi, api, duration, secretNames, subscribe, timeAgo } from "../api";
+import { ErrorBox, PhaseBadge, ResourceTree, RunBadge, Switch, usePoll } from "../components/ui";
 
 const tabs = [
   { id: "", label: "Overview" },
@@ -76,6 +76,7 @@ function Overview({ name, app }: { name: string; app: Awaited<ReturnType<typeof 
           );
         })}
       </div>
+      <DependencyUpdates name={name} />
       <h2>Resources</h2>
       <ErrorBox error={error} />
       {tree && <ResourceTree node={tree} />}
@@ -90,6 +91,58 @@ function Overview({ name, app }: { name: string; app: Awaited<ReturnType<typeof 
             <span className="muted small">{timeAgo(app.lastRun.createdAt)}</span>
           </Link>
         </>
+      )}
+    </div>
+  );
+}
+
+/** The app's Renovate switch and what the last run did for its repo. */
+function DependencyUpdates({ name }: { name: string }) {
+  const { data, error, setData } = usePoll(() => addonsApi.forApp(name), [name], 30000);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>();
+  if (error || !data) return null;
+  const r = data.renovate;
+  const toggle = async (on: boolean) => {
+    setBusy(true);
+    setErr(undefined);
+    try {
+      setData(await addonsApi.setForApp(name, "renovate", on));
+    } catch (e) {
+      setErr(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const res = r.lastRun?.result;
+  return (
+    <div className="card stack">
+      <div className="addon-head">
+        <div>
+          <strong>Dependency updates</strong> <span className="small muted">Renovate</span>
+          <div className="small muted">
+            {!r.enabled && "Off: this app's dependencies are not updated automatically."}
+            {r.enabled && !r.addonEnabled && <>On for this app, but the Renovate add-on is switched off in <Link to="/addons">Add-ons</Link>.</>}
+            {r.enabled && r.addonEnabled && "On: Renovate opens a pull request per update; patch and minor updates merge once rendimiento's checks pass."}
+          </div>
+        </div>
+        <Switch checked={r.enabled} disabled={busy} label={r.enabled ? "Switch dependency updates off" : "Switch dependency updates on"} onChange={toggle} />
+      </div>
+      <ErrorBox error={err} />
+      {r.enabled && (
+        <div className="row small">
+          {r.lastRun ? (
+            <>
+              <RunBadge status={r.lastRun.status} />
+              <span className="muted">last run {timeAgo(r.lastRun.startedAt)}{res?.result ? `: ${res.result}` : ""}</span>
+              {res?.prs?.length ? <span>opened {res.prs.length} PR{res.prs.length === 1 ? "" : "s"}</span> : null}
+              {res?.automerged?.length ? <span>merged {res.automerged.length}</span> : null}
+              {res?.errors?.length ? <span style={{ color: "var(--bad)" }}>{res.errors[0]}</span> : null}
+            </>
+          ) : <span className="muted">Not run yet for this app.</span>}
+          <a href={r.prsUrl} target="_blank" rel="noreferrer">Open update PRs ↗</a>
+          <Link to="/addons">Add-on settings</Link>
+        </div>
       )}
     </div>
   );

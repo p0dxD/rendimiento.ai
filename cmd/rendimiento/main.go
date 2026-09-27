@@ -35,6 +35,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
+	"github.com/p0dxD/rendimiento.ai/internal/renovate"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 	"github.com/p0dxD/rendimiento.ai/web"
 )
@@ -192,12 +193,17 @@ func run(log *slog.Logger) error {
 		RailpackFrontend: os.Getenv("RAILPACK_FRONTEND"),
 	}
 	p.Runner = pipeline.NewRunner(executor, p, parallel)
+	renovateRunner := &renovate.Runner{
+		Kube: clientset, Namespace: executor.Namespace, ExcludeNodes: executor.ExcludeNodes,
+		Store: st, GitHub: holder, Log: log,
+	}
 
 	srv := &api.Server{
 		Platform: p, Store: st, Kube: kube, GitHub: holder, Credentials: creds, DNS: dnsProvider, Log: log,
 		BaseURL: baseURL, AllowedUsers: users, SetupToken: os.Getenv("SETUP_TOKEN"),
 		AppName: env("GITHUB_APP_NAME", "rendimiento"), UI: web.Dist(),
-		Catalog: &catalog.Builder{Kube: kube},
+		Catalog:  &catalog.Builder{Kube: kube},
+		Renovate: renovateRunner,
 		Environment: &environment.Checker{
 			Kube: kube, Discovery: clientset.Discovery(), DNS: dnsProvider, GitHub: holder, DB: st,
 			Config: environment.Config{
@@ -221,6 +227,7 @@ func run(log *slog.Logger) error {
 				log.Info("removed build pods left by the previous process", "count", n)
 			}
 			log.Info("starting CI worker", "maxParallelSteps", parallel)
+			go renovateRunner.Loop(ctx)
 			p.Work(ctx)
 		case <-ctx.Done():
 		}

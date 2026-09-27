@@ -74,10 +74,10 @@ type Consumer struct {
 }
 
 type Entry struct {
-	ID          string `json:"id"` // namespace/name
-	Name        string `json:"name"`
-	Namespace   string `json:"namespace"`
-	Group       Group  `json:"group"`
+	ID        string `json:"id"` // namespace/name
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Group     Group  `json:"group"`
 	// Category is what the service does (database, ai, ...): guessed from
 	// its protocol, name and images unless its rendimiento.yaml says.
 	Category    string `json:"category"`

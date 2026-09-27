@@ -37,6 +37,7 @@ import (
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
+	"github.com/p0dxD/rendimiento.ai/internal/renovate"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 )
 
@@ -62,6 +63,7 @@ type Server struct {
 	UI           fs.FS    // built web UI; nil serves a placeholder
 	Environment  *environment.Checker
 	Catalog      *catalog.Builder
+	Renovate     *renovate.Runner
 }
 
 const sessionCookie = "rendimiento_session"
@@ -91,6 +93,14 @@ func (s *Server) Handler() http.Handler {
 	auth("GET /api/zones", s.zones)
 	auth("GET /api/environment", s.environment)
 	auth("GET /api/services", s.services)
+	auth("GET /api/addons", s.listAddons)
+	auth("GET /api/addons/{addon}", s.getAddon)
+	auth("PUT /api/addons/{addon}", s.putAddon)
+	auth("GET /api/addons/{addon}/runs", s.listAddonRuns)
+	auth("POST /api/addons/{addon}/runs", s.startAddonRun)
+	auth("GET /api/addons/{addon}/runs/{id}", s.getAddonRun)
+	auth("GET /api/apps/{app}/addons", s.appAddons)
+	auth("PUT /api/apps/{app}/addons/{addon}", s.putAppAddon)
 	auth("POST /api/dns/sync", s.dnsSync)
 	auth("POST /api/propose", s.propose)
 	auth("GET /api/namespaces/{name}/migration", s.migration)
