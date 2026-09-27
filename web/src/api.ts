@@ -329,6 +329,7 @@ export interface CatalogEntry {
   name: string;
   namespace: string;
   group: CatalogGroup;
+  category: string;
   title: string;
   description?: string;
   origin: {

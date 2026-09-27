@@ -9,6 +9,19 @@ const groups: { id: CatalogGroup; label: string; blurb: string }[] = [
   { id: "infrastructure", label: "Cluster internals", blurb: "The cluster's own plumbing (ingress, certificates, storage, CI). Rarely something an app should call." },
 ];
 
+// What services do, in the order sections appear.
+const categories: { id: string; label: string }[] = [
+  { id: "database", label: "Databases" },
+  { id: "messaging", label: "Caches & queues" },
+  { id: "ai", label: "AI" },
+  { id: "storage", label: "Storage" },
+  { id: "monitoring", label: "Monitoring & analytics" },
+  { id: "web", label: "Web & APIs" },
+  { id: "devtools", label: "Developer tools" },
+  { id: "platform", label: "Platform" },
+];
+const categoryLabel = (id: string) => categories.find((c) => c.id === id)?.label ?? id;
+
 const originLabel: Record<CatalogEntry["origin"]["kind"], string> = {
   rendimiento: "rendimiento",
   argocd: "ArgoCD",
@@ -20,6 +33,7 @@ export function Services() {
   const { ns, name } = useParams();
   const [group, setGroup] = useState<CatalogGroup>("apps");
   const [q, setQ] = useState("");
+  const [category, setCategory] = useState<string>();
   const [refreshing, setRefreshing] = useState(false);
   const { data, error, setData } = usePoll(() => catalogApi.list(), [], 60000);
 
@@ -29,11 +43,12 @@ export function Services() {
     return c;
   }, [data]);
 
-  const shown = useMemo(() => {
+  // Search spans every group; otherwise the current tab. Categories filter both.
+  const inScope = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return (data?.entries ?? []).filter((e) => {
       if (needle) {
-        const hay = [e.id, e.title, e.description, e.origin.summary, e.protocol, ...(e.public ?? []), ...(e.origin.images ?? []).map((i) => i.ref)]
+        const hay = [e.id, e.title, e.description, e.origin.summary, e.protocol, categoryLabel(e.category), ...(e.public ?? []), ...(e.origin.images ?? []).map((i) => i.ref)]
           .join(" ")
           .toLowerCase();
         return hay.includes(needle);
@@ -41,6 +56,9 @@ export function Services() {
       return e.group === group;
     });
   }, [data, group, q]);
+  const shown = inScope.filter((e) => !category || e.category === category);
+  const catCounts: Record<string, number> = {};
+  inScope.forEach((e) => (catCounts[e.category] = (catCounts[e.category] ?? 0) + 1));
 
   const refresh = async () => {
     setRefreshing(true);
@@ -78,7 +96,7 @@ export function Services() {
         <div className="tabs">
           {groups.map((g) => (
             <a key={g.id} href="#" className={group === g.id ? "active" : ""}
-              onClick={(e) => { e.preventDefault(); setGroup(g.id); }}>
+              onClick={(e) => { e.preventDefault(); setGroup(g.id); setCategory(undefined); }}>
               {g.label} <span className="muted small">{counts[g.id] ?? 0}</span>
             </a>
           ))}
@@ -87,10 +105,28 @@ export function Services() {
       {!q && <p className="small muted" style={{ marginTop: 0 }}>{groups.find((g) => g.id === group)?.blurb}</p>}
       {q && <p className="small muted" style={{ marginTop: 16 }}>{shown.length} match{shown.length === 1 ? "" : "es"} across all groups</p>}
 
-      <div className="stack">
-        {shown.map((e) => <ServiceCard key={e.id} e={e} open={focus === e.id} />)}
-        {shown.length === 0 && <div className="card muted">Nothing here.</div>}
+      <div className="row svc-cats">
+        <button className={`chip-btn ${!category ? "on" : ""}`} onClick={() => setCategory(undefined)}>All <span>{inScope.length}</span></button>
+        {categories.filter((c) => catCounts[c.id]).map((c) => (
+          <button key={c.id} className={`chip-btn ${category === c.id ? "on" : ""}`} onClick={() => setCategory(category === c.id ? undefined : c.id)}>
+            {c.label} <span>{catCounts[c.id]}</span>
+          </button>
+        ))}
       </div>
+
+      {categories.map((c) => {
+        const items = shown.filter((e) => e.category === c.id);
+        if (items.length === 0) return null;
+        return (
+          <section key={c.id} className="svc-section">
+            <h2>{c.label} <span className="muted small">{items.length}</span></h2>
+            <div className="stack">
+              {items.map((e) => <ServiceCard key={e.id} e={e} open={focus === e.id} />)}
+            </div>
+          </section>
+        );
+      })}
+      {shown.length === 0 && <div className="card muted" style={{ marginTop: 16 }}>Nothing here.</div>}
 
       {group === "apps" && !q && <DocsHint />}
     </>

@@ -129,3 +129,33 @@ func TestImageLink(t *testing.T) {
 		}
 	}
 }
+
+func TestCategorize(t *testing.T) {
+	img := func(refs ...string) Origin {
+		o := Origin{}
+		for _, r := range refs {
+			o.Images = append(o.Images, Image{Ref: r})
+		}
+		return o
+	}
+	for _, tc := range []struct {
+		e    Entry
+		want string
+	}{
+		{Entry{Name: "blog-postgres", Namespace: "podoi", Protocol: "postgres"}, "database"},
+		{Entry{Name: "rendimiento-db", Namespace: "rendimiento-system", Protocol: "postgres"}, "database"},
+		{Entry{Name: "argocd-redis", Namespace: "argocd", Protocol: "redis"}, "messaging"},
+		{Entry{Name: "ollama-internal", Namespace: "jobsentry", Protocol: "http", Origin: img("dustynv/ollama:r36.4.0")}, "ai"},
+		{Entry{Name: "sentry-linguistic", Namespace: "jobsentry", Protocol: "http"}, "ai"},
+		{Entry{Name: "minio-api", Namespace: "minio", Protocol: "http"}, "storage"},
+		{Entry{Name: "umami", Namespace: "umami", Protocol: "http"}, "monitoring"},
+		{Entry{Name: "jenkinsci", Namespace: "devops-tools", Protocol: "http"}, "devtools"},
+		{Entry{Name: "ingress-nginx-controller", Namespace: "ingress-nginx", Protocol: "http"}, "platform"},
+		// Built images live in the cluster registry: that must not make them "storage".
+		{Entry{Name: "web", Namespace: "secplus", Protocol: "http", Origin: img("registry.example.lan:5000/secplus-web@sha256:abc")}, "web"},
+	} {
+		if got := categorize(tc.e); got != tc.want {
+			t.Errorf("%s/%s = %s, want %s", tc.e.Namespace, tc.e.Name, got, tc.want)
+		}
+	}
+}

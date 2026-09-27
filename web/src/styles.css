@@ -204,3 +204,9 @@ ul.reasons { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size
 .copyable code { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 4px 8px; background: var(--surface-2); border-radius: 6px; }
 .copyable.block pre { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .copyable button { flex: none; padding: 3px 10px; }
+.svc-cats { gap: 6px; margin: 4px 0 4px; }
+.chip-btn { border-radius: 999px; padding: 4px 12px; font-size: 13px; }
+.chip-btn span { color: var(--muted); margin-left: 4px; }
+.chip-btn.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.chip-btn.on span { color: rgba(255,255,255,.8); }
+.svc-section h2 { font-size: 15px; margin: 22px 0 10px; }
