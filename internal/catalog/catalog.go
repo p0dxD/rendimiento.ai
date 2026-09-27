@@ -78,6 +78,9 @@ type Entry struct {
 	Name        string `json:"name"`
 	Namespace   string `json:"namespace"`
 	Group       Group  `json:"group"`
+	// Category is what the service does (database, ai, ...): guessed from
+	// its protocol, name and images unless its rendimiento.yaml says.
+	Category    string `json:"category"`
 	Title       string `json:"title"`
 	Description string `json:"description,omitempty"`
 	Origin      Origin `json:"origin"`
@@ -266,6 +269,10 @@ func assemble(s snapshot, infra []string) *Catalog {
 		}
 		if e.Env == "" {
 			e.Env = suggestEnv(svc.Name, e.Protocol)
+		}
+		e.Category = categorize(e)
+		if e.Group == GroupApps && as.svc.Catalog != nil && as.svc.Catalog.Category != "" {
+			e.Category = as.svc.Catalog.Category
 		}
 		e.Snippet = snippet(e)
 		e.UsedBy = consumers(workloads, svc, e.LAN)
@@ -533,6 +540,50 @@ func imageLink(ref string) string {
 		return "" // private registry
 	}
 	return "https://hub.docker.com/r/" + ref
+}
+
+// ---- categories ----
+
+// categoryRules are checked in order against the protocol, the service's
+// name and namespace, and its images; the first match wins.
+var categoryRules = []struct {
+	category string
+	match    *regexp.Regexp
+}{
+	{"database", regexp.MustCompile(`postgres|mysql|mariadb|mongo|clickhouse|cockroach|couchdb|cassandra|sqlite|(^|[^a-z])db($|[^a-z])`)},
+	{"messaging", regexp.MustCompile(`redis|valkey|memcache|nats|rabbitmq|kafka|mosquitto|mqtt`)},
+	{"ai", regexp.MustCompile(`ollama|litellm|llm|vllm|linguistic|openai|whisper|comfyui|stable-diffusion`)},
+	{"storage", regexp.MustCompile(`minio|(^|[^a-z])s3($|[^a-z])|registry|longhorn|nfs|seaweed`)},
+	{"monitoring", regexp.MustCompile(`grafana|prometheus|victoria|vmagent|vmalert|vmsingle|alertmanager|exporter|kube-state-metrics|loki|telegraf|umami|uptime|metrics`)},
+	{"devtools", regexp.MustCompile(`jenkins|argocd|buildkit|renovate|gitea|sonarqube|hajimari`)},
+	{"platform", regexp.MustCompile(`ingress|cert-manager|metallb|coredns|kube-dns|traefik|webhook|^kubernetes$|metrics-server|dex`)},
+}
+
+func categorize(e Entry) string {
+	hay := []string{e.Protocol, e.Name, e.Namespace + "/" + e.Name}
+	for _, i := range e.Origin.Images {
+		hay = append(hay, imageRepo(i.Ref))
+	}
+	text := strings.ToLower(strings.Join(hay, " "))
+	for _, r := range categoryRules {
+		if r.match.MatchString(text) {
+			return r.category
+		}
+	}
+	return "web"
+}
+
+// imageRepo drops the registry host, tag and digest: what the image is
+// ("dustynv/ollama"), not where it is stored ("registry.cube.local:5000").
+func imageRepo(ref string) string {
+	ref, _, _ = strings.Cut(ref, "@")
+	if i := strings.LastIndex(ref, ":"); i > strings.LastIndex(ref, "/") {
+		ref = ref[:i]
+	}
+	if first, rest, ok := strings.Cut(ref, "/"); ok && (strings.ContainsAny(first, ".:") || first == "localhost") {
+		return rest
+	}
+	return ref
 }
 
 // ---- consumers ----
