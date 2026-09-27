@@ -188,3 +188,13 @@ export function PipelineGraph({ run, selected, onSelect }: { run: Run; selected?
     </div>
   );
 }
+
+/** An on/off switch (a button with role="switch"). */
+export function Switch({ checked, onChange, disabled, label }: { checked: boolean; onChange: (on: boolean) => void; disabled?: boolean; label: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} aria-label={label} title={label} disabled={disabled}
+      className={`switch ${checked ? "on" : ""}`} onClick={() => onChange(!checked)}>
+      <span />
+    </button>
+  );
+}

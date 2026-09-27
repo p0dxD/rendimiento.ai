@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"strings"
@@ -291,4 +292,70 @@ func TestFinishAndCancelCloseSteps(t *testing.T) {
 		t.Fatalf("status = %s", got.Status)
 	}
 	assertStepsClosed(t, got)
+}
+
+func TestAddons(t *testing.T) {
+	s := open(t)
+	ctx := context.Background()
+	if _, err := s.GetAddon(ctx, "renovate"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("unset add-on: %v", err)
+	}
+	if err := s.PutAddon(ctx, "renovate", true, []byte(`{"schedule":"@daily"}`)); err != nil {
+		t.Fatal(err)
+	}
+	a, err := s.GetAddon(ctx, "renovate")
+	if err != nil || !a.Enabled || a.LastScheduled != nil {
+		t.Fatalf("addon = %+v, %v", a, err)
+	}
+	// Two workers race for the same slot: only one wins.
+	now := time.Now().Truncate(time.Second)
+	won1, _ := s.ClaimSchedule(ctx, "renovate", nil, now)
+	won2, _ := s.ClaimSchedule(ctx, "renovate", nil, now)
+	if !won1 || won2 {
+		t.Fatalf("claims = %v %v", won1, won2)
+	}
+	later := now.Add(time.Hour)
+	if won, _ := s.ClaimSchedule(ctx, "renovate", &now, later); !won {
+		t.Fatal("the next slot must be claimable from the recorded one")
+	}
+
+	sp := spec.Spec{Services: []spec.Service{{Name: "web"}}}
+	app := &App{Name: "shop", Repo: "o/shop", InstallationID: 1, DefaultBranch: "main", Spec: sp}
+	if err := s.CreateApp(ctx, app); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CreateApp(ctx, &App{Name: "blog", Repo: "o/blog", InstallationID: 1, DefaultBranch: "main", Spec: sp}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetAppAddon(ctx, app.ID, "renovate", true); err != nil {
+		t.Fatal(err)
+	}
+	on, err := s.AppsWithAddon(ctx, "renovate")
+	if err != nil || len(on) != 1 || on[0].Name != "shop" || on[0].Repo != "o/shop" {
+		t.Fatalf("apps with renovate = %v, %v", on, err)
+	}
+	_ = s.SetAppAddon(ctx, app.ID, "renovate", false)
+	if on, _ := s.AppsWithAddon(ctx, "renovate"); len(on) != 0 {
+		t.Fatal("switched off")
+	}
+
+	run := &AddonRun{Addon: "renovate", Trigger: "manual", Repos: []string{"o/shop"}}
+	if err := s.CreateAddonRun(ctx, run); err != nil || run.Status != "running" {
+		t.Fatalf("run = %+v, %v", run, err)
+	}
+	if n, _ := s.FailRunningAddonRuns(ctx); n != 1 {
+		t.Fatal("a running run is closed after a restart")
+	}
+	if err := s.FinishAddonRun(ctx, run.ID, "succeeded", "1 PR", map[string]json.RawMessage{"o/shop": []byte(`{"result":"done"}`)}, "log text"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.GetAddonRun(ctx, "renovate", run.ID)
+	var res struct{ Result string }
+	if err != nil || got.Status != "succeeded" || got.Log != "log text" || json.Unmarshal(got.Results["o/shop"], &res) != nil || res.Result != "done" {
+		t.Fatalf("run = %+v, %v", got, err)
+	}
+	list, _ := s.ListAddonRuns(ctx, "renovate", 10)
+	if len(list) != 1 || list[0].Log != "" {
+		t.Fatal("run lists leave the log out")
+	}
 }

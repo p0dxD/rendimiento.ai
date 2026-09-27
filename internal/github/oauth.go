@@ -33,6 +33,10 @@ func Manifest(name, baseURL string) map[string]any {
 			"pull_requests": "write", // open the onboarding PR
 			"checks":        "write", // report CI status
 			"metadata":      "read",
+			// Renovate add-on: its dependency dashboard is an issue, and it
+			// reads commit statuses before auto-merging.
+			"issues":   "write",
+			"statuses": "read",
 		},
 		"default_events": []string{"push"},
 	}
