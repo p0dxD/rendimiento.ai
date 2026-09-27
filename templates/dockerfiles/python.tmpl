@@ -1,0 +1,15 @@
+FROM python:{{.Version}}-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+{{- if .HasRequirements}}
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt{{if .NeedsServer}} {{.NeedsServer}}{{end}}
+COPY . .
+{{- else}}
+COPY . .
+RUN pip install --no-cache-dir .{{if .NeedsServer}} {{.NeedsServer}}{{end}}
+{{- end}}
+RUN useradd --uid 1001 --no-create-home app
+USER app
+EXPOSE {{.Port}}
+CMD {{.Cmd}}

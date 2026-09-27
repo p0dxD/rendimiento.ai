@@ -1,0 +1,733 @@
+// Package spec defines rendimiento.yaml, the only file an app repo needs.
+//
+// +kubebuilder:object:generate=true
+package spec
+
+import (
+	"errors"
+	"fmt"
+	"regexp"
+	"sort"
+	"strings"
+
+	"sigs.k8s.io/yaml"
+)
+
+const FileName = "rendimiento.yaml"
+
+type Spec struct {
+	Services []Service `json:"services"`
+	// Jobs run on a schedule (Kubernetes CronJobs).
+	Jobs []Job `json:"jobs,omitempty"`
+	// SharedNamespace means the app's namespace also holds things rendimiento
+	// does not manage (e.g. a service still deployed by ArgoCD, which owns the
+	// namespace). rendimiento then never creates, labels, owns or deletes the
+	// namespace: it must exist, and deleting the app removes only its own objects.
+	SharedNamespace bool `json:"sharedNamespace,omitempty"`
+}
+
+// Job is a scheduled task. Its image comes from exactly one of: Service (use
+// that service's released image), Path (build this directory), or Image.
+type Job struct {
+	Name     string `json:"name"`
+	Schedule string `json:"schedule"`
+	// TimeZone for the schedule, e.g. America/New_York (default: cluster time, UTC).
+	TimeZone string   `json:"timeZone,omitempty"`
+	Service  string   `json:"service,omitempty"`
+	Path     string   `json:"path,omitempty"`
+	Watch    []string `json:"watch,omitempty"`
+	Build    Build    `json:"build,omitempty"`
+	Image    string   `json:"image,omitempty"`
+	Command  []string `json:"command,omitempty"`
+	Args     []string `json:"args,omitempty"`
+	Size     Size     `json:"size,omitempty"`
+	// Resources overrides the size preset's requests and limits.
+	Resources *ResourceOverride `json:"resources,omitempty"`
+	// Timeout stops a run after this many seconds (0 = no limit).
+	Timeout   int               `json:"timeout,omitempty"`
+	Env       map[string]string `json:"env,omitempty"`
+	SecretEnv map[string]string `json:"secretEnv,omitempty"`
+	Secrets   []string          `json:"secrets,omitempty"`
+}
+
+// Touches reports whether a change to repo file f affects something built
+// from dir or any of the watch paths ("." means the whole repo).
+func Touches(f, dir string, watch []string) bool {
+	for _, p := range append([]string{dir}, watch...) {
+		p = strings.Trim(p, "/")
+		if p == "." || p == "" || f == p || strings.HasPrefix(f, p+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// ImageKey is the key of a built job's image in a release's image map.
+func (j Job) ImageKey() string { return "job:" + j.Name }
+
+type Service struct {
+	Name string `json:"name"`
+	// Image runs a ready-made image (e.g. postgres:15-alpine) instead of
+	// building the repo: no build or test step, released as given.
+	Image string `json:"image,omitempty"`
+	Path  string `json:"path,omitempty"`
+	// Watch lists extra repo paths whose changes also rebuild this service
+	// (code shared with other folders). Its own path always counts.
+	Watch    []string          `json:"watch,omitempty"`
+	Language string            `json:"language,omitempty"`
+	Port     int               `json:"port,omitempty"`
+	Build    Build             `json:"build,omitempty"`
+	Test     *Test             `json:"test,omitempty"`
+	Size     Size              `json:"size,omitempty"`
+	Replicas int               `json:"replicas,omitempty"`
+	Domain   string            `json:"domain,omitempty"`
+	Health   *Health           `json:"health,omitempty"`
+	Env      map[string]string `json:"env,omitempty"`
+	// Secrets are loaded whole as environment variables (envFrom).
+	Secrets []string `json:"secrets,omitempty"`
+	// SecretEnv sets single variables from secret keys, as NAME: secret/key.
+	SecretEnv map[string]string `json:"secretEnv,omitempty"`
+	// SecretFiles mounts secrets as read-only files.
+	SecretFiles []SecretFile `json:"secretFiles,omitempty"`
+	// ConfigFiles mounts existing ConfigMaps as read-only files.
+	ConfigFiles []ConfigFile `json:"configFiles,omitempty"`
+	// Aliases are extra hostnames served like Domain, on the same certificate.
+	Aliases []string `json:"aliases,omitempty"`
+	// Routes send a path on a host owned by another service of this app to
+	// this service, as "host/path" (e.g. "wellness.jobsentry.net/api").
+	// They use the certificate of the service that owns the host.
+	Routes []string `json:"routes,omitempty"`
+	Volume *Volume  `json:"volume,omitempty"`
+	// Resources overrides the size preset's requests and limits.
+	Resources *ResourceOverride `json:"resources,omitempty"`
+	// Ingress fine-tunes how the service is exposed on its domain.
+	Ingress *IngressOptions `json:"ingress,omitempty"`
+	// Streaming keeps responses unbuffered and long-lived at the ingress
+	// (server-sent events, streamed AI answers, websockets).
+	Streaming bool `json:"streaming,omitempty"`
+	// TLSSecret names the certificate secret (default <name>-tls); set it to
+	// keep an existing certificate when migrating an app.
+	TLSSecret string `json:"tlsSecret,omitempty"`
+	// Command and Args override the image's entrypoint and arguments
+	// (mostly for ready-made images).
+	Command []string `json:"command,omitempty"`
+	Args    []string `json:"args,omitempty"`
+	// GPU requests this many GPUs. How a GPU is attached (runtime class,
+	// driver libraries) is cluster configuration, not part of the app.
+	GPU int `json:"gpu,omitempty"`
+	// Catalog documents the service for other apps on the Services page:
+	// what it is, which variable consumers usually set and what it offers.
+	Catalog *Catalog `json:"catalog,omitempty"`
+}
+
+// Catalog is what the Services page shows about a service besides what it
+// can work out itself (addresses, ports, origin, who uses it).
+type Catalog struct {
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
+	// Env is the variable consumers usually put the address in (OLLAMA_HOST).
+	Env string `json:"env,omitempty"`
+	// Path is appended to the address in the suggested value (/analyze).
+	Path string `json:"path,omitempty"`
+	// Docs links to the API documentation.
+	Docs string `json:"docs,omitempty"`
+	// Endpoints are short descriptions such as "POST /analyze: classify a message".
+	Endpoints []string `json:"endpoints,omitempty"`
+}
+
+// ResourceOverride replaces individual values of the size preset. Limits
+// may be "none" to leave them unset (e.g. no CPU limit).
+type ResourceOverride struct {
+	CPU         string `json:"cpu,omitempty"`
+	Memory      string `json:"memory,omitempty"`
+	CPULimit    string `json:"cpuLimit,omitempty"`
+	MemoryLimit string `json:"memoryLimit,omitempty"`
+}
+
+type IngressOptions struct {
+	// Name keeps an existing ingress's name so a migration updates it in place.
+	Name string `json:"name,omitempty"`
+	// Annotations are extra ingress-nginx settings (rate limits, body size...).
+	// Only nginx.ingress.kubernetes.io/* keys; snippets are not allowed.
+	Annotations map[string]string `json:"annotations,omitempty"`
+	// TLSSecrets puts some hosts on their own certificate: host → secret.
+	TLSSecrets map[string]string `json:"tlsSecrets,omitempty"`
+}
+
+// ResourcesFor resolves the service's requests and limits ("" = unset).
+func ResourcesFor(size Size, o *ResourceOverride) Resources {
+	r := size.Resources()
+	if o == nil {
+		return r
+	}
+	pick := func(cur, override string) string {
+		switch override {
+		case "":
+			return cur
+		case "none":
+			return ""
+		}
+		return override
+	}
+	r.CPURequest, r.MemRequest = pick(r.CPURequest, o.CPU), pick(r.MemRequest, o.Memory)
+	r.CPULimit, r.MemLimit = pick(r.CPULimit, o.CPULimit), pick(r.MemLimit, o.MemoryLimit)
+	return r
+}
+
+// Route is one host + path prefix a service answers on.
+type Route struct {
+	Host, Path string
+}
+
+// ParseRoute splits "host/path" (path defaults to "/").
+func ParseRoute(r string) Route {
+	host, path, found := strings.Cut(r, "/")
+	if !found {
+		return Route{Host: host, Path: "/"}
+	}
+	return Route{Host: host, Path: "/" + strings.TrimSuffix(path, "/")}
+}
+
+// AllRoutes is everything the service's ingress routes to it: "/" on its
+// domain and aliases, then its extra routes.
+func (s Service) AllRoutes() []Route {
+	var out []Route
+	for _, h := range s.Hosts() {
+		out = append(out, Route{Host: h, Path: "/"})
+	}
+	for _, r := range s.Routes {
+		out = append(out, ParseRoute(r))
+	}
+	return out
+}
+
+// HasIngress reports whether the service is reachable from outside.
+func (s Service) HasIngress() bool { return s.Domain != "" || len(s.Routes) > 0 }
+
+// IngressName is the name of the service's ingress.
+func (s Service) IngressName() string {
+	if s.Ingress != nil && s.Ingress.Name != "" {
+		return s.Ingress.Name
+	}
+	return s.Name
+}
+
+// TLSGroups returns the service's hosts grouped by certificate secret, in
+// host order: [{secret, hosts}].
+func (s Service) TLSGroups() [][2]any {
+	var order []string
+	groups := map[string][]string{}
+	for _, h := range s.Hosts() {
+		secret := s.TLSSecretName()
+		if s.Ingress != nil && s.Ingress.TLSSecrets[h] != "" {
+			secret = s.Ingress.TLSSecrets[h]
+		}
+		if _, ok := groups[secret]; !ok {
+			order = append(order, secret)
+		}
+		groups[secret] = append(groups[secret], h)
+	}
+	out := make([][2]any, 0, len(order))
+	for _, sec := range order {
+		out = append(out, [2]any{sec, groups[sec]})
+	}
+	return out
+}
+
+type ConfigFile struct {
+	ConfigMap string `json:"configMap"`
+	Mount     string `json:"mount"`
+}
+
+type SecretFile struct {
+	Secret string `json:"secret"`
+	Mount  string `json:"mount"`
+}
+
+// SecretNames lists every secret the service reads, however it reads it.
+func (s Service) SecretNames() []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(n string) {
+		if n != "" && !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	for _, n := range s.Secrets {
+		add(n)
+	}
+	for _, ref := range s.SecretEnv {
+		name, _, _ := strings.Cut(ref, "/")
+		add(name)
+	}
+	for _, f := range s.SecretFiles {
+		add(f.Secret)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// TLSSecretName is the certificate secret for the service's domain.
+func (s Service) TLSSecretName() string {
+	if s.TLSSecret != "" {
+		return s.TLSSecret
+	}
+	return s.Name + "-tls"
+}
+
+type Build struct {
+	// Builder is "dockerfile", "railpack" or empty for automatic: the
+	// Dockerfile when the service folder has one, Railpack otherwise.
+	Builder    string            `json:"builder,omitempty"`
+	Dockerfile string            `json:"dockerfile,omitempty"`
+	Args       map[string]string `json:"args,omitempty"`
+	// Start overrides the start command Railpack detects.
+	Start string `json:"start,omitempty"`
+}
+
+const (
+	BuilderAuto       = ""
+	BuilderDockerfile = "dockerfile"
+	BuilderRailpack   = "railpack"
+)
+
+func (b Build) validate(p string) []error {
+	var errs []error
+	switch b.Builder {
+	case BuilderAuto, BuilderDockerfile, BuilderRailpack:
+	default:
+		errs = append(errs, fmt.Errorf("%s.build.builder %q must be dockerfile or railpack", p, b.Builder))
+	}
+	if b.Start != "" && b.Builder == BuilderDockerfile {
+		errs = append(errs, fmt.Errorf("%s.build.start only applies to Railpack builds (the Dockerfile sets its own CMD)", p))
+	}
+	for k := range b.Args {
+		if !envKey.MatchString(k) {
+			errs = append(errs, fmt.Errorf("%s.build.args key %q is invalid", p, k))
+		}
+	}
+	return errs
+}
+
+type Test struct {
+	Image   string `json:"image"`
+	Command string `json:"command"`
+}
+
+type Health struct {
+	// Path is an HTTP GET check; TCP checks the port accepts connections
+	// (databases and other non-HTTP services).
+	Path string `json:"path,omitempty"`
+	TCP  bool   `json:"tcp,omitempty"`
+	// Timeout per check in seconds (Kubernetes default: 1).
+	Timeout int `json:"timeout,omitempty"`
+}
+
+type Volume struct {
+	// Size of a new volume; not needed with ExistingClaim.
+	Size  string `json:"size,omitempty"`
+	Mount string `json:"mount"`
+	// ExistingClaim mounts a PersistentVolumeClaim that already exists (its
+	// data is kept) instead of creating <name>-data. Used when migrating.
+	ExistingClaim string `json:"existingClaim,omitempty"`
+	// FSGroup makes the volume writable by this group. Defaults to 1001 for
+	// built apps and to none for ready-made images: databases such as
+	// Postgres refuse to start on a group-writable data directory.
+	FSGroup *int64 `json:"fsGroup,omitempty"`
+}
+
+// VolumeFSGroup is the pod fsGroup for the service's volume, or nil.
+func (s Service) VolumeFSGroup() *int64 {
+	if s.Volume == nil {
+		return nil
+	}
+	if s.Volume.FSGroup != nil {
+		if *s.Volume.FSGroup < 0 {
+			return nil // explicitly disabled with fsGroup: -1
+		}
+		return s.Volume.FSGroup
+	}
+	if s.Image != "" {
+		return nil
+	}
+	g := int64(1001)
+	return &g
+}
+
+// Hosts are every hostname the service answers on: domain, then aliases.
+func (s Service) Hosts() []string {
+	if s.Domain == "" {
+		return nil
+	}
+	return append([]string{s.Domain}, s.Aliases...)
+}
+
+// ClaimName is the PersistentVolumeClaim the service mounts.
+func (s Service) ClaimName() string {
+	if s.Volume != nil && s.Volume.ExistingClaim != "" {
+		return s.Volume.ExistingClaim
+	}
+	return s.Name + "-data"
+}
+
+type Size string
+
+const (
+	SizeSmall  Size = "small"
+	SizeMedium Size = "medium"
+	SizeLarge  Size = "large"
+)
+
+// Resources are requests/limits for a size, sized for Raspberry Pi nodes.
+type Resources struct {
+	CPURequest, MemRequest, CPULimit, MemLimit string
+}
+
+var sizes = map[Size]Resources{
+	SizeSmall:  {"50m", "64Mi", "500m", "256Mi"},
+	SizeMedium: {"100m", "256Mi", "1", "512Mi"},
+	SizeLarge:  {"250m", "512Mi", "2", "1Gi"},
+}
+
+func (s Size) Resources() Resources { return sizes[s] }
+
+var (
+	dnsLabel  = regexp.MustCompile(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`)
+	hostname  = regexp.MustCompile(`^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)+[a-z]{2,}$`)
+	envKey    = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+	quantity  = regexp.MustCompile(`^[0-9]+(Mi|Gi|Ti)$`)
+	claimName = regexp.MustCompile(`^[a-z0-9]([-.a-z0-9]{0,251}[a-z0-9])?$`)
+	// Secret keys may contain dots (practice.json), unlike DNS labels.
+	secretKey = regexp.MustCompile(`^[-._a-zA-Z0-9]+$`)
+)
+
+// Parse reads rendimiento.yaml, applies defaults and validates it.
+func Parse(data []byte) (*Spec, error) {
+	var s Spec
+	if err := yaml.UnmarshalStrict(data, &s); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", FileName, err)
+	}
+	s.Default()
+	if err := s.Validate(); err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+func (s *Spec) Marshal() ([]byte, error) { return yaml.Marshal(s) }
+
+func (s *Spec) Default() {
+	for i := range s.Jobs {
+		j := &s.Jobs[i]
+		if j.Size == "" {
+			j.Size = SizeSmall
+		}
+		if j.Path != "" && j.Build.Dockerfile == "" {
+			j.Build.Dockerfile = "Dockerfile"
+		}
+	}
+	for i := range s.Services {
+		svc := &s.Services[i]
+		if svc.Path == "" {
+			svc.Path = "."
+		}
+		if svc.Port == 0 {
+			svc.Port = 8080
+		}
+		if svc.Size == "" {
+			svc.Size = SizeSmall
+		}
+		if svc.Replicas == 0 {
+			svc.Replicas = 1
+		}
+		if svc.Build.Dockerfile == "" {
+			svc.Build.Dockerfile = "Dockerfile"
+		}
+	}
+}
+
+func (s *Spec) Validate() error {
+	if len(s.Services) == 0 {
+		return errors.New("at least one service is required")
+	}
+	var errs []error
+	seen := map[string]bool{}
+	domains := map[string]bool{}
+	for i, svc := range s.Services {
+		p := fmt.Sprintf("services[%d]", i)
+		if !dnsLabel.MatchString(svc.Name) {
+			errs = append(errs, fmt.Errorf("%s.name %q must be a lowercase DNS label", p, svc.Name))
+		}
+		if seen[svc.Name] {
+			errs = append(errs, fmt.Errorf("%s.name %q is duplicated", p, svc.Name))
+		}
+		seen[svc.Name] = true
+		for _, w := range svc.Watch {
+			if w == "" || strings.HasPrefix(w, "/") || strings.Contains(w, "..") {
+				errs = append(errs, fmt.Errorf("%s.watch %q must be a path relative to the repo root", p, w))
+			}
+		}
+		if strings.HasPrefix(svc.Path, "/") || strings.Contains(svc.Path, "..") {
+			errs = append(errs, fmt.Errorf("%s.path %q must be relative to the repo root", p, svc.Path))
+		}
+		if svc.Port < 1 || svc.Port > 65535 {
+			errs = append(errs, fmt.Errorf("%s.port %d out of range", p, svc.Port))
+		}
+		if _, ok := sizes[svc.Size]; !ok {
+			errs = append(errs, fmt.Errorf("%s.size %q must be small, medium or large", p, svc.Size))
+		}
+		if svc.Replicas < 0 || svc.Replicas > 10 {
+			errs = append(errs, fmt.Errorf("%s.replicas %d must be between 0 and 10", p, svc.Replicas))
+		}
+		if len(svc.Aliases) > 0 && svc.Domain == "" {
+			errs = append(errs, fmt.Errorf("%s.aliases need a domain", p))
+		}
+		for _, h := range svc.Hosts() {
+			if !hostname.MatchString(h) {
+				errs = append(errs, fmt.Errorf("%s: %q is not a valid hostname", p, h))
+			}
+			if domains[h] {
+				errs = append(errs, fmt.Errorf("%s: host %q is used more than once", p, h))
+			}
+			domains[h] = true
+		}
+		if h := svc.Health; h != nil {
+			switch {
+			case h.TCP && h.Path != "":
+				errs = append(errs, fmt.Errorf("%s.health: use either path or tcp", p))
+			case !h.TCP && !strings.HasPrefix(h.Path, "/"):
+				errs = append(errs, fmt.Errorf("%s.health.path must start with /", p))
+			}
+		}
+		errs = append(errs, validateResources(p, svc.Resources)...)
+		if in := svc.Ingress; in != nil {
+			if in.Name != "" && !dnsLabel.MatchString(in.Name) {
+				errs = append(errs, fmt.Errorf("%s.ingress.name %q must be a lowercase DNS label", p, in.Name))
+			}
+			for k := range in.Annotations {
+				if !strings.HasPrefix(k, "nginx.ingress.kubernetes.io/") || strings.HasSuffix(k, "-snippet") {
+					errs = append(errs, fmt.Errorf("%s.ingress.annotations: %q is not allowed (only nginx.ingress.kubernetes.io/* settings, no snippets)", p, k))
+				}
+			}
+			hosts := map[string]bool{}
+			for _, h := range svc.Hosts() {
+				hosts[h] = true
+			}
+			for h, sec := range in.TLSSecrets {
+				if !hosts[h] {
+					errs = append(errs, fmt.Errorf("%s.ingress.tlsSecrets: %q is not one of the service's hosts", p, h))
+				}
+				if !dnsLabel.MatchString(sec) {
+					errs = append(errs, fmt.Errorf("%s.ingress.tlsSecrets.%s %q must be a lowercase DNS label", p, h, sec))
+				}
+			}
+		}
+		if h := svc.Health; h != nil && (h.Timeout < 0 || h.Timeout > 60) {
+			errs = append(errs, fmt.Errorf("%s.health.timeout must be between 1 and 60 seconds", p))
+		}
+		if svc.Image != "" && svc.Test != nil {
+			errs = append(errs, fmt.Errorf("%s: a service with a ready-made image has no test step", p))
+		}
+		if svc.Image == "" {
+			errs = append(errs, svc.Build.validate(p)...)
+		}
+		if svc.GPU < 0 || svc.GPU > 8 {
+			errs = append(errs, fmt.Errorf("%s.gpu %d must be between 0 and 8", p, svc.GPU))
+		}
+		if svc.GPU > 0 && svc.Replicas > 1 {
+			errs = append(errs, fmt.Errorf("%s: GPU services run one replica (each replica needs its own GPU)", p))
+		}
+		if c := svc.Catalog; c != nil {
+			if c.Env != "" && !envKey.MatchString(c.Env) {
+				errs = append(errs, fmt.Errorf("%s.catalog.env %q is not a valid variable name", p, c.Env))
+			}
+			if c.Path != "" && !strings.HasPrefix(c.Path, "/") {
+				errs = append(errs, fmt.Errorf("%s.catalog.path must start with /", p))
+			}
+			if c.Docs != "" && !strings.HasPrefix(c.Docs, "https://") && !strings.HasPrefix(c.Docs, "http://") {
+				errs = append(errs, fmt.Errorf("%s.catalog.docs must be an http(s) link", p))
+			}
+		}
+		for i, f := range svc.ConfigFiles {
+			if !dnsLabel.MatchString(f.ConfigMap) {
+				errs = append(errs, fmt.Errorf("%s.configFiles[%d].configMap %q must be a lowercase DNS label", p, i, f.ConfigMap))
+			}
+			if !strings.HasPrefix(f.Mount, "/") || f.Mount == "/" {
+				errs = append(errs, fmt.Errorf("%s.configFiles[%d].mount must be an absolute directory other than /", p, i))
+			}
+		}
+		if svc.Test != nil && (svc.Test.Image == "" || svc.Test.Command == "") {
+			errs = append(errs, fmt.Errorf("%s.test needs both image and command", p))
+		}
+		for k := range svc.Env {
+			if !envKey.MatchString(k) {
+				errs = append(errs, fmt.Errorf("%s.env key %q is invalid", p, k))
+			}
+		}
+		for _, sec := range svc.Secrets {
+			if !dnsLabel.MatchString(sec) {
+				errs = append(errs, fmt.Errorf("%s.secrets entry %q must be a lowercase DNS label", p, sec))
+			}
+		}
+		for k, ref := range svc.SecretEnv {
+			name, key, ok := strings.Cut(ref, "/")
+			if !envKey.MatchString(k) {
+				errs = append(errs, fmt.Errorf("%s.secretEnv key %q is invalid", p, k))
+			}
+			if !ok || !dnsLabel.MatchString(name) || !secretKey.MatchString(key) {
+				errs = append(errs, fmt.Errorf("%s.secretEnv.%s must be <secret>/<key>, got %q", p, k, ref))
+			}
+		}
+		mounts := map[string]bool{}
+		if svc.Volume != nil {
+			mounts[svc.Volume.Mount] = true
+		}
+		for i, f := range svc.SecretFiles {
+			if !dnsLabel.MatchString(f.Secret) {
+				errs = append(errs, fmt.Errorf("%s.secretFiles[%d].secret %q must be a lowercase DNS label", p, i, f.Secret))
+			}
+			if !strings.HasPrefix(f.Mount, "/") || f.Mount == "/" {
+				errs = append(errs, fmt.Errorf("%s.secretFiles[%d].mount must be an absolute directory other than /", p, i))
+			}
+			if mounts[f.Mount] {
+				errs = append(errs, fmt.Errorf("%s.secretFiles[%d].mount %s is already used", p, i, f.Mount))
+			}
+			mounts[f.Mount] = true
+		}
+		if svc.TLSSecret != "" && !dnsLabel.MatchString(svc.TLSSecret) {
+			errs = append(errs, fmt.Errorf("%s.tlsSecret %q must be a lowercase DNS label", p, svc.TLSSecret))
+		}
+		if v := svc.Volume; v != nil {
+			switch {
+			case v.ExistingClaim != "":
+				if !claimName.MatchString(v.ExistingClaim) {
+					errs = append(errs, fmt.Errorf("%s.volume.existingClaim %q is not a valid claim name", p, v.ExistingClaim))
+				}
+				if v.Size != "" && !quantity.MatchString(v.Size) {
+					errs = append(errs, fmt.Errorf("%s.volume.size %q must look like 5Gi", p, v.Size))
+				}
+			case !quantity.MatchString(v.Size):
+				errs = append(errs, fmt.Errorf("%s.volume.size %q must look like 5Gi", p, v.Size))
+			}
+			if !strings.HasPrefix(v.Mount, "/") {
+				errs = append(errs, fmt.Errorf("%s.volume.mount must be an absolute path", p))
+			}
+		}
+	}
+	errs = append(errs, s.validateRoutes()...)
+	errs = append(errs, s.validateJobs(seen)...)
+	return errors.Join(errs...)
+}
+
+func validateResources(p string, o *ResourceOverride) []error {
+	if o == nil {
+		return nil
+	}
+	var errs []error
+	for field, v := range map[string]string{"cpu": o.CPU, "memory": o.Memory, "cpuLimit": o.CPULimit, "memoryLimit": o.MemoryLimit} {
+		if v == "" || (v == "none" && strings.HasSuffix(field, "Limit")) {
+			continue
+		}
+		if _, err := resourceQuantity(v); err != nil {
+			errs = append(errs, fmt.Errorf("%s.resources.%s %q is not a valid quantity", p, field, v))
+		}
+	}
+	return errs
+}
+
+// resourceQuantity checks a Kubernetes quantity like 250m, 1Gi or 2.
+var quantityRe = regexp.MustCompile(`^([0-9]+(\.[0-9]+)?)(m|Ki|Mi|Gi|Ti|k|M|G|T)?$`)
+
+func resourceQuantity(v string) (string, error) {
+	if !quantityRe.MatchString(v) {
+		return "", fmt.Errorf("invalid quantity %q", v)
+	}
+	return v, nil
+}
+
+func (s *Spec) validateRoutes() []error {
+	var errs []error
+	owned := map[string]bool{}
+	for _, svc := range s.Services {
+		for _, h := range svc.Hosts() {
+			owned[h] = true
+		}
+	}
+	seen := map[Route]string{}
+	for i, svc := range s.Services {
+		for _, r := range svc.AllRoutes() {
+			if prev, dup := seen[r]; dup && prev != svc.Name {
+				errs = append(errs, fmt.Errorf("services[%d]: %s%s is already routed to %s", i, r.Host, r.Path, prev))
+			}
+			seen[r] = svc.Name
+		}
+		for _, raw := range svc.Routes {
+			r := ParseRoute(raw)
+			switch {
+			case !hostname.MatchString(r.Host):
+				errs = append(errs, fmt.Errorf("services[%d].routes: %q has no valid host", i, raw))
+			case !owned[r.Host]:
+				errs = append(errs, fmt.Errorf("services[%d].routes: %s is not the domain or alias of a service in this app (routes use its certificate)", i, r.Host))
+			case r.Path == "/":
+				errs = append(errs, fmt.Errorf("services[%d].routes: %q needs a path, e.g. %s/api", i, raw, r.Host))
+			}
+		}
+	}
+	return errs
+}
+
+// cronField is a loose check: five space-separated fields or an @macro.
+var cronField = regexp.MustCompile(`^(@(yearly|annually|monthly|weekly|daily|midnight|hourly)|(\S+\s+){4}\S+)$`)
+
+func (s *Spec) validateJobs(services map[string]bool) []error {
+	var errs []error
+	seen := map[string]bool{}
+	for i, j := range s.Jobs {
+		p := fmt.Sprintf("jobs[%d]", i)
+		if !dnsLabel.MatchString(j.Name) || len(j.Name) > 52 {
+			errs = append(errs, fmt.Errorf("%s.name %q must be a lowercase DNS label of at most 52 characters", p, j.Name))
+		}
+		if seen[j.Name] || services[j.Name] {
+			errs = append(errs, fmt.Errorf("%s.name %q is already used by a job or service", p, j.Name))
+		}
+		seen[j.Name] = true
+		if !cronField.MatchString(strings.TrimSpace(j.Schedule)) {
+			errs = append(errs, fmt.Errorf("%s.schedule %q is not a cron schedule", p, j.Schedule))
+		}
+		sources := 0
+		for _, set := range []bool{j.Service != "", j.Path != "", j.Image != ""} {
+			if set {
+				sources++
+			}
+		}
+		if sources != 1 {
+			errs = append(errs, fmt.Errorf("%s needs exactly one of service, path or image", p))
+		}
+		if j.Service != "" && !services[j.Service] {
+			errs = append(errs, fmt.Errorf("%s.service %q is not a service in this app", p, j.Service))
+		}
+		if strings.HasPrefix(j.Path, "/") || strings.Contains(j.Path, "..") {
+			errs = append(errs, fmt.Errorf("%s.path %q must be relative to the repo root", p, j.Path))
+		}
+		if _, ok := sizes[j.Size]; !ok {
+			errs = append(errs, fmt.Errorf("%s.size %q must be small, medium or large", p, j.Size))
+		}
+		errs = append(errs, validateResources(p, j.Resources)...)
+		if j.Path != "" {
+			errs = append(errs, j.Build.validate(p)...)
+		}
+		for k, ref := range j.SecretEnv {
+			name, key, ok := strings.Cut(ref, "/")
+			if !envKey.MatchString(k) || !ok || !dnsLabel.MatchString(name) || !secretKey.MatchString(key) {
+				errs = append(errs, fmt.Errorf("%s.secretEnv.%s must be <secret>/<key>, got %q", p, k, ref))
+			}
+		}
+		for k := range j.Env {
+			if !envKey.MatchString(k) {
+				errs = append(errs, fmt.Errorf("%s.env key %q is invalid", p, k))
+			}
+		}
+	}
+	return errs
+}

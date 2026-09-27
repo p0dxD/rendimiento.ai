@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rendimiento-db
+  namespace: rendimiento-system
+spec:
+  selector: { app: rendimiento-db }
+  ports: [{ port: 5432, targetPort: 5432 }]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rendimiento-db
+  namespace: rendimiento-system
+spec:
+  serviceName: rendimiento-db
+  replicas: 1
+  selector:
+    matchLabels: { app: rendimiento-db }
+  template:
+    metadata:
+      labels: { app: rendimiento-db }
+    spec:
+      securityContext: { fsGroup: 70 }
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          env:
+            - { name: POSTGRES_DB, value: rendimiento }
+            - { name: POSTGRES_USER, value: rendimiento }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: rendimiento-db, key: password } }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          ports: [{ containerPort: 5432 }]
+          readinessProbe:
+            exec: { command: [pg_isready, -U, rendimiento, -d, rendimiento] }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          volumeMounts: [{ name: data, mountPath: /var/lib/postgresql/data }]
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: longhorn
+        resources: { requests: { storage: 5Gi } }

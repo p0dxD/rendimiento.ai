@@ -1,0 +1,17 @@
+FROM node:{{.Version}}-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+ARG GIT_SHA=""
+ENV GIT_SHA=$GIT_SHA NEXT_TELEMETRY_DISABLED=1
+RUN npm run build --if-present && npm prune --omit=dev
+
+FROM node:{{.Version}}-alpine
+WORKDIR /app
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+COPY --from=builder --chown=node:node /app ./
+USER node
+EXPOSE {{.Port}}
+ENV PORT={{.Port}} HOSTNAME="0.0.0.0"
+CMD ["npm", "start"]
