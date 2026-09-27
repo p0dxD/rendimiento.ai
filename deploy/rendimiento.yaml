@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rendimiento
+  namespace: rendimiento-system
+data:
+  BASE_URL: https://rendimiento.joserod.space
+  ALLOWED_USERS: p0dxD
+  GITHUB_APP_NAME: rendimiento-joserod
+  DNS_ZONE: joserod.space
+  DNS_PROXIED: "true"
+  REGISTRY: registry.example.lan:5000
+  REGISTRY_INSECURE: "true"
+  BUILDKIT_ADDR: tcp://buildkitd.devops-tools.svc.cluster.local:1234
+  MAX_PARALLEL_STEPS: "4"
+  # Longest a single test or build step may run. First builds on the Pis
+  # start with a cold cache (e.g. compiling a Python wheel from source).
+  STEP_TIMEOUT: 45m
+  # the GPU node's kernel lacks an ipset type kube-router needs, so it cannot
+  # enforce the build NetworkPolicy; it is also the GPU node. Never build there.
+  BUILD_EXCLUDE_NODES: gpu-node
+  # One replica with the Recreate strategy never overlaps, so leader
+  # election only adds a way to crash when the API server is slow.
+  LEADER_ELECTION: "false"
+  CLUSTER_ISSUER: letsencrypt-prod
+  INGRESS_CLASS: nginx
+  STORAGE_CLASS: longhorn
+  # Services without a Dockerfile are built from source with Railpack. The
+  # CLI image comes from `make railpack-image`; keep both versions in step.
+  RAILPACK_IMAGE: registry.example.lan:5000/rendimiento-railpack:0.40.0
+  RAILPACK_FRONTEND: ghcr.io/railwayapp/railpack-frontend:v0.40.0
+  # How a service with `gpu: 1` gets the GPU node Orin's GPU: its runtime
+  # class, the host's driver libraries (read-only) and a larger /dev/shm.
+  GPU_RESOURCE: nvidia.com/gpu
+  GPU_RUNTIME_CLASS: nvidia
+  GPU_HOST_PATHS: /usr/lib/aarch64-linux-gnu/nvidia
+  GPU_ENV: NVIDIA_VISIBLE_DEVICES=all;NVIDIA_DRIVER_CAPABILITIES=all;LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu/nvidia:/usr/local/cuda/lib64
+  GPU_SHARED_MEMORY: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rendimiento
+  namespace: rendimiento-system
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: rendimiento }
+  template:
+    metadata:
+      labels: { app: rendimiento }
+    spec:
+      serviceAccountName: rendimiento
+      containers:
+        - name: rendimiento
+          image: registry.example.lan:5000/rendimiento:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef: { name: rendimiento }
+            # CLOUDFLARE_API_TOKEN and DNS_TARGET; optional until DNS automation is wanted.
+            - secretRef: { name: rendimiento-dns, optional: true }
+          env:
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: rendimiento-db, key: password } }
+            - name: DATABASE_URL
+              value: postgres://rendimiento:$(DB_PASSWORD)@rendimiento-db:5432/rendimiento?sslmode=disable
+            - name: SETUP_TOKEN
+              valueFrom: { secretKeyRef: { name: rendimiento-setup, key: token } }
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: metrics, containerPort: 9090 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            capabilities: { drop: [ALL] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rendimiento
+  namespace: rendimiento-system
+spec:
+  selector: { app: rendimiento }
+  ports: [{ name: http, port: 80, targetPort: http }]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rendimiento
+  namespace: rendimiento-system
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Live logs use server-sent events.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: 25m
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [rendimiento.joserod.space]
+      secretName: rendimiento-tls
+  rules:
+    - host: rendimiento.joserod.space
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: rendimiento, port: { name: http } }

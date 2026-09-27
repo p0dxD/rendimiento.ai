@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rendimiento
+  namespace: rendimiento-system
+---
+# Cluster-wide because each app gets its own namespace. The controller
+# refuses namespaces and hostnames it does not own (see checkOwnership).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rendimiento
+rules:
+  - apiGroups: [rendimiento.ai]
+    resources: [apps, apps/status, apps/finalizers]
+    verbs: ["*"]
+  - apiGroups: [""]
+    resources: [namespaces, services, persistentvolumeclaims, secrets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [batch]
+    resources: [cronjobs]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [cert-manager.io]
+    resources: [certificates]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+  # Read-only, for the environment page.
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [get, list]
+  - apiGroups: [metrics.k8s.io]
+    resources: [nodes]
+    verbs: [get, list]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingressclasses, networkpolicies]
+    verbs: [get, list]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses]
+    verbs: [get, list]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    verbs: [get, list]
+  - apiGroups: [cert-manager.io]
+    resources: [clusterissuers]
+    verbs: [get, list]
+  # Read-only, for the services catalog (who calls what).
+  - apiGroups: [apps]
+    resources: [statefulsets]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rendimiento
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rendimiento
+subjects:
+  - kind: ServiceAccount
+    name: rendimiento
+    namespace: rendimiento-system
+---
+# CI pods: create, watch, read logs, clean up.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rendimiento-builds
+  namespace: rendimiento-builds
+rules:
+  - apiGroups: [""]
+    resources: [pods, secrets]
+    verbs: [get, list, watch, create, delete]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rendimiento-builds
+  namespace: rendimiento-builds
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rendimiento-builds
+subjects:
+  - kind: ServiceAccount
+    name: rendimiento
+    namespace: rendimiento-system
+---
+# Leader election.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rendimiento-leader
+  namespace: rendimiento-system
+rules:
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, watch, create, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rendimiento-leader
+  namespace: rendimiento-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rendimiento-leader
+subjects:
+  - kind: ServiceAccount
+    name: rendimiento
+    namespace: rendimiento-system

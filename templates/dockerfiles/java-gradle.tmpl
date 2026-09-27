@@ -1,0 +1,13 @@
+FROM gradle:8-jdk{{.Version}} AS build
+WORKDIR /src
+COPY . .
+RUN gradle bootJar --no-daemon -q 2>/dev/null || gradle jar --no-daemon -q
+RUN find build/libs -name '*.jar' ! -name '*-plain.jar' | head -1 | xargs -I{} cp {} /app.jar
+
+FROM eclipse-temurin:{{.Version}}-jre
+COPY --from=build /app.jar /app.jar
+RUN useradd --uid 1001 --no-create-home app
+USER app
+EXPOSE {{.Port}}
+ENV SERVER_PORT={{.Port}}
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app.jar"]
