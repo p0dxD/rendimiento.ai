@@ -38,7 +38,7 @@ const (
 	// part of the definition in git, so the git sync leaves it alone. For
 	// automation such as the storm playbooks, which scale workloads down.
 	AnnotationPaused = "rendimiento.ai/paused"
-	addonResync         = 5 * time.Minute
+	addonResync      = 5 * time.Minute
 )
 
 // neverDelete are kinds an add-on never deletes, whether pruning or
@@ -434,4 +434,3 @@ func (r *AddonReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Named("addon").
 		Complete(r)
 }
-

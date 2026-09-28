@@ -232,6 +232,12 @@ func assemble(s snapshot, infra []string) *Catalog {
 				e.Title = firstNonEmpty(c.Title, e.Title)
 				e.Description, e.Docs, e.Endpoints, e.Env = c.Description, c.Docs, c.Endpoints, c.Env
 			}
+		case svc.Labels["rendimiento.ai/need"] != "" && svc.Labels[render.LabelManagedBy] == render.ManagedBy:
+			e.Group = GroupApps
+			app, kind := svc.Labels[render.LabelApp], svc.Labels["rendimiento.ai/need"]
+			e.Title = fmt.Sprintf("%s for %s", map[string]string{"postgres": "PostgreSQL", "redis": "Redis"}[kind], app)
+			e.Origin = Origin{Kind: "rendimiento", App: app, Summary: fmt.Sprintf("Run by rendimiento because %s's services need %s; credentials are in the %s-credentials secret", app, kind, kind)}
+			e.Description = fmt.Sprintf("Private to %s: its services get the address and password injected. Other apps should declare their own `needs: [%s]`.", app, kind)
 		case svc.Labels["rendimiento.ai/addon"] != "":
 			e.Group = GroupApps
 			name := svc.Labels["rendimiento.ai/addon"]
