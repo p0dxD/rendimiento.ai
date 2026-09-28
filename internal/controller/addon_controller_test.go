@@ -162,6 +162,21 @@ func TestAddonLifecycle(t *testing.T) {
 	updateAddon(t, c, "tools", func(a *v1alpha1.Addon) { a.Annotations = map[string]string{"poke": "1"} })
 	eventually(t, "drift healed", func() bool { x, _ := getCM("tools", "a"); return x.Data["v"] == "2" })
 
+	// 3b. The pause annotation stops syncing (drift stays) until removed.
+	updateAddon(t, c, "tools", func(a *v1alpha1.Addon) { a.Annotations = map[string]string{AnnotationPaused: "true"} })
+	eventually(t, "tools paused", func() bool { p, _ := addonPhase(t, c, "tools"); return p == v1alpha1.AddonSuspended })
+	x, _ = getCM("tools", "a")
+	x.Data["v"] = "scaled-down"
+	if err := c.Update(ctx, x); err != nil {
+		t.Fatal(err)
+	}
+	updateAddon(t, c, "tools", func(a *v1alpha1.Addon) { a.Annotations[AnnotationPaused] = "true"; a.Annotations["poke"] = "2" })
+	if x, _ := getCM("tools", "a"); x.Data["v"] != "scaled-down" {
+		t.Fatal("a paused add-on must not revert changes")
+	}
+	updateAddon(t, c, "tools", func(a *v1alpha1.Addon) { delete(a.Annotations, AnnotationPaused) })
+	eventually(t, "resumed and healed", func() bool { x, _ := getCM("tools", "a"); return x.Data["v"] == "2" })
+
 	// 4. Adoption: an identical existing object is taken over silently.
 	if err := c.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "legacy"}}); err != nil {
 		t.Fatal(err)
