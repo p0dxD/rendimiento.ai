@@ -12,6 +12,9 @@ data:
   REGISTRY: registry.cube.local:5000
   REGISTRY_INSECURE: "true"
   BUILDKIT_ADDR: tcp://buildkitd.devops-tools.svc.cluster.local:1234
+  # One BuildKit per worker (the "buildkit" add-on); each image builds on
+  # the daemon its name hashes to. BUILDKIT_ADDR is the fallback.
+  BUILDKIT_POOL: buildkitd-pool.devops-tools.svc.cluster.local
   MAX_PARALLEL_STEPS: "4"
   # Longest a single test or build step may run. First builds on the Pis
   # start with a cold cache (e.g. compiling a Python wheel from source).

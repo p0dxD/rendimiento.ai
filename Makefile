@@ -2,7 +2,7 @@ export PATH := $(HOME)/.local/go/bin:$(HOME)/go/bin:$(PATH)
 TEST_DATABASE_URL ?= postgres://postgres:test@127.0.0.1:55432/rendimiento
 IMAGE ?= registry.cube.local:5000/rendimiento
 
-.PHONY: generate ui build test test-db itest image railpack-image deploy
+.PHONY: generate ui build test test-remote test-db itest image railpack-image deploy
 
 generate: ## deepcopy + CRD from api/v1alpha1
 	controller-gen object paths=./api/... paths=./internal/spec/...
@@ -25,6 +25,11 @@ test: generate
 	go vet ./...
 	KUBEBUILDER_ASSETS=$$(setup-envtest use -p path) TEST_DATABASE_URL=$(TEST_DATABASE_URL) go test -p 1 ./...
 	cd web && npm run typecheck
+
+# The same steps on a worker node: main is the k3s control plane, and
+# compiling plus envtest there slows the API server. Prefer this one.
+test-remote:
+	hack/test-remote.sh
 
 itest: ## real build on the cluster's buildkitd
 	go test -tags integration ./internal/pipeline -run TestBuildOnCluster -v -timeout 25m
