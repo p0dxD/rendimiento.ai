@@ -4,7 +4,7 @@ import { catalogApi, timeAgo, type CatalogEntry, type CatalogGroup } from "../ap
 import { ErrorBox, usePoll } from "../components/ui";
 
 const groups: { id: CatalogGroup; label: string; blurb: string }[] = [
-  { id: "apps", label: "Your apps", blurb: "Deployed by rendimiento. Their origin, addresses and docs come from each repo's rendimiento.yaml." },
+  { id: "apps", label: "Your apps & add-ons", blurb: "Deployed by rendimiento: your apps (described by each repo's rendimiento.yaml) and installed add-ons." },
   { id: "other", label: "Elsewhere in the cluster", blurb: "Deployed another way (ArgoCD, Helm, kubectl). Apps can call them the same way; rendimiento only reads them." },
   { id: "infrastructure", label: "Cluster internals", blurb: "The cluster's own plumbing (ingress, certificates, storage, CI). Rarely something an app should call." },
 ];
@@ -24,6 +24,7 @@ const categoryLabel = (id: string) => categories.find((c) => c.id === id)?.label
 
 const originLabel: Record<CatalogEntry["origin"]["kind"], string> = {
   rendimiento: "rendimiento",
+  addon: "add-on",
   argocd: "ArgoCD",
   helm: "Helm",
   manual: "kubectl",
@@ -164,7 +165,10 @@ function ServiceCard({ e, open: initiallyOpen }: { e: CatalogEntry; open: boolea
           <section>
             <h3>Where it comes from</h3>
             <p className="small">{e.origin.summary}</p>
-            {e.origin.app && (
+            {e.origin.app && e.origin.kind === "addon" && (
+              <div className="small">Add-on <Link to={`/addons/${e.origin.app}`}>{e.origin.app}</Link></div>
+            )}
+            {e.origin.app && e.origin.kind !== "addon" && (
               <div className="small">App <Link to={`/apps/${e.origin.app}`}>{e.origin.app}</Link>{e.origin.release ? ` · release #${e.origin.release}` : ""}</div>
             )}
             {e.origin.repoUrl && (

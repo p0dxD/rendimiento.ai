@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
+	"github.com/p0dxD/rendimiento.ai/internal/addon"
 	"github.com/p0dxD/rendimiento.ai/internal/catalog"
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
 	"github.com/p0dxD/rendimiento.ai/internal/environment"
@@ -64,6 +65,7 @@ type Server struct {
 	Environment  *environment.Checker
 	Catalog      *catalog.Builder
 	Renovate     *renovate.Runner
+	Addons       *addon.Syncer
 }
 
 const sessionCookie = "rendimiento_session"
@@ -93,6 +95,13 @@ func (s *Server) Handler() http.Handler {
 	auth("GET /api/zones", s.zones)
 	auth("GET /api/environment", s.environment)
 	auth("GET /api/services", s.services)
+	auth("GET /api/addon-catalog", s.addonCatalog)
+	auth("GET /api/installed", s.listInstalled)
+	auth("GET /api/installed/{name}", s.getInstalled)
+	auth("PUT /api/installed/{name}", s.putInstalled)
+	auth("POST /api/installed/{name}/sync", s.syncInstalled)
+	auth("PATCH /api/installed/{name}", s.patchInstalled)
+	auth("DELETE /api/installed/{name}", s.deleteInstalled)
 	auth("GET /api/addons", s.listAddons)
 	auth("GET /api/addons/{addon}", s.getAddon)
 	auth("PUT /api/addons/{addon}", s.putAddon)
@@ -361,6 +370,9 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 	if push == nil {
 		w.WriteHeader(http.StatusAccepted)
 		return
+	}
+	if s.Addons != nil && strings.EqualFold(push.Repo, s.Addons.Repo) {
+		s.Addons.Trigger() // add-on definitions (or their manifests) may have changed
 	}
 	runs, err := s.Platform.HandlePush(r.Context(), *push)
 	if err != nil {
