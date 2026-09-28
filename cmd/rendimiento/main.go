@@ -212,6 +212,7 @@ func run(log *slog.Logger) error {
 		Client:           clientset,
 		Namespace:        env("BUILD_NAMESPACE", "rendimiento-builds"),
 		BuildkitAddr:     env("BUILDKIT_ADDR", "tcp://buildkitd.devops-tools.svc.cluster.local:1234"),
+		BuildkitPool:     os.Getenv("BUILDKIT_POOL"),
 		BuildImage:       env("BUILDKIT_IMAGE", "moby/buildkit:v0.18.2"),
 		InsecureRegistry: env("REGISTRY_INSECURE", "true") == "true",
 		Token:            p.CloneToken,
@@ -237,7 +238,7 @@ func run(log *slog.Logger) error {
 			Kube: kube, Discovery: clientset.Discovery(), DNS: dnsProvider, GitHub: holder, DB: st,
 			Config: environment.Config{
 				IngressClass: renderOpts.IngressClass, ClusterIssuer: renderOpts.ClusterIssuer, StorageClass: renderOpts.StorageClass,
-				BuildkitAddr: executor.BuildkitAddr, Registry: p.Config.Registry, RegistryInsecure: executor.InsecureRegistry,
+				BuildkitAddr: executor.BuildkitAddr, BuildkitPool: executor.BuildkitPool, Registry: p.Config.Registry, RegistryInsecure: executor.InsecureRegistry,
 				BuildNamespace: executor.Namespace, PlatformURL: baseURL, ExcludeNodes: executor.ExcludeNodes,
 			},
 		},

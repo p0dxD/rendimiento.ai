@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -335,6 +336,23 @@ func (c *Checker) checkBuildkit(ctx context.Context, s *snapshot) Check {
 	}
 	conn.Close()
 	ch.Status, ch.Summary, ch.Fix = OK, "accepting connections at "+u.Host, ""
+	if c.Config.BuildkitPool != "" {
+		_, srvs, err := net.DefaultResolver.LookupSRV(ctx, "buildkit", "tcp", c.Config.BuildkitPool)
+		var ready []string
+		for _, s := range srvs {
+			name, _, _ := strings.Cut(s.Target, ".")
+			ready = append(ready, name)
+		}
+		sort.Strings(ready)
+		switch {
+		case err != nil || len(ready) == 0:
+			ch.Status = Warning
+			ch.Summary = "no daemon of the pool " + c.Config.BuildkitPool + " is ready; builds use " + u.Host
+		default:
+			ch.Summary = fmt.Sprintf("%d daemons ready in the pool; each image builds on its own daemon", len(ready))
+			ch.Details = append(ch.Details, "ready: "+strings.Join(ready, ", "))
+		}
+	}
 	return ch
 }
 

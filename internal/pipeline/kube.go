@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"hash/fnv"
 	"io"
+	"net"
 	"path"
 	"regexp"
 	"sort"
@@ -25,9 +27,19 @@ type KubeExecutor struct {
 	Client    kubernetes.Interface
 	Namespace string // e.g. rendimiento-builds
 	// BuildkitAddr is the shared BuildKit daemon, e.g. tcp://buildkitd.devops-tools.svc.cluster.local:1234.
+	// It is used when there is no pool, or the pool has no ready daemon.
 	BuildkitAddr string
-	BuildImage   string // buildctl client image; match the daemon version
-	GitImage     string
+	// BuildkitPool is a headless Service whose SRV records
+	// (_buildkit._tcp.<pool>) list the ready daemons of a BuildKit pool,
+	// e.g. buildkitd-pool.devops-tools.svc.cluster.local. Each build goes to
+	// one daemon chosen by its image name: the same image always lands on
+	// the same daemon (a warm cache) while different ones spread out.
+	BuildkitPool string
+	Resolver     interface {
+		LookupSRV(ctx context.Context, service, proto, name string) (string, []*net.SRV, error)
+	}
+	BuildImage string // buildctl client image; match the daemon version
+	GitImage   string
 	// InsecureRegistry pushes over plain HTTP / self-signed TLS (registry.example.lan:5000 today).
 	InsecureRegistry bool
 	// Token returns a short-lived clone token for a repo; nil or "" means a public clone.
@@ -134,7 +146,15 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 	}); err != nil {
 		return fail("create clone secret: %v", err)
 	}
-	pod, err := k.pod(name, labels, src, step)
+	buildkit := k.BuildkitAddr
+	if step.Kind == KindBuild {
+		var daemon string
+		buildkit, daemon = k.buildkitFor(ctx, step.Target)
+		if daemon != "" {
+			fmt.Fprintf(w, "rendimiento: building on %s\n", daemon)
+		}
+	}
+	pod, err := k.pod(name, labels, src, step, buildkit)
 	if err != nil {
 		return fail("%v", err)
 	}
@@ -243,7 +263,39 @@ buildctl --addr "$BUILDKIT_ADDR" build "$@" \
 grep -o '"containerimage.digest": *"sha256:[a-f0-9]*"' /tmp/metadata.json | grep -o 'sha256:[a-f0-9]*' > /dev/termination-log
 `
 
-func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, step Step) (*corev1.Pod, error) {
+// buildkitFor picks the pool daemon for key by rendezvous hashing: each key
+// has a stable favourite among the ready daemons, and only the keys of a
+// daemon that goes away move elsewhere. It returns the address and the
+// daemon's name, or the single BuildkitAddr (and "") without a pool.
+func (k *KubeExecutor) buildkitFor(ctx context.Context, key string) (string, string) {
+	if k.BuildkitPool == "" {
+		return k.BuildkitAddr, ""
+	}
+	res := k.Resolver
+	if res == nil {
+		res = net.DefaultResolver
+	}
+	lctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	_, srvs, err := res.LookupSRV(lctx, "buildkit", "tcp", k.BuildkitPool)
+	if err != nil || len(srvs) == 0 {
+		return k.BuildkitAddr, ""
+	}
+	var best *net.SRV
+	var bestScore uint64
+	for _, s := range srvs {
+		h := fnv.New64a()
+		h.Write([]byte(strings.TrimSuffix(s.Target, ".") + "|" + key))
+		if score := h.Sum64(); best == nil || score > bestScore {
+			best, bestScore = s, score
+		}
+	}
+	host := strings.TrimSuffix(best.Target, ".")
+	daemon, _, _ := strings.Cut(host, ".")
+	return fmt.Sprintf("tcp://%s:%d", host, best.Port), daemon
+}
+
+func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, step Step, buildkit string) (*corev1.Pod, error) {
 	cloneURL := src.Repo
 	if !strings.Contains(cloneURL, "://") {
 		cloneURL = "https://github.com/" + src.Repo + ".git"
@@ -330,7 +382,7 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 			Command: append([]string{"sh", "-c", buildScript, "build"}, dockerArgs...),
 			Env: []corev1.EnvVar{
 				{Name: "RAILPACK_FRONTEND", Value: k.RailpackFrontend},
-				{Name: "BUILDKIT_ADDR", Value: k.BuildkitAddr},
+				{Name: "BUILDKIT_ADDR", Value: buildkit},
 				{Name: "CONTEXT", Value: workdir},
 				{Name: "DOCKERFILE", Value: step.Dockerfile},
 				{Name: "IMAGE", Value: step.Target},
