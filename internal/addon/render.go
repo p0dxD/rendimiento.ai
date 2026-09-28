@@ -6,6 +6,8 @@ package addon
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -45,8 +47,47 @@ type Result struct {
 	Objects []*unstructured.Unstructured
 	// Revision is the chart version or git commit that was rendered.
 	Revision string
-	// SkippedHooks are Helm hooks ("kind/name (hook)"), which are not run.
-	SkippedHooks []string
+	// Hooks are the chart's Helm hooks, run by the controller on install,
+	// upgrade and uninstall like Helm does.
+	Hooks []Hook
+	// Hash identifies what was rendered (chart, version, values, release
+	// name): when it changes, the next sync is an upgrade.
+	Hash string
+}
+
+// Hook is one Helm hook: an object (usually a Job) run at lifecycle events.
+type Hook struct {
+	Name           string                     `json:"name"`
+	Kind           string                     `json:"kind"`
+	Path           string                     `json:"path"`
+	Events         []string                   `json:"events"` // pre-install, post-upgrade, pre-delete, …
+	Weight         int                        `json:"weight"`
+	DeletePolicies []string                   `json:"deletePolicies,omitempty"`
+	Object         *unstructured.Unstructured `json:"-"`
+}
+
+// Has reports whether the hook runs at event.
+func (h Hook) Has(event string) bool {
+	for _, e := range h.Events {
+		if e == event {
+			return true
+		}
+	}
+	return false
+}
+
+// HookPolicy reports whether the hook has a delete policy; hooks without
+// one get Helm's default, before-hook-creation.
+func (h Hook) HookPolicy(p string) bool {
+	if len(h.DeletePolicies) == 0 {
+		return p == "before-hook-creation"
+	}
+	for _, x := range h.DeletePolicies {
+		if x == p {
+			return true
+		}
+	}
+	return false
 }
 
 type Renderer struct {
@@ -109,18 +150,28 @@ func (r *Renderer) renderHelm(ctx context.Context, a *v1alpha1.Addon) (*Result, 
 	}
 	res := &Result{Objects: objs, Revision: h.Chart + "-" + ch.Metadata.Version}
 	for _, hook := range rel.Hooks {
-		res.SkippedHooks = append(res.SkippedHooks, fmt.Sprintf("%s (%s)", hook.Path, joinEvents(hook.Events)))
+		hobjs, err := Decode([]byte(hook.Manifest))
+		if err != nil || len(hobjs) != 1 {
+			return nil, fmt.Errorf("hook %s: expected one object", hook.Path)
+		}
+		hk := Hook{Name: hook.Name, Kind: hook.Kind, Path: hook.Path, Weight: hook.Weight, Object: hobjs[0]}
+		for _, e := range hook.Events {
+			hk.Events = append(hk.Events, e.String())
+		}
+		for _, p := range hook.DeletePolicies {
+			hk.DeletePolicies = append(hk.DeletePolicies, p.String())
+		}
+		res.Hooks = append(res.Hooks, hk)
 	}
-	sort.Strings(res.SkippedHooks)
+	sort.SliceStable(res.Hooks, func(i, j int) bool {
+		if res.Hooks[i].Weight != res.Hooks[j].Weight {
+			return res.Hooks[i].Weight < res.Hooks[j].Weight
+		}
+		return res.Hooks[i].Name < res.Hooks[j].Name
+	})
+	sum := sha256.Sum256([]byte(h.Repo + "|" + h.Chart + "|" + ch.Metadata.Version + "|" + inst.ReleaseName + "|" + a.Spec.Values))
+	res.Hash = hex.EncodeToString(sum[:8])
 	return res, nil
-}
-
-func joinEvents[T fmt.Stringer](evs []T) string {
-	var s []string
-	for _, e := range evs {
-		s = append(s, e.String())
-	}
-	return strings.Join(s, ",")
 }
 
 // chart downloads a chart from a classic (index.yaml) Helm repository.

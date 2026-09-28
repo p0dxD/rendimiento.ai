@@ -473,7 +473,8 @@ export interface InstalledAddon {
     revision?: string;
     objects?: AddonObjectRef[];
     preview?: AddonPreview;
-    skippedHooks?: string[];
+    hooks?: { name: string; kind: string; events: string[] }[];
+    hookRuns?: { event: string; name: string; kind: string; status: "succeeded" | "failed"; message?: string; finished: string }[];
     lastSynced?: string;
     adopted?: boolean;
   };
