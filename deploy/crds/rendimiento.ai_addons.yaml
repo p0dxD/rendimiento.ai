@@ -71,6 +71,10 @@ spec:
                 type: boolean
               description:
                 type: string
+              hookTimeout:
+                description: HookTimeout is how long a hook Job may run, in seconds
+                  (default 600).
+                type: integer
               manualSync:
                 description: |-
                   ManualSync applies changes only when requested (SyncRequest raised),
@@ -90,6 +94,9 @@ spec:
                   ReleaseName is the Helm release name (default: the add-on's name).
                   Keep a migrated release's name so rendered labels stay identical.
                 type: string
+              skipHooks:
+                description: SkipHooks never runs the chart's Helm hooks.
+                type: boolean
               source:
                 description: AddonSource is exactly one of Helm or Git.
                 properties:
@@ -148,11 +155,61 @@ spec:
                 description: Adopted is set once an adopting add-on has synced for
                   the first time.
                 type: boolean
+              appliedHash:
+                description: |-
+                  AppliedHash identifies the chart, version, values and release name
+                  last applied; a different one makes the next sync an upgrade.
+                type: string
               appliedSyncRequest:
                 description: AppliedSyncRequest is the SyncRequest last honoured (manual
                   sync).
                 format: int64
                 type: integer
+              hookRuns:
+                description: HookRuns are the most recent hook executions, newest
+                  last.
+                items:
+                  properties:
+                    event:
+                      type: string
+                    finished:
+                      format: date-time
+                      type: string
+                    kind:
+                      type: string
+                    message:
+                      type: string
+                    name:
+                      type: string
+                    status:
+                      type: string
+                  required:
+                  - event
+                  - finished
+                  - kind
+                  - name
+                  - status
+                  type: object
+                type: array
+              hooks:
+                description: Hooks are the chart's Helm hooks and the events they
+                  run at.
+                items:
+                  properties:
+                    events:
+                      items:
+                        type: string
+                      type: array
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                  required:
+                  - events
+                  - kind
+                  - name
+                  type: object
+                type: array
               lastSynced:
                 format: date-time
                 type: string
@@ -236,12 +293,6 @@ spec:
                 description: 'Revision is what was rendered: the chart version or
                   the git commit.'
                 type: string
-              skippedHooks:
-                description: SkippedHooks are Helm hooks, which rendimiento does not
-                  run.
-                items:
-                  type: string
-                type: array
             type: object
         type: object
     served: true

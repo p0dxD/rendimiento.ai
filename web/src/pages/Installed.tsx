@@ -288,10 +288,26 @@ export function AddonDetail() {
         </div>
       )}
 
-      {st.skippedHooks && st.skippedHooks.length > 0 && (
-        <div className="alert info small" style={{ marginTop: 12 }}>
-          Helm hooks are not run by rendimiento: {st.skippedHooks.join(", ")}. Hooks that run on upgrade must be run by hand when changing the chart version.
-        </div>
+      {st.hooks && st.hooks.length > 0 && (
+        <details className="card small" style={{ marginTop: 12 }}>
+          <summary><strong>Helm hooks</strong> <span className="muted">run like Helm: on install, on upgrade (a new version or values) and on uninstall; never on a plain resync</span></summary>
+          <ul style={{ margin: "8px 0", paddingLeft: 18 }}>
+            {st.hooks.map((h) => <li key={h.name}><span className="mono">{h.kind} {h.name}</span> <span className="muted">on {h.events.join(", ")}</span></li>)}
+          </ul>
+          {(st.hookRuns ?? []).length > 0 && (
+            <>
+              <div className="muted">Recent runs</div>
+              {[...st.hookRuns!].reverse().map((r, i) => (
+                <div key={i} className="row" style={{ gap: 8 }}>
+                  <span className={`badge ${r.status === "succeeded" ? "ok" : "bad"}`}>{r.status}</span>
+                  <span className="mono">{r.event} {r.name}</span>
+                  <span className="muted">{timeAgo(r.finished)}</span>
+                  {r.message && <span style={{ color: "var(--bad)" }}>{r.message}</span>}
+                </div>
+              ))}
+            </>
+          )}
+        </details>
       )}
 
       <h2>{changesWaiting ? "What a sync will change" : "Sync status"}</h2>

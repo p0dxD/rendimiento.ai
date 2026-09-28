@@ -31,6 +31,10 @@ type AddonSpec struct {
 	Suspend bool `json:"suspend,omitempty"`
 	// CreateNamespace creates Namespace if it does not exist.
 	CreateNamespace bool `json:"createNamespace,omitempty"`
+	// SkipHooks never runs the chart's Helm hooks.
+	SkipHooks bool `json:"skipHooks,omitempty"`
+	// HookTimeout is how long a hook Job may run, in seconds (default 600).
+	HookTimeout int `json:"hookTimeout,omitempty"`
 	// Title, Category and Description describe the add-on in the UI.
 	Title       string `json:"title,omitempty"`
 	Category    string `json:"category,omitempty"`
@@ -97,6 +101,21 @@ type Preview struct {
 	Items []PreviewItem `json:"items,omitempty"`
 }
 
+type HookInfo struct {
+	Name   string   `json:"name"`
+	Kind   string   `json:"kind"`
+	Events []string `json:"events"`
+}
+
+type HookRun struct {
+	Event    string      `json:"event"`
+	Name     string      `json:"name"`
+	Kind     string      `json:"kind"`
+	Status   string      `json:"status"` // succeeded, failed
+	Message  string      `json:"message,omitempty"`
+	Finished metav1.Time `json:"finished"`
+}
+
 type AddonStatus struct {
 	ObservedGeneration int64      `json:"observedGeneration,omitempty"`
 	Phase              AddonPhase `json:"phase,omitempty"`
@@ -107,8 +126,13 @@ type AddonStatus struct {
 	Objects []ObjectRef `json:"objects,omitempty"`
 	// Preview is the dry run from the last reconcile.
 	Preview *Preview `json:"preview,omitempty"`
-	// SkippedHooks are Helm hooks, which rendimiento does not run.
-	SkippedHooks []string     `json:"skippedHooks,omitempty"`
+	// Hooks are the chart's Helm hooks and the events they run at.
+	Hooks []HookInfo `json:"hooks,omitempty"`
+	// HookRuns are the most recent hook executions, newest last.
+	HookRuns []HookRun `json:"hookRuns,omitempty"`
+	// AppliedHash identifies the chart, version, values and release name
+	// last applied; a different one makes the next sync an upgrade.
+	AppliedHash string       `json:"appliedHash,omitempty"`
 	LastSynced   *metav1.Time `json:"lastSynced,omitempty"`
 	// AppliedSyncRequest is the SyncRequest last honoured (manual sync).
 	AppliedSyncRequest int64 `json:"appliedSyncRequest,omitempty"`
