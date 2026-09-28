@@ -40,8 +40,11 @@ type Result struct {
 	// Standalone is set for Next.js apps configured with output: 'standalone'.
 	Standalone bool `json:"standalone,omitempty"`
 	// Entrypoint is the Python app module, e.g. app.main:app or mysite.wsgi.
-	Entrypoint string   `json:"entrypoint,omitempty"`
-	Reasons    []string `json:"reasons"`
+	Entrypoint string `json:"entrypoint,omitempty"`
+	// Needs are services the code uses (postgres, redis), found from its
+	// dependencies; the wizard offers them pre-selected.
+	Needs   []string `json:"needs,omitempty"`
+	Reasons []string `json:"reasons"`
 }
 
 var skipDirs = map[string]bool{
@@ -105,6 +108,7 @@ func detectDir(fsys fs.FS, dir string) (Result, bool) {
 	if r.Language == "" {
 		return r, false
 	}
+	detectNeeds(fsys, dir, &r)
 	if r.Port == 0 {
 		r.Port = 8080
 	}
@@ -267,6 +271,38 @@ func exposedPort(dockerfile []byte) int {
 func exists(fsys fs.FS, dir, name string) bool {
 	_, err := fs.Stat(fsys, path.Join(dir, name))
 	return err == nil
+}
+
+// needDrivers are client libraries that mean the code talks to a database
+// or cache, by dependency file.
+var needDrivers = []struct {
+	need, file string
+	pattern    *regexp.Regexp
+}{
+	{"postgres", "package.json", regexp.MustCompile(`"(pg|postgres|pg-promise|@neondatabase/serverless)"\s*:`)},
+	{"postgres", "requirements.txt", regexp.MustCompile(`(?mi)^\s*(psycopg2?(-binary)?|psycopg\[|asyncpg|pg8000)\b`)},
+	{"postgres", "pyproject.toml", regexp.MustCompile(`(?i)["']?(psycopg2?(-binary)?|asyncpg|pg8000)\b`)},
+	{"postgres", "go.mod", regexp.MustCompile(`github\.com/(jackc/pgx|lib/pq)\b`)},
+	{"postgres", "pom.xml", regexp.MustCompile(`<artifactId>postgresql</artifactId>`)},
+	{"redis", "package.json", regexp.MustCompile(`"(redis|ioredis)"\s*:`)},
+	{"redis", "requirements.txt", regexp.MustCompile(`(?mi)^\s*redis\b`)},
+	{"redis", "pyproject.toml", regexp.MustCompile(`(?i)["']redis\b`)},
+	{"redis", "go.mod", regexp.MustCompile(`github\.com/(redis/go-redis|go-redis/redis|gomodule/redigo)\b`)},
+	{"redis", "pom.xml", regexp.MustCompile(`<artifactId>(jedis|lettuce-core|spring-boot-starter-data-redis)</artifactId>`)},
+}
+
+func detectNeeds(fsys fs.FS, dir string, r *Result) {
+	seen := map[string]bool{}
+	for _, d := range needDrivers {
+		if seen[d.need] {
+			continue
+		}
+		if b := read(fsys, dir, d.file); len(b) > 0 && d.pattern.Match(b) {
+			seen[d.need] = true
+			r.Needs = append(r.Needs, d.need)
+			r.Reasons = append(r.Reasons, "uses "+d.need+" (a client library in "+d.file+")")
+		}
+	}
 }
 
 func read(fsys fs.FS, dir, name string) []byte {

@@ -4,6 +4,8 @@
 package spec
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -24,6 +26,125 @@ type Spec struct {
 	// namespace). rendimiento then never creates, labels, owns or deletes the
 	// namespace: it must exist, and deleting the app removes only its own objects.
 	SharedNamespace bool `json:"sharedNamespace,omitempty"`
+	// Postgres and Redis tune what services get from `needs: [postgres]`
+	// and `needs: [redis]`; both are optional.
+	Postgres *PostgresOptions `json:"postgres,omitempty"`
+	Redis    *RedisOptions    `json:"redis,omitempty"`
+}
+
+// PostgresOptions configure the app's database (one per app, shared by
+// every service that needs it).
+type PostgresOptions struct {
+	// Version is the postgres image's major version (default 17).
+	Version string `json:"version,omitempty"`
+	// Size of its volume (default 5Gi).
+	Size      string            `json:"size,omitempty"`
+	Resources *ResourceOverride `json:"resources,omitempty"`
+}
+
+type RedisOptions struct {
+	Version string `json:"version,omitempty"` // default 7
+	// MaxMemory caps the cache; older keys are evicted (default 64mb).
+	MaxMemory string            `json:"maxMemory,omitempty"`
+	Resources *ResourceOverride `json:"resources,omitempty"`
+}
+
+const (
+	NeedPostgres = "postgres"
+	NeedRedis    = "redis"
+	NeedService  = "service"
+)
+
+// Need is something a service depends on: rendimiento provides it and
+// injects how to reach it. In YAML it is either a word ("postgres",
+// "redis") or an object: {service: namespace/name, env: VAR}.
+type Need struct {
+	Kind string `json:"-"`
+	// Service is another service to call: "namespace/name", or "name" for
+	// a service of the same app.
+	Service string `json:"service,omitempty"`
+	// Env overrides the variable the address goes in (DATABASE_URL,
+	// REDIS_URL, or <NAME>_URL for services).
+	Env string `json:"env,omitempty"`
+}
+
+func (n *Need) UnmarshalJSON(b []byte) error {
+	var word string
+	if err := json.Unmarshal(b, &word); err == nil {
+		n.Kind = word
+		return nil
+	}
+	var obj struct {
+		Postgres *struct {
+			Env string `json:"env"`
+		} `json:"postgres"`
+		Redis *struct {
+			Env string `json:"env"`
+		} `json:"redis"`
+		Service string `json:"service"`
+		Env     string `json:"env"`
+	}
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&obj); err != nil {
+		return fmt.Errorf("a need is postgres, redis, {service: namespace/name} or {postgres: {env: VAR}}: %w", err)
+	}
+	switch {
+	case obj.Service != "":
+		n.Kind, n.Service, n.Env = NeedService, obj.Service, obj.Env
+	case obj.Postgres != nil:
+		n.Kind, n.Env = NeedPostgres, obj.Postgres.Env
+	case obj.Redis != nil:
+		n.Kind, n.Env = NeedRedis, obj.Redis.Env
+	default:
+		return errors.New("a need is postgres, redis, {service: namespace/name} or {postgres: {env: VAR}}")
+	}
+	return nil
+}
+
+func (n Need) MarshalJSON() ([]byte, error) {
+	switch {
+	case n.Kind == NeedService:
+		return json.Marshal(struct {
+			Service string `json:"service"`
+			Env     string `json:"env,omitempty"`
+		}{n.Service, n.Env})
+	case n.Env != "":
+		return json.Marshal(map[string]map[string]string{n.Kind: {"env": n.Env}})
+	}
+	return json.Marshal(n.Kind)
+}
+
+// EnvName is the variable a need's address is injected into.
+func (n Need) EnvName() string {
+	if n.Env != "" {
+		return n.Env
+	}
+	switch n.Kind {
+	case NeedPostgres:
+		return "DATABASE_URL"
+	case NeedRedis:
+		return "REDIS_URL"
+	}
+	_, name, found := strings.Cut(n.Service, "/")
+	if !found {
+		name = n.Service
+	}
+	return strings.Trim(nonEnvChars.ReplaceAllString(strings.ToUpper(name), "_"), "_") + "_URL"
+}
+
+var nonEnvChars = regexp.MustCompile(`[^A-Z0-9]+`)
+
+// Needs reports whether any service of the app needs kind.
+func (s *Spec) Needs(kind string) bool {
+	for _, svc := range s.Services {
+		for _, n := range svc.Needs {
+			if n.Kind == kind {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Job is a scheduled task. Its image comes from exactly one of: Service (use
@@ -115,6 +236,12 @@ type Service struct {
 	// GPU requests this many GPUs. How a GPU is attached (runtime class,
 	// driver libraries) is cluster configuration, not part of the app.
 	GPU int `json:"gpu,omitempty"`
+	// Needs are what the service depends on (postgres, redis, other
+	// services); rendimiento provides them and injects their addresses.
+	// Items are words or objects, so the CRD leaves them unstructured.
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Needs []Need `json:"needs,omitempty"`
 	// Catalog documents the service for other apps on the Services page:
 	// what it is, which variable consumers usually set and what it offers.
 	Catalog *Catalog `json:"catalog,omitempty"`
@@ -625,9 +752,68 @@ func (s *Spec) Validate() error {
 			}
 		}
 	}
+	errs = append(errs, s.validateNeeds(seen)...)
 	errs = append(errs, s.validateRoutes()...)
 	errs = append(errs, s.validateJobs(seen)...)
 	return errors.Join(errs...)
+}
+
+var serviceRef = regexp.MustCompile(`^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?/)?[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`)
+var majorVersion = regexp.MustCompile(`^[0-9]{1,2}(\.[0-9]{1,2})?$`)
+
+func (s *Spec) validateNeeds(services map[string]bool) []error {
+	var errs []error
+	for i, svc := range s.Services {
+		p := fmt.Sprintf("services[%d].needs", i)
+		envs := map[string]bool{}
+		for j, n := range svc.Needs {
+			q := fmt.Sprintf("%s[%d]", p, j)
+			switch n.Kind {
+			case NeedPostgres, NeedRedis:
+			case NeedService:
+				if !serviceRef.MatchString(n.Service) {
+					errs = append(errs, fmt.Errorf("%s.service %q must be namespace/name or a service of this app", q, n.Service))
+				} else if !strings.Contains(n.Service, "/") && !services[n.Service] {
+					errs = append(errs, fmt.Errorf("%s.service %q is not a service of this app (use namespace/name for others)", q, n.Service))
+				}
+			default:
+				errs = append(errs, fmt.Errorf("%s: %q is not something rendimiento provides (postgres, redis, or {service: namespace/name})", q, n.Kind))
+				continue
+			}
+			env := n.EnvName()
+			if !envKey.MatchString(env) {
+				errs = append(errs, fmt.Errorf("%s.env %q is not a valid variable name", q, env))
+			}
+			if envs[env] {
+				errs = append(errs, fmt.Errorf("%s: %s is set by two needs; give one an env", q, env))
+			}
+			envs[env] = true
+		}
+	}
+	for _, kind := range []string{NeedPostgres, NeedRedis} {
+		if s.Needs(kind) && services[kind] {
+			errs = append(errs, fmt.Errorf("a service is named %q, which the app's %s would also be called; rename the service", kind, kind))
+		}
+	}
+	if o := s.Postgres; o != nil {
+		if o.Version != "" && !majorVersion.MatchString(o.Version) {
+			errs = append(errs, fmt.Errorf("postgres.version %q must be a version such as 17", o.Version))
+		}
+		if o.Size != "" && !quantity.MatchString(o.Size) {
+			errs = append(errs, fmt.Errorf("postgres.size %q must look like 5Gi", o.Size))
+		}
+		errs = append(errs, validateResources("postgres", o.Resources)...)
+	}
+	if o := s.Redis; o != nil {
+		if o.Version != "" && !majorVersion.MatchString(o.Version) {
+			errs = append(errs, fmt.Errorf("redis.version %q must be a version such as 7", o.Version))
+		}
+		if o.MaxMemory != "" && !regexp.MustCompile(`^[0-9]+(kb|mb|gb)$`).MatchString(o.MaxMemory) {
+			errs = append(errs, fmt.Errorf("redis.maxMemory %q must look like 64mb", o.MaxMemory))
+		}
+		errs = append(errs, validateResources("redis", o.Resources)...)
+	}
+	return errs
 }
 
 func validateResources(p string, o *ResourceOverride) []error {

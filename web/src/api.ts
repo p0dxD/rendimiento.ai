@@ -2,6 +2,9 @@
 
 export type Size = "small" | "medium" | "large";
 
+/** A need: "postgres", "redis", or another service to call. */
+export type Need = string | { service: string; env?: string } | { postgres: { env: string } } | { redis: { env: string } };
+
 export interface Service {
   name: string;
   path?: string;
@@ -15,6 +18,7 @@ export interface Service {
   health?: { path: string };
   env?: Record<string, string>;
   secrets?: string[];
+  needs?: Need[];
   secretEnv?: Record<string, string>;
   secretFiles?: { secret: string; mount: string }[];
   volume?: { size: string; mount: string };

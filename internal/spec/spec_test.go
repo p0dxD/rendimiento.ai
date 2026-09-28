@@ -304,3 +304,50 @@ func TestValidateBuildGPUCatalog(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestNeeds(t *testing.T) {
+	s, err := Parse([]byte(`
+postgres: {version: "16", size: 10Gi}
+services:
+  - name: api
+    needs:
+      - postgres
+      - redis
+      - {service: jobsentry/ollama-internal, env: OLLAMA_HOST}
+      - {service: web}
+  - name: web
+    needs: [{postgres: {env: DB_URL}}]
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := s.Services[0].Needs
+	if len(api) != 4 || api[0].Kind != NeedPostgres || api[1].EnvName() != "REDIS_URL" || api[2].EnvName() != "OLLAMA_HOST" || api[3].EnvName() != "WEB_URL" {
+		t.Fatalf("needs = %+v", api)
+	}
+	if s.Services[1].Needs[0].EnvName() != "DB_URL" || !s.Needs(NeedPostgres) || s.Postgres.Size != "10Gi" {
+		t.Error("postgres with a custom variable")
+	}
+	// Round trip: short forms stay short.
+	out, _ := s.Marshal()
+	if !strings.Contains(string(out), "- postgres\n") || !strings.Contains(string(out), "service: jobsentry/ollama-internal") {
+		t.Errorf("marshalled:\n%s", out)
+	}
+	if _, err := Parse(out); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct{ yaml, want string }{
+		{"services: [{name: a, needs: [mysql]}]", "not something rendimiento provides"},
+		{"services: [{name: a, needs: [{service: Bad/Name}]}]", "must be namespace/name"},
+		{"services: [{name: a, needs: [{service: nope}]}]", "not a service of this app"},
+		{"services: [{name: a, needs: [postgres, {postgres: {env: DATABASE_URL}}]}]", "set by two needs"},
+		{"services: [{name: postgres}, {name: b, needs: [postgres]}]", "rename the service"},
+		{"postgres: {size: big}\nservices: [{name: a, needs: [postgres]}]", "must look like 5Gi"},
+		{"services: [{name: a, needs: [{colour: blue}]}]", "a need is"},
+	} {
+		if _, err := Parse([]byte(tc.yaml)); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: got %v, want %q", tc.yaml, err, tc.want)
+		}
+	}
+}

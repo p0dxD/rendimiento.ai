@@ -157,6 +157,55 @@ spec:
                   - schedule
                   type: object
                 type: array
+              postgres:
+                description: Postgres and Redis mirror rendimiento.yaml's settings
+                  for `needs:`.
+                properties:
+                  resources:
+                    description: |-
+                      ResourceOverride replaces individual values of the size preset. Limits
+                      may be "none" to leave them unset (e.g. no CPU limit).
+                    properties:
+                      cpu:
+                        type: string
+                      cpuLimit:
+                        type: string
+                      memory:
+                        type: string
+                      memoryLimit:
+                        type: string
+                    type: object
+                  size:
+                    description: Size of its volume (default 5Gi).
+                    type: string
+                  version:
+                    description: Version is the postgres image's major version (default
+                      17).
+                    type: string
+                type: object
+              redis:
+                properties:
+                  maxMemory:
+                    description: MaxMemory caps the cache; older keys are evicted
+                      (default 64mb).
+                    type: string
+                  resources:
+                    description: |-
+                      ResourceOverride replaces individual values of the size preset. Limits
+                      may be "none" to leave them unset (e.g. no CPU limit).
+                    properties:
+                      cpu:
+                        type: string
+                      cpuLimit:
+                        type: string
+                      memory:
+                        type: string
+                      memoryLimit:
+                        type: string
+                    type: object
+                  version:
+                    type: string
+                type: object
               release:
                 description: Release is the platform's release number the images belong
                   to.
@@ -306,6 +355,12 @@ spec:
                       type: string
                     name:
                       type: string
+                    needs:
+                      description: |-
+                        Needs are what the service depends on (postgres, redis, other
+                        services); rendimiento provides them and injects their addresses.
+                        Items are words or objects, so the CRD leaves them unstructured.
+                      x-kubernetes-preserve-unknown-fields: true
                     path:
                       type: string
                     port:

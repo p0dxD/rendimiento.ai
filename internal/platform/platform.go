@@ -273,7 +273,8 @@ func (p *Platform) Onboard(ctx context.Context, req OnboardRequest, existing boo
 	}
 	cr := &v1alpha1.App{
 		ObjectMeta: metav1.ObjectMeta{Name: app.Name, Labels: map[string]string{"rendimiento.ai/app-id": strconv.FormatInt(app.ID, 10)}},
-		Spec:       v1alpha1.AppSpec{Repo: app.Repo, Services: app.Spec.Services, Jobs: app.Spec.Jobs, SharedNamespace: app.Spec.SharedNamespace, Adopt: req.Adopt},
+		Spec: v1alpha1.AppSpec{Repo: app.Repo, Services: app.Spec.Services, Jobs: app.Spec.Jobs, SharedNamespace: app.Spec.SharedNamespace,
+			Postgres: app.Spec.Postgres, Redis: app.Spec.Redis, Adopt: req.Adopt},
 	}
 	if err := p.Kube.Create(ctx, cr); err != nil {
 		_ = p.Store.DeleteApp(ctx, app.ID)
@@ -753,6 +754,7 @@ func (p *Platform) pointApp(ctx context.Context, name string, rel *store.Release
 		cr.Spec.Services = rel.Spec.Services
 		cr.Spec.Jobs = rel.Spec.Jobs
 		cr.Spec.SharedNamespace = rel.Spec.SharedNamespace
+		cr.Spec.Postgres, cr.Spec.Redis = rel.Spec.Postgres, rel.Spec.Redis
 		cr.Spec.Images = rel.Images
 		cr.Spec.Release = rel.Number
 		err := p.Kube.Update(ctx, &cr)

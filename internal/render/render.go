@@ -26,6 +26,8 @@ const (
 	ManagedBy      = "rendimiento"
 	LabelApp       = "rendimiento.ai/app"
 	LabelService   = "rendimiento.ai/service"
+	// LabelNeed marks the database or cache rendimiento runs for `needs:`.
+	LabelNeed = "rendimiento.ai/need"
 )
 
 // Options carries cluster-level settings, so nothing is hardcoded per app.
@@ -61,6 +63,9 @@ type Input struct {
 	// its original one; the Service uses the same selector so old and new
 	// pods both receive traffic during the takeover rollout.
 	Selectors map[string]map[string]string
+	// ServiceURLs are the addresses of services the app's services need
+	// ({service: namespace/name}), looked up by the controller.
+	ServiceURLs map[string]string
 }
 
 // Objects returns the namespace first, then each service's objects in a stable order.
@@ -82,7 +87,11 @@ func Render(in Input, opt Options) (*Objects, error) {
 		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "Namespace"},
 		ObjectMeta: metav1.ObjectMeta{Name: ns, Labels: appLabels(in.App)},
 	}}
-	for _, svc := range in.Spec.Services {
+	services, err := withNeeds(in)
+	if err != nil {
+		return nil, err
+	}
+	for _, svc := range services {
 		image, ok := in.Images[svc.Name]
 		if (!ok || image == "") && svc.Image != "" {
 			image, ok = svc.Image, true
@@ -101,7 +110,16 @@ func Render(in Input, opt Options) (*Objects, error) {
 			return nil, fmt.Errorf("service %s needs a GPU but this cluster has no GPU profile configured", svc.Name)
 		}
 		out.Deployments = append(out.Deployments, deployment(meta(svc.Name), sel, svc, image, opt.GPU))
-		out.Services = append(out.Services, service(meta(svc.Name), sel, svc))
+		s := service(meta(svc.Name), sel, svc)
+		if kind := needKind(svc.Name, in.Spec); kind != "" {
+			// A database or cache is reached on its own port only.
+			s.Spec.Ports = s.Spec.Ports[len(s.Spec.Ports)-1:]
+			s.Spec.Ports[0].Name = kind
+			for _, o := range []metav1.Object{out.Deployments[len(out.Deployments)-1], s} {
+				o.GetLabels()[LabelNeed] = kind
+			}
+		}
+		out.Services = append(out.Services, s)
 		if svc.HasIngress() {
 			out.Ingresses = append(out.Ingresses, ingress(meta(svc.IngressName()), svc, opt))
 		}

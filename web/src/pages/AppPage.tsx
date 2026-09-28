@@ -76,6 +76,7 @@ function Overview({ name, app }: { name: string; app: Awaited<ReturnType<typeof 
           );
         })}
       </div>
+      <ProvidedNeeds name={name} app={app} />
       <DependencyUpdates name={name} />
       <h2>Resources</h2>
       <ErrorBox error={error} />
@@ -93,6 +94,47 @@ function Overview({ name, app }: { name: string; app: Awaited<ReturnType<typeof 
         </>
       )}
     </div>
+  );
+}
+
+const needTitle: Record<string, string> = { postgres: "PostgreSQL", redis: "Redis" };
+
+/** The database and cache rendimiento runs because the app's services need them. */
+function ProvidedNeeds({ name, app }: { name: string; app: Awaited<ReturnType<typeof api.app>> }) {
+  const provided = (app.status.services ?? []).filter((s) => needTitle[s.name] && !app.spec.services.some((x) => x.name === s.name));
+  if (provided.length === 0) return null;
+  const users = (kind: string) => app.spec.services
+    .map((svc) => {
+      const n = (svc.needs ?? []).find((x) => x === kind || (typeof x === "object" && kind in x));
+      if (!n) return null;
+      const env = typeof n === "object" && kind in n ? (n as Record<string, { env: string }>)[kind].env : kind === "postgres" ? "DATABASE_URL" : "REDIS_URL";
+      return `${svc.name} (${env}${kind === "postgres" ? ", PGHOST…" : ""})`;
+    })
+    .filter(Boolean)
+    .join(", ");
+  return (
+    <>
+      <h2>Provided for this app</h2>
+      <div className="grid">
+        {provided.map((st) => (
+          <div key={st.name} className="card stack">
+            <div className="row between">
+              <strong>{needTitle[st.name]}</strong>
+              <span className={`badge ${st.readyReplicas >= 1 ? "ok" : "warn"}`}>{st.readyReplicas >= 1 ? "running" : "starting"}</span>
+            </div>
+            <div className="small muted">{st.image}{st.name === "postgres" ? " · data on a Longhorn volume" : " · in memory (a cache)"}</div>
+            <div className="small">Used by {users(st.name) || "no service yet"}</div>
+            {st.message && <div className="small" style={{ color: "var(--bad)" }}>{st.message}</div>}
+            <details className="small">
+              <summary>Connect from your machine</summary>
+              <pre className="file" style={{ marginTop: 6 }}>{`kubectl -n ${name} port-forward svc/${st.name} ${st.name === "postgres" ? 5432 : 6379}
+# address and password:
+kubectl -n ${name} get secret ${st.name}-credentials -o jsonpath='{.data.uri}' | base64 -d`}</pre>
+            </details>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 

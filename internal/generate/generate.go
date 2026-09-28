@@ -63,6 +63,9 @@ func (Templates) Generate(_ context.Context, in Input) (*Plan, error) {
 		if r.TestCommand != "" {
 			svc.Test = &spec.Test{Image: r.TestImage, Command: r.TestCommand}
 		}
+		for _, n := range r.Needs {
+			svc.Needs = append(svc.Needs, spec.Need{Kind: n})
+		}
 		if in.Zone != "" {
 			if i == frontDoor {
 				svc.Domain = repo + "." + in.Zone
