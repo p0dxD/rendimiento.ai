@@ -34,6 +34,10 @@ const (
 	// AnnotationUninstall on an Addon makes deleting it also delete what it
 	// installed. Without it, deleting an Addon leaves everything running.
 	AnnotationUninstall = "rendimiento.ai/uninstall"
+	// AnnotationPaused="true" stops syncing like spec.suspend, but is not
+	// part of the definition in git, so the git sync leaves it alone. For
+	// automation such as the storm playbooks, which scale workloads down.
+	AnnotationPaused = "rendimiento.ai/paused"
 	addonResync         = 5 * time.Minute
 )
 
@@ -73,6 +77,10 @@ func (r *AddonReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	st.ObservedGeneration = a.Generation
 	if a.Spec.Suspend {
 		st.Phase, st.Message = v1alpha1.AddonSuspended, "suspended: objects are left as they are"
+		return ctrl.Result{}, r.saveStatus(ctx, &a, st)
+	}
+	if a.Annotations[AnnotationPaused] == "true" {
+		st.Phase, st.Message = v1alpha1.AddonSuspended, "paused (rendimiento.ai/paused annotation): objects are left as they are"
 		return ctrl.Result{}, r.saveStatus(ctx, &a, st)
 	}
 	res, err := r.Renderer.Render(ctx, &a)
