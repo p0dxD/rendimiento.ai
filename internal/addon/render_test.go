@@ -106,8 +106,16 @@ func TestRenderHelm(t *testing.T) {
 	if dep.GetLabels()["app.kubernetes.io/managed-by"] != "Helm" {
 		t.Error("rendered like helm template: .Release.Service is Helm")
 	}
-	if res.Revision != "demo-1.2.3" || len(res.SkippedHooks) != 1 || !strings.Contains(res.SkippedHooks[0], "pre-install") {
-		t.Errorf("revision %s hooks %v", res.Revision, res.SkippedHooks)
+	if res.Revision != "demo-1.2.3" || len(res.Hooks) != 1 || !res.Hooks[0].Has("pre-install") || res.Hooks[0].Object.GetName() != "legacy-name-migrate" {
+		t.Errorf("revision %s hooks %+v", res.Revision, res.Hooks)
+	}
+	if !res.Hooks[0].HookPolicy("before-hook-creation") || res.Hooks[0].HookPolicy("hook-succeeded") {
+		t.Error("a hook without a delete policy gets Helm's default, before-hook-creation")
+	}
+	first := res.Hash
+	a.Spec.Values = "replicas: 4\n"
+	if again, _ := r.Render(context.Background(), a); again.Hash == first || first == "" {
+		t.Error("changed values must change the hash (an upgrade)")
 	}
 	a.Spec.Source.Helm.Version = "9.9.9"
 	if _, err := r.Render(context.Background(), a); err == nil || !strings.Contains(err.Error(), "not found") {

@@ -47,9 +47,9 @@ var Catalog = []CatalogEntry{
 		Fields: []Field{
 			{Key: "persistence.defaultClassReplicaCount", Label: "Replicas per volume", Type: "number", Default: 3, Description: "Copies of each volume, on different nodes."},
 			{Key: "defaultSettings.defaultDataPath", Label: "Data path on each node", Type: "string", Default: "/var/lib/longhorn/"},
-			{Key: "preUpgradeChecker.jobEnabled", Label: "Run the pre-upgrade checker job", Type: "boolean", Default: false, Description: "Helm hooks are not run by rendimiento; keep this off."},
+			{Key: "preUpgradeChecker.jobEnabled", Label: "Run the pre-upgrade checker job", Type: "boolean", Default: false, Description: "A pre-upgrade hook that checks an upgrade is safe before applying it."},
 		},
-		Notes: "Storage is critical: changes wait for a manual sync after you review the preview. rendimiento does not run Helm hooks, so upgrading Longhorn's version needs its post-upgrade job run by hand.",
+		Notes: "Storage is critical: changes wait for a manual sync after you review the preview. Longhorn's Helm hooks run as with Helm: its post-upgrade job after an upgrade, and on uninstall its uninstaller, which refuses unless Longhorn's deleting-confirmation-flag setting is on.",
 	},
 	{
 		ID: "hajimari", Title: "Hajimari", Category: "web", Kind: "helm", Namespace: "hajimari",

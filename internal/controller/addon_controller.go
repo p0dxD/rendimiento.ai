@@ -95,7 +95,8 @@ func (r *AddonReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		_ = r.saveStatus(ctx, &a, st)
 		return ctrl.Result{RequeueAfter: addonResync}, nil
 	}
-	st.Revision, st.SkippedHooks = res.Revision, res.SkippedHooks
+	st.Revision, st.Hooks = res.Revision, hookInfo(res.Hooks)
+	event := lifecycle(&a, res)
 
 	preview, err := r.preview(ctx, &a, objs)
 	if err != nil {
@@ -105,6 +106,13 @@ func (r *AddonReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 	st.Preview = preview
 	pending := preview.Create + preview.Update + preview.Prune
+	hookNote := ""
+	if event != "" {
+		pending++ // an install or upgrade runs its hooks even if no object changes
+		if n := countHooks(res.Hooks, "pre-"+event) + countHooks(res.Hooks, "post-"+event); n > 0 {
+			hookNote = fmt.Sprintf("; the %s runs %d Helm hook(s)", event, n)
+		}
+	}
 
 	switch {
 	case a.Spec.Adopt && !st.Adopted && preview.Update > 0 && !a.Spec.AllowAdoptChanges:
@@ -113,10 +121,29 @@ func (r *AddonReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{RequeueAfter: addonResync}, r.saveStatus(ctx, &a, st)
 	case a.Spec.ManualSync && pending > 0 && a.Spec.SyncRequest <= st.AppliedSyncRequest:
 		st.Phase = v1alpha1.AddonOutOfSync
-		st.Message = fmt.Sprintf("%d to create, %d to update, %d to prune: waiting for a manual sync", preview.Create, preview.Update, preview.Prune)
+		st.Message = fmt.Sprintf("%d to create, %d to update, %d to prune%s: waiting for a manual sync", preview.Create, preview.Update, preview.Prune, hookNote)
 		return ctrl.Result{RequeueAfter: addonResync}, r.saveStatus(ctx, &a, st)
 	}
 
+	if event != "" {
+		// Like Helm: the namespace and CRDs exist before any hook runs.
+		var foundation []*unstructured.Unstructured
+		for _, o := range objs {
+			if applyRank(o) < 2 {
+				foundation = append(foundation, o)
+			}
+		}
+		if err := r.applyAll(ctx, foundation); err != nil {
+			st.Phase, st.Message = v1alpha1.AddonError, err.Error()
+			_ = r.saveStatus(ctx, &a, st)
+			return ctrl.Result{RequeueAfter: time.Minute}, nil
+		}
+		if err := r.runHooks(ctx, &a, st, res.Hooks, "pre-"+event); err != nil {
+			st.Phase, st.Message = v1alpha1.AddonError, err.Error()+"; nothing was applied"
+			_ = r.saveStatus(ctx, &a, st)
+			return ctrl.Result{RequeueAfter: addonResync}, nil
+		}
+	}
 	if err := r.applyAll(ctx, objs); err != nil {
 		st.Phase, st.Message = v1alpha1.AddonError, err.Error()
 		_ = r.saveStatus(ctx, &a, st)
@@ -130,7 +157,17 @@ func (r *AddonReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			return ctrl.Result{RequeueAfter: time.Minute}, nil
 		}
 	}
+	if event != "" {
+		if err := r.runHooks(ctx, &a, st, res.Hooks, "post-"+event); err != nil {
+			// The objects are applied; the hook is retried on the next sync.
+			st.Objects, st.Adopted = inventory, true
+			st.Phase, st.Message = v1alpha1.AddonError, err.Error()+"; the objects were applied, the hook is retried"
+			_ = r.saveStatus(ctx, &a, st)
+			return ctrl.Result{RequeueAfter: addonResync}, nil
+		}
+	}
 	now := metav1.Now()
+	st.AppliedHash = res.Hash
 	st.Objects, st.LastSynced, st.Adopted = inventory, &now, true
 	st.AppliedSyncRequest = a.Spec.SyncRequest
 	st.Phase = v1alpha1.AddonSynced
@@ -160,31 +197,13 @@ func (r *AddonReconciler) prepare(a *v1alpha1.Addon, in []*unstructured.Unstruct
 	seen := map[string]bool{}
 	hasNS := false
 	for _, o := range in {
-		o = o.DeepCopy()
-		gvk := o.GroupVersionKind()
-		namespaced, known := bundled[gvk.GroupKind()]
-		if !known {
-			m, err := r.Target.RESTMapper().RESTMapping(gvk.GroupKind(), gvk.Version)
-			if err != nil {
-				return nil, fmt.Errorf("%s %s: unknown kind (is its CRD installed?): %w", gvk.Kind, o.GetName(), err)
-			}
-			namespaced = m.Scope.Name() == meta.RESTScopeNameNamespace
-		}
-		if namespaced && o.GetNamespace() == "" {
-			o.SetNamespace(a.Spec.Namespace)
-		}
-		if !namespaced {
-			o.SetNamespace("")
+		o, err := r.prepareOne(a, o, bundled)
+		if err != nil {
+			return nil, err
 		}
 		if o.GetKind() == "Namespace" && o.GetName() == a.Spec.Namespace {
 			hasNS = true
 		}
-		labels := o.GetLabels()
-		if labels == nil {
-			labels = map[string]string{}
-		}
-		labels[LabelAddon] = a.Name
-		o.SetLabels(labels)
 		key := refKey(ref(o))
 		if seen[key] {
 			return nil, fmt.Errorf("%s is rendered twice", key)
@@ -202,6 +221,34 @@ func (r *AddonReconciler) prepare(a *v1alpha1.Addon, in []*unstructured.Unstruct
 	}
 	sort.SliceStable(out, func(i, j int) bool { return applyRank(out[i]) < applyRank(out[j]) })
 	return out, nil
+}
+
+// prepareOne namespaces and labels one object. bundled maps kinds defined
+// by CRDs in the same add-on to whether they are namespaced.
+func (r *AddonReconciler) prepareOne(a *v1alpha1.Addon, o *unstructured.Unstructured, bundled map[schema.GroupKind]bool) (*unstructured.Unstructured, error) {
+	o = o.DeepCopy()
+	gvk := o.GroupVersionKind()
+	namespaced, known := bundled[gvk.GroupKind()]
+	if !known {
+		m, err := r.Target.RESTMapper().RESTMapping(gvk.GroupKind(), gvk.Version)
+		if err != nil {
+			return nil, fmt.Errorf("%s %s: unknown kind (is its CRD installed?): %w", gvk.Kind, o.GetName(), err)
+		}
+		namespaced = m.Scope.Name() == meta.RESTScopeNameNamespace
+	}
+	if namespaced && o.GetNamespace() == "" {
+		o.SetNamespace(a.Spec.Namespace)
+	}
+	if !namespaced {
+		o.SetNamespace("")
+	}
+	labels := o.GetLabels()
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	labels[LabelAddon] = a.Name
+	o.SetLabels(labels)
+	return o, nil
 }
 
 // applyRank orders CRDs and namespaces before the objects that need them.
@@ -382,6 +429,19 @@ func (r *AddonReconciler) finalize(ctx context.Context, a *v1alpha1.Addon) error
 		return nil
 	}
 	if a.Annotations[AnnotationUninstall] == "true" {
+		// Like `helm uninstall`: pre-delete hooks first, and a failing one
+		// stops the uninstall (Longhorn's refuses unless deletion was confirmed).
+		var hooks []addon.Hook
+		if res, err := r.Renderer.Render(ctx, a); err == nil && !a.Spec.SkipHooks {
+			hooks = res.Hooks
+		}
+		st := a.Status.DeepCopy()
+		if err := r.runHooks(ctx, a, st, hooks, "pre-delete"); err != nil {
+			st.Phase = v1alpha1.AddonError
+			st.Message = "uninstall stopped: " + err.Error() + ". Remove the rendimiento.ai/uninstall annotation to stop managing it without uninstalling."
+			_ = r.saveStatus(ctx, a, st)
+			return err
+		}
 		for _, x := range a.Status.Objects {
 			if neverDelete[x.Kind] {
 				continue
@@ -389,6 +449,9 @@ func (r *AddonReconciler) finalize(ctx context.Context, a *v1alpha1.Addon) error
 			if err := r.deleteRef(ctx, x); err != nil {
 				return err
 			}
+		}
+		if err := r.runHooks(ctx, a, st, hooks, "post-delete"); err != nil {
+			log.FromContext(ctx).Error(err, "addon: post-delete hook", "addon", a.Name)
 		}
 		log.FromContext(ctx).Info("addon: uninstalled", "addon", a.Name, "objects", len(a.Status.Objects))
 	}
