@@ -1,0 +1,250 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.22.0
+  name: addons.rendimiento.ai
+spec:
+  group: rendimiento.ai
+  names:
+    kind: Addon
+    listKind: AddonList
+    plural: addons
+    shortNames:
+    - radd
+    singular: addon
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .spec.namespace
+      name: Namespace
+      type: string
+    - jsonPath: .status.revision
+      name: Revision
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Addon is software installed from a Helm chart or git manifests.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              AddonSpec is software rendimiento installs and keeps in sync, rendered
+              from a Helm chart or from Kubernetes manifests (a kustomize folder) in git.
+            properties:
+              adopt:
+                description: |-
+                  Adopt takes over objects that already exist (e.g. installed by
+                  ArgoCD or Helm). The first sync of an adopted add-on only proceeds if
+                  it would change nothing, unless AllowAdoptChanges is set.
+                type: boolean
+              allowAdoptChanges:
+                type: boolean
+              category:
+                type: string
+              createNamespace:
+                description: CreateNamespace creates Namespace if it does not exist.
+                type: boolean
+              description:
+                type: string
+              manualSync:
+                description: |-
+                  ManualSync applies changes only when requested (SyncRequest raised),
+                  after reviewing the preview. Otherwise changes apply automatically.
+                type: boolean
+              namespace:
+                description: Namespace receives the add-on's namespaced objects that
+                  do not set one.
+                type: string
+              prune:
+                description: |-
+                  Prune deletes objects that leave the source. CRDs, namespaces,
+                  volumes and storage classes are never deleted.
+                type: boolean
+              releaseName:
+                description: |-
+                  ReleaseName is the Helm release name (default: the add-on's name).
+                  Keep a migrated release's name so rendered labels stay identical.
+                type: string
+              source:
+                description: AddonSource is exactly one of Helm or Git.
+                properties:
+                  git:
+                    properties:
+                      path:
+                        description: Path is the folder holding kustomization.yaml
+                          (or plain manifests).
+                        type: string
+                      repo:
+                        description: Repo is owner/name on GitHub.
+                        type: string
+                      revision:
+                        description: Revision is the commit to render; rendimiento
+                          pins it on each sync.
+                        type: string
+                    required:
+                    - path
+                    - repo
+                    type: object
+                  helm:
+                    properties:
+                      chart:
+                        type: string
+                      repo:
+                        description: Repo is the chart repository URL (https://charts.longhorn.io).
+                        type: string
+                      version:
+                        type: string
+                    required:
+                    - chart
+                    - repo
+                    - version
+                    type: object
+                type: object
+              suspend:
+                description: Suspend stops syncing; the objects are left as they are.
+                type: boolean
+              syncRequest:
+                format: int64
+                type: integer
+              title:
+                description: Title, Category and Description describe the add-on in
+                  the UI.
+                type: string
+              values:
+                description: Values are Helm values (YAML). Ignored for git sources.
+                type: string
+            required:
+            - namespace
+            - source
+            type: object
+          status:
+            properties:
+              adopted:
+                description: Adopted is set once an adopting add-on has synced for
+                  the first time.
+                type: boolean
+              appliedSyncRequest:
+                description: AppliedSyncRequest is the SyncRequest last honoured (manual
+                  sync).
+                format: int64
+                type: integer
+              lastSynced:
+                format: date-time
+                type: string
+              message:
+                type: string
+              objects:
+                description: Objects is the inventory of what the add-on applied (used
+                  for pruning).
+                items:
+                  description: ObjectRef identifies one object the add-on manages.
+                  properties:
+                    group:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                    version:
+                      type: string
+                  required:
+                  - kind
+                  - name
+                  - version
+                  type: object
+                type: array
+              observedGeneration:
+                format: int64
+                type: integer
+              phase:
+                type: string
+              preview:
+                description: Preview is the dry run from the last reconcile.
+                properties:
+                  create:
+                    type: integer
+                  items:
+                    description: Items lists the objects that would change (unchanged
+                      ones are only counted).
+                    items:
+                      description: PreviewItem is what syncing would do to one object.
+                      properties:
+                        action:
+                          description: Action is create, update or unchanged (or prune).
+                          type: string
+                        diff:
+                          description: Diff is a unified diff of the changed fields
+                            (truncated).
+                          type: string
+                        group:
+                          type: string
+                        kind:
+                          type: string
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                        version:
+                          type: string
+                      required:
+                      - action
+                      - kind
+                      - name
+                      - version
+                      type: object
+                    type: array
+                  prune:
+                    type: integer
+                  unchanged:
+                    type: integer
+                  update:
+                    type: integer
+                required:
+                - create
+                - prune
+                - unchanged
+                - update
+                type: object
+              revision:
+                description: 'Revision is what was rendered: the chart version or
+                  the git commit.'
+                type: string
+              skippedHooks:
+                description: SkippedHooks are Helm hooks, which rendimiento does not
+                  run.
+                items:
+                  type: string
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

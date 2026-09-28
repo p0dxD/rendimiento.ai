@@ -3,7 +3,9 @@ package github
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
+	"strings"
 	"sync/atomic"
 )
 
@@ -93,4 +95,23 @@ func (h *Holder) BranchSHA(ctx context.Context, installation int64, repo, branch
 		return "", err
 	}
 	return c.BranchSHA(ctx, repo, branch)
+}
+
+// ForOwner returns an API client for the installation on an account
+// (user or organization), found by the account's login.
+func (h *Holder) ForOwner(ctx context.Context, owner string) (*Client, int64, error) {
+	app, err := h.Get()
+	if err != nil {
+		return nil, 0, err
+	}
+	insts, err := app.Installations(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	for _, i := range insts {
+		if strings.EqualFold(i.Account.Login, owner) {
+			return app.Client(i.ID), i.ID, nil
+		}
+	}
+	return nil, 0, fmt.Errorf("the GitHub App is not installed on %s", owner)
 }
