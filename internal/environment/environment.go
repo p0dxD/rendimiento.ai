@@ -153,6 +153,7 @@ type Config struct {
 	ClusterIssuer    string
 	StorageClass     string
 	BuildkitAddr     string // tcp://host:port
+	BuildkitPool     string // headless Service listing the pool's daemons
 	Registry         string // host:port
 	RegistryInsecure bool
 	BuildNamespace   string

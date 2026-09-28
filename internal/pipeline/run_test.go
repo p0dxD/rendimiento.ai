@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -99,7 +100,7 @@ func TestPlanBuildsJobImages(t *testing.T) {
 func TestBuildPodsAvoidExcludedNodes(t *testing.T) {
 	k := &KubeExecutor{Namespace: "b", ExcludeNodes: []string{"podoi-ai"}}
 	k.defaults()
-	pod, err := k.pod("run-1-web-build-abc", nil, Source{Repo: "o/r", SHA: "s"}, Step{ID: "web:build", Kind: KindBuild, Path: "."})
+	pod, err := k.pod("run-1-web-build-abc", nil, Source{Repo: "o/r", SHA: "s"}, Step{ID: "web:build", Kind: KindBuild, Path: "."}, "tcp://b:1234")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +112,7 @@ func TestBuildPodsAvoidExcludedNodes(t *testing.T) {
 		t.Fatal("build pods must not get API credentials")
 	}
 	k.ExcludeNodes = nil
-	if pod, _ := k.pod("x", nil, Source{}, Step{Kind: KindTest, Path: ".", Image: "i", Command: "c"}); pod.Spec.Affinity != nil {
+	if pod, _ := k.pod("x", nil, Source{}, Step{Kind: KindTest, Path: ".", Image: "i", Command: "c"}, ""); pod.Spec.Affinity != nil {
 		t.Fatal("no exclusion configured → no affinity")
 	}
 }
@@ -175,7 +176,7 @@ func TestBuildPodPicksBuilder(t *testing.T) {
 	k.defaults()
 	step := Step{ID: "web:build", Kind: KindBuild, Path: "web", Dockerfile: "Dockerfile", Start: "node server.js",
 		BuildArgs: map[string]string{"B": "2", "A": "1"}}
-	pod, err := k.pod("p", nil, Source{Repo: "o/r", SHA: "abc"}, step)
+	pod, err := k.pod("p", nil, Source{Repo: "o/r", SHA: "abc"}, step, "tcp://b:1234")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,11 +193,11 @@ func TestBuildPodPicksBuilder(t *testing.T) {
 
 	// Without a Railpack image, builds use the Dockerfile and forcing Railpack fails.
 	k.RailpackImage = ""
-	if pod, _ := k.pod("p", nil, Source{}, step); len(pod.Spec.InitContainers) != 1 {
+	if pod, _ := k.pod("p", nil, Source{}, step, ""); len(pod.Spec.InitContainers) != 1 {
 		t.Error("plan container without a Railpack image")
 	}
 	step.Builder = "railpack"
-	if _, err := k.pod("p", nil, Source{}, step); err == nil {
+	if _, err := k.pod("p", nil, Source{}, step, ""); err == nil {
 		t.Error("railpack builder without a Railpack image must fail")
 	}
 }
@@ -250,5 +251,56 @@ func TestPlanScript(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+type fakeSRV struct {
+	targets []string
+	err     error
+}
+
+func (f fakeSRV) LookupSRV(context.Context, string, string, string) (string, []*net.SRV, error) {
+	var out []*net.SRV
+	for _, t := range f.targets {
+		out = append(out, &net.SRV{Target: t + ".buildkitd-pool.devops-tools.svc.cluster.local.", Port: 1234})
+	}
+	return "", out, f.err
+}
+
+func TestBuildkitPool(t *testing.T) {
+	k := &KubeExecutor{BuildkitAddr: "tcp://single:1234"}
+	if addr, d := k.buildkitFor(context.Background(), "reg/shop-api"); addr != "tcp://single:1234" || d != "" {
+		t.Fatalf("no pool: %s %s", addr, d)
+	}
+	all := []string{"buildkitd-0", "buildkitd-1", "buildkitd-2", "buildkitd-3"}
+	k.BuildkitPool, k.Resolver = "buildkitd-pool.devops-tools.svc.cluster.local", fakeSRV{targets: all}
+	keys := []string{"reg/a-web", "reg/a-api", "reg/b-web", "reg/c-ui", "reg/d-worker", "reg/e-api", "reg/f-fn", "reg/g-db"}
+	first := map[string]string{}
+	used := map[string]bool{}
+	for _, key := range keys {
+		addr, d := k.buildkitFor(context.Background(), key)
+		if again, _ := k.buildkitFor(context.Background(), key); again != addr {
+			t.Fatalf("%s is not stable: %s then %s", key, addr, again)
+		}
+		if !strings.HasPrefix(addr, "tcp://"+d+".buildkitd-pool.devops-tools.svc.cluster.local:1234") {
+			t.Fatalf("addr %s daemon %s", addr, d)
+		}
+		first[key], used[d] = d, true
+	}
+	if len(used) < 3 {
+		t.Errorf("8 images should spread over most of 4 daemons, used %v", used)
+	}
+	// A daemon going away only moves its own images.
+	k.Resolver = fakeSRV{targets: []string{"buildkitd-0", "buildkitd-1", "buildkitd-3"}}
+	for _, key := range keys {
+		_, d := k.buildkitFor(context.Background(), key)
+		if first[key] != "buildkitd-2" && d != first[key] {
+			t.Errorf("%s moved from %s to %s although its daemon is still there", key, first[key], d)
+		}
+	}
+	// No ready daemon: the single address.
+	k.Resolver = fakeSRV{err: fmt.Errorf("no such host")}
+	if addr, _ := k.buildkitFor(context.Background(), "reg/a-web"); addr != "tcp://single:1234" {
+		t.Errorf("fallback = %s", addr)
 	}
 }
