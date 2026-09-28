@@ -34,7 +34,7 @@ const (
 
 // Origin says where a service comes from.
 type Origin struct {
-	// Kind is rendimiento, argocd, helm or manual.
+	// Kind is rendimiento, addon, argocd, helm or manual.
 	Kind    string `json:"kind"`
 	Summary string `json:"summary"`
 	App     string `json:"app,omitempty"`
@@ -232,6 +232,10 @@ func assemble(s snapshot, infra []string) *Catalog {
 				e.Title = firstNonEmpty(c.Title, e.Title)
 				e.Description, e.Docs, e.Endpoints, e.Env = c.Description, c.Docs, c.Endpoints, c.Env
 			}
+		case svc.Labels["rendimiento.ai/addon"] != "":
+			e.Group = GroupApps
+			name := svc.Labels["rendimiento.ai/addon"]
+			e.Origin = Origin{Kind: "addon", App: name, Summary: fmt.Sprintf("Installed by the %s add-on, kept in sync by rendimiento", name)}
 		case isInfra[svc.Namespace]:
 			e.Group = GroupInfra
 			e.Origin = foreignOrigin(&svc.ObjectMeta)

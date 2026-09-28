@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - crds/rendimiento.ai_apps.yaml
+  - crds/rendimiento.ai_addons.yaml
   - rbac.yaml
   - postgres.yaml
   - rendimiento.yaml

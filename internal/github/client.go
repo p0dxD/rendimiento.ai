@@ -376,3 +376,44 @@ func (c *Client) BranchSHA(ctx context.Context, repo, branch string) (string, er
 	}
 	return out.SHA, nil
 }
+
+// PutFile creates or updates one file on a branch as a single commit and
+// returns the commit's SHA.
+func (c *Client) PutFile(ctx context.Context, repo, branch, filePath, content, message string) (string, error) {
+	body := map[string]any{"message": message, "content": base64.StdEncoding.EncodeToString([]byte(content)), "branch": branch}
+	if sha, err := c.fileSHA(ctx, repo, branch, filePath); err == nil {
+		body["sha"] = sha // updating: GitHub needs the current blob
+	} else if !IsNotFound(err) {
+		return "", err
+	}
+	var out struct {
+		Commit struct {
+			SHA string `json:"sha"`
+		} `json:"commit"`
+	}
+	err := c.do(ctx, http.MethodPut, "/repos/"+repo+"/contents/"+filePath, body, &out)
+	return out.Commit.SHA, err
+}
+
+// DeleteFile removes one file on a branch as a single commit.
+func (c *Client) DeleteFile(ctx context.Context, repo, branch, filePath, message string) (string, error) {
+	sha, err := c.fileSHA(ctx, repo, branch, filePath)
+	if err != nil {
+		return "", err
+	}
+	var out struct {
+		Commit struct {
+			SHA string `json:"sha"`
+		} `json:"commit"`
+	}
+	err = c.do(ctx, http.MethodDelete, "/repos/"+repo+"/contents/"+filePath, map[string]any{"message": message, "sha": sha, "branch": branch}, &out)
+	return out.Commit.SHA, err
+}
+
+func (c *Client) fileSHA(ctx context.Context, repo, branch, filePath string) (string, error) {
+	var out struct {
+		SHA string `json:"sha"`
+	}
+	err := c.do(ctx, http.MethodGet, "/repos/"+repo+"/contents/"+filePath+"?ref="+url.QueryEscape(branch), nil, &out)
+	return out.SHA, err
+}

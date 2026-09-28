@@ -10,6 +10,7 @@ import { Setup } from "./pages/Setup";
 import { Environment } from "./pages/Environment";
 import { Services } from "./pages/Services";
 import { Addons } from "./pages/Addons";
+import { AddonDetail } from "./pages/Installed";
 import "./styles.css";
 
 function Logo() {
@@ -83,6 +84,7 @@ function Shell() {
           <Route path="/environment" element={<Environment />} />
           <Route path="/services" element={<Services />} />
           <Route path="/addons" element={<Addons />} />
+          <Route path="/addons/:name" element={<AddonDetail />} />
           <Route path="/services/:ns/:name" element={<Services />} />
           <Route path="/apps/:name" element={<AppPage />} />
           <Route path="/apps/:name/:tab" element={<AppPage />} />

@@ -2,17 +2,22 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { addonsApi, timeAgo, type Addon, type AddonRun, type RenovateSettings } from "../api";
 import { ErrorBox, RunBadge, Switch, usePoll } from "../components/ui";
+import { InstalledSection } from "./Installed";
 
 export function Addons() {
   const { data, error, reload } = usePoll(() => addonsApi.list(), [], 10000);
-  if (error) return <ErrorBox error={error} />;
-  if (!data) return <p className="muted">Loading…</p>;
+  const [q, setQ] = useState("");
   return (
     <>
       <h1>Add-ons</h1>
-      <p className="sub">Optional features rendimiento runs for you. Switch them on here; some also have a switch on each app.</p>
+      <p className="sub">Software rendimiento installs and keeps in sync (Helm charts or manifests in git), plus built-in features.</p>
+      <input className="svc-search" placeholder="Search add-ons: longhorn, monitoring, postgres…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <InstalledSection query={q} />
+      <h2>Built in</h2>
+      <ErrorBox error={error} />
       <div className="stack">
-        {data.map((a) => (a.name === "renovate" ? <RenovateCard key={a.name} addon={a} onChange={reload} /> : null))}
+        {data?.filter((a) => !q || `${a.name} ${a.title} ${a.description}`.toLowerCase().includes(q.toLowerCase()))
+          .map((a) => (a.name === "renovate" ? <RenovateCard key={a.name} addon={a} onChange={reload} /> : null))}
       </div>
     </>
   );

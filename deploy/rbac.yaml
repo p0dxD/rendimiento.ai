@@ -12,8 +12,14 @@ metadata:
   name: rendimiento
 rules:
   - apiGroups: [rendimiento.ai]
-    resources: [apps, apps/status, apps/finalizers]
+    resources: [apps, apps/status, apps/finalizers, addons, addons/status, addons/finalizers]
     verbs: ["*"]
+  # Add-ons are applied as the rendimiento-addons identity (below); the
+  # platform itself may only act as it, not hold its rights.
+  - apiGroups: [""]
+    resources: [serviceaccounts]
+    resourceNames: [rendimiento-addons]
+    verbs: [impersonate]
   - apiGroups: [""]
     resources: [namespaces, services, persistentvolumeclaims, secrets]
     verbs: [get, list, watch, create, update, patch, delete]
@@ -123,4 +129,28 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rendimiento
+    namespace: rendimiento-system
+---
+# Add-ons install cluster software (Helm charts such as Longhorn: CRDs,
+# ClusterRoles, DaemonSets), which needs cluster-admin, as ArgoCD has had.
+# No pod runs as this account: the platform impersonates it only while
+# applying add-ons, so the audit log shows exactly what add-ons changed.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rendimiento-addons
+  namespace: rendimiento-system
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rendimiento-addons
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: rendimiento-addons
     namespace: rendimiento-system

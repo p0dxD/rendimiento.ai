@@ -17,13 +17,17 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
+	"github.com/p0dxD/rendimiento.ai/internal/addon"
 	"github.com/p0dxD/rendimiento.ai/internal/api"
 	"github.com/p0dxD/rendimiento.ai/internal/catalog"
 	"github.com/p0dxD/rendimiento.ai/internal/controller"
@@ -167,6 +171,30 @@ func run(log *slog.Logger) error {
 		log.Warn("GitHub App not configured yet; open " + baseURL + "/setup")
 	}
 
+	// Add-ons act as their own, more privileged service account, so what
+	// they change is attributed to it; the platform may only impersonate it.
+	addonCfg := rest.CopyConfig(cfg)
+	addonCfg.Impersonate = rest.ImpersonationConfig{UserName: env("ADDONS_IDENTITY", "system:serviceaccount:"+ns+":rendimiento-addons")}
+	addonTarget, err := client.New(addonCfg, client.Options{Scheme: scheme})
+	if err != nil {
+		return err
+	}
+	// Helm renders against this cluster's version and APIs; cache discovery
+	// and refresh it periodically so newly installed CRDs show up.
+	disco := memory.NewMemCacheClient(discovery.NewDiscoveryClientForConfigOrDie(cfg))
+	go func() {
+		for range time.Tick(10 * time.Minute) {
+			disco.Invalidate()
+		}
+	}()
+	addonSyncer := &addon.Syncer{Kube: kube, GitHub: holder, Repo: env("ADDONS_REPO", "p0dxD/gitops"), Log: log}
+	if err := (&controller.AddonReconciler{
+		Client: mgr.GetClient(), Target: addonTarget,
+		Renderer: &addon.Renderer{Git: addon.GitHubFetcher{GitHub: holder}, Discovery: disco},
+	}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
 	parallel, _ := strconv.Atoi(env("MAX_PARALLEL_STEPS", "2"))
 	stepTimeout, err := time.ParseDuration(env("STEP_TIMEOUT", "45m"))
 	if err != nil || stepTimeout < time.Minute {
@@ -204,6 +232,7 @@ func run(log *slog.Logger) error {
 		AppName: env("GITHUB_APP_NAME", "rendimiento"), UI: web.Dist(),
 		Catalog:  &catalog.Builder{Kube: kube},
 		Renovate: renovateRunner,
+		Addons:   addonSyncer,
 		Environment: &environment.Checker{
 			Kube: kube, Discovery: clientset.Discovery(), DNS: dnsProvider, GitHub: holder, DB: st,
 			Config: environment.Config{
@@ -228,6 +257,7 @@ func run(log *slog.Logger) error {
 			}
 			log.Info("starting CI worker", "maxParallelSteps", parallel)
 			go renovateRunner.Loop(ctx)
+			go addonSyncer.Loop(ctx)
 			p.Work(ctx)
 		case <-ctx.Done():
 		}

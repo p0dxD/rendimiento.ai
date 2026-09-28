@@ -333,7 +333,7 @@ export interface CatalogEntry {
   title: string;
   description?: string;
   origin: {
-    kind: "rendimiento" | "argocd" | "helm" | "manual";
+    kind: "rendimiento" | "addon" | "argocd" | "helm" | "manual";
     summary: string;
     app?: string;
     repo?: string;
@@ -434,4 +434,87 @@ export const addonsApi = {
   forApp: (app: string) => request<AppAddons>("GET", `/api/apps/${encodeURIComponent(app)}/addons`),
   setForApp: (app: string, addon: string, enabled: boolean) =>
     request<AppAddons>("PUT", `/api/apps/${encodeURIComponent(app)}/addons/${addon}`, { enabled }),
+};
+
+// ---- installed add-ons (Helm charts / git manifests) ----
+
+export interface AddonObjectRef { group?: string; version: string; kind: string; namespace?: string; name: string }
+export interface AddonPreview {
+  create: number;
+  update: number;
+  unchanged: number;
+  prune: number;
+  items?: (AddonObjectRef & { action: "create" | "update" | "prune"; diff?: string })[];
+}
+export interface AddonSource {
+  helm?: { repo: string; chart: string; version: string };
+  git?: { repo: string; path: string; revision?: string };
+}
+export type AddonPhase = "Pending" | "Synced" | "OutOfSync" | "Blocked" | "Error" | "Suspended";
+export interface InstalledAddon {
+  name: string;
+  title: string;
+  category: string;
+  description: string;
+  namespace: string;
+  source: AddonSource;
+  manualSync: boolean;
+  suspend: boolean;
+  adopt: boolean;
+  fromGit: boolean;
+  sourceFile?: string;
+  status: {
+    phase?: AddonPhase;
+    message?: string;
+    revision?: string;
+    objects?: AddonObjectRef[];
+    preview?: AddonPreview;
+    skippedHooks?: string[];
+    lastSynced?: string;
+    adopted?: boolean;
+  };
+  definition?: string;
+}
+export interface CatalogField { key: string; label: string; type: "string" | "number" | "boolean"; default?: unknown; description?: string }
+export interface AddonCatalogEntry {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  homepage?: string;
+  kind: "helm" | "custom-helm" | "custom-git";
+  helm?: { repo: string; chart: string; version: string };
+  namespace?: string;
+  fields?: CatalogField[];
+  manualSync?: boolean;
+  notes?: string;
+}
+export interface AddonDefinition {
+  name: string;
+  title?: string;
+  category?: string;
+  description?: string;
+  namespace: string;
+  createNamespace?: boolean;
+  helm?: { repo: string; chart: string; version: string };
+  git?: { repo?: string; path: string };
+  releaseName?: string;
+  values?: Record<string, unknown>;
+  adopt?: boolean;
+  allowAdoptChanges?: boolean;
+  prune?: boolean;
+  manualSync?: boolean;
+  suspend?: boolean;
+}
+
+export const installedApi = {
+  catalog: () => request<AddonCatalogEntry[]>("GET", "/api/addon-catalog"),
+  list: () => request<{ addons: InstalledAddon[]; repo?: string; sync?: { at: string; commit?: string; error?: string; invalid?: Record<string, string> } }>("GET", "/api/installed"),
+  get: (name: string) => request<InstalledAddon>("GET", `/api/installed/${name}`),
+  save: (name: string, body: { definition?: AddonDefinition; valuesYaml?: string; yaml?: string }) =>
+    request<{ commit: string; repo: string }>("PUT", `/api/installed/${name}`, body),
+  sync: (name: string) => request<void>("POST", `/api/installed/${name}/sync`),
+  patch: (name: string, body: { suspend?: boolean; allowAdoptChanges?: boolean; manualSync?: boolean }) =>
+    request<{ commit: string }>("PATCH", `/api/installed/${name}`, body),
+  remove: (name: string, uninstall: boolean) => request<{ commit: string }>("DELETE", `/api/installed/${name}?uninstall=${uninstall}`),
 };
