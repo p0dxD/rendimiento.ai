@@ -2,6 +2,7 @@ package detect
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"testing/fstest"
 )
@@ -85,5 +86,24 @@ func TestDetect(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDetectNeeds(t *testing.T) {
+	fsys := fstest.MapFS{
+		"api/requirements.txt": {Data: []byte("fastapi==0.141.1\npsycopg2-binary==2.9.10\nredis>=5\n")},
+		"api/main.py":          {Data: []byte("from fastapi import FastAPI\napp = FastAPI()\n")},
+		"web/package.json":     {Data: []byte(`{"dependencies": {"next": "15.0.0", "ioredis": "^5"}}`)},
+	}
+	rs, err := Detect(fsys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, r := range rs {
+		got[r.Path] = strings.Join(r.Needs, ",")
+	}
+	if got["api"] != "postgres,redis" || got["web"] != "redis" {
+		t.Errorf("needs = %v", got)
 	}
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
+	"github.com/p0dxD/rendimiento.ai/internal/spec"
 )
 
 const (
@@ -103,6 +104,11 @@ func (r *AppReconciler) sync(ctx context.Context, app *v1alpha1.App, st *v1alpha
 	in := render.Input{App: app.Name, Selectors: map[string]map[string]string{}}
 	in.Spec.Services = app.Spec.Services
 	in.Spec.Jobs = app.Spec.Jobs
+	in.Spec.Postgres, in.Spec.Redis = app.Spec.Postgres, app.Spec.Redis
+	if in.ServiceURLs, err = r.serviceURLs(ctx, app, in.Spec); err != nil {
+		st.Phase, st.Message = v1alpha1.PhaseError, err.Error()
+		return ctrl.Result{RequeueAfter: time.Minute}, nil
+	}
 	in.Images = app.Spec.Images
 	for _, svc := range app.Spec.Services {
 		// Selectors are immutable: keep whatever an existing Deployment has.
@@ -117,8 +123,18 @@ func (r *AppReconciler) sync(ctx context.Context, app *v1alpha1.App, st *v1alpha
 	}
 	var ingresses []metav1.Object
 	for _, obj := range objs.List() {
-		if _, isNS := obj.(*corev1.Namespace); isNS && app.Spec.SharedNamespace {
-			continue // someone else owns it: never label, own or delete it
+		if _, isNS := obj.(*corev1.Namespace); isNS {
+			if !app.Spec.SharedNamespace { // otherwise someone else owns it: never label, own or delete it
+				if err := r.apply(ctx, app, obj); err != nil {
+					return ctrl.Result{}, err
+				}
+			}
+			// The namespace exists now: create the credentials the database,
+			// cache and their users read, before any of them start.
+			if err := r.ensureNeedSecrets(ctx, app, in.Spec); err != nil {
+				return ctrl.Result{}, err
+			}
+			continue
 		}
 		if _, isIngress := obj.(*networkingv1.Ingress); isIngress {
 			if len(legacy) == 0 { // otherwise traffic stays on the legacy ingress until migrate switches it
@@ -150,8 +166,13 @@ func (r *AppReconciler) sync(ctx context.Context, app *v1alpha1.App, st *v1alpha
 	st.Release = app.Spec.Release
 
 	healthy := true
-	for _, svc := range app.Spec.Services {
-		ss := v1alpha1.ServiceStatus{Name: svc.Name, Image: app.Spec.Images[svc.Name], CertReady: true, DNSReady: true}
+	// The app's services, then the database and cache its needs run.
+	for _, svc := range append(append([]spec.Service{}, app.Spec.Services...), render.NeedServices(in.Spec)...) {
+		image := app.Spec.Images[svc.Name]
+		if image == "" {
+			image = svc.Image
+		}
+		ss := v1alpha1.ServiceStatus{Name: svc.Name, Image: image, CertReady: true, DNSReady: true}
 		var dep appsv1.Deployment
 		if err := r.Get(ctx, client.ObjectKey{Namespace: app.Name, Name: svc.Name}, &dep); err == nil {
 			ss.Replicas, ss.ReadyReplicas = *dep.Spec.Replicas, dep.Status.ReadyReplicas

@@ -334,3 +334,69 @@ services:
 		t.Error("no /dev/shm")
 	}
 }
+
+func TestRenderNeeds(t *testing.T) {
+	s, err := spec.Parse([]byte(`
+redis: {maxMemory: 32mb}
+services:
+  - name: api
+    needs: [postgres, redis, {service: jobsentry/ollama-internal, env: OLLAMA_HOST}]
+    env: {PGHOST: custom-host}
+  - name: worker
+    needs: [postgres]
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := Input{App: "shop", Spec: *s, Images: map[string]string{"api": "reg/api@sha256:1", "worker": "reg/w@sha256:2"},
+		ServiceURLs: map[string]string{"jobsentry/ollama-internal": "http://ollama-internal.jobsentry.svc.cluster.local:11434"}}
+	objs, err := Render(in, DefaultOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := []string{}
+	for _, d := range objs.Deployments {
+		names = append(names, d.Name)
+	}
+	if strings.Join(names, ",") != "api,worker,postgres,redis" {
+		t.Fatalf("deployments = %v", names)
+	}
+	env := map[string]string{}
+	for _, e := range objs.Deployments[0].Spec.Template.Spec.Containers[0].Env {
+		v := e.Value
+		if e.ValueFrom != nil {
+			v = e.ValueFrom.SecretKeyRef.Name + "/" + e.ValueFrom.SecretKeyRef.Key
+		}
+		env[e.Name] = v
+	}
+	for k, want := range map[string]string{
+		"DATABASE_URL": "postgres-credentials/uri", "PGUSER": "postgres-credentials/username",
+		"REDIS_URL":   "redis-credentials/uri",
+		"OLLAMA_HOST": "http://ollama-internal.jobsentry.svc.cluster.local:11434",
+		"PGHOST":      "custom-host", // the app's own value wins
+	} {
+		if env[k] != want {
+			t.Errorf("%s = %q, want %q", k, env[k], want)
+		}
+	}
+	pg := objs.Deployments[2]
+	if pg.Spec.Strategy.Type != appsv1.RecreateDeploymentStrategyType || !strings.HasPrefix(pg.Spec.Template.Spec.Containers[0].Image, "postgres:17") || pg.Labels[LabelNeed] != "postgres" {
+		t.Errorf("postgres deployment: %+v", pg.Spec.Strategy)
+	}
+	if len(objs.Volumes) != 1 || objs.Volumes[0].Name != "postgres-data" {
+		t.Errorf("volumes = %v", objs.Volumes)
+	}
+	svc := objs.Services[2]
+	if len(svc.Spec.Ports) != 1 || svc.Spec.Ports[0].Port != 5432 || svc.Spec.Ports[0].Name != "postgres" {
+		t.Errorf("postgres service ports = %+v", svc.Spec.Ports)
+	}
+	redis := objs.Deployments[3].Spec.Template.Spec.Containers[0]
+	if !strings.Contains(strings.Join(redis.Args, " "), "--maxmemory 32mb") || !strings.Contains(strings.Join(redis.Args, " "), "$(REDIS_PASSWORD)") {
+		t.Errorf("redis args = %v", redis.Args)
+	}
+
+	delete(in.ServiceURLs, "jobsentry/ollama-internal")
+	if _, err := Render(in, DefaultOptions()); err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Errorf("an unresolved service need must fail: %v", err)
+	}
+}

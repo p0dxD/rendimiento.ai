@@ -18,6 +18,9 @@ type AppSpec struct {
 	Jobs []spec.Job `json:"jobs,omitempty"`
 	// SharedNamespace mirrors rendimiento.yaml: leave the namespace itself alone.
 	SharedNamespace bool `json:"sharedNamespace,omitempty"`
+	// Postgres and Redis mirror rendimiento.yaml's settings for `needs:`.
+	Postgres *spec.PostgresOptions `json:"postgres,omitempty"`
+	Redis    *spec.RedisOptions    `json:"redis,omitempty"`
 	// Images maps service name to an image reference, ideally pinned by digest.
 	// Empty until the first successful build.
 	Images map[string]string `json:"images,omitempty"`

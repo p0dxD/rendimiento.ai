@@ -771,3 +771,74 @@ func TestSharedNamespace(t *testing.T) {
 		t.Fatalf("shared namespace was modified: owners=%v labels=%v", ns.OwnerReferences, ns.Labels)
 	}
 }
+
+func TestAppNeeds(t *testing.T) {
+	c, _ := setup(t)
+	ctx := context.Background()
+	// Another app's service to call.
+	if err := c.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ai"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Create(ctx, &corev1.Service{ObjectMeta: metav1.ObjectMeta{Namespace: "ai", Name: "ollama"},
+		Spec: corev1.ServiceSpec{Ports: []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt32(11434)}, {Name: "app", Port: 11434}}}}); err != nil {
+		t.Fatal(err)
+	}
+	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "shop"}, Spec: v1alpha1.AppSpec{
+		Images: map[string]string{"api": "reg/api@sha256:1"},
+		Services: []spec.Service{{Name: "api", Path: ".", Port: 8080, Size: spec.SizeSmall, Replicas: 1,
+			Needs: []spec.Need{{Kind: spec.NeedPostgres}, {Kind: spec.NeedRedis}, {Kind: spec.NeedService, Service: "ai/ollama", Env: "OLLAMA_HOST"}}}},
+	}}
+	if err := c.Create(ctx, app); err != nil {
+		t.Fatal(err)
+	}
+	var pg corev1.Secret
+	eventually(t, "postgres credentials", func() bool {
+		return c.Get(ctx, client.ObjectKey{Namespace: "shop", Name: render.PostgresSecret}, &pg) == nil
+	})
+	uri := string(pg.Data["uri"])
+	if !strings.HasPrefix(uri, "postgresql://app:") || !strings.HasSuffix(uri, "@postgres:5432/shop?sslmode=disable") || len(pg.Data["password"]) < 32 {
+		t.Fatalf("uri = %s", uri)
+	}
+	eventually(t, "database, cache and api deployed", func() bool {
+		for _, n := range []string{"postgres", "redis", "api"} {
+			if c.Get(ctx, client.ObjectKey{Namespace: "shop", Name: n}, &appsv1.Deployment{}) != nil {
+				return false
+			}
+		}
+		return true
+	})
+	var api appsv1.Deployment
+	_ = c.Get(ctx, client.ObjectKey{Namespace: "shop", Name: "api"}, &api)
+	env := map[string]corev1.EnvVar{}
+	for _, e := range api.Spec.Template.Spec.Containers[0].Env {
+		env[e.Name] = e
+	}
+	if e := env["DATABASE_URL"]; e.ValueFrom == nil || e.ValueFrom.SecretKeyRef.Name != render.PostgresSecret {
+		t.Errorf("DATABASE_URL = %+v", e)
+	}
+	if env["OLLAMA_HOST"].Value != "http://ollama.ai.svc.cluster.local:11434" {
+		t.Errorf("OLLAMA_HOST = %q (the app port, by cluster DNS name)", env["OLLAMA_HOST"].Value)
+	}
+
+	// Credentials are never regenerated, whatever happens later.
+	updateApp(t, c, "shop", func(a *v1alpha1.App) { a.Spec.Services[0].Replicas = 2 })
+	eventually(t, "api scaled", func() bool {
+		_ = c.Get(ctx, client.ObjectKey{Namespace: "shop", Name: "api"}, &api)
+		return *api.Spec.Replicas == 2
+	})
+	var again corev1.Secret
+	_ = c.Get(ctx, client.ObjectKey{Namespace: "shop", Name: render.PostgresSecret}, &again)
+	if string(again.Data["password"]) != string(pg.Data["password"]) {
+		t.Fatal("the database password changed")
+	}
+
+	// A service that does not exist is reported, not crashed on.
+	updateApp(t, c, "shop", func(a *v1alpha1.App) {
+		a.Spec.Services[0].Needs = append(a.Spec.Services[0].Needs, spec.Need{Kind: spec.NeedService, Service: "ai/missing"})
+	})
+	eventually(t, "missing service reported", func() bool {
+		var a v1alpha1.App
+		_ = c.Get(ctx, client.ObjectKey{Name: "shop"}, &a)
+		return a.Status.Phase == v1alpha1.PhaseError && strings.Contains(a.Status.Message, "ai/missing")
+	})
+}

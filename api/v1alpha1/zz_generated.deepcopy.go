@@ -220,6 +220,16 @@ func (in *AppSpec) DeepCopyInto(out *AppSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.Postgres != nil {
+		in, out := &in.Postgres, &out.Postgres
+		*out = new(spec.PostgresOptions)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Redis != nil {
+		in, out := &in.Redis, &out.Redis
+		*out = new(spec.RedisOptions)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Images != nil {
 		in, out := &in.Images, &out.Images
 		*out = make(map[string]string, len(*in))

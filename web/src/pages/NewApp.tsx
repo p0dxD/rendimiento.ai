@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, timeAgo, type Installation, type Proposal, type Repo, type Service, type Size } from "../api";
+import { api, catalogApi, timeAgo, type CatalogEntry, type Installation, type Need, type Proposal, type Repo, type Service, type Size } from "../api";
 import { ErrorBox } from "../components/ui";
 
 const langBadge: Record<string, string> = { go: "Go", node: "JS", python: "Py", java: "Jv", static: "</>", docker: "🐳" };
@@ -271,6 +271,46 @@ export function NewApp() {
   );
 }
 
+/** What a service depends on: rendimiento runs it (database, cache) or
+ *  looks it up (another service), and injects how to reach it. */
+function Needs({ needs, onChange }: { needs: Need[]; onChange: (n: Need[]) => void }) {
+  const [catalog, setCatalog] = useState<CatalogEntry[]>();
+  const [picking, setPicking] = useState("");
+  const has = (w: string) => needs.some((n) => n === w);
+  const toggle = (w: string) => onChange(has(w) ? needs.filter((n) => n !== w) : [...needs, w]);
+  const services = needs.filter((n): n is { service: string; env?: string } => typeof n === "object" && "service" in n);
+  useEffect(() => {
+    if (picking === "open" && !catalog) catalogApi.list().then((c) => setCatalog(c.entries.filter((e) => e.group !== "infrastructure")), () => setCatalog([]));
+  }, [picking, catalog]);
+  return (
+    <div className="stack">
+      <div className="small"><strong>Needs</strong> <span className="muted">rendimiento provides these and injects how to reach them; nothing to configure</span></div>
+      <div className="row">
+        <label className="row small" style={{ gap: 6 }}><input type="checkbox" checked={has("postgres")} onChange={() => toggle("postgres")} /> PostgreSQL database <span className="mono muted">DATABASE_URL</span></label>
+        <label className="row small" style={{ gap: 6 }}><input type="checkbox" checked={has("redis")} onChange={() => toggle("redis")} /> Redis cache <span className="mono muted">REDIS_URL</span></label>
+        <button type="button" className="small" onClick={() => setPicking(picking ? "" : "open")}>{picking ? "Done" : "+ Call another service"}</button>
+      </div>
+      {services.map((n) => (
+        <div key={n.service} className="row small">
+          <span className="mono">{n.service}</span> → <span className="mono">{n.env ?? n.service.split("/").pop()!.toUpperCase().replace(/[^A-Z0-9]+/g, "_") + "_URL"}</span>
+          <button type="button" className="small" onClick={() => onChange(needs.filter((x) => x !== n))}>remove</button>
+        </div>
+      ))}
+      {picking && (
+        <select value="" onChange={(e) => {
+          const entry = catalog?.find((c) => c.id === e.target.value);
+          if (entry) onChange([...needs, { service: entry.id, env: entry.env }]);
+        }}>
+          <option value="">{catalog ? "Pick a service from the Services tab…" : "Loading services…"}</option>
+          {catalog?.filter((c) => !services.some((n) => n.service === c.id)).map((c) => (
+            <option key={c.id} value={c.id}>{c.title} ({c.id}) → {c.env}</option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
+
 function ServiceForm({ service: s, zones, disabled, onChange }: { service: Service; zones: string[]; disabled: boolean; onChange: (s: Service) => void }) {
   const set = (patch: Partial<Service>) => onChange({ ...s, ...patch });
   const zone = zones.find((z) => s.domain?.endsWith("." + z)) ?? "";
@@ -327,6 +367,7 @@ function ServiceForm({ service: s, zones, disabled, onChange }: { service: Servi
             onChange={(e) => set({ secrets: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) })} />
         </label>
       </div>
+      <Needs needs={s.needs ?? []} onChange={(needs) => set({ needs: needs.length ? needs : undefined })} />
       <div className="form-grid">
         <label className="field"><span>Test image</span>
           <input value={s.test?.image ?? ""} placeholder="no tests"
