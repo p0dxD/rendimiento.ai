@@ -8,11 +8,10 @@ Items are ordered by value per effort for this cluster first, and for other user
 |---|---|---|---|
 | 1 | **Command steps** (`tasks:`): run any container with secrets, for Expo/EAS mobile builds, migrations and smoke tests | the last reason to keep a general-purpose CI | `spec`, `pipeline/plan.go`, `KubeExecutor.pod` ([recipe](../develop/recipes.md#add-a-new-kind-of-ci-step)) |
 | 2 | **Move apps' databases onto `needs:`** | one way to get Postgres, with credentials generated and wired in | per app: `rendimiento.yaml`, data migration runbook |
-| 3 | **Uninstall ArgoCD and Jenkins** (`helm uninstall`) | they are scaled to 0 and nothing uses them | cluster, `~/main_configs` |
-| 4 | **Platform metrics** + a Grafana dashboard | see builds slowing or queues growing before users do | `pipeline`, `platform`, `METRICS_ADDR` |
-| 5 | **Log archive** to MinIO | keep Postgres small | `store`, `platform/recorder.go` |
-| 6 | **Notifications**: run failed or release rolled back, sent to email, Discord or ntfy | know without watching the UI | new `internal/notify`, `platform` |
-| 7 | **Preview environments** per pull request (`pr-42.app.joserod.space`) | try changes before merging | `platform` (PR webhooks), `render` (name suffix), cleanup on close |
+| 3 | **Platform metrics** + a Grafana dashboard | see builds slowing or queues growing before users do | `pipeline`, `platform`, `METRICS_ADDR` |
+| 4 | **Log archive** to MinIO | keep Postgres small | `store`, `platform/recorder.go` |
+| 5 | **Notifications**: run failed or release rolled back, sent to email, Discord or ntfy | know without watching the UI | new `internal/notify`, `platform` |
+| 6 | **Preview environments** per pull request (`pr-42.app.joserod.space`) | try changes before merging | `platform` (PR webhooks), `render` (name suffix), cleanup on close |
 
 ## Medium term
 
@@ -43,5 +42,6 @@ Items are ordered by value per effort for this cluster first, and for other user
 - `needs:` for Postgres, Redis and existing services
 - An add-on engine (Helm and kustomize from git), with previews, safety gates and Helm hooks, which replaced ArgoCD
 - Renovate as an add-on, which replaced the CronJob
+- ArgoCD and Jenkins uninstalled (2026-09-28)
 - The Services catalog, Environment checks, dynamic DNS
 - Remote tests (`make test-remote`), and this book
