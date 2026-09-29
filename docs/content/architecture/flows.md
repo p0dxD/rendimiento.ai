@@ -26,7 +26,7 @@ sequenceDiagram
     P->>K: create App object (waiting for a build)
     alt repo has no rendimiento.yaml
         P->>GH: OpenPR(rendimiento.yaml [+ Dockerfile])
-        Note over GH: the PR branch builds and gets a check;<br/>merging it triggers the first deploy
+        Note over GH: the PR branch builds and gets a check.<br/>Merging it triggers the first deploy
     else repo already has one
         P->>P: QueueRun(default branch) → the first build starts now
     end
@@ -65,12 +65,12 @@ sequenceDiagram
         X->>BK: buildctl build … (from the pod)
         BK-->>X: image pushed, digest
     end
-    W->>DB: release #n (image digests + spec)
+    W->>DB: release n (image digests + spec)
     W->>K: update App object (pointApp)
     W->>GH: check run ✓ / ✗
     K-->>C: App changed
     C->>K: apply Deployments, Services, Ingresses… (server-side apply)
-    C->>K: rolling update; health rolls up into App status
+    C->>K: rolling update, health rolls up into App status
 ```
 
 - Pushes to **other branches** stop after the builds: nothing is released; the check run shows on the commit and on any pull request.
