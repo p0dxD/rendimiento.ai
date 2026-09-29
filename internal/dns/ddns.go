@@ -35,6 +35,7 @@ type DDNSStatus struct {
 
 func (c *Cloudflare) auto() bool { return strings.EqualFold(c.Target, "auto") }
 
+// DDNSStatus reports the last public-IP check and change, for the Environment page.
 func (c *Cloudflare) DDNSStatus() DDNSStatus {
 	c.mu.Lock()
 	defer c.mu.Unlock()

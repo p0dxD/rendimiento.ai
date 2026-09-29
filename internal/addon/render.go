@@ -90,6 +90,7 @@ func (h Hook) HookPolicy(p string) bool {
 	return false
 }
 
+// Renderer renders add-ons. Charts are downloaded once per version and cached in memory.
 type Renderer struct {
 	Git       GitFetcher
 	Discovery discovery.DiscoveryInterface
@@ -99,6 +100,7 @@ type Renderer struct {
 	charts map[string]*chart.Chart // repo|chart|version → chart
 }
 
+// Render produces the add-on's objects (and hooks) from its Helm or git source.
 func (r *Renderer) Render(ctx context.Context, a *v1alpha1.Addon) (*Result, error) {
 	src := a.Spec.Source
 	switch {

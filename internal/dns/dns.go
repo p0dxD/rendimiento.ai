@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+// --8<-- [start:provider]
+
 // Provider creates and removes the record pointing a host at the cluster's ingress.
 type Provider interface {
 	// Ensure makes host resolve to the configured target. It reports
@@ -29,6 +31,8 @@ type Provider interface {
 	// the environment page. Providers are swappable; callers never switch on type.
 	Describe(ctx context.Context) Description
 }
+
+// --8<-- [end:provider]
 
 // Description is a provider's self-reported identity and health.
 type Description struct {
@@ -44,9 +48,16 @@ var ErrConflict = errors.New("a DNS record not managed by rendimiento already ex
 // Noop is used when no DNS provider is configured; records are managed by hand.
 type Noop struct{}
 
+// Ensure does nothing: records are managed by hand.
 func (Noop) Ensure(context.Context, string, string) error { return nil }
+
+// Remove does nothing.
 func (Noop) Remove(context.Context, string, string) error { return nil }
-func (Noop) Zones(context.Context) ([]string, error)      { return nil, nil }
+
+// Zones returns none.
+func (Noop) Zones(context.Context) ([]string, error) { return nil, nil }
+
+// Describe reports that no DNS provider is configured.
 func (Noop) Describe(context.Context) Description {
 	return Description{ID: "manual", Name: "Manual DNS", Healthy: false,
 		Detail: "No DNS provider configured: create a DNS record by hand for each app domain."}
@@ -91,6 +102,8 @@ func (c *Cloudflare) recordType() string {
 	return "CNAME"
 }
 
+// Ensure creates or updates the record for host, marked as managed for app; it refuses to change a
+// record another app or a person created.
 func (c *Cloudflare) Ensure(ctx context.Context, host, app string) error {
 	zoneID, err := c.zoneFor(ctx, host)
 	if err != nil {
@@ -166,6 +179,7 @@ func (c *Cloudflare) Describe(ctx context.Context) Description {
 	return d
 }
 
+// Remove deletes host's record if it is managed for app.
 func (c *Cloudflare) Remove(ctx context.Context, host, app string) error {
 	zoneID, err := c.zoneFor(ctx, host)
 	if err != nil {
@@ -178,6 +192,7 @@ func (c *Cloudflare) Remove(ctx context.Context, host, app string) error {
 	return c.do(ctx, http.MethodDelete, "/zones/"+zoneID+"/dns_records/"+existing.ID, nil, nil)
 }
 
+// Zones lists the zones the token can edit, for the domain picker.
 func (c *Cloudflare) Zones(ctx context.Context) ([]string, error) {
 	var zones []struct{ ID, Name string }
 	if err := c.do(ctx, http.MethodGet, "/zones?status=active&per_page=50", nil, &zones); err != nil {

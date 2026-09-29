@@ -15,6 +15,7 @@ import (
 	"strings"
 )
 
+// Language is a detected language or runtime family.
 type Language string
 
 const (

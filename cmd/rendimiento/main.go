@@ -64,6 +64,7 @@ func run(log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// --8<-- [start:startup]
 	baseURL := strings.TrimRight(env("BASE_URL", "http://localhost:8080"), "/")
 	ns := env("NAMESPACE", "rendimiento-system")
 	dsn := os.Getenv("DATABASE_URL")
@@ -88,6 +89,8 @@ func run(log *slog.Logger) error {
 	} else if requeued+failed > 0 {
 		log.Warn("recovered runs interrupted by the last restart", "requeued", requeued, "failed", failed)
 	}
+
+	// --8<-- [end:startup]
 
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)

@@ -54,6 +54,7 @@ type Definition struct {
 
 var dnsName = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`)
 
+// ParseDefinition reads and validates one addons/<name>.yaml; unknown fields are errors.
 func ParseDefinition(data []byte) (*Definition, error) {
 	var d Definition
 	if err := yaml.UnmarshalStrict(data, &d); err != nil {
@@ -62,6 +63,7 @@ func ParseDefinition(data []byte) (*Definition, error) {
 	return &d, d.Validate()
 }
 
+// Validate checks names and that exactly one source (helm or git) is set.
 func (d *Definition) Validate() error {
 	var errs []error
 	if !dnsName.MatchString(d.Name) {
@@ -131,6 +133,7 @@ type GitHubFetcher struct{ GitHub *gh.Holder }
 
 var fullSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
+// Fetch implements GitFetcher through the GitHub App installation that owns repo.
 func (f GitHubFetcher) Fetch(ctx context.Context, repo, dir, ref string) (fs.FS, string, error) {
 	owner, _, _ := strings.Cut(repo, "/")
 	c, inst, err := f.GitHub.ForOwner(ctx, owner)
@@ -176,6 +179,7 @@ type Syncer struct {
 	last    SyncResult
 }
 
+// SyncResult is the outcome of one pass of Syncer.Sync, shown on the Add-ons page.
 type SyncResult struct {
 	At       time.Time         `json:"at"`
 	Commit   string            `json:"commit,omitempty"`
@@ -227,6 +231,9 @@ func (s *Syncer) Loop(ctx context.Context) {
 	}
 }
 
+// Sync makes the Addon objects match the definitions at the head of the gitops repository: it
+// creates and updates them, and deletes those whose file is gone (their software keeps running
+// unless marked for uninstall).
 func (s *Syncer) Sync(ctx context.Context) SyncResult {
 	start := time.Now()
 	res := SyncResult{At: start, Repo: s.Repo, Applied: []string{}, Removed: []string{}}

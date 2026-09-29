@@ -9,6 +9,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
 )
 
+// Kind is what a step does: test or build.
 type Kind string
 
 const (
@@ -16,6 +17,7 @@ const (
 	KindBuild Kind = "build"
 )
 
+// Status is a step's state.
 type Status string
 
 const (
@@ -27,6 +29,7 @@ const (
 	StatusReused    Status = "reused"  // unchanged since the last release; its image is reused
 )
 
+// Done reports whether the step has finished (in any way).
 func (s Status) Done() bool {
 	return s == StatusSucceeded || s == StatusFailed || s == StatusSkipped || s == StatusReused
 }

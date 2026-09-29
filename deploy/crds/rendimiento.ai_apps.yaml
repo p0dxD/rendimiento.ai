@@ -82,6 +82,7 @@ spec:
                         type: string
                       type: array
                     build:
+                      description: Build says how a service's image is built.
                       properties:
                         args:
                           additionalProperties:
@@ -139,6 +140,8 @@ spec:
                     service:
                       type: string
                     size:
+                      description: Size is a preset of CPU and memory requests and
+                        limits, sized for Raspberry Pi nodes.
                       type: string
                     timeZone:
                       description: 'TimeZone for the schedule, e.g. America/New_York
@@ -184,6 +187,8 @@ spec:
                     type: string
                 type: object
               redis:
+                description: RedisOptions configure the app's cache (one per app,
+                  shared by every service that needs it).
                 properties:
                   maxMemory:
                     description: MaxMemory caps the cache; older keys are evicted
@@ -217,6 +222,9 @@ spec:
               services:
                 description: Services mirrors rendimiento.yaml.
                 items:
+                  description: |-
+                    Service is one deployable part of an app: built from a folder of the repo (or a ready-made image)
+                    and run as a Deployment with a Service.
                   properties:
                     aliases:
                       description: Aliases are extra hostnames served like Domain,
@@ -229,6 +237,7 @@ spec:
                         type: string
                       type: array
                     build:
+                      description: Build says how a service's image is built.
                       properties:
                         args:
                           additionalProperties:
@@ -289,6 +298,8 @@ spec:
                       description: ConfigFiles mounts existing ConfigMaps as read-only
                         files.
                       items:
+                        description: ConfigFile mounts an existing ConfigMap as read-only
+                          files.
                         properties:
                           configMap:
                             type: string
@@ -311,6 +322,8 @@ spec:
                         driver libraries) is cluster configuration, not part of the app.
                       type: integer
                     health:
+                      description: Health is the readiness and liveness check of a
+                        service.
                       properties:
                         path:
                           description: |-
@@ -350,6 +363,20 @@ spec:
                           description: 'TLSSecrets puts some hosts on their own certificate:
                             host → secret.'
                           type: object
+                      type: object
+                    lan:
+                      description: |-
+                        LAN also exposes the service on the local network through the
+                        cluster's load balancer (MetalLB): no domain or certificate needed.
+                      properties:
+                        ip:
+                          description: IP to request from the load balancer's pool;
+                            empty lets it choose.
+                          type: string
+                        port:
+                          description: Port on that IP (default 80), forwarded to
+                            the service's port.
+                          type: integer
                       type: object
                     language:
                       type: string
@@ -397,6 +424,8 @@ spec:
                     secretFiles:
                       description: SecretFiles mounts secrets as read-only files.
                       items:
+                        description: SecretFile mounts an existing Secret as read-only
+                          files.
                         properties:
                           mount:
                             type: string
@@ -414,6 +443,8 @@ spec:
                         type: string
                       type: array
                     size:
+                      description: Size is a preset of CPU and memory requests and
+                        limits, sized for Raspberry Pi nodes.
                       type: string
                     streaming:
                       description: |-
@@ -421,6 +452,8 @@ spec:
                         (server-sent events, streamed AI answers, websockets).
                       type: boolean
                     test:
+                      description: Test is a command run in a container image before
+                        the build; a failure stops the build.
                       properties:
                         command:
                           type: string
@@ -436,6 +469,8 @@ spec:
                         keep an existing certificate when migrating an app.
                       type: string
                     volume:
+                      description: Volume gives a service persistent storage (a Longhorn
+                        volume by default).
                       properties:
                         existingClaim:
                           description: |-
@@ -481,6 +516,7 @@ spec:
             - services
             type: object
           status:
+            description: AppStatus is what the controller last observed about an app.
             properties:
               conditions:
                 items:
@@ -544,12 +580,17 @@ spec:
                 format: int64
                 type: integer
               phase:
+                description: |-
+                  Phase summarizes an app's state: WaitingForBuild, Progressing, Healthy, Degraded, Suspended or
+                  Error.
                 type: string
               release:
                 format: int64
                 type: integer
               services:
                 items:
+                  description: ServiceStatus is the observed state of one service
+                    (or of a database/cache run for `needs:`).
                   properties:
                     certReady:
                       description: CertReady reports the cert-manager Certificate
