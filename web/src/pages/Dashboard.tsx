@@ -31,7 +31,8 @@ export function Dashboard() {
       )}
       <div className="grid">
         {apps?.map((a) => {
-          const urls = a.status.services?.filter((s) => s.url) ?? [];
+          const urls = (a.status.services ?? []).flatMap((s) =>
+            [s.url, s.lanURL].filter((u): u is string => !!u).map((u) => ({ name: s.name + u, url: u })));
           return (
             <div key={a.id} className="card stack" style={{ cursor: "pointer" }} onClick={() => nav(`/apps/${a.name}`)}>
               <div className="row between">

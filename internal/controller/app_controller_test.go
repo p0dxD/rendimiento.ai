@@ -842,3 +842,36 @@ func TestAppNeeds(t *testing.T) {
 		return a.Status.Phase == v1alpha1.PhaseError && strings.Contains(a.Status.Message, "ai/missing")
 	})
 }
+
+func TestAppLANURL(t *testing.T) {
+	c, _ := setup(t)
+	ctx := context.Background()
+	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "book"}, Spec: v1alpha1.AppSpec{
+		Images: map[string]string{"docs": "reg/docs@sha256:1"},
+		Services: []spec.Service{{Name: "docs", Path: ".", Port: 8080, Size: spec.SizeSmall, Replicas: 1,
+			LAN: &spec.LANOptions{IP: "192.168.1.81"}}},
+	}}
+	if err := c.Create(ctx, app); err != nil {
+		t.Fatal(err)
+	}
+	var lan corev1.Service
+	key := client.ObjectKey{Namespace: "book", Name: "docs-lan"}
+	eventually(t, "LAN service", func() bool { return c.Get(ctx, key, &lan) == nil })
+	// envtest has no load balancer: play MetalLB and assign the address.
+	lan.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{{IP: "192.168.1.81"}}
+	if err := c.Status().Update(ctx, &lan); err != nil {
+		t.Fatal(err)
+	}
+	eventually(t, "LAN URL in status", func() bool {
+		var a v1alpha1.App
+		if c.Get(ctx, client.ObjectKey{Name: "book"}, &a) != nil {
+			return false
+		}
+		for _, s := range a.Status.Services {
+			if s.Name == "docs" && s.LANURL == "http://192.168.1.81" {
+				return true
+			}
+		}
+		return false
+	})
+}

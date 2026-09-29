@@ -139,7 +139,7 @@ A service with a volume uses the **Recreate** strategy (a volume attaches to one
 | `ingress.tlsSecrets` | map `host: secret` | Put some hosts on their own certificate. |
 | `streaming` | bool | Unbuffered, long-lived responses (server-sent events, streamed AI answers, websockets). |
 | <a id="lan"></a>`lan.ip` | private IPv4 | Also expose on the home network through MetalLB, at this address (from its pool; empty lets it choose). |
-| `lan.port` | int | Port on that address (default 80). |
+| `lan.port` | int | Port on that address (default 80). The app page and dashboard link to the address once MetalLB assigns it. |
 
 ### Needs
 
