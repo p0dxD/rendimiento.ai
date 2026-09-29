@@ -24,6 +24,7 @@ export interface Service {
   volume?: { size: string; mount: string };
   streaming?: boolean;
   tlsSecret?: string;
+  lan?: { ip?: string; port?: number };
 }
 
 /** Every secret a service reads (envFrom, single keys, or files). */
@@ -112,6 +113,7 @@ export interface ServiceStatus {
   readyReplicas: number;
   image?: string;
   url?: string;
+  lanURL?: string;
   certReady: boolean;
   dnsReady: boolean;
   message?: string;
