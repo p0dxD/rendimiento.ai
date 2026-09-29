@@ -30,6 +30,7 @@ func (s *Store) GetAddon(ctx context.Context, name string) (*Addon, error) {
 	return &a, err
 }
 
+// PutAddon creates or replaces an add-on's switch and settings.
 func (s *Store) PutAddon(ctx context.Context, name string, enabled bool, settings json.RawMessage) error {
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO addons (name, enabled, settings) VALUES ($1, $2, $3)
@@ -65,6 +66,7 @@ func (s *Store) AppAddons(ctx context.Context, appID int64) (map[string]bool, er
 	return out, rows.Err()
 }
 
+// SetAppAddon switches an add-on on or off for one app.
 func (s *Store) SetAppAddon(ctx context.Context, appID int64, addon string, enabled bool) error {
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO app_addons (app_id, addon, enabled) VALUES ($1, $2, $3)
@@ -92,6 +94,7 @@ type AddonRun struct {
 	FinishedAt *time.Time                 `json:"finishedAt,omitempty"`
 }
 
+// CreateAddonRun records a run as started and fills in its ID.
 func (s *Store) CreateAddonRun(ctx context.Context, r *AddonRun) error {
 	repos, _ := json.Marshal(r.Repos)
 	return s.pool.QueryRow(ctx, `
@@ -99,6 +102,7 @@ func (s *Store) CreateAddonRun(ctx context.Context, r *AddonRun) error {
 		RETURNING id, status, started_at`, r.Addon, r.Trigger, r.Message, repos).Scan(&r.ID, &r.Status, &r.StartedAt)
 }
 
+// FinishAddonRun records a run's outcome, per-repository results and log.
 func (s *Store) FinishAddonRun(ctx context.Context, id int64, status, message string, results map[string]json.RawMessage, log string) error {
 	res, err := json.Marshal(results)
 	if err != nil {
@@ -137,6 +141,7 @@ func scanAddonRun(row pgx.Row, withLog bool) (*AddonRun, error) {
 	return &r, json.Unmarshal(results, &r.Results)
 }
 
+// ListAddonRuns returns the most recent runs, newest first, without their logs.
 func (s *Store) ListAddonRuns(ctx context.Context, addon string, limit int) ([]*AddonRun, error) {
 	rows, err := s.pool.Query(ctx, `SELECT `+addonRunCols+` FROM addon_runs WHERE addon = $1 ORDER BY id DESC LIMIT $2`, addon, limit)
 	if err != nil {
@@ -154,6 +159,7 @@ func (s *Store) ListAddonRuns(ctx context.Context, addon string, limit int) ([]*
 	return out, rows.Err()
 }
 
+// GetAddonRun returns one run with its log.
 func (s *Store) GetAddonRun(ctx context.Context, addon string, id int64) (*AddonRun, error) {
 	return scanAddonRun(s.pool.QueryRow(ctx, `SELECT `+addonRunCols+`, log FROM addon_runs WHERE addon = $1 AND id = $2`, addon, id), true)
 }

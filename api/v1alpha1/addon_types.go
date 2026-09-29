@@ -47,6 +47,7 @@ type AddonSource struct {
 	Git  *GitSource  `json:"git,omitempty"`
 }
 
+// HelmSource is a chart in a classic (index.yaml) Helm repository.
 type HelmSource struct {
 	// Repo is the chart repository URL (https://charts.longhorn.io).
 	Repo    string `json:"repo"`
@@ -54,6 +55,7 @@ type HelmSource struct {
 	Version string `json:"version"`
 }
 
+// GitSource is a folder of Kubernetes manifests (or a kustomization) in a GitHub repository.
 type GitSource struct {
 	// Repo is owner/name on GitHub.
 	Repo string `json:"repo"`
@@ -63,6 +65,7 @@ type GitSource struct {
 	Revision string `json:"revision,omitempty"`
 }
 
+// AddonPhase summarizes an add-on's state for people: Synced, OutOfSync, Blocked, Error, Suspended.
 type AddonPhase string
 
 const (
@@ -92,6 +95,7 @@ type PreviewItem struct {
 	Diff string `json:"diff,omitempty"`
 }
 
+// Preview is what the next sync would do, from a server-side dry run of every object.
 type Preview struct {
 	Create    int `json:"create"`
 	Update    int `json:"update"`
@@ -101,12 +105,14 @@ type Preview struct {
 	Items []PreviewItem `json:"items,omitempty"`
 }
 
+// HookInfo describes one Helm hook of the chart and the events it runs at.
 type HookInfo struct {
 	Name   string   `json:"name"`
 	Kind   string   `json:"kind"`
 	Events []string `json:"events"`
 }
 
+// HookRun records one execution of a Helm hook.
 type HookRun struct {
 	Event    string      `json:"event"`
 	Name     string      `json:"name"`
@@ -116,6 +122,7 @@ type HookRun struct {
 	Finished metav1.Time `json:"finished"`
 }
 
+// AddonStatus is what the controller last observed and did.
 type AddonStatus struct {
 	ObservedGeneration int64      `json:"observedGeneration,omitempty"`
 	Phase              AddonPhase `json:"phase,omitempty"`
@@ -133,7 +140,7 @@ type AddonStatus struct {
 	// AppliedHash identifies the chart, version, values and release name
 	// last applied; a different one makes the next sync an upgrade.
 	AppliedHash string       `json:"appliedHash,omitempty"`
-	LastSynced   *metav1.Time `json:"lastSynced,omitempty"`
+	LastSynced  *metav1.Time `json:"lastSynced,omitempty"`
 	// AppliedSyncRequest is the SyncRequest last honoured (manual sync).
 	AppliedSyncRequest int64 `json:"appliedSyncRequest,omitempty"`
 	// Adopted is set once an adopting add-on has synced for the first time.

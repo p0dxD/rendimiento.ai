@@ -1,0 +1,119 @@
+site_name: The rendimiento book
+site_description: How rendimiento works, how it is built and deployed, and how to grow it.
+repo_url: https://github.com/p0dxD/rendimiento.ai
+repo_name: p0dxD/rendimiento.ai
+edit_uri: edit/main/docs/content/
+docs_dir: content
+strict: true
+
+theme:
+  name: material
+  language: en
+  icon:
+    logo: material/rocket-launch
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle: { icon: material/weather-night, name: Dark mode }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle: { icon: material/weather-sunny, name: Light mode }
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - navigation.footer
+    - navigation.instant
+    - search.highlight
+    - search.suggest
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - def_list
+  - toc: { permalink: true }
+  - pymdownx.details
+  - pymdownx.highlight: { anchor_linenums: true, line_spans: __span }
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tabbed: { alternate_style: true }
+  - pymdownx.tasklist: { custom_checkbox: true }
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  # --8<-- "path" includes a file of the repository (paths are from the
+  # repository root), so code shown in the book is the real code.
+  - pymdownx.snippets:
+      base_path: [".."]
+      check_paths: true
+
+nav:
+  - Home: index.md
+  - Start here:
+      - start/index.md
+      - Why rendimiento exists: start/vision.md
+      - Concepts and vocabulary: start/concepts.md
+      - A tour of the UI: start/tour.md
+  - Your environment:
+      - environment/index.md
+      - The cluster: environment/cluster.md
+      - How the platform is deployed: environment/deploy.md
+      - Runbooks: environment/runbooks.md
+  - Architecture:
+      - architecture/index.md
+      - Big picture: architecture/overview.md
+      - Flows, step by step: architecture/flows.md
+      - The CI engine: architecture/pipeline.md
+      - Building images with BuildKit: architecture/builds.md
+      - The app controller: architecture/controller.md
+      - The add-on engine: architecture/addons.md
+      - API, auth and the UI: architecture/api-ui.md
+      - Data and state: architecture/data.md
+      - Security model: architecture/security.md
+  - Using it:
+      - guide/index.md
+      - rendimiento.yaml reference: guide/spec.md
+      - Apps day to day: guide/apps.md
+      - Builds and tests: guide/builds.md
+      - Needs and the services catalog: guide/needs.md
+      - Add-ons: guide/addons.md
+      - Renovate: guide/renovate.md
+  - Developing it:
+      - develop/index.md
+      - Go for this codebase: develop/go.md
+      - Setting up and building: develop/setup.md
+      - Recipes for common changes: develop/recipes.md
+      - Testing: develop/testing.md
+      - Design patterns: develop/patterns.md
+      - Refactoring and code health: develop/refactoring.md
+  - Growing it:
+      - future/index.md
+      - Scaling: future/scaling.md
+      - Roadmap: future/roadmap.md
+      - Becoming an open-source project: future/open-source.md
+  - Reference:
+      - reference/index.md
+      - Configuration: reference/config.md
+      - HTTP API: reference/api.md
+      - Custom resources: reference/crds.md
+      - Make targets and scripts: reference/tooling.md
+      - Code map: reference/code-map.md
+      - Glossary: reference/glossary.md

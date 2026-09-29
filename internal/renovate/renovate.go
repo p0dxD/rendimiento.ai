@@ -46,6 +46,7 @@ type Settings struct {
 	LogLevel string `json:"logLevel,omitempty"`
 }
 
+// DefaultSettings are the add-on's settings before anyone changes them.
 func DefaultSettings() Settings {
 	return Settings{Schedule: "0 5 * * *", Image: "renovate/renovate:44", ExtraRepos: []string{}, Config: DefaultConfig}
 }
@@ -72,6 +73,7 @@ const DefaultConfig = `module.exports = {
 
 var parser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 
+// Validate checks the schedule, image, repositories and config.
 func (s Settings) Validate() error {
 	if _, err := parser.Parse(s.Schedule); err != nil {
 		return fmt.Errorf("schedule %q is not a cron expression: %w", s.Schedule, err)
@@ -123,6 +125,7 @@ func Load(ctx context.Context, st *store.Store) (enabled bool, s Settings, row *
 
 var ErrBusy = errors.New("a Renovate run is already in progress")
 
+// Runner starts Renovate runs on schedule or on request, one at a time.
 type Runner struct {
 	Kube         kubernetes.Interface
 	Namespace    string // the build namespace (egress to the internet only)

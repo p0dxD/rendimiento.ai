@@ -24,6 +24,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
 )
 
+// Group is which tab a service appears under on the Services page.
 type Group string
 
 const (
@@ -48,6 +49,7 @@ type Origin struct {
 	Images      []Image `json:"images,omitempty"`
 }
 
+// Image is a container image behind a service.
 type Image struct {
 	Ref string `json:"ref"`
 	// Link is the image's page on its registry, when it has a public one.
@@ -56,6 +58,7 @@ type Image struct {
 	Built bool `json:"built,omitempty"`
 }
 
+// Port is one port a Service exposes.
 type Port struct {
 	Name     string `json:"name,omitempty"`
 	Port     int32  `json:"port"`
@@ -73,6 +76,8 @@ type Consumer struct {
 	App string `json:"app,omitempty"`
 }
 
+// Entry is one service in the catalog: what it is, where it comes from, what it exposes, how to
+// connect, and who calls it.
 type Entry struct {
 	ID        string `json:"id"` // namespace/name
 	Name      string `json:"name"`
@@ -108,6 +113,7 @@ type Entry struct {
 	NetworkPolicies int `json:"networkPolicies"`
 }
 
+// Catalog is every service in the cluster, grouped and sorted for the Services page.
 type Catalog struct {
 	Entries   []Entry   `json:"entries"`
 	Generated time.Time `json:"generated"`
@@ -118,6 +124,7 @@ type Catalog struct {
 var DefaultInfra = []string{"kube-system", "kube-public", "kube-node-lease", "default", "cert-manager", "ingress-nginx",
 	"longhorn-system", "metallb-system", "argocd", "monitoring", "devops-tools", "rendimiento-system", "rendimiento-builds"}
 
+// Builder assembles the catalog from the cluster and caches it for TTL.
 type Builder struct {
 	Kube  client.Client
 	Infra []string
@@ -202,9 +209,24 @@ func assemble(s snapshot, infra []string) *Catalog {
 	workloads := collectWorkloads(s, appOfNS)
 
 	out := &Catalog{Generated: time.Now(), Entries: []Entry{}}
+	// A service exposed on the LAN has a second, LoadBalancer Service
+	// (rendimiento.yaml `lan:`): show its address on the service's entry.
+	lanOf := map[string]string{} // namespace/service → ip:port
+	for _, svc := range s.services {
+		if svc.Labels[render.LabelLAN] == "true" && svc.Labels[render.LabelManagedBy] == render.ManagedBy {
+			for _, ing := range svc.Status.LoadBalancer.Ingress {
+				if ing.IP != "" && len(svc.Spec.Ports) > 0 {
+					lanOf[svc.Namespace+"/"+svc.Labels[render.LabelService]] = fmt.Sprintf("%s:%d", ing.IP, svc.Spec.Ports[0].Port)
+				}
+			}
+		}
+	}
 	for _, svc := range s.services {
 		if svc.Spec.Type == corev1.ServiceTypeExternalName || len(svc.Spec.Ports) == 0 {
 			continue
+		}
+		if svc.Labels[render.LabelLAN] == "true" && svc.Labels[render.LabelManagedBy] == render.ManagedBy {
+			continue // shown on the service it exposes
 		}
 		e := Entry{
 			ID: svc.Namespace + "/" + svc.Name, Name: svc.Name, Namespace: svc.Namespace, Title: svc.Name,
@@ -265,6 +287,9 @@ func assemble(s snapshot, infra []string) *Catalog {
 					e.LAN = fmt.Sprintf("%s:%d", ing.IP, primary.Port)
 				}
 			}
+		}
+		if lan := lanOf[e.ID]; lan != "" {
+			e.LAN = lan
 		}
 		e.Public = publicURLs(s.ingresses, svc)
 		pods := selected(s.pods, svc)

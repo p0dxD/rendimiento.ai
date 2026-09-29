@@ -29,6 +29,7 @@ type CatalogEntry struct {
 	Notes string `json:"notes,omitempty"`
 }
 
+// HelmSourceTemplate is a catalog entry's chart and default version.
 type HelmSourceTemplate struct {
 	Repo    string `json:"repo"`
 	Chart   string `json:"chart"`

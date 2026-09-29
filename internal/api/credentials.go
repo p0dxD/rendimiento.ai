@@ -21,6 +21,7 @@ type SecretCredentials struct {
 
 const credentialsKey = "credentials.json"
 
+// Load returns the GitHub App's credentials, or nil before setup has run.
 func (s *SecretCredentials) Load(ctx context.Context) (*gh.Credentials, error) {
 	var sec corev1.Secret
 	err := s.Client.Get(ctx, client.ObjectKey{Namespace: s.Namespace, Name: s.Name}, &sec)
@@ -37,6 +38,7 @@ func (s *SecretCredentials) Load(ctx context.Context) (*gh.Credentials, error) {
 	return &c, nil
 }
 
+// Save stores the GitHub App's credentials (created or replaced).
 func (s *SecretCredentials) Save(ctx context.Context, c *gh.Credentials) error {
 	raw, err := json.Marshal(c)
 	if err != nil {

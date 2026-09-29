@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
 )
@@ -398,5 +399,32 @@ services:
 	delete(in.ServiceURLs, "jobsentry/ollama-internal")
 	if _, err := Render(in, DefaultOptions()); err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Errorf("an unresolved service need must fail: %v", err)
+	}
+}
+
+func TestRenderLAN(t *testing.T) {
+	s, err := spec.Parse([]byte("services: [{name: docs, port: 8080, lan: {ip: 192.168.1.81}}, {name: api, lan: {port: 8443}}]"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	objs, err := Render(Input{App: "site", Spec: *s, Images: map[string]string{"docs": "d", "api": "a"}}, DefaultOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lan []*corev1.Service
+	for _, svc := range objs.Services {
+		if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
+			lan = append(lan, svc)
+		}
+	}
+	if len(lan) != 2 || lan[0].Name != "docs-lan" || lan[0].Annotations["metallb.io/loadBalancerIPs"] != "192.168.1.81" ||
+		lan[0].Spec.Ports[0].Port != 80 || lan[0].Spec.Ports[0].TargetPort.IntValue() != 8080 || lan[0].Labels[LabelLAN] != "true" {
+		t.Fatalf("docs-lan = %+v", lan)
+	}
+	if lan[1].Annotations != nil || lan[1].Spec.Ports[0].Port != 8443 {
+		t.Errorf("without an ip MetalLB chooses; the port is configurable: %+v", lan[1])
+	}
+	if _, err := spec.Parse([]byte("services: [{name: a, lan: {ip: 8.8.8.8}}]")); err == nil {
+		t.Error("public addresses are refused")
 	}
 }

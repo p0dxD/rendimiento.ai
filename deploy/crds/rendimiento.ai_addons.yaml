@@ -101,6 +101,8 @@ spec:
                 description: AddonSource is exactly one of Helm or Git.
                 properties:
                   git:
+                    description: GitSource is a folder of Kubernetes manifests (or
+                      a kustomization) in a GitHub repository.
                     properties:
                       path:
                         description: Path is the folder holding kustomization.yaml
@@ -118,6 +120,8 @@ spec:
                     - repo
                     type: object
                   helm:
+                    description: HelmSource is a chart in a classic (index.yaml) Helm
+                      repository.
                     properties:
                       chart:
                         type: string
@@ -150,6 +154,7 @@ spec:
             - source
             type: object
           status:
+            description: AddonStatus is what the controller last observed and did.
             properties:
               adopted:
                 description: Adopted is set once an adopting add-on has synced for
@@ -169,6 +174,7 @@ spec:
                 description: HookRuns are the most recent hook executions, newest
                   last.
                 items:
+                  description: HookRun records one execution of a Helm hook.
                   properties:
                     event:
                       type: string
@@ -195,6 +201,8 @@ spec:
                 description: Hooks are the chart's Helm hooks and the events they
                   run at.
                 items:
+                  description: HookInfo describes one Helm hook of the chart and the
+                    events it runs at.
                   properties:
                     events:
                       items:
@@ -241,6 +249,8 @@ spec:
                 format: int64
                 type: integer
               phase:
+                description: 'AddonPhase summarizes an add-on''s state for people:
+                  Synced, OutOfSync, Blocked, Error, Suspended.'
                 type: string
               preview:
                 description: Preview is the dry run from the last reconcile.

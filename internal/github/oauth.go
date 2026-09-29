@@ -57,6 +57,7 @@ func ConvertManifest(ctx context.Context, apiBase, code string) (*Credentials, e
 
 // ---- user login (OAuth via the same GitHub App) ----
 
+// AuthorizeURL is where the login button sends people (GitHub OAuth through the App).
 func (a *App) AuthorizeURL(state, redirect string) string {
 	q := url.Values{"client_id": {a.creds.ClientID}, "state": {state}, "redirect_uri": {redirect}}
 	return "https://github.com/login/oauth/authorize?" + q.Encode()

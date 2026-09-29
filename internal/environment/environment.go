@@ -17,6 +17,7 @@ import (
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
 )
 
+// Status is the state of one check or provider.
 type Status string
 
 const (
@@ -46,6 +47,7 @@ func worst(a, b Status) Status {
 	return a
 }
 
+// Category groups checks on the Environment page.
 type Category string
 
 const (
@@ -89,6 +91,7 @@ type Provider struct {
 	Options []Option `json:"options"`
 }
 
+// Node is one cluster node with its capacity, usage and health.
 type Node struct {
 	Name          string   `json:"name"`
 	Roles         []string `json:"roles"`
@@ -114,6 +117,7 @@ type Problem struct {
 	Since     time.Time `json:"since,omitempty"`
 }
 
+// ClusterInfo summarizes the cluster (version, node and pod counts).
 type ClusterInfo struct {
 	Distribution string `json:"distribution"` // k3s, eks, gke, ...
 	Name         string `json:"name"`         // display name
@@ -124,6 +128,7 @@ type ClusterInfo struct {
 	Namespaces   int    `json:"namespaces"`
 }
 
+// Report is everything the Environment page shows.
 type Report struct {
 	GeneratedAt time.Time   `json:"generatedAt"`
 	Overall     Status      `json:"overall"`
@@ -166,6 +171,7 @@ type Pinger interface {
 	Ping(ctx context.Context) error
 }
 
+// Checker builds environment reports and caches them for TTL.
 type Checker struct {
 	Kube      client.Client
 	Discovery discovery.DiscoveryInterface

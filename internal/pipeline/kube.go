@@ -109,6 +109,9 @@ func (k *KubeExecutor) Cleanup(ctx context.Context) (int, error) {
 	return len(pods.Items), nil
 }
 
+// Execute runs one step as a pod: a clone secret with a short-lived token, the pod (clone, plan,
+// then the step), its logs streamed to w, and the digest of a build read from the termination
+// message. The pod and secret are removed afterwards.
 func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, step Step, w io.Writer) StepResult {
 	k.defaults()
 	res := StepResult{Started: time.Now()}
@@ -212,6 +215,8 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 	return res
 }
 
+// --8<-- [start:scripts]
+
 // planScript picks the builder: the Dockerfile when the folder has one (or
 // it is required), Railpack otherwise, which then writes its build plan.
 // Extra arguments ("--env K=V" pairs) go to railpack prepare.
@@ -263,6 +268,10 @@ buildctl --addr "$BUILDKIT_ADDR" build "$@" \
 grep -o '"containerimage.digest": *"sha256:[a-f0-9]*"' /tmp/metadata.json | grep -o 'sha256:[a-f0-9]*' > /dev/termination-log
 `
 
+// --8<-- [end:scripts]
+
+// --8<-- [start:buildkitFor]
+
 // buildkitFor picks the pool daemon for key by rendezvous hashing: each key
 // has a stable favourite among the ready daemons, and only the keys of a
 // daemon that goes away move elsewhere. It returns the address and the
@@ -294,6 +303,8 @@ func (k *KubeExecutor) buildkitFor(ctx context.Context, key string) (string, str
 	daemon, _, _ := strings.Cut(host, ".")
 	return fmt.Sprintf("tcp://%s:%d", host, best.Port), daemon
 }
+
+// --8<-- [end:buildkitFor]
 
 func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, step Step, buildkit string) (*corev1.Pod, error) {
 	cloneURL := src.Repo

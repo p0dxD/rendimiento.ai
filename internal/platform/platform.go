@@ -49,6 +49,7 @@ type GitHub interface {
 	BranchSHA(ctx context.Context, installation int64, repo, branch string) (string, error)
 }
 
+// Config is the platform's cluster-level settings.
 type Config struct {
 	Registry string // registry.cube.local:5000
 	BaseURL  string // public URL of the UI, for check-run links
@@ -57,6 +58,8 @@ type Config struct {
 	Railpack bool
 }
 
+// Platform connects GitHub, the store, CI and the cluster: webhooks become runs, runs become
+// releases, releases become App objects.
 type Platform struct {
 	Store     *store.Store
 	Kube      client.Client
@@ -196,6 +199,8 @@ func (p *Platform) inspectNamespace(ctx context.Context, ns string) (*Migration,
 	return m, nil
 }
 
+// Propose inspects a repo and proposes how to deploy it: its rendimiento.yaml if it has one,
+// otherwise a generated one, plus what is already running in the namespace it would use.
 func (p *Platform) Propose(ctx context.Context, installation int64, repo, branch string) (*Proposal, error) {
 	fsys, err := p.GitHub.RepoFS(ctx, installation, repo, branch)
 	if err != nil {
@@ -238,6 +243,7 @@ func (p *Platform) Propose(ctx context.Context, installation int64, repo, branch
 	return prop, nil
 }
 
+// OnboardRequest is what the New app wizard submits.
 type OnboardRequest struct {
 	Installation  int64             `json:"installation"`
 	Repo          string            `json:"repo"`
@@ -249,6 +255,7 @@ type OnboardRequest struct {
 	Adopt bool `json:"adopt"`
 }
 
+// OnboardResult is the created app and either the onboarding PR or the first run.
 type OnboardResult struct {
 	App *store.App      `json:"app"`
 	PR  *gh.PullRequest `json:"pr,omitempty"`
@@ -332,6 +339,8 @@ type Impact struct {
 	SharedNamespace bool `json:"sharedNamespace"`
 }
 
+// DeleteImpact lists what deleting an app would remove (namespace, volumes, secrets), shown before
+// deleting.
 func (p *Platform) DeleteImpact(ctx context.Context, app *store.App) (*Impact, error) {
 	im := &Impact{Namespace: app.Name, Volumes: []string{}, Secrets: []string{}}
 	var cr v1alpha1.App
@@ -464,6 +473,7 @@ func release(ctx context.Context, c client.Client, o client.Object, owner types.
 
 // ---- webhooks ----
 
+// PushEvent is the part of a GitHub push webhook the platform uses.
 type PushEvent struct {
 	Installation int64
 	Repo         string
@@ -572,6 +582,7 @@ func (p *Platform) Work(ctx context.Context) {
 	}
 }
 
+// Cancel stops a run in progress in this process; it reports whether one was found.
 func (p *Platform) Cancel(runID int64) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -804,9 +815,13 @@ func (p *Platform) finishCheck(ctx context.Context, app *store.App, run *store.R
 
 // ---- events & recorder ----
 
-func appTopic(app string) string  { return "app/" + app }
+func appTopic(app string) string { return "app/" + app }
+
+// RunTopic is the events topic for a run's live updates.
 func RunTopic(runID int64) string { return "run/" + strconv.FormatInt(runID, 10) }
-func AppTopic(app string) string  { return appTopic(app) }
+
+// AppTopic is the events topic for an app's live updates.
+func AppTopic(app string) string { return appTopic(app) }
 
 func (p *Platform) publishRun(app *store.App, runID int64) {
 	if r, err := p.Store.GetRun(context.Background(), runID); err == nil {

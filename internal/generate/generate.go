@@ -18,6 +18,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/templates"
 )
 
+// Input is what generation works from: the repo, its files and what detection found.
 type Input struct {
 	RepoName string // e.g. "secplus"
 	Zone     string // DNS zone for default domains, e.g. "joserod.space"
@@ -31,6 +32,8 @@ type Plan struct {
 	Files map[string]string `json:"files"` // repo-relative path → content, only files that do not exist yet
 }
 
+// Generator proposes a rendimiento.yaml and missing files for a repo. Templates is the
+// implementation; an AI-backed one can be added behind this interface.
 type Generator interface {
 	Generate(ctx context.Context, in Input) (*Plan, error)
 }
@@ -40,6 +43,8 @@ type Templates struct{}
 
 var tmpl = template.Must(template.ParseFS(templates.Dockerfiles, "dockerfiles/*.tmpl"))
 
+// Generate proposes one service per detected directory and a Dockerfile from templates for those
+// without one.
 func (Templates) Generate(_ context.Context, in Input) (*Plan, error) {
 	if len(in.Results) == 0 {
 		return nil, fmt.Errorf("no deployable service detected in %s", in.RepoName)

@@ -28,6 +28,8 @@ const (
 	LabelService   = "rendimiento.ai/service"
 	// LabelNeed marks the database or cache rendimiento runs for `needs:`.
 	LabelNeed = "rendimiento.ai/need"
+	// LabelLAN marks the LoadBalancer Service that exposes a service on the LAN.
+	LabelLAN = "rendimiento.ai/lan"
 )
 
 // Options carries cluster-level settings, so nothing is hardcoded per app.
@@ -48,6 +50,7 @@ type GPUProfile struct {
 	SharedMemory string            // size of a memory-backed /dev/shm, e.g. 1Gi
 }
 
+// DefaultOptions are this cluster's defaults: ingress-nginx, letsencrypt-prod, Longhorn.
 func DefaultOptions() Options {
 	return Options{IngressClass: "nginx", ClusterIssuer: "letsencrypt-prod", StorageClass: "longhorn"}
 }
@@ -78,6 +81,8 @@ type Objects struct {
 	CronJobs    []*batchv1.CronJob
 }
 
+// Render returns every object an app release needs: namespace, deployments, services, ingresses,
+// volumes and cron jobs, including the database and cache its needs ask for.
 func Render(in Input, opt Options) (*Objects, error) {
 	ns := in.Namespace
 	if ns == "" {
@@ -120,6 +125,9 @@ func Render(in Input, opt Options) (*Objects, error) {
 			}
 		}
 		out.Services = append(out.Services, s)
+		if svc.LAN != nil {
+			out.Services = append(out.Services, lanService(meta(svc.Name+"-lan"), sel, svc))
+		}
 		if svc.HasIngress() {
 			out.Ingresses = append(out.Ingresses, ingress(meta(svc.IngressName()), svc, opt))
 		}
@@ -361,6 +369,29 @@ func attachGPU(pod *corev1.PodSpec, svc spec.Service, gpu GPUProfile) {
 		pod.Volumes = append(pod.Volumes, corev1.Volume{Name: "dshm", VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{Medium: corev1.StorageMediumMemory, SizeLimit: &size}}})
 		c.VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{Name: "dshm", MountPath: "/dev/shm"})
+	}
+}
+
+// lanService exposes a service on the local network: a LoadBalancer Service
+// (MetalLB gives it an address from its pool, the requested one if set).
+func lanService(meta metav1.ObjectMeta, sel map[string]string, svc spec.Service) *corev1.Service {
+	port := svc.LAN.Port
+	if port == 0 {
+		port = 80
+	}
+	meta.Labels[LabelLAN] = "true"
+	if svc.LAN.IP != "" {
+		meta.Annotations = map[string]string{"metallb.io/loadBalancerIPs": svc.LAN.IP}
+	}
+	return &corev1.Service{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "Service"},
+		ObjectMeta: meta,
+		Spec: corev1.ServiceSpec{
+			Type:     corev1.ServiceTypeLoadBalancer,
+			Selector: sel,
+			Ports: []corev1.ServicePort{{Name: "lan", Port: int32(port), Protocol: corev1.ProtocolTCP,
+				TargetPort: intstr.FromInt32(int32(svc.Port))}},
+		},
 	}
 }
 
