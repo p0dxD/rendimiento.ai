@@ -66,7 +66,6 @@ A service asks for one with [`lan:`](../guide/spec.md#lan) in `rendimiento.yaml`
 | `ingress-nginx`, `cert-manager`, `monitoring` | Ingress controller, certificates, VictoriaMetrics + Grafana | Helm (installed by Ansible) |
 | `metallb-system`, `kube-system` | Load balancer, core components, sealed-secrets | k3s / Ansible |
 | `minio`, `docker-registry` | S3 storage (Longhorn backups), the registry | Ansible |
-| `argocd` | ArgoCD, scaled to zero and managing nothing | to be uninstalled |
 | `rendimiento` | The older AI-spend dashboard, a different project | leave alone |
 
 ## Building blocks rendimiento relies on

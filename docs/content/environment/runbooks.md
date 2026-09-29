@@ -130,14 +130,13 @@ On the Add-ons page:
 | GitHub App private key | Generate a new key in the App's settings → update `rendimiento-github` → restart; delete the old key |
 | An app's secret | App page → **Settings → Secrets** (or a sealed secret in the repo) |
 
-## Retire ArgoCD and Jenkins for good
+## ArgoCD and Jenkins (retired)
 
-Both are scaled to zero and manage nothing. When you are ready:
+Both were uninstalled on 2026-09-28, after every app and add-on had moved to rendimiento. The cleanup removed:
 
-```bash
-helm uninstall argocd -n argocd          # frees 192.168.50.74
-helm uninstall jenkinsci -n devops-tools # frees 192.168.50.89; the jenkins-home volume stays
-kubectl delete namespace argocd
-```
+- the Helm releases `argocd` and `jenkinsci`, which freed 192.168.50.74 and .89;
+- the `argocd` namespace, including its repository credentials, and the `argoproj.io` CRDs;
+- Jenkins' volume (`jenkins-home`), its ingress (`jenkins.joserod.space`), its CI SSH key and its `jenkins-admin` account;
+- their Ansible roles and Helm repositories in `~/main_configs`.
 
-Then remove their Ansible roles from `~/main_configs`.
+If `kubectl delete namespace` ever hangs on a LoadBalancer Service, the stuck finalizer is `service.kubernetes.io/load-balancer-cleanup`. Clear it with `kubectl -n <ns> patch svc <name> --type=merge -p '{"metadata":{"finalizers":null}}'`.
