@@ -55,6 +55,9 @@ type ServiceStatus struct {
 	ReadyReplicas int32  `json:"readyReplicas"`
 	Image         string `json:"image,omitempty"`
 	URL           string `json:"url,omitempty"`
+	// LANURL is the address the load balancer gave the service's `lan:`
+	// Service on the local network (empty until one is assigned).
+	LANURL string `json:"lanURL,omitempty"`
 	// CertReady reports the cert-manager Certificate for the service's domain.
 	CertReady bool   `json:"certReady"`
 	DNSReady  bool   `json:"dnsReady"`

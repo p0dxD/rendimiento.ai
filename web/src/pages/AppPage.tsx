@@ -64,6 +64,13 @@ function Overview({ name, app }: { name: string; app: Awaited<ReturnType<typeof 
                 <span className="small muted">{st ? `${st.readyReplicas}/${st.replicas} ready` : "not deployed"}</span>
               </div>
               {svc.domain && <a href={`https://${svc.domain}`} target="_blank" rel="noreferrer">https://{svc.domain}</a>}
+              {st?.lanURL && (
+                <div className="row small">
+                  <a href={st.lanURL} target="_blank" rel="noreferrer">{st.lanURL}</a>
+                  <span className="badge">local network</span>
+                </div>
+              )}
+              {svc.lan && !st?.lanURL && <div className="small muted">waiting for a local network address…</div>}
               {svc.domain && st && (
                 <div className="row small">
                   <span className={`badge ${st.dnsReady ? "ok" : "warn"}`}>DNS</span>

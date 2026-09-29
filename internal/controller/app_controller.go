@@ -217,6 +217,9 @@ func (r *AppReconciler) sync(ctx context.Context, app *v1alpha1.App, st *v1alpha
 			}
 			healthy = healthy && ss.CertReady
 		}
+		if svc.LAN != nil {
+			ss.LANURL = r.lanURL(ctx, app.Name, svc)
+		}
 		st.Services = append(st.Services, ss)
 	}
 	switch {
@@ -543,6 +546,25 @@ func appendIfStale(stale []client.Object, want map[string]bool, o client.Object)
 		return append(stale, o)
 	}
 	return stale
+}
+
+// lanURL is where the service's `lan:` Service answers on the local
+// network, from the address the load balancer assigned ("" until then).
+func (r *AppReconciler) lanURL(ctx context.Context, ns string, svc spec.Service) string {
+	var s corev1.Service
+	if err := r.Get(ctx, client.ObjectKey{Namespace: ns, Name: svc.Name + "-lan"}, &s); err != nil {
+		return ""
+	}
+	for _, in := range s.Status.LoadBalancer.Ingress {
+		if in.IP == "" || len(s.Spec.Ports) == 0 {
+			continue
+		}
+		if port := s.Spec.Ports[0].Port; port != 80 {
+			return fmt.Sprintf("http://%s:%d", in.IP, port)
+		}
+		return "http://" + in.IP
+	}
+	return ""
 }
 
 func (r *AppReconciler) certReady(ctx context.Context, ns, name string) bool {

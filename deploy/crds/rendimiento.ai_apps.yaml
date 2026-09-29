@@ -600,6 +600,11 @@ spec:
                       type: boolean
                     image:
                       type: string
+                    lanURL:
+                      description: |-
+                        LANURL is the address the load balancer gave the service's `lan:`
+                        Service on the local network (empty until one is assigned).
+                      type: string
                     message:
                       type: string
                     name:

@@ -28,7 +28,7 @@ One `App` per onboarded repository. The **platform** writes it (from `rendimient
 | `status.phase` | `WaitingForBuild`, `Progressing`, `Healthy`, `Degraded`, `Suspended`, `Error` |
 | `status.message` | why, in one line |
 | `status.release` | the release actually applied |
-| `status.services[]` | replicas, ready replicas, image, URL, certificate and DNS readiness per service |
+| `status.services[]` | replicas, ready replicas, image, URL, LAN URL (`lanURL`), certificate and DNS readiness per service |
 | `status.conditions` | standard Kubernetes conditions |
 
 `kubectl get app` shows **Phase**, **Release**, **Repo** and **Age**.
