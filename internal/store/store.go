@@ -26,8 +26,10 @@ var migrations embed.FS
 
 var ErrNotFound = errors.New("not found")
 
+// Store is the platform's Postgres database.
 type Store struct{ pool *pgxpool.Pool }
 
+// Open connects to Postgres; call Migrate before use.
 func Open(ctx context.Context, dsn string) (*Store, error) {
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
@@ -40,6 +42,7 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 	return &Store{pool: pool}, nil
 }
 
+// Close releases the connection pool.
 func (s *Store) Close() { s.pool.Close() }
 
 // Migrate applies embedded migrations in filename order, each once.
@@ -81,6 +84,8 @@ func (s *Store) Migrate(ctx context.Context) error {
 
 // ---- apps ----
 
+// App is an onboarded application: its repo, installation and the rendimiento.yaml of its default
+// branch.
 type App struct {
 	ID             int64     `json:"id"`
 	Name           string    `json:"name"`
@@ -105,6 +110,7 @@ func scanApp(row pgx.Row) (*App, error) {
 	return &a, json.Unmarshal(raw, &a.Spec)
 }
 
+// CreateApp inserts an app; names are unique.
 func (s *Store) CreateApp(ctx context.Context, a *App) error {
 	raw, err := json.Marshal(a.Spec)
 	if err != nil {
@@ -115,6 +121,7 @@ func (s *Store) CreateApp(ctx context.Context, a *App) error {
 		a.Name, a.Repo, a.InstallationID, a.DefaultBranch, raw).Scan(&a.ID, &a.CreatedAt)
 }
 
+// UpdateAppSpec stores the latest rendimiento.yaml of the default branch.
 func (s *Store) UpdateAppSpec(ctx context.Context, id int64, sp spec.Spec) error {
 	raw, err := json.Marshal(sp)
 	if err != nil {
@@ -124,10 +131,12 @@ func (s *Store) UpdateAppSpec(ctx context.Context, id int64, sp spec.Spec) error
 	return err
 }
 
+// GetApp returns an app by name, or ErrNotFound.
 func (s *Store) GetApp(ctx context.Context, name string) (*App, error) {
 	return scanApp(s.pool.QueryRow(ctx, `SELECT `+appCols+` FROM apps WHERE name = $1`, name))
 }
 
+// GetAppByID returns an app by ID, or ErrNotFound.
 func (s *Store) GetAppByID(ctx context.Context, id int64) (*App, error) {
 	return scanApp(s.pool.QueryRow(ctx, `SELECT `+appCols+` FROM apps WHERE id = $1`, id))
 }
@@ -137,6 +146,7 @@ func (s *Store) AppsForRepo(ctx context.Context, repo string) ([]*App, error) {
 	return s.listApps(ctx, `SELECT `+appCols+` FROM apps WHERE lower(repo) = lower($1) ORDER BY name`, repo)
 }
 
+// ListApps returns every app, by name.
 func (s *Store) ListApps(ctx context.Context) ([]*App, error) {
 	return s.listApps(ctx, `SELECT `+appCols+` FROM apps ORDER BY name`)
 }
@@ -158,6 +168,7 @@ func (s *Store) listApps(ctx context.Context, q string, args ...any) ([]*App, er
 	return out, rows.Err()
 }
 
+// DeleteApp removes an app and, through foreign keys, its runs and releases.
 func (s *Store) DeleteApp(ctx context.Context, id int64) error {
 	_, err := s.pool.Exec(ctx, `DELETE FROM apps WHERE id = $1`, id)
 	return err
@@ -165,6 +176,7 @@ func (s *Store) DeleteApp(ctx context.Context, id int64) error {
 
 // ---- runs & steps ----
 
+// Run is one CI run: a commit of an app built (and on the default branch, released).
 type Run struct {
 	ID         int64      `json:"id"`
 	AppID      int64      `json:"appId"`
@@ -181,6 +193,7 @@ type Run struct {
 	Steps      []Step     `json:"steps,omitempty"`
 }
 
+// Step is one test or build step of a run, with its result.
 type Step struct {
 	ID         string     `json:"id"`
 	Service    string     `json:"service"`
@@ -238,6 +251,8 @@ func (s *Store) CreateRun(ctx context.Context, r *Run, steps []pipeline.Step) er
 	})
 }
 
+// --8<-- [start:claim]
+
 // ClaimRun takes the oldest queued run and marks it running. It returns
 // ErrNotFound when the queue is empty. Safe across replicas.
 func (s *Store) ClaimRun(ctx context.Context) (*Run, error) {
@@ -246,6 +261,8 @@ func (s *Store) ClaimRun(ctx context.Context) (*Run, error) {
 		WHERE id = (SELECT id FROM runs WHERE status = 'queued' ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1)
 		RETURNING `+runCols))
 }
+
+// --8<-- [end:claim]
 
 // maxAttempts bounds how often a run interrupted by a restart is retried.
 const maxAttempts = 2
@@ -276,6 +293,7 @@ func (s *Store) RequeueOrphans(ctx context.Context) (requeued, failed int64, err
 	return requeued, failed, err
 }
 
+// SetCheckRun remembers the GitHub check run that mirrors a run.
 func (s *Store) SetCheckRun(ctx context.Context, runID, checkRun int64) error {
 	_, err := s.pool.Exec(ctx, `UPDATE runs SET check_run = $2 WHERE id = $1`, runID, checkRun)
 	return err
@@ -289,6 +307,7 @@ const closeSteps = `UPDATE steps SET
 		finished_at = COALESCE(finished_at, now())
 	WHERE status IN ('pending', 'running') AND run_id `
 
+// FinishRun records a run's outcome and closes any step still pending or running.
 func (s *Store) FinishRun(ctx context.Context, runID int64, status, message string) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE runs SET status = $2, message = $3, finished_at = now() WHERE id = $1`, runID, status, message); err != nil {
@@ -311,6 +330,7 @@ func (s *Store) CancelQueued(ctx context.Context, appID int64, branch string) er
 	})
 }
 
+// GetRun returns a run with its steps.
 func (s *Store) GetRun(ctx context.Context, id int64) (*Run, error) {
 	r, err := scanRun(s.pool.QueryRow(ctx, `SELECT `+runCols+` FROM runs WHERE id = $1`, id))
 	if err != nil {
@@ -332,6 +352,7 @@ func (s *Store) GetRun(ctx context.Context, id int64) (*Run, error) {
 	return r, rows.Err()
 }
 
+// ListRuns returns an app's most recent runs, newest first.
 func (s *Store) ListRuns(ctx context.Context, appID int64, limit int) ([]*Run, error) {
 	rows, err := s.pool.Query(ctx, `SELECT `+runCols+` FROM runs WHERE app_id = $1 ORDER BY id DESC LIMIT $2`, appID, limit)
 	if err != nil {
@@ -349,6 +370,7 @@ func (s *Store) ListRuns(ctx context.Context, appID int64, limit int) ([]*Run, e
 	return out, rows.Err()
 }
 
+// UpdateStep records a step's status, digest, message and times.
 func (s *Store) UpdateStep(ctx context.Context, runID int64, stepID string, r pipeline.StepResult) error {
 	_, err := s.pool.Exec(ctx, `UPDATE steps SET status = $3,
 			digest = CASE WHEN $4 = '' THEN digest ELSE $4 END,
@@ -363,11 +385,13 @@ func (s *Store) UpdateStep(ctx context.Context, runID int64, stepID string, r pi
 // maxLog caps stored log size per step; the head is dropped, the tail (where errors are) kept.
 const maxLog = 1 << 20
 
+// AppendLog adds output to a step's log, keeping at most maxLog bytes (the tail, where errors are).
 func (s *Store) AppendLog(ctx context.Context, runID int64, stepID, chunk string) error {
 	_, err := s.pool.Exec(ctx, `UPDATE steps SET log = right(log || $3, $4) WHERE run_id = $1 AND step_id = $2`, runID, stepID, chunk, maxLog)
 	return err
 }
 
+// StepLog returns a step's stored log.
 func (s *Store) StepLog(ctx context.Context, runID int64, stepID string) (string, error) {
 	var log string
 	err := s.pool.QueryRow(ctx, `SELECT log FROM steps WHERE run_id = $1 AND step_id = $2`, runID, stepID).Scan(&log)
@@ -379,6 +403,8 @@ func (s *Store) StepLog(ctx context.Context, runID int64, stepID string) (string
 
 // ---- releases ----
 
+// Release is what was deployed: the images (by digest) and spec of one successful run, or of a
+// rollback.
 type Release struct {
 	ID         int64             `json:"id"`
 	AppID      int64             `json:"appId"`
@@ -431,6 +457,7 @@ func scanRelease(row pgx.Row) (*Release, error) {
 	return &r, json.Unmarshal(sp, &r.Spec)
 }
 
+// GetRelease returns an app's release by number.
 func (s *Store) GetRelease(ctx context.Context, appID, number int64) (*Release, error) {
 	return scanRelease(s.pool.QueryRow(ctx, `SELECT `+releaseCols+` FROM releases WHERE app_id = $1 AND number = $2`, appID, number))
 }
@@ -440,6 +467,7 @@ func (s *Store) LatestRelease(ctx context.Context, appID int64) (*Release, error
 	return scanRelease(s.pool.QueryRow(ctx, `SELECT `+releaseCols+` FROM releases WHERE app_id = $1 ORDER BY number DESC LIMIT 1`, appID))
 }
 
+// ListReleases returns an app's most recent releases, newest first.
 func (s *Store) ListReleases(ctx context.Context, appID int64, limit int) ([]*Release, error) {
 	rows, err := s.pool.Query(ctx, `SELECT `+releaseCols+` FROM releases WHERE app_id = $1 ORDER BY number DESC LIMIT $2`, appID, limit)
 	if err != nil {
@@ -459,12 +487,14 @@ func (s *Store) ListReleases(ctx context.Context, appID int64, limit int) ([]*Re
 
 // ---- sessions ----
 
+// CreateSession stores a login session by the hash of its token.
 func (s *Store) CreateSession(ctx context.Context, tokenHash, login string, ttl time.Duration) error {
 	_, err := s.pool.Exec(ctx, `INSERT INTO sessions (token_hash, login, expires_at) VALUES ($1, $2, now() + $3::interval)`,
 		tokenHash, login, fmt.Sprintf("%d seconds", int(ttl.Seconds())))
 	return err
 }
 
+// SessionLogin returns the GitHub login of a valid session, or ErrNotFound.
 func (s *Store) SessionLogin(ctx context.Context, tokenHash string) (string, error) {
 	var login string
 	err := s.pool.QueryRow(ctx, `SELECT login FROM sessions WHERE token_hash = $1 AND expires_at > now()`, tokenHash).Scan(&login)
@@ -474,6 +504,7 @@ func (s *Store) SessionLogin(ctx context.Context, tokenHash string) (string, err
 	return login, err
 }
 
+// DeleteSession ends a session and removes expired ones.
 func (s *Store) DeleteSession(ctx context.Context, tokenHash string) error {
 	_, err := s.pool.Exec(ctx, `DELETE FROM sessions WHERE token_hash = $1 OR expires_at < now()`, tokenHash)
 	return err
@@ -497,4 +528,5 @@ func (s *Store) ResetForTests(ctx context.Context) error {
 	return err
 }
 
+// Ping checks the database connection.
 func (s *Store) Ping(ctx context.Context) error { return s.pool.Ping(ctx) }

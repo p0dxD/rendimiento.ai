@@ -1,0 +1,19 @@
+# rendimiento deploys its own book: every push to main rebuilds the docs
+# site (docs/Dockerfile, built from the repository root so the code map and
+# source excerpts are current) and serves it on the home network.
+services:
+  - name: docs
+    path: .
+    build:
+      builder: dockerfile
+      dockerfile: docs/Dockerfile
+    port: 8080
+    size: small
+    replicas: 1
+    health: { path: / }
+    # No public domain: the book is reachable on the LAN through MetalLB.
+    lan: { ip: 192.168.50.81 }
+    catalog:
+      category: devtools
+      title: rendimiento book
+      description: How rendimiento works, how it is deployed here, and how to change it.

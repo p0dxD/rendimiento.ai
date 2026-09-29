@@ -43,6 +43,7 @@ type logWriter struct {
 	closed  bool
 }
 
+// Write buffers step output and flushes it to the store and live subscribers.
 func (w *logWriter) Write(b []byte) (int, error) {
 	w.p.Hub.Publish(RunTopic(w.run), events.Event{Type: "log", Data: map[string]string{"step": w.step, "text": string(b)}})
 	w.mu.Lock()
@@ -83,6 +84,7 @@ func (w *logWriter) flushLoop() {
 	}
 }
 
+// Close flushes what is left.
 func (w *logWriter) Close() error {
 	w.mu.Lock()
 	if w.closed {

@@ -60,6 +60,8 @@ type AddonReconciler struct {
 
 // +kubebuilder:rbac:groups=rendimiento.ai,resources=addons;addons/status;addons/finalizers,verbs=*
 
+// Reconcile renders an add-on, previews it, applies it (with hooks, on install and upgrade) unless
+// a gate stops it, prunes what left the source, and records the result.
 func (r *AddonReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var a v1alpha1.Addon
 	if err := r.Get(ctx, req.NamespacedName, &a); err != nil {
@@ -491,6 +493,8 @@ func fromUnstructured(u *unstructured.Unstructured, into any) error {
 	return yaml.Unmarshal(b, into)
 }
 
+// SetupWithManager registers the controller; it reacts to spec and annotation changes, and resyncs
+// periodically.
 func (r *AddonReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Addon{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, predicate.AnnotationChangedPredicate{}))).

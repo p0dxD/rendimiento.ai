@@ -35,6 +35,8 @@ type AppSpec struct {
 	Adopt bool `json:"adopt,omitempty"`
 }
 
+// Phase summarizes an app's state: WaitingForBuild, Progressing, Healthy, Degraded, Suspended or
+// Error.
 type Phase string
 
 const (
@@ -46,6 +48,7 @@ const (
 	PhaseError       Phase = "Error"
 )
 
+// ServiceStatus is the observed state of one service (or of a database/cache run for `needs:`).
 type ServiceStatus struct {
 	Name          string `json:"name"`
 	Replicas      int32  `json:"replicas"`
@@ -58,6 +61,7 @@ type ServiceStatus struct {
 	Message   string `json:"message,omitempty"`
 }
 
+// AppStatus is what the controller last observed about an app.
 type AppStatus struct {
 	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
 	Phase              Phase              `json:"phase,omitempty"`

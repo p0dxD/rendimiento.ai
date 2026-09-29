@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"regexp"
 	"sort"
 	"strings"
@@ -17,6 +18,7 @@ import (
 
 const FileName = "rendimiento.yaml"
 
+// Spec is a parsed rendimiento.yaml.
 type Spec struct {
 	Services []Service `json:"services"`
 	// Jobs run on a schedule (Kubernetes CronJobs).
@@ -42,6 +44,7 @@ type PostgresOptions struct {
 	Resources *ResourceOverride `json:"resources,omitempty"`
 }
 
+// RedisOptions configure the app's cache (one per app, shared by every service that needs it).
 type RedisOptions struct {
 	Version string `json:"version,omitempty"` // default 7
 	// MaxMemory caps the cache; older keys are evicted (default 64mb).
@@ -68,6 +71,7 @@ type Need struct {
 	Env string `json:"env,omitempty"`
 }
 
+// UnmarshalJSON accepts a word ("postgres") or an object ({service: ns/name, env: VAR}).
 func (n *Need) UnmarshalJSON(b []byte) error {
 	var word string
 	if err := json.Unmarshal(b, &word); err == nil {
@@ -102,6 +106,7 @@ func (n *Need) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// MarshalJSON writes the short form when it can, so generated files stay readable.
 func (n Need) MarshalJSON() ([]byte, error) {
 	switch {
 	case n.Kind == NeedService:
@@ -186,6 +191,8 @@ func Touches(f, dir string, watch []string) bool {
 // ImageKey is the key of a built job's image in a release's image map.
 func (j Job) ImageKey() string { return "job:" + j.Name }
 
+// Service is one deployable part of an app: built from a folder of the repo (or a ready-made image)
+// and run as a Deployment with a Service.
 type Service struct {
 	Name string `json:"name"`
 	// Image runs a ready-made image (e.g. postgres:15-alpine) instead of
@@ -242,6 +249,9 @@ type Service struct {
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Needs []Need `json:"needs,omitempty"`
+	// LAN also exposes the service on the local network through the
+	// cluster's load balancer (MetalLB): no domain or certificate needed.
+	LAN *LANOptions `json:"lan,omitempty"`
 	// Catalog documents the service for other apps on the Services page:
 	// what it is, which variable consumers usually set and what it offers.
 	Catalog *Catalog `json:"catalog,omitempty"`
@@ -250,6 +260,14 @@ type Service struct {
 // Categories group services on the Services page by what they do.
 var Categories = map[string]bool{"database": true, "messaging": true, "ai": true, "storage": true,
 	"monitoring": true, "web": true, "devtools": true, "platform": true}
+
+// LANOptions expose a service on the local network.
+type LANOptions struct {
+	// IP to request from the load balancer's pool; empty lets it choose.
+	IP string `json:"ip,omitempty"`
+	// Port on that IP (default 80), forwarded to the service's port.
+	Port int `json:"port,omitempty"`
+}
 
 // Catalog is what the Services page shows about a service besides what it
 // can work out itself (addresses, ports, origin, who uses it).
@@ -278,6 +296,7 @@ type ResourceOverride struct {
 	MemoryLimit string `json:"memoryLimit,omitempty"`
 }
 
+// IngressOptions fine-tune the ingress of a service with a domain.
 type IngressOptions struct {
 	// Name keeps an existing ingress's name so a migration updates it in place.
 	Name string `json:"name,omitempty"`
@@ -368,11 +387,13 @@ func (s Service) TLSGroups() [][2]any {
 	return out
 }
 
+// ConfigFile mounts an existing ConfigMap as read-only files.
 type ConfigFile struct {
 	ConfigMap string `json:"configMap"`
 	Mount     string `json:"mount"`
 }
 
+// SecretFile mounts an existing Secret as read-only files.
 type SecretFile struct {
 	Secret string `json:"secret"`
 	Mount  string `json:"mount"`
@@ -410,6 +431,7 @@ func (s Service) TLSSecretName() string {
 	return s.Name + "-tls"
 }
 
+// Build says how a service's image is built.
 type Build struct {
 	// Builder is "dockerfile", "railpack" or empty for automatic: the
 	// Dockerfile when the service folder has one, Railpack otherwise.
@@ -444,11 +466,13 @@ func (b Build) validate(p string) []error {
 	return errs
 }
 
+// Test is a command run in a container image before the build; a failure stops the build.
 type Test struct {
 	Image   string `json:"image"`
 	Command string `json:"command"`
 }
 
+// Health is the readiness and liveness check of a service.
 type Health struct {
 	// Path is an HTTP GET check; TCP checks the port accepts connections
 	// (databases and other non-HTTP services).
@@ -458,6 +482,7 @@ type Health struct {
 	Timeout int `json:"timeout,omitempty"`
 }
 
+// Volume gives a service persistent storage (a Longhorn volume by default).
 type Volume struct {
 	// Size of a new volume; not needed with ExistingClaim.
 	Size  string `json:"size,omitempty"`
@@ -505,6 +530,7 @@ func (s Service) ClaimName() string {
 	return s.Name + "-data"
 }
 
+// Size is a preset of CPU and memory requests and limits, sized for Raspberry Pi nodes.
 type Size string
 
 const (
@@ -524,6 +550,7 @@ var sizes = map[Size]Resources{
 	SizeLarge:  {"250m", "512Mi", "2", "1Gi"},
 }
 
+// Resources returns the size's requests and limits.
 func (s Size) Resources() Resources { return sizes[s] }
 
 var (
@@ -549,8 +576,10 @@ func Parse(data []byte) (*Spec, error) {
 	return &s, nil
 }
 
+// Marshal writes the spec as YAML.
 func (s *Spec) Marshal() ([]byte, error) { return yaml.Marshal(s) }
 
+// Default fills in defaults (path, port, size, replicas, Dockerfile) in place.
 func (s *Spec) Default() {
 	for i := range s.Jobs {
 		j := &s.Jobs[i]
@@ -581,6 +610,7 @@ func (s *Spec) Default() {
 	}
 }
 
+// Validate reports every problem in the spec at once, each with its path (services[1].port …).
 func (s *Spec) Validate() error {
 	if len(s.Services) == 0 {
 		return errors.New("at least one service is required")
@@ -665,6 +695,14 @@ func (s *Spec) Validate() error {
 		}
 		if svc.Image == "" {
 			errs = append(errs, svc.Build.validate(p)...)
+		}
+		if l := svc.LAN; l != nil {
+			if ip := net.ParseIP(l.IP); l.IP != "" && (ip == nil || ip.To4() == nil || !ip.IsPrivate()) {
+				errs = append(errs, fmt.Errorf("%s.lan.ip %q must be a private IPv4 address from the load balancer's pool", p, l.IP))
+			}
+			if l.Port < 0 || l.Port > 65535 {
+				errs = append(errs, fmt.Errorf("%s.lan.port %d out of range", p, l.Port))
+			}
 		}
 		if svc.GPU < 0 || svc.GPU > 8 {
 			errs = append(errs, fmt.Errorf("%s.gpu %d must be between 0 and 8", p, svc.GPU))

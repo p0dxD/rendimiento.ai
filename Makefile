@@ -2,7 +2,7 @@ export PATH := $(HOME)/.local/go/bin:$(HOME)/go/bin:$(PATH)
 TEST_DATABASE_URL ?= postgres://postgres:test@127.0.0.1:55432/rendimiento
 IMAGE ?= registry.cube.local:5000/rendimiento
 
-.PHONY: generate ui build test test-remote test-db itest image railpack-image deploy
+.PHONY: generate ui build test test-remote test-db itest image railpack-image deploy docs-codemap
 
 generate: ## deepcopy + CRD from api/v1alpha1
 	controller-gen object paths=./api/... paths=./internal/spec/...
@@ -34,8 +34,10 @@ test-remote:
 itest: ## real build on the cluster's buildkitd
 	go test -tags integration ./internal/pipeline -run TestBuildOnCluster -v -timeout 25m
 
-# Build on the cluster's BuildKit (worker3), not on this node: main is also
-# the k3s control plane, and a local compile starves its SQLite datastore.
+# --8<-- [start:image]
+# Build on the cluster's BuildKit pool (the buildkitd Service reaches one of
+# its daemons), not on this node: main is also the k3s control plane, and a
+# local compile starves its SQLite datastore.
 BUILDKIT_PORT ?= 12345
 image:
 	@kubectl port-forward -n devops-tools svc/buildkitd $(BUILDKIT_PORT):1234 >/dev/null 2>&1 & pf=$$!; \
@@ -46,6 +48,7 @@ image:
 	  --output type=image,name=$(IMAGE):latest,push=true,registry.insecure=true \
 	  --import-cache type=registry,ref=$(IMAGE):buildcache,registry.insecure=true \
 	  --export-cache type=registry,ref=$(IMAGE):buildcache,mode=max,registry.insecure=true
+# --8<-- [end:image]
 
 RAILPACK_VERSION ?= 0.40.0
 railpack-image: ## the railpack CLI image build pods use (RAILPACK_IMAGE)
@@ -58,3 +61,8 @@ railpack-image: ## the railpack CLI image build pods use (RAILPACK_IMAGE)
 
 deploy:
 	kubectl apply -k deploy
+
+# The book's code reference, generated from the Go and TypeScript sources.
+# The book's image regenerates it on every build; run this to preview it.
+docs-codemap:
+	go run ./hack/codemap > docs/content/reference/code-map.md

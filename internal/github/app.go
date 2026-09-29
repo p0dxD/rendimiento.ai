@@ -37,6 +37,8 @@ type Credentials struct {
 	HTMLURL       string `json:"html_url"`
 }
 
+// App is the GitHub App: it signs JWTs with its private key and exchanges them for installation
+// tokens.
 type App struct {
 	creds   Credentials
 	key     *rsa.PrivateKey
@@ -52,6 +54,7 @@ type cachedToken struct {
 	expires time.Time
 }
 
+// New parses the App's private key.
 func New(c Credentials) (*App, error) {
 	block, _ := pem.Decode([]byte(c.PrivateKey))
 	if block == nil {
@@ -72,6 +75,7 @@ func New(c Credentials) (*App, error) {
 	return &App{creds: c, key: key, tokens: map[int64]cachedToken{}}, nil
 }
 
+// Credentials returns what the App was created with.
 func (a *App) Credentials() Credentials { return a.creds }
 
 func (a *App) base() string {
@@ -132,6 +136,7 @@ func (a *App) InstallationToken(ctx context.Context, installationID int64) (stri
 	return out.Token, nil
 }
 
+// Installation is the App installed on one account (user or organization).
 type Installation struct {
 	ID      int64 `json:"id"`
 	Account struct {
@@ -139,6 +144,7 @@ type Installation struct {
 	} `json:"account"`
 }
 
+// Installations lists the accounts the App is installed on.
 func (a *App) Installations(ctx context.Context) ([]Installation, error) {
 	jwt, err := a.JWT(time.Now())
 	if err != nil {
@@ -194,16 +200,19 @@ func (a *App) do(ctx context.Context, auth, method, path string, body, out any) 
 	return json.NewDecoder(resp.Body).Decode(out)
 }
 
+// APIError is a non-2xx response from the GitHub API.
 type APIError struct {
 	Status       int
 	Method, Path string
 	Body         string
 }
 
+// Error implements error.
 func (e *APIError) Error() string {
 	return fmt.Sprintf("github %s %s: %d %s", e.Method, e.Path, e.Status, e.Body)
 }
 
+// IsNotFound reports whether err is a GitHub 404.
 func IsNotFound(err error) bool {
 	var ae *APIError
 	return errors.As(err, &ae) && ae.Status == http.StatusNotFound
@@ -257,6 +266,7 @@ type BotIdentity struct {
 	Login, Email string
 }
 
+// Bot returns the App's bot user, as commits and pull requests show it.
 func (a *App) Bot(ctx context.Context) (*BotIdentity, error) {
 	jwt, err := a.JWT(time.Now())
 	if err != nil {

@@ -37,6 +37,7 @@ const (
 
 var certificateGVK = schema.GroupVersionKind{Group: "cert-manager.io", Version: "v1", Kind: "Certificate"}
 
+// AppReconciler turns App objects into running workloads, DNS records and status.
 type AppReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -52,6 +53,9 @@ type AppReconciler struct {
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=*
 // +kubebuilder:rbac:groups=cert-manager.io,resources=certificates,verbs=get;list;watch
 
+// --8<-- [start:reconcile]
+
+// Reconcile brings one app's objects in line with its App object, or cleans up after it is deleted.
 func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var app v1alpha1.App
 	if err := r.Get(ctx, req.NamespacedName, &app); err != nil {
@@ -82,6 +86,8 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 	return result, nil
 }
+
+// --8<-- [end:reconcile]
 
 // errBlocked marks problems that need a human (name clashes); retried slowly.
 var errBlocked = errors.New("blocked")
@@ -604,6 +610,8 @@ func deploymentCondition(d *appsv1.Deployment, t appsv1.DeploymentConditionType)
 	return nil
 }
 
+// SetupWithManager registers the controller; changes to the objects an app owns trigger a reconcile
+// (self-healing).
 func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.App{}).

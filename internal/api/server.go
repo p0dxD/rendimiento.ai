@@ -48,6 +48,7 @@ type CredentialStore interface {
 	Save(ctx context.Context, c *gh.Credentials) error
 }
 
+// Server holds everything the HTTP API needs; Handler returns its routes.
 type Server struct {
 	Platform     *platform.Platform
 	Store        *store.Store
@@ -70,6 +71,8 @@ type Server struct {
 
 const sessionCookie = "rendimiento_session"
 
+// Handler returns the HTTP handler: public routes (health, webhooks, login, setup),
+// session-protected /api routes and the embedded UI.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { io.WriteString(w, "ok") })

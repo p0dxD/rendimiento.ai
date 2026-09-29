@@ -28,6 +28,8 @@ type Recorder interface {
 	StepLog(runID, stepID string) io.WriteCloser
 }
 
+// --8<-- [start:runner]
+
 // Runner executes run DAGs with a global cap on concurrent steps, because
 // builds on Raspberry Pi nodes are CPU and memory bound.
 type Runner struct {
@@ -36,12 +38,15 @@ type Runner struct {
 	sem      chan struct{}
 }
 
+// NewRunner returns a Runner that runs at most maxParallel steps at a time across all runs.
 func NewRunner(exec Executor, rec Recorder, maxParallel int) *Runner {
 	if maxParallel < 1 {
 		maxParallel = 1
 	}
 	return &Runner{Exec: exec, Recorder: rec, sem: make(chan struct{}, maxParallel)}
 }
+
+// --8<-- [end:runner]
 
 // Run executes steps respecting DependsOn and returns each step's result.
 // A failed step marks everything that depends on it as skipped.

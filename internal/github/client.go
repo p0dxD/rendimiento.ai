@@ -30,6 +30,7 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 	return c.app.do(ctx, "token "+tok, method, path, body, out)
 }
 
+// Repo is a repository the installation can access.
 type Repo struct {
 	ID            int64  `json:"id"`
 	FullName      string `json:"full_name"`
@@ -59,6 +60,7 @@ func (c *Client) Repos(ctx context.Context) ([]Repo, error) {
 	return all, nil
 }
 
+// Repo returns one repository (default branch, visibility).
 func (c *Client) Repo(ctx context.Context, fullName string) (*Repo, error) {
 	var r Repo
 	return &r, c.do(ctx, http.MethodGet, "/repos/"+fullName, nil, &r)
@@ -89,6 +91,7 @@ type treeEntry struct {
 // maxFetch bounds downloaded file size; detection reads small manifests.
 const maxFetch = 1 << 20
 
+// FS returns the repository tree at ref as an fs.FS; files are downloaded when opened.
 func (c *Client) FS(ctx context.Context, repo, ref string) (*RepoFS, error) {
 	var out struct {
 		Tree      []treeEntry `json:"tree"`
@@ -111,6 +114,7 @@ func (c *Client) FS(ctx context.Context, repo, ref string) (*RepoFS, error) {
 	return r, nil
 }
 
+// Open implements fs.FS.
 func (r *RepoFS) Open(name string) (fs.File, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrInvalid}
@@ -162,26 +166,42 @@ type fileInfo struct {
 	dir  bool
 }
 
+// Name implements fs.FileInfo.
 func (f fileInfo) Name() string { return f.name }
-func (f fileInfo) Size() int64  { return f.size }
+
+// Size implements fs.FileInfo.
+func (f fileInfo) Size() int64 { return f.size }
+
+// Mode implements fs.FileInfo.
 func (f fileInfo) Mode() fs.FileMode {
 	if f.dir {
 		return fs.ModeDir | 0o555
 	}
 	return 0o444
 }
+
+// ModTime implements fs.FileInfo (unknown, zero).
 func (f fileInfo) ModTime() time.Time { return time.Time{} }
-func (f fileInfo) IsDir() bool        { return f.dir }
-func (f fileInfo) Sys() any           { return nil }
+
+// IsDir implements fs.FileInfo.
+func (f fileInfo) IsDir() bool { return f.dir }
+
+// Sys implements fs.FileInfo.
+func (f fileInfo) Sys() any { return nil }
 
 type blobFile struct {
 	info fileInfo
 	r    *bytes.Reader
 }
 
+// Stat implements fs.File.
 func (b *blobFile) Stat() (fs.FileInfo, error) { return b.info, nil }
+
+// Read implements fs.File.
 func (b *blobFile) Read(p []byte) (int, error) { return b.r.Read(p) }
-func (b *blobFile) Close() error               { return nil }
+
+// Close implements fs.File.
+func (b *blobFile) Close() error { return nil }
 
 type dirFile struct {
 	fs       *RepoFS
@@ -190,14 +210,20 @@ type dirFile struct {
 	offset   int
 }
 
+// Stat implements fs.File.
 func (d *dirFile) Stat() (fs.FileInfo, error) {
 	return fileInfo{name: path.Base(d.name), dir: true}, nil
 }
+
+// Read fails: directories cannot be read, only listed.
 func (d *dirFile) Read([]byte) (int, error) {
 	return 0, &fs.PathError{Op: "read", Path: d.name, Err: fs.ErrInvalid}
 }
+
+// Close implements fs.File.
 func (d *dirFile) Close() error { return nil }
 
+// ReadDir implements fs.ReadDirFile.
 func (d *dirFile) ReadDir(n int) ([]fs.DirEntry, error) {
 	names := append([]string(nil), d.children...)
 	sort.Strings(names)
@@ -222,6 +248,7 @@ func (d *dirFile) ReadDir(n int) ([]fs.DirEntry, error) {
 
 // ---- onboarding PR: one commit with every generated file ----
 
+// PullRequest is an opened (or existing) pull request.
 type PullRequest struct {
 	Number  int    `json:"number"`
 	HTMLURL string `json:"html_url"`
@@ -301,6 +328,7 @@ func (c *Client) OpenPR(ctx context.Context, repo, base, branch, title, body str
 
 // ---- check runs ----
 
+// CheckRun is a GitHub check shown on commits and pull requests.
 type CheckRun struct {
 	Name       string `json:"name,omitempty"`
 	HeadSHA    string `json:"head_sha,omitempty"`
@@ -313,6 +341,7 @@ type CheckRun struct {
 	} `json:"output,omitempty"`
 }
 
+// CheckOutput builds a check run's title and summary.
 func CheckOutput(title, summary string) *struct {
 	Title   string `json:"title"`
 	Summary string `json:"summary"`
@@ -323,6 +352,7 @@ func CheckOutput(title, summary string) *struct {
 	}{title, summary}
 }
 
+// CreateCheckRun starts a check run and returns its ID.
 func (c *Client) CreateCheckRun(ctx context.Context, repo string, cr CheckRun) (int64, error) {
 	var out struct {
 		ID int64 `json:"id"`
@@ -330,6 +360,7 @@ func (c *Client) CreateCheckRun(ctx context.Context, repo string, cr CheckRun) (
 	return out.ID, c.do(ctx, http.MethodPost, "/repos/"+repo+"/check-runs", cr, &out)
 }
 
+// UpdateCheckRun changes a check run's status or conclusion.
 func (c *Client) UpdateCheckRun(ctx context.Context, repo string, id int64, cr CheckRun) error {
 	return c.do(ctx, http.MethodPatch, fmt.Sprintf("/repos/%s/check-runs/%d", repo, id), cr, nil)
 }
