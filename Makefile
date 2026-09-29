@@ -2,7 +2,7 @@ export PATH := $(HOME)/.local/go/bin:$(HOME)/go/bin:$(PATH)
 TEST_DATABASE_URL ?= postgres://postgres:test@127.0.0.1:55432/rendimiento
 IMAGE ?= registry.cube.local:5000/rendimiento
 
-.PHONY: generate ui build test test-remote test-db itest image railpack-image deploy docs-codemap
+.PHONY: generate ui build test test-remote test-db itest image railpack-image deploy docs-codemap docs-check
 
 generate: ## deepcopy + CRD from api/v1alpha1
 	controller-gen object paths=./api/... paths=./internal/spec/...
@@ -66,3 +66,8 @@ deploy:
 # The book's image regenerates it on every build; run this to preview it.
 docs-codemap:
 	go run ./hack/codemap > docs/content/reference/code-map.md
+
+# Mermaid diagrams are drawn in the browser, so mkdocs cannot catch their
+# syntax errors; this parses each one with Mermaid itself.
+docs-check:
+	cd hack/checkdiagrams && npm install --no-audit --no-fund --loglevel=error && node check.mjs ../../docs/content

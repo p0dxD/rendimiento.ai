@@ -14,6 +14,7 @@
 | `make railpack-image` | build and push the Railpack CLI image |
 | `make deploy` | `kubectl apply -k deploy` |
 | `make docs-codemap` | regenerate the [code map](code-map.md) |
+| `make docs-check` | parse every Mermaid diagram in the book with Mermaid itself |
 
 ## Generators and helpers in `hack/`
 
@@ -22,6 +23,7 @@
 | `hack/test-remote.sh` | runs the test suite in a pod on a worker, with a Postgres sidecar and a node-local cache ([Testing](../develop/testing.md#remote-tests)) |
 | `hack/codemap` | walks the repository with `go/ast` and writes a table of every package, type and function with its doc comment's first sentence |
 | `hack/undoc` | lists exported names without a doc comment; the goal is zero |
+| `hack/checkdiagrams` | a Node script that parses every ` ```mermaid ` block. Diagrams are drawn in the browser, so `mkdocs build --strict` can't see their syntax errors. In sequence diagrams, `;` and `#` inside a message break the parse. |
 
 ## The book
 
