@@ -20,6 +20,7 @@ flowchart LR
 
 - for each service **built from the repo** (not a ready-made `image:`): a `build` step, and before it a `test` step if the service has `test:`. The build **depends on** the test;
 - for each **job** with its own `path`: a build step (`job-<name>:build`);
+- for each **task**: a `task` step (`<name>:task`) that depends on the builds and tasks in its `after:` ([Tasks](../guide/tasks.md));
 - steps of different services are independent, so they run in parallel.
 
 Each `Step` carries what its pod needs: the folder, the test image and command, or the image name to push (`registry/<app>-<service>`), the Dockerfile, the builder choice (`dockerfile`, `railpack` or automatic), Railpack's start command and build arguments.
@@ -54,7 +55,7 @@ flowchart LR
 1. A **Secret** with a fresh installation token (valid for an hour) is created for the pod; the clone container reads it.
 2. **clone** (init container): `git fetch --depth 1` of exactly the commit into `/workspace/src`.
 3. **plan** (init container, build steps only): decides the builder, and for Railpack writes its build plan.
-4. **step**: for a test, the service's test image runs the test command in the service's folder; for a build, `buildctl` sends the build to BuildKit, which pushes the image. The image **digest** is written to `/dev/termination-log`, and the executor reads it from the pod status: no log parsing.
+4. **step**: for a test, the service's test image runs the test command in the service's folder; for a task, the task's image runs its command with its environment and secrets (copied into the pod's own secret, and masked in the log); for a build, `buildctl` sends the build to BuildKit, which pushes the image. The image **digest** is written to `/dev/termination-log`, and the executor reads it from the pod status: no log parsing.
 5. Logs of every container are streamed into the step's log as they happen.
 6. The pod and the secret are deleted, whatever happened.
 
@@ -75,7 +76,7 @@ The scripts, exactly as they run:
 
 ## Change detection: building only what changed
 
-For a push to the default branch, `platform.reusable` compares the new commit with the commit of the last release (GitHub's compare API). A service whose folder (and `watch:` paths) did not change keeps its image from that release; its steps show **reused**. Anything uncertain means a full build:
+For a push to the default branch, `Platform.changes` compares the new commit with the commit of the last release (GitHub's compare API). With that list of files, `reusable` keeps the image of every service whose folder (and `watch:` paths) did not change; its steps show **reused**. `skippedTasks` skips tasks the same way, and also skips `when: deploy` tasks on branches. Anything uncertain means a full build:
 
 - manual runs and branch builds;
 - no earlier release, or it was not a full commit;
@@ -89,13 +90,13 @@ For a push to the default branch, `platform.reusable` compares the new commit wi
 - **Logs and live updates**: the platform's recorder (`platform/recorder.go`) buffers each step's output, appends it to the step's row in Postgres (keeping the last 1 MB, where errors are) and publishes it to the events hub, which streams it to open browsers over Server-Sent Events.
 - **Cancelling**: `Platform.Cancel` cancels the run's context; running pods are deleted and waiting steps become skipped.
 - **Restarts**: runs left `running` by a dead process are requeued on startup (`RequeueOrphans`, at most twice), and leftover pods are deleted (`KubeExecutor.Cleanup`).
-- **Releases**: when every step of a deploy run succeeded, `platform.release` records the images by digest (new ones, reused ones, and ready-made `image:` services as given) and updates the `App` object. That hands over to the [controller](controller.md).
+- **Releases**: when every required step of a deploy run succeeded (a failed `optional` task doesn't count), `platform.release` records the images by digest (new ones, reused ones, and ready-made `image:` services as given) and updates the `App` object. That hands over to the [controller](controller.md).
 
 ## Where to change what
 
 | To… | Change |
 |---|---|
-| add a new kind of step (e.g. a command step for mobile builds) | `Kind` and `Plan` in `plan.go`, the container in `KubeExecutor.pod`, the spec field in `internal/spec` |
+| add a new kind of step | `Kind` and `Plan` in `plan.go`, the container in `KubeExecutor.pod`, the spec field in `internal/spec`; `task` steps (`task.go`) are the most recent example |
 | run more steps at once | `MAX_PARALLEL_STEPS` (mind the Pis' memory) |
 | change what a build pod may reach | `deploy/networkpolicy.yaml` |
 | support a new registry or auth | the `--output` / cache options in `buildScript`, credentials as a secret mounted in the step container |

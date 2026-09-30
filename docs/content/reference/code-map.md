@@ -10,25 +10,25 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 
 | Package | Files | Lines | What it is |
 |---|---|---|---|
-| [`api/v1alpha1`](#api-v1alpha1) | 3 | 289 | Package v1alpha1 contains the App API: one App per deployed application. |
+| [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
 | [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 304 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/api`](#internal-api) | 5 | 1998 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 5 | 1994 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 844 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
-| [`internal/controller`](#internal-controller) | 7 | 2678 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
+| [`internal/controller`](#internal-controller) | 7 | 2733 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 428 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
 | [`internal/dns`](#internal-dns) | 4 | 768 | Package dns manages the public DNS record for each app domain. |
 | [`internal/environment`](#internal-environment) | 4 | 1296 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
 | [`internal/events`](#internal-events) | 2 | 80 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 278 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1164 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/pipeline`](#internal-pipeline) | 5 | 1197 | Package pipeline plans and executes CI runs. |
-| [`internal/platform`](#internal-platform) | 3 | 1490 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
+| [`internal/pipeline`](#internal-pipeline) | 7 | 1577 | Package pipeline plans and executes CI runs. |
+| [`internal/platform`](#internal-platform) | 3 | 1624 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/render`](#internal-render) | 3 | 1160 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
-| [`internal/spec`](#internal-spec) | 2 | 1320 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
+| [`internal/spec`](#internal-spec) | 2 | 1551 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
 | [`internal/store`](#internal-store) | 3 | 1067 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
@@ -60,7 +60,7 @@ Package v1alpha1 contains the App API: one App per deployed application.
 
 ### `api/v1alpha1/app_types.go`
 
-<small>99 lines</small>
+<small>102 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -263,7 +263,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1069 lines</small>
+<small>1065 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -440,7 +440,7 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 
 ### `internal/controller/app_controller.go`
 
-<small>624 lines</small>
+<small>646 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -455,6 +455,7 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 | `(*AppReconciler) takeover` | method | takeover replaces, once, a same-named object that rendimiento does not manage yet (e.g. |
 | `(*AppReconciler) prune` | method | prune deletes workloads, services and ingresses of this app that are no longer in the spec. |
 | `appendIfStale` | func |  |
+| `(*AppReconciler) lanURL` | method | lanURL is where the service's `lan:` Service answers on the local network, from the address the load balancer assigned ("" until then). |
 | `(*AppReconciler) certReady` | method |  |
 | `(*AppReconciler) finalize` | method |  |
 | `(*AppReconciler) crashLooping` | method | crashLooping reports a pod of the deployment stuck restarting, e.g. |
@@ -491,7 +492,7 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 
 ### `internal/controller/app_controller_test.go`
 
-<small>844 lines · tests</small>
+<small>877 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -507,6 +508,7 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 | `TestStuckRolloutIsNotHealthy` | func | A rollout where the new pod crash-loops while an old pod keeps serving must not be reported Healthy (wellness-api with a broken image). |
 | `TestSharedNamespace` | func | jobsentry: the namespace belongs to ArgoCD (linguistic-ai stays there); rendimiento runs its services in it without touching the namespace. |
 | `TestAppNeeds` | func |  |
+| `TestAppLANURL` | func |  |
 
 ## `internal/detect` {#internal-detect}
 
@@ -880,7 +882,7 @@ Package pipeline plans and executes CI runs.
 
 ### `internal/pipeline/kube.go`
 
-<small>536 lines</small>
+<small>583 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -903,16 +905,19 @@ Package pipeline plans and executes CI runs.
 
 ### `internal/pipeline/plan.go`
 
-<small>96 lines</small>
+<small>142 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `Kind` | type | Kind is what a step does: test or build. |
+| `Kind` | type | Kind is what a step does: test, build, or run a task. |
 | `Status` | type | Status is a step's state. |
 | `(Status) Done` | method | Done reports whether the step has finished (in any way). |
 | `Step` | struct | Step is one node of the run's DAG. |
+| `TaskStepID` | func | TaskStepID is the ID of a task's step. |
+| `TaskKey` | func | TaskKey is the Service field of a task's step: what change detection and the run page group it by. |
 | `Source` | struct | Source identifies the commit being built. |
-| `Plan` | func | Plan builds the DAG for a spec: per service, test (if configured) then build. |
+| `Plan` | func | Plan builds the DAG for a spec: per service, test (if configured) then build; job images; then tasks, after the builds and tasks they name. |
+| `isTask` | func |  |
 
 ### `internal/pipeline/run.go`
 
@@ -927,6 +932,19 @@ Package pipeline plans and executes CI runs.
 | `NewRunner` | func | NewRunner returns a Runner that runs at most maxParallel steps at a time across all runs. |
 | `(*Runner) Run` | method | Run executes steps respecting DependsOn and returns each step's result. |
 | `validate` | func | validate rejects unknown dependencies and cycles. |
+
+### `internal/pipeline/task.go`
+
+<small>165 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `(*KubeExecutor) taskSecrets` | method | taskSecrets reads the secrets a task step uses from its app's namespace. |
+| `maskSecrets` | func | maskSecrets replaces secret values in a task's log with ***. |
+| `maskingWriter` | struct |  |
+| `(*maskingWriter) Write` | method | Write masks p and passes it on, reporting all of p as written. |
+| `(*maskingWriter) Close` | method | Close closes the underlying writer when it is a closer (the step's log). |
+| `taskResources` | func | taskResources turns a size preset (with its overrides) into requests and limits. |
 
 ### `internal/pipeline/kube_integration_test.go`
 
@@ -954,13 +972,24 @@ Package pipeline plans and executes CI runs.
 | `TestPlanScript` | func | TestPlanScript runs the real plan script with a stub railpack CLI. |
 | `TestBuildkitPool` | func |  |
 
+### `internal/pipeline/task_test.go`
+
+<small>122 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestPlanTasks` | func |  |
+| `TestTaskPod` | func |  |
+| `TestTaskSecrets` | func |  |
+| `TestMaskSecrets` | func |  |
+
 ## `internal/platform` {#internal-platform}
 
 Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys.
 
 ### `internal/platform/platform.go`
 
-<small>847 lines</small>
+<small>897 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -989,7 +1018,10 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `(*Platform) Cancel` | method | Cancel stops a run in progress in this process; it reports whether one was found. |
 | `(*Platform) execute` | method |  |
 | `(*Platform) release` | method |  |
-| `(*Platform) reusable` | method | reusable decides which built services and jobs can keep the image from the latest release because nothing they are built from changed since. |
+| `(*Platform) changes` | method | changes lists the files changed since the latest release, for a push to the default branch. |
+| `touched` | func | touched reports whether any of files is under dir or a watched path. |
+| `reusable` | func | reusable decides which built services and jobs can keep the image from the latest release because nothing they are built from changed since. |
+| `skippedTasks` | func | skippedTasks returns the task steps that do not run this time, with why: deploy-only tasks on branch and pull request runs (they may read secrets), and tasks whose path and watch paths are unchanged since the latest release. |
 | `(*Platform) Rollback` | method | Rollback creates a new release that restores an earlier one's images and spec. |
 | `(*Platform) pointApp` | method | pointApp writes the release into the App object; the controller does the rest. |
 | `(*Platform) startCheck` | method |  |
@@ -1018,13 +1050,14 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/platform_test.go`
 
-<small>544 lines · tests</small>
+<small>628 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `TestOnboardPushDeployRollback` | func |  |
 | `TestProposeDetectsExistingDeployment` | func |  |
 | `TestChangeDetection` | func | Only what changed since the last release is tested, built and rolled. |
+| `TestTasks` | func |  |
 | `TestDisconnectAndSuggestedName` | func | Disconnect leaves everything running and unowned; the wizard suggests the namespace that already serves a repo's hosts. |
 
 ## `internal/render` {#internal-render}
@@ -1150,11 +1183,14 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 
 ### `internal/spec/spec.go`
 
-<small>967 lines</small>
+<small>1149 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Spec` | struct | Spec is a parsed rendimiento.yaml. |
+| `Task` | struct | Task is a command run as a step of every CI run: the commit is checked out, and the command runs in Image from Path. |
+| `(Task) SecretNames` | method | SecretNames lists every secret the task reads. |
+| `(Spec) SecretNames` | method | SecretNames lists every secret the app's services, jobs and tasks read: the ones that can be set from the app's settings. |
 | `PostgresOptions` | struct | PostgresOptions configure the app's database (one per app, shared by every service that needs it). |
 | `RedisOptions` | struct | RedisOptions configure the app's cache (one per app, shared by every service that needs it). |
 | `Need` | struct | Need is something a service depends on: rendimiento provides it and injects how to reach it. |
@@ -1180,6 +1216,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 | `ConfigFile` | struct | ConfigFile mounts an existing ConfigMap as read-only files. |
 | `SecretFile` | struct | SecretFile mounts an existing Secret as read-only files. |
 | `(Service) SecretNames` | method | SecretNames lists every secret the service reads, however it reads it. |
+| `secretNames` | func | secretNames is the sorted, de-duplicated set of secrets named whole, in NAME: secret/key references, or as mounted files. |
 | `(Service) TLSSecretName` | method | TLSSecretName is the certificate secret for the service's domain. |
 | `Build` | struct | Build says how a service's image is built. |
 | `(Build) validate` | method |  |
@@ -1196,6 +1233,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 | `(*Spec) Marshal` | method | Marshal writes the spec as YAML. |
 | `(*Spec) Default` | method | Default fills in defaults (path, port, size, replicas, Dockerfile) in place. |
 | `(*Spec) Validate` | method | Validate reports every problem in the spec at once, each with its path (services[1].port …). |
+| `(*Spec) validateTasks` | method |  |
 | `(*Spec) validateNeeds` | method |  |
 | `validateResources` | func |  |
 | `resourceQuantity` | func |  |
@@ -1204,7 +1242,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 
 ### `internal/spec/spec_test.go`
 
-<small>353 lines · tests</small>
+<small>402 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1220,6 +1258,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 | `TestRoutes` | func | wellness: /api on the website's hosts goes to the API. |
 | `TestValidateBuildGPUCatalog` | func |  |
 | `TestNeeds` | func |  |
+| `TestTasks` | func |  |
 
 ## `internal/store` {#internal-store}
 
@@ -1332,7 +1371,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>525 lines</small>
+<small>555 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1342,6 +1381,8 @@ Package web embeds the built UI (npm run build → web/dist).
 | `secretNames` | function | Every secret a service reads (envFrom, single keys, or files). |
 | `Job` | interface |  |
 | `Spec` | interface |  |
+| `Task` | interface | A command run as a CI step (mobile builds, smoke tests, release scripts). |
+| `appSecretNames` | function | Every secret an app reads: its services', jobs' and tasks'. |
 | `Detected` | interface |  |
 | `Proposal` | interface |  |
 | `Step` | interface |  |
@@ -1427,7 +1468,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/AppPage.tsx`
 
-<small>364 lines</small>
+<small>371 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1444,7 +1485,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Dashboard.tsx`
 
-<small>60 lines</small>
+<small>61 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|

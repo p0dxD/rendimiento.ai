@@ -6,7 +6,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 
 | # | Item | Why | Where |
 |---|---|---|---|
-| 1 | **Command steps** (`tasks:`): run any container with secrets, for Expo/EAS mobile builds, migrations and smoke tests | the last reason to keep a general-purpose CI | `spec`, `pipeline/plan.go`, `KubeExecutor.pod` ([recipe](../develop/recipes.md#add-a-new-kind-of-ci-step)) |
+| 1 | **Post-deploy tasks**: run a task in the app's namespace after the release is healthy (migrations, smoke tests of the new version) | tasks today run before the release, in the isolated build namespace | `spec.Task` (`stage: post-deploy`), the App controller or platform after `pointApp` |
 | 2 | **Move apps' databases onto `needs:`** | one way to get Postgres, with credentials generated and wired in | per app: `rendimiento.yaml`, data migration runbook |
 | 3 | **Platform metrics** + a Grafana dashboard | see builds slowing or queues growing before users do | `pipeline`, `platform`, `METRICS_ADDR` |
 | 4 | **Log archive** to MinIO | keep Postgres small | `store`, `platform/recorder.go` |
@@ -43,5 +43,6 @@ Items are ordered by value per effort for this cluster first, and for other user
 - An add-on engine (Helm and kustomize from git), with previews, safety gates and Helm hooks, which replaced ArgoCD
 - Renovate as an add-on, which replaced the CronJob
 - ArgoCD and Jenkins uninstalled (2026-09-28)
+- Tasks: commands as CI steps with secrets, for Expo/EAS builds and smoke tests (2026-09-29)
 - The Services catalog, Environment checks, dynamic DNS
 - Remote tests (`make test-remote`), and this book

@@ -120,7 +120,11 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 		fmt.Fprintln(w, "rendimiento: "+res.Message)
 		return res
 	}
-	ctx, cancel := context.WithTimeout(ctx, k.Timeout)
+	timeout := k.Timeout
+	if step.Timeout > 0 && step.Timeout < timeout {
+		timeout = step.Timeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// A random suffix keeps a retried run from colliding with pods its
@@ -140,6 +144,20 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: k.Namespace, Labels: labels},
 		StringData: map[string]string{"token": token},
 	}
+	// A task's secrets are copied from the app's namespace into this
+	// short-lived secret, which is deleted with the pod.
+	var taskEnv []corev1.EnvVar
+	if step.Kind == KindTask {
+		values, env, err := k.taskSecrets(ctx, name, step)
+		if err != nil {
+			return fail("%v", err)
+		}
+		for key, v := range values {
+			secret.StringData[key] = v
+		}
+		taskEnv = env
+		w = maskSecrets(w, values)
+	}
 	if err := transientRetry(ctx, func() error {
 		_, err := k.Client.CoreV1().Secrets(k.Namespace).Create(ctx, secret, metav1.CreateOptions{})
 		if apierrors.IsAlreadyExists(err) {
@@ -157,7 +175,7 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 			fmt.Fprintf(w, "rendimiento: building on %s\n", daemon)
 		}
 	}
-	pod, err := k.pod(name, labels, src, step, buildkit)
+	pod, err := k.pod(name, labels, src, step, buildkit, taskEnv...)
 	if err != nil {
 		return fail("%v", err)
 	}
@@ -198,6 +216,9 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 	}
 	res.Finished = time.Now()
 	if final.Status.Phase != corev1.PodSucceeded {
+		if step.Kind == KindTask && final.Status.Reason == "DeadlineExceeded" {
+			return fail("task timed out after %s", timeout)
+		}
 		return fail("step failed: %s", terminationSummary(final))
 	}
 	res.Status = StatusSucceeded
@@ -306,7 +327,7 @@ func (k *KubeExecutor) buildkitFor(ctx context.Context, key string) (string, str
 
 // --8<-- [end:buildkitFor]
 
-func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, step Step, buildkit string) (*corev1.Pod, error) {
+func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, step Step, buildkit string, taskEnv ...corev1.EnvVar) (*corev1.Pod, error) {
 	cloneURL := src.Repo
 	if !strings.Contains(cloneURL, "://") {
 		cloneURL = "https://github.com/" + src.Repo + ".git"
@@ -321,6 +342,9 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 	}
 	ws := corev1.VolumeMount{Name: "workspace", MountPath: "/workspace"}
 	deadline := int64(k.Timeout.Seconds())
+	if step.Timeout > 0 && step.Timeout < k.Timeout {
+		deadline = int64(step.Timeout.Seconds())
+	}
 	clone := corev1.Container{
 		Name:    "clone",
 		Image:   k.GitImage,
@@ -401,6 +425,29 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 				{Name: "GIT_SHA", Value: src.SHA},
 				{Name: "INSECURE", Value: insecure},
 			},
+		}
+	case KindTask:
+		env := []corev1.EnvVar{{Name: "CI", Value: "true"}, {Name: "GIT_SHA", Value: src.SHA},
+			{Name: "GIT_BRANCH", Value: src.Branch}, {Name: "RENDIMIENTO_APP", Value: step.App}}
+		keys := make([]string, 0, len(step.Env))
+		for key := range step.Env {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			env = append(env, corev1.EnvVar{Name: key, Value: step.Env[key]})
+		}
+		res, err := taskResources(step.Resources)
+		if err != nil {
+			return nil, err
+		}
+		main = corev1.Container{
+			Name:       "step",
+			Image:      step.Image,
+			Command:    []string{"sh", "-c", step.Command},
+			WorkingDir: workdir,
+			Env:        append(env, taskEnv...), // secrets last: they win over env
+			Resources:  res,
 		}
 	default:
 		return nil, fmt.Errorf("unknown step kind %q", step.Kind)

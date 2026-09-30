@@ -93,6 +93,7 @@ nav:
       - rendimiento.yaml reference: guide/spec.md
       - Apps day to day: guide/apps.md
       - Builds and tests: guide/builds.md
+      - Tasks (commands in CI): guide/tasks.md
       - Needs and the services catalog: guide/needs.md
       - Add-ons: guide/addons.md
       - Renovate: guide/renovate.md

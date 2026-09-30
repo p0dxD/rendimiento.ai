@@ -627,7 +627,9 @@ func (p *Platform) execute(ctx context.Context, run *store.Run) {
 		}
 	}
 	steps := pipeline.Plan(app.Name, p.Config.Registry, sp)
-	reuse, reuseNote := p.reusable(ctx, app, run, sp)
+	files, prev := p.changes(ctx, app, run)
+	reuse, reuseNote := reusable(sp, files, prev)
+	skip := skippedTasks(sp, run.Deploy, files, prev)
 	var toRun []pipeline.Step
 	for _, st := range steps {
 		if img, ok := reuse[st.Service]; ok && img != "" {
@@ -635,7 +637,27 @@ func (p *Platform) execute(ctx context.Context, run *store.Run) {
 				Status: pipeline.StatusReused, Message: reuseNote, Started: time.Now(), Finished: time.Now()})
 			continue
 		}
+		if why, ok := skip[st.ID]; ok {
+			p.StepUpdate(strconv.FormatInt(run.ID, 10), st.ID, pipeline.StepResult{
+				Status: pipeline.StatusSkipped, Message: why, Started: time.Now(), Finished: time.Now()})
+			continue
+		}
 		toRun = append(toRun, st)
+	}
+	// A step whose dependency did not run this time (its image was reused,
+	// or a task was skipped) does not wait for it.
+	planned := map[string]bool{}
+	for _, st := range toRun {
+		planned[st.ID] = true
+	}
+	for i := range toRun {
+		var deps []string
+		for _, d := range toRun[i].DependsOn {
+			if planned[d] {
+				deps = append(deps, d)
+			}
+		}
+		toRun[i].DependsOn = deps
 	}
 	src := pipeline.Source{Repo: app.Repo, SHA: run.SHA, Branch: run.Branch, Deploy: run.Deploy}
 	results, err := p.Runner.Run(withInstallation(runCtx, app.InstallationID), strconv.FormatInt(run.ID, 10), src, toRun)
@@ -648,7 +670,7 @@ func (p *Platform) execute(ctx context.Context, run *store.Run) {
 		status, msg = store.RunCancelled, "cancelled"
 	default:
 		for _, s := range toRun {
-			if r := results[s.ID]; r.Status != pipeline.StatusSucceeded {
+			if r := results[s.ID]; r.Status != pipeline.StatusSucceeded && !s.Optional {
 				status, msg = store.RunFailed, fmt.Sprintf("%s %s", s.ID, r.Status)
 				break
 			}
@@ -694,52 +716,80 @@ func (p *Platform) release(ctx context.Context, app *store.App, run *store.Run, 
 
 var fullSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
-// reusable decides which built services and jobs can keep the image from
-// the latest release because nothing they are built from changed since.
-// It returns image key → image, and a note for the skipped steps. Anything
-// uncertain means a full build: manual and branch runs, no earlier release,
-// a truncated diff, a change to rendimiento.yaml, a service at the repo root.
-func (p *Platform) reusable(ctx context.Context, app *store.App, run *store.Run, sp spec.Spec) (map[string]string, string) {
+// changes lists the files changed since the latest release, for a push to
+// the default branch. A nil release means "unknown": run everything. That
+// covers manual and branch runs, no earlier release, a failed or truncated
+// diff, and a change to rendimiento.yaml.
+func (p *Platform) changes(ctx context.Context, app *store.App, run *store.Run) ([]string, *store.Release) {
 	if !run.Deploy || run.Event != "push" || !fullSHA.MatchString(run.SHA) {
-		return nil, ""
+		return nil, nil
 	}
 	prev, err := p.Store.LatestRelease(ctx, app.ID)
 	if err != nil || !fullSHA.MatchString(prev.SHA) || prev.SHA == run.SHA {
-		return nil, ""
+		return nil, nil
 	}
 	files, complete, err := p.GitHub.ChangedFiles(ctx, app.InstallationID, app.Repo, prev.SHA, run.SHA)
 	if err != nil {
 		p.Log.Warn("change detection failed; building everything", "app", app.Name, "err", err)
-		return nil, ""
+		return nil, nil
 	}
 	if !complete {
-		return nil, ""
+		return nil, nil
 	}
 	for _, f := range files {
 		if f == spec.FileName {
-			return nil, ""
+			return nil, nil
 		}
 	}
-	changed := func(dir string, watch []string) bool {
-		for _, f := range files {
-			if spec.Touches(f, dir, watch) {
-				return true
-			}
+	return files, prev
+}
+
+// touched reports whether any of files is under dir or a watched path.
+func touched(files []string, dir string, watch []string) bool {
+	for _, f := range files {
+		if spec.Touches(f, dir, watch) {
+			return true
 		}
-		return false
+	}
+	return false
+}
+
+// reusable decides which built services and jobs can keep the image from
+// the latest release because nothing they are built from changed since.
+// It returns image key → image, and a note for the skipped steps.
+func reusable(sp spec.Spec, files []string, prev *store.Release) (map[string]string, string) {
+	if prev == nil {
+		return nil, ""
 	}
 	reuse := map[string]string{}
 	for _, svc := range sp.Services {
-		if svc.Image == "" && prev.Images[svc.Name] != "" && !changed(svc.Path, svc.Watch) {
+		if svc.Image == "" && prev.Images[svc.Name] != "" && !touched(files, svc.Path, svc.Watch) {
 			reuse[svc.Name] = prev.Images[svc.Name]
 		}
 	}
 	for _, j := range sp.Jobs {
-		if j.Path != "" && prev.Images[j.ImageKey()] != "" && !changed(j.Path, j.Watch) {
+		if j.Path != "" && prev.Images[j.ImageKey()] != "" && !touched(files, j.Path, j.Watch) {
 			reuse[j.ImageKey()] = prev.Images[j.ImageKey()]
 		}
 	}
 	return reuse, fmt.Sprintf("unchanged since release #%d; its image is reused", prev.Number)
+}
+
+// skippedTasks returns the task steps that do not run this time, with why:
+// deploy-only tasks on branch and pull request runs (they may read
+// secrets), and tasks whose path and watch paths are unchanged since the
+// latest release.
+func skippedTasks(sp spec.Spec, deploy bool, files []string, prev *store.Release) map[string]string {
+	skip := map[string]string{}
+	for _, t := range sp.Tasks {
+		switch {
+		case t.When == spec.TaskOnDeploy && !deploy:
+			skip[pipeline.TaskStepID(t.Name)] = "runs only for pushes to the default branch (when: deploy)"
+		case prev != nil && !touched(files, t.Path, t.Watch):
+			skip[pipeline.TaskStepID(t.Name)] = fmt.Sprintf("nothing under %s changed since release #%d", strings.Join(append([]string{t.Path}, t.Watch...), ", "), prev.Number)
+		}
+	}
+	return skip
 }
 
 // Rollback creates a new release that restores an earlier one's images and spec.

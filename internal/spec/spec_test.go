@@ -351,3 +351,52 @@ services:
 		}
 	}
 }
+
+func TestTasks(t *testing.T) {
+	s, err := Parse([]byte(`services:
+  - name: api
+    path: api
+  - name: db
+    image: postgres:17-alpine
+tasks:
+  - name: mobile
+    image: node:20-bookworm
+    path: mobile
+    command: npx eas-cli build --platform all --non-interactive --no-wait
+    secretEnv: { EXPO_TOKEN: expo/token }
+  - name: smoke
+    image: curlimages/curl:8.10.1
+    command: curl -fsS https://example.com/health
+    after: [api, mobile]
+    when: always
+    optional: true
+    secrets: [smoke-env]
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, smoke := s.Tasks[0], s.Tasks[1]
+	if m.When != TaskOnDeploy || m.Size != SizeMedium || m.Path != "mobile" || smoke.Path != "." || !smoke.Optional {
+		t.Fatalf("defaults: %+v %+v", m, smoke)
+	}
+	if got := strings.Join(s.SecretNames(), ","); got != "expo,smoke-env" {
+		t.Fatalf("SecretNames = %s", got)
+	}
+
+	for _, tc := range []struct{ tasks, want string }{
+		{"[{name: api, image: i, command: c}]", `"api" is already used by a service`},
+		{"[{name: t, image: i}]", "needs both image and command"},
+		{"[{name: t, image: i, command: c, when: nightly}]", "must be deploy or always"},
+		{"[{name: t, image: i, command: c, after: [nope]}]", `"nope" is not a service or task`},
+		{"[{name: t, image: i, command: c, after: [db]}]", "no build to wait for"},
+		{"[{name: t, image: i, command: c, after: [t]}]", "cannot wait for itself"},
+		{"[{name: a, image: i, command: c, after: [b]}, {name: b, image: i, command: c, after: [a]}]", "cycle"},
+		{"[{name: t, image: i, command: c, path: ../x}]", "relative to the repo root"},
+		{"[{name: t, image: i, command: c, secretEnv: {TOKEN: nokey}}]", "must be <secret>/<key>"},
+	} {
+		_, err := Parse([]byte("services: [{name: api}, {name: db, image: postgres}]\ntasks: " + tc.tasks))
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: got %v, want %q", tc.tasks, err, tc.want)
+		}
+	}
+}

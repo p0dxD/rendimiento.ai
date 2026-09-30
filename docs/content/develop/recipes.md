@@ -72,9 +72,9 @@ Example: `GET /api/apps/{app}/pods`.
 
 ## Add a new kind of CI step
 
-Example: a *command* step (run `eas build` for a mobile app, with a secret), the next roadmap item.
+*Task* steps (`tasks:`, commands such as `eas build` with secrets) were added this way, so follow them as the worked example: `spec.Task`, `KindTask`, `internal/pipeline/task.go`, and `skippedTasks` in the platform.
 
-1. **Spec**: a way to declare it (for example `services[].steps` or a top-level `tasks:`), with validation.
+1. **Spec**: a way to declare it (a top-level list like `tasks:`), with defaults and validation (names unique across services, jobs and tasks; references that exist; no cycles).
 2. **Plan** (`internal/pipeline/plan.go`): a new `Kind`, steps with their dependencies.
 3. **Executor** (`KubeExecutor.pod`): the container for that kind (image, command, env from secrets, resources).
 4. **Release** (`platform.release`): decide whether the step's outcome affects releases.

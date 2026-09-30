@@ -48,6 +48,13 @@ jobs:
     timeZone: America/New_York
     service: api                              # run with the api's image
     command: [python, report.py]
+
+tasks:
+  - name: mobile                              # a command run as a CI step
+    image: node:20-bookworm
+    path: mobile                              # runs only when mobile/ changes
+    command: npx --yes eas-cli build --platform all --non-interactive --no-wait
+    secretEnv: { EXPO_TOKEN: expo/token }
 ```
 
 ## Top level
@@ -55,7 +62,8 @@ jobs:
 | Field | Type | Default | Meaning |
 |---|---|---|---|
 | `services` | list | **required** | The app's services (at least one). |
-| `jobs` | list | none | Scheduled tasks. |
+| `jobs` | list | none | Scheduled jobs (CronJobs). |
+| `tasks` | list | none | Commands run as CI steps ([Tasks](tasks.md)). |
 | `sharedNamespace` | bool | `false` | The app's namespace is owned by something else (e.g. ArgoCD): it must exist, and rendimiento never creates, labels, owns or deletes it. |
 | `postgres` | object | see [needs](#postgres-and-redis) | Settings for `needs: [postgres]`. |
 | `redis` | object | see [needs](#postgres-and-redis) | Settings for `needs: [redis]`. |
@@ -191,3 +199,21 @@ How the service is described on the Services page, for other apps:
 | `size`, `resources` | as for services | `small` | |
 | `timeout` | seconds | none | Stop a run after this long. |
 | `env`, `secretEnv`, `secrets` | as for services | | |
+
+## Tasks
+
+Commands run as CI steps; see [Tasks](tasks.md) for when they run and how secrets work.
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `name` | string ≤ 40 | **required** | Unique among services, jobs and tasks. The step is `<name>:task`. |
+| `image` | image | **required** | What the command runs in. |
+| `command` | string | **required** | Run with `sh -c`. |
+| `path` | string | `.` | Working directory, relative to the repo root; also what counts as a change. |
+| `watch` | list of paths | none | More paths whose changes run the task. |
+| `after` | list | none | Services (their build) and tasks to wait for. |
+| `when` | `deploy` \| `always` | `deploy` | `deploy`: pushes to the default branch only. `always`: every run, including branches and pull requests. (Not `on:`, which YAML reads as `true`.) |
+| `optional` | bool | `false` | A failure doesn't fail the run. |
+| `size`, `resources` | as for services | `medium` | |
+| `timeout` | seconds | `STEP_TIMEOUT` | Only shorter than the platform's limit. |
+| `env`, `secrets`, `secretEnv` | as for services | | Secrets are read from the app's namespace when the step starts. |

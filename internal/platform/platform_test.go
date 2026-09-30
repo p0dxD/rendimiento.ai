@@ -106,11 +106,12 @@ func (f *fakeGitHub) ChangedFiles(_ context.Context, _ int64, _, base, head stri
 
 // fakeExec "builds" by returning a digest derived from the commit.
 type fakeExec struct {
-	failSHA string
-	tokens  []string
-	ran     []string // step IDs executed
-	p       *Platform
-	mu      sync.Mutex
+	failSHA   string
+	failSteps map[string]bool // step IDs that fail
+	tokens    []string
+	ran       []string // step IDs executed
+	p         *Platform
+	mu        sync.Mutex
 }
 
 func (e *fakeExec) Execute(ctx context.Context, _ string, src pipeline.Source, s pipeline.Step, w io.Writer) pipeline.StepResult {
@@ -122,6 +123,9 @@ func (e *fakeExec) Execute(ctx context.Context, _ string, src pipeline.Source, s
 	io.WriteString(w, "running "+s.ID+"\n")
 	if src.SHA == e.failSHA && s.Kind == pipeline.KindTest {
 		return pipeline.StepResult{Status: pipeline.StatusFailed, Message: "tests failed"}
+	}
+	if e.failSteps[s.ID] {
+		return pipeline.StepResult{Status: pipeline.StatusFailed, Message: "task failed"}
 	}
 	return pipeline.StepResult{Status: pipeline.StatusSucceeded, Digest: "sha256:" + src.SHA[:8]}
 }
@@ -478,6 +482,86 @@ jobs:
 	exec.mu.Unlock()
 	if n != 4 {
 		t.Fatalf("manual build ran %d steps", n)
+	}
+}
+
+func TestTasks(t *testing.T) {
+	p, fake, exec, _ := setup(t)
+	ctx := context.Background()
+	yaml := `services:
+  - name: api
+    path: api
+tasks:
+  - name: mobile
+    image: node:20
+    command: npx eas-cli build
+    path: mobile
+  - name: smoke
+    image: curl
+    command: curl -f x
+    after: [api]
+    when: always
+    optional: true
+`
+	sha := func(c byte) string { return strings.Repeat(string(c), 40) }
+	tree := fstest.MapFS{"rendimiento.yaml": {Data: []byte(yaml)}}
+	for _, c := range "abcf" {
+		fake.files[sha(byte(c))] = tree
+	}
+	fake.files["main"] = tree
+	fake.changed = map[string][]string{sha('a') + "..." + sha('b'): {"api/main.go"}}
+	sp, _ := spec.Parse([]byte(yaml))
+	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/shop", DefaultBranch: "main", Name: "shop", Spec: *sp}, false); err != nil {
+		t.Fatal(err)
+	}
+	push := func(branch string, c byte) (*store.Run, []string) {
+		t.Helper()
+		exec.mu.Lock()
+		exec.ran = nil
+		exec.mu.Unlock()
+		runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/shop", Branch: branch, SHA: sha(c)})
+		if err != nil || len(runs) != 1 {
+			t.Fatalf("push: %v %v", runs, err)
+		}
+		r := waitRun(t, p, runs[0].ID)
+		exec.mu.Lock()
+		defer exec.mu.Unlock()
+		ran := append([]string(nil), exec.ran...)
+		sort.Strings(ran)
+		return r, ran
+	}
+	step := func(r *store.Run, id string) store.Step {
+		for _, st := range r.Steps {
+			if st.ID == id {
+				return st
+			}
+		}
+		t.Fatalf("no step %s in %+v", id, r.Steps)
+		return store.Step{}
+	}
+
+	// 1. First release: everything runs; the optional task fails without failing the run.
+	exec.failSteps = map[string]bool{"smoke:task": true}
+	r, ran := push("main", 'a')
+	if r.Status != store.RunSucceeded || strings.Join(ran, ",") != "api:build,mobile:task,smoke:task" {
+		t.Fatalf("first push ran %v (%s %s)", ran, r.Status, r.Message)
+	}
+	// 2. A change to api only: mobile is skipped as unchanged; smoke runs after the new build.
+	exec.failSteps = nil
+	r, ran = push("main", 'b')
+	if strings.Join(ran, ",") != "api:build,smoke:task" || !strings.Contains(step(r, "mobile:task").Message, "nothing under mobile changed") {
+		t.Fatalf("api-only push ran %v; mobile = %+v", ran, step(r, "mobile:task"))
+	}
+	// 3. A branch: the deploy-only task never runs there (it may read secrets).
+	r, ran = push("feature", 'f')
+	if strings.Join(ran, ",") != "api:build,smoke:task" || !strings.Contains(step(r, "mobile:task").Message, "default branch") {
+		t.Fatalf("branch push ran %v; mobile = %+v", ran, step(r, "mobile:task"))
+	}
+	// 4. A required task that fails fails the run: no release.
+	exec.failSteps = map[string]bool{"mobile:task": true}
+	fake.changed[sha('b')+"..."+sha('c')] = []string{"mobile/app.json"}
+	if r, _ = push("main", 'c'); r.Status != store.RunFailed || !strings.Contains(r.Message, "mobile:task") {
+		t.Fatalf("failed task: %s %s", r.Status, r.Message)
 	}
 }
 

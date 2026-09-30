@@ -43,11 +43,39 @@ export interface Job {
   path?: string;
   image?: string;
   command?: string[];
+  secrets?: string[];
+  secretEnv?: Record<string, string>;
 }
 
 export interface Spec {
   services: Service[];
   jobs?: Job[];
+  tasks?: Task[];
+}
+
+/** A command run as a CI step (mobile builds, smoke tests, release scripts). */
+export interface Task {
+  name: string;
+  image: string;
+  command: string;
+  path?: string;
+  watch?: string[];
+  after?: string[];
+  when?: "deploy" | "always";
+  optional?: boolean;
+  env?: Record<string, string>;
+  secrets?: string[];
+  secretEnv?: Record<string, string>;
+}
+
+/** Every secret an app reads: its services', jobs' and tasks'. */
+export function appSecretNames(s: Spec): string[] {
+  const names = new Set<string>(s.services.flatMap(secretNames));
+  for (const x of [...(s.jobs ?? []), ...(s.tasks ?? [])]) {
+    (x.secrets ?? []).forEach((n) => names.add(n));
+    Object.values(x.secretEnv ?? {}).forEach((ref) => names.add(ref.split("/")[0]));
+  }
+  return [...names].sort();
 }
 
 export interface Detected {
@@ -83,7 +111,7 @@ export interface Proposal {
 export interface Step {
   id: string;
   service: string;
-  kind: "test" | "build";
+  kind: "test" | "build" | "task";
   dependsOn: string[];
   status: "pending" | "running" | "succeeded" | "failed" | "skipped" | "reused";
   digest?: string;
