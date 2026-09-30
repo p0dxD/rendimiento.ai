@@ -849,12 +849,8 @@ func (s *Server) putSecret(w http.ResponseWriter, r *http.Request, login string)
 		return
 	}
 	name := r.PathValue("secret")
-	declared := false
-	for _, svc := range a.Spec.Services {
-		declared = declared || slices.Contains(svc.SecretNames(), name)
-	}
-	if !declared {
-		httpError(w, http.StatusBadRequest, fmt.Sprintf("secret %q is not used by any service in rendimiento.yaml (secrets, secretEnv or secretFiles)", name))
+	if !slices.Contains(a.Spec.SecretNames(), name) {
+		httpError(w, http.StatusBadRequest, fmt.Sprintf("secret %q is not used by any service, job or task in rendimiento.yaml (secrets, secretEnv or secretFiles)", name))
 		return
 	}
 	var data map[string]string

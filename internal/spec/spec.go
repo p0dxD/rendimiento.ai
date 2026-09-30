@@ -32,6 +32,69 @@ type Spec struct {
 	// and `needs: [redis]`; both are optional.
 	Postgres *PostgresOptions `json:"postgres,omitempty"`
 	Redis    *RedisOptions    `json:"redis,omitempty"`
+	// Tasks are commands run as CI steps next to the tests and builds
+	// (a mobile build, a smoke test, a release script).
+	Tasks []Task `json:"tasks,omitempty"`
+}
+
+// Task is a command run as a step of every CI run: the commit is checked
+// out, and the command runs in Image from Path. Unlike a test, a task can
+// read the app's secrets, so by default it only runs for pushes to the
+// default branch. A failed task fails the run (no release) unless Optional.
+type Task struct {
+	Name    string `json:"name"`
+	Image   string `json:"image"`
+	Command string `json:"command"`
+	// Path is the working directory, relative to the repo root (default
+	// "."). With Watch, it is also what counts as a change: on a push that
+	// touches neither, the task is skipped.
+	Path  string   `json:"path,omitempty"`
+	Watch []string `json:"watch,omitempty"`
+	// After lists services (their build) and tasks this task waits for.
+	After []string `json:"after,omitempty"`
+	// When the task runs: "deploy" (default: pushes to the default branch)
+	// or "always" (every run, including branches and pull requests). Not
+	// named "on": YAML 1.1 reads that key as the boolean true.
+	When string `json:"when,omitempty"`
+	// Optional tasks may fail without failing the run.
+	Optional bool `json:"optional,omitempty"`
+	Size     Size `json:"size,omitempty"`
+	// Resources overrides the size preset's requests and limits.
+	Resources *ResourceOverride `json:"resources,omitempty"`
+	// Timeout stops the task after this many seconds (default and maximum:
+	// the platform's step timeout).
+	Timeout int               `json:"timeout,omitempty"`
+	Env     map[string]string `json:"env,omitempty"`
+	// Secrets are loaded whole as environment variables.
+	Secrets []string `json:"secrets,omitempty"`
+	// SecretEnv sets single variables from secret keys, as NAME: secret/key.
+	SecretEnv map[string]string `json:"secretEnv,omitempty"`
+}
+
+const (
+	TaskOnDeploy = "deploy"
+	TaskOnAlways = "always"
+)
+
+// SecretNames lists every secret the task reads.
+func (t Task) SecretNames() []string {
+	return secretNames(t.Secrets, t.SecretEnv, nil)
+}
+
+// SecretNames lists every secret the app's services, jobs and tasks read:
+// the ones that can be set from the app's settings.
+func (s Spec) SecretNames() []string {
+	var names []string
+	for _, svc := range s.Services {
+		names = append(names, svc.SecretNames()...)
+	}
+	for _, j := range s.Jobs {
+		names = append(names, secretNames(j.Secrets, j.SecretEnv, nil)...)
+	}
+	for _, t := range s.Tasks {
+		names = append(names, t.SecretNames()...)
+	}
+	return secretNames(names, nil, nil)
 }
 
 // PostgresOptions configure the app's database (one per app, shared by
@@ -401,6 +464,12 @@ type SecretFile struct {
 
 // SecretNames lists every secret the service reads, however it reads it.
 func (s Service) SecretNames() []string {
+	return secretNames(s.Secrets, s.SecretEnv, s.SecretFiles)
+}
+
+// secretNames is the sorted, de-duplicated set of secrets named whole, in
+// NAME: secret/key references, or as mounted files.
+func secretNames(whole []string, env map[string]string, files []SecretFile) []string {
 	seen := map[string]bool{}
 	var out []string
 	add := func(n string) {
@@ -409,14 +478,14 @@ func (s Service) SecretNames() []string {
 			out = append(out, n)
 		}
 	}
-	for _, n := range s.Secrets {
+	for _, n := range whole {
 		add(n)
 	}
-	for _, ref := range s.SecretEnv {
+	for _, ref := range env {
 		name, _, _ := strings.Cut(ref, "/")
 		add(name)
 	}
-	for _, f := range s.SecretFiles {
+	for _, f := range files {
 		add(f.Secret)
 	}
 	sort.Strings(out)
@@ -581,6 +650,18 @@ func (s *Spec) Marshal() ([]byte, error) { return yaml.Marshal(s) }
 
 // Default fills in defaults (path, port, size, replicas, Dockerfile) in place.
 func (s *Spec) Default() {
+	for i := range s.Tasks {
+		t := &s.Tasks[i]
+		if t.Path == "" {
+			t.Path = "."
+		}
+		if t.When == "" {
+			t.When = TaskOnDeploy
+		}
+		if t.Size == "" {
+			t.Size = SizeMedium // commands like npm and eas-cli need more than small's 256Mi
+		}
+	}
 	for i := range s.Jobs {
 		j := &s.Jobs[i]
 		if j.Size == "" {
@@ -793,7 +874,108 @@ func (s *Spec) Validate() error {
 	errs = append(errs, s.validateNeeds(seen)...)
 	errs = append(errs, s.validateRoutes()...)
 	errs = append(errs, s.validateJobs(seen)...)
+	errs = append(errs, s.validateTasks()...)
 	return errors.Join(errs...)
+}
+
+func (s *Spec) validateTasks() []error {
+	var errs []error
+	built := map[string]bool{} // services with a build step
+	used := map[string]string{}
+	for _, svc := range s.Services {
+		used[svc.Name] = "service"
+		built[svc.Name] = svc.Image == ""
+	}
+	for _, j := range s.Jobs {
+		used[j.Name] = "job"
+	}
+	tasks := map[string]Task{}
+	for i, t := range s.Tasks {
+		p := fmt.Sprintf("tasks[%d]", i)
+		if !dnsLabel.MatchString(t.Name) || len(t.Name) > 40 {
+			errs = append(errs, fmt.Errorf("%s.name %q must be a lowercase DNS label of at most 40 characters", p, t.Name))
+		}
+		if kind, dup := used[t.Name]; dup {
+			errs = append(errs, fmt.Errorf("%s.name %q is already used by a %s", p, t.Name, kind))
+		}
+		used[t.Name] = "task"
+		tasks[t.Name] = t
+		if t.Image == "" || strings.TrimSpace(t.Command) == "" {
+			errs = append(errs, fmt.Errorf("%s needs both image and command", p))
+		}
+		if strings.HasPrefix(t.Path, "/") || strings.Contains(t.Path, "..") {
+			errs = append(errs, fmt.Errorf("%s.path %q must be relative to the repo root", p, t.Path))
+		}
+		for _, w := range t.Watch {
+			if w == "" || strings.HasPrefix(w, "/") || strings.Contains(w, "..") {
+				errs = append(errs, fmt.Errorf("%s.watch %q must be a path relative to the repo root", p, w))
+			}
+		}
+		if t.When != TaskOnDeploy && t.When != TaskOnAlways {
+			errs = append(errs, fmt.Errorf("%s.when %q must be deploy or always", p, t.When))
+		}
+		if _, ok := sizes[t.Size]; !ok {
+			errs = append(errs, fmt.Errorf("%s.size %q must be small, medium or large", p, t.Size))
+		}
+		errs = append(errs, validateResources(p, t.Resources)...)
+		if t.Timeout < 0 {
+			errs = append(errs, fmt.Errorf("%s.timeout must be a number of seconds", p))
+		}
+		for k := range t.Env {
+			if !envKey.MatchString(k) {
+				errs = append(errs, fmt.Errorf("%s.env key %q is invalid", p, k))
+			}
+		}
+		for _, sec := range t.Secrets {
+			if !dnsLabel.MatchString(sec) {
+				errs = append(errs, fmt.Errorf("%s.secrets entry %q must be a lowercase DNS label", p, sec))
+			}
+		}
+		for k, ref := range t.SecretEnv {
+			name, key, ok := strings.Cut(ref, "/")
+			if !envKey.MatchString(k) || !ok || !dnsLabel.MatchString(name) || !secretKey.MatchString(key) {
+				errs = append(errs, fmt.Errorf("%s.secretEnv.%s must be <secret>/<key>, got %q", p, k, ref))
+			}
+		}
+	}
+	for i, t := range s.Tasks {
+		for _, a := range t.After {
+			switch {
+			case a == t.Name:
+				errs = append(errs, fmt.Errorf("tasks[%d].after: a task cannot wait for itself", i))
+			case used[a] == "service" && !built[a]:
+				errs = append(errs, fmt.Errorf("tasks[%d].after: service %q runs a ready-made image, so there is no build to wait for", i, a))
+			case used[a] != "service" && used[a] != "task":
+				errs = append(errs, fmt.Errorf("tasks[%d].after: %q is not a service or task of this app", i, a))
+			}
+		}
+	}
+	// A cycle among tasks would leave every task in it waiting forever.
+	state := map[string]int{} // 0 unvisited, 1 visiting, 2 done
+	var visit func(name string) bool
+	visit = func(name string) bool {
+		switch state[name] {
+		case 1:
+			return false
+		case 2:
+			return true
+		}
+		state[name] = 1
+		for _, a := range tasks[name].After {
+			if _, isTask := tasks[a]; isTask && a != name && !visit(a) {
+				return false
+			}
+		}
+		state[name] = 2
+		return true
+	}
+	for _, t := range s.Tasks {
+		if state[t.Name] == 0 && !visit(t.Name) {
+			errs = append(errs, fmt.Errorf("tasks: %q is part of a cycle of after: references", t.Name))
+			break
+		}
+	}
+	return errs
 }
 
 var serviceRef = regexp.MustCompile(`^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?/)?[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`)

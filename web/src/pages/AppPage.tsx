@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { addonsApi, api, duration, secretNames, subscribe, timeAgo } from "../api";
+import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo } from "../api";
 import { ErrorBox, PhaseBadge, ResourceTree, RunBadge, Switch, usePoll } from "../components/ui";
 
 const tabs = [
@@ -45,7 +45,7 @@ export function AppPage() {
       {tab === "" && <Overview name={name} app={app} />}
       {tab === "runs" && <Runs name={name} />}
       {tab === "releases" && <Releases name={name} current={app.status.release} />}
-      {tab === "settings" && <Settings name={name} secrets={[...new Set(app.spec.services.flatMap(secretNames))]} />}
+      {tab === "settings" && <Settings name={name} secrets={appSecretNames(app.spec)} />}
     </>
   );
 }

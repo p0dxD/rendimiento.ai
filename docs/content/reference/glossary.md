@@ -72,6 +72,9 @@
 **Server-Sent Events (SSE)**
 : A one-way HTTP stream from server to browser. It's how the UI updates live.
 
+**Task**
+: A command run as a CI step (`tasks:` in `rendimiento.yaml`): a mobile build, a smoke test, a script. It can read the app's secrets, and by default runs only for pushes to the default branch. See [Tasks](../guide/tasks.md).
+
 **`SKIP LOCKED`**
 : A Postgres clause that lets many workers claim different queued runs without waiting on each other.
 

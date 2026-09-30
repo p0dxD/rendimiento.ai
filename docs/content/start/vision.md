@@ -81,4 +81,4 @@ Every one of these is now handled in the code, and most have a test. They are wo
 
 ## Where it is going
 
-Short term: command-style CI steps (mobile builds), moving the apps' hand-written databases onto `needs:`, and retiring the last of Jenkins and ArgoCD. Longer term: multiple clusters and cloud targets from the same `rendimiento.yaml`, and an open-source project others can run and contribute to. See [Roadmap](../future/roadmap.md) and [Becoming an open-source project](../future/open-source.md).
+Short term: post-deploy tasks (migrations, smoke tests of the new version), and moving the apps' hand-written databases onto `needs:`. Jenkins and ArgoCD are already retired. Longer term: multiple clusters and cloud targets from the same `rendimiento.yaml`, and an open-source project others can run and contribute to. See [Roadmap](../future/roadmap.md) and [Becoming an open-source project](../future/open-source.md).

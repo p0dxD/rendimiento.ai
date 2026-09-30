@@ -5,16 +5,18 @@ package pipeline
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
 )
 
-// Kind is what a step does: test or build.
+// Kind is what a step does: test, build, or run a task.
 type Kind string
 
 const (
 	KindTest  Kind = "test"
 	KindBuild Kind = "build"
+	KindTask  Kind = "task"
 )
 
 // Status is a step's state.
@@ -51,7 +53,25 @@ type Step struct {
 	Builder   string            `json:"builder,omitempty"`
 	Start     string            `json:"start,omitempty"`
 	BuildArgs map[string]string `json:"buildArgs,omitempty"`
+
+	// Task steps: the app (whose namespace holds the secrets they read),
+	// environment, secrets, resources and an optional shorter timeout.
+	App       string            `json:"app,omitempty"`
+	Env       map[string]string `json:"env,omitempty"`
+	Secrets   []string          `json:"secrets,omitempty"`
+	SecretEnv map[string]string `json:"secretEnv,omitempty"`
+	Resources spec.Resources    `json:"resources,omitempty"`
+	Timeout   time.Duration     `json:"timeout,omitempty"`
+	// Optional steps may fail without failing the run.
+	Optional bool `json:"optional,omitempty"`
 }
+
+// TaskStepID is the ID of a task's step.
+func TaskStepID(name string) string { return name + ":task" }
+
+// TaskKey is the Service field of a task's step: what change detection and
+// the run page group it by.
+func TaskKey(name string) string { return "task:" + name }
 
 // Source identifies the commit being built.
 type Source struct {
@@ -62,7 +82,8 @@ type Source struct {
 	Deploy bool
 }
 
-// Plan builds the DAG for a spec: per service, test (if configured) then build.
+// Plan builds the DAG for a spec: per service, test (if configured) then
+// build; job images; then tasks, after the builds and tasks they name.
 // Services are independent of each other and run in parallel.
 func Plan(app, registry string, s spec.Spec) []Step {
 	var steps []Step
@@ -92,5 +113,30 @@ func Plan(app, registry string, s spec.Spec) []Step {
 			Builder: j.Build.Builder, Start: j.Build.Start, BuildArgs: j.Build.Args,
 		})
 	}
+	for _, t := range s.Tasks {
+		step := Step{
+			ID: TaskStepID(t.Name), Service: TaskKey(t.Name), Kind: KindTask, Path: t.Path,
+			Image: t.Image, Command: t.Command, App: app, Env: t.Env, Secrets: t.Secrets, SecretEnv: t.SecretEnv,
+			Resources: spec.ResourcesFor(t.Size, t.Resources), Timeout: time.Duration(t.Timeout) * time.Second,
+			Optional: t.Optional,
+		}
+		for _, a := range t.After {
+			if isTask(s, a) {
+				step.DependsOn = append(step.DependsOn, TaskStepID(a))
+			} else {
+				step.DependsOn = append(step.DependsOn, a+":build")
+			}
+		}
+		steps = append(steps, step)
+	}
 	return steps
+}
+
+func isTask(s spec.Spec, name string) bool {
+	for _, t := range s.Tasks {
+		if t.Name == name {
+			return true
+		}
+	}
+	return false
 }
