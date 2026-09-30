@@ -16,7 +16,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
 | [`internal/api`](#internal-api) | 5 | 1994 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
-| [`internal/catalog`](#internal-catalog) | 2 | 844 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
+| [`internal/catalog`](#internal-catalog) | 2 | 885 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2733 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 428 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
 | [`internal/dns`](#internal-dns) | 4 | 768 | Package dns manages the public DNS record for each app domain. |
@@ -345,7 +345,7 @@ Package catalog lists the services apps can integrate with: what each one is, wh
 
 ### `internal/catalog/catalog.go`
 
-<small>683 lines</small>
+<small>696 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -368,6 +368,7 @@ Package catalog lists the services apps can integrate with: what each one is, wh
 | `metav1Object` | interface |  |
 | `firstNonEmpty` | func |  |
 | `guessProtocol` | func | guessProtocol names the protocol from the port name or well-known number. |
+| `lanAddress` | func | lanAddress is where a LoadBalancer Service answers on the local network (ip:port, empty until the load balancer assigns an IP), and a link to open when the protocol is a web one. |
 | `address` | func |  |
 | `suggestEnv` | func |  |
 | `snippet` | func | snippet is the rendimiento.yaml fragment for a service that calls this one. |
@@ -385,13 +386,14 @@ Package catalog lists the services apps can integrate with: what each one is, wh
 
 ### `internal/catalog/catalog_test.go`
 
-<small>161 lines · tests</small>
+<small>189 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `TestAssemble` | func |  |
 | `TestImageLink` | func |  |
 | `TestCategorize` | func |  |
+| `TestLANAddress` | func |  |
 
 ## `internal/controller` {#internal-controller}
 
@@ -1371,7 +1373,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>555 lines</small>
+<small>557 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1511,7 +1513,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Installed.tsx`
 
-<small>375 lines</small>
+<small>405 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1519,6 +1521,8 @@ Package web embeds the built UI (npm run build → web/dist).
 | `phaseLabel` | const |  |
 | `AddonPhaseBadge` | component |  |
 | `sourceLabel` | function |  |
+| `useLANByAddon` | function | The add-ons' services reachable on the local network, by add-on name. |
+| `LANLinks` | component | Links to an add-on's UIs on the local network (plain addresses for non-web services). |
 | `InstalledSection` | component | Installed add-ons, the catalog and its install form. |
 | `fieldDefault` | function |  |
 | `setPath` | function |  |
@@ -1548,7 +1552,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Services.tsx`
 
-<small>296 lines</small>
+<small>304 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|

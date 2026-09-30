@@ -98,7 +98,7 @@ func TestAssemble(t *testing.T) {
 	}
 
 	l := byID["jobsentry/sentry-linguistic"]
-	if l.Group != GroupOther || l.Origin.Kind != "argocd" || l.Origin.ArgoApp != "jobsentry-linguistic-application" || l.LAN != "192.168.1.82:8989" {
+	if l.Group != GroupOther || l.Origin.Kind != "argocd" || l.Origin.ArgoApp != "jobsentry-linguistic-application" || l.LAN != "192.168.1.82:8989" || l.LANURL != "http://192.168.1.82:8989" {
 		t.Errorf("linguistic = %+v", l)
 	}
 	if len(l.UsedBy) != 2 {
@@ -156,6 +156,34 @@ func TestCategorize(t *testing.T) {
 	} {
 		if got := categorize(tc.e); got != tc.want {
 			t.Errorf("%s/%s = %s, want %s", tc.e.Namespace, tc.e.Name, got, tc.want)
+		}
+	}
+}
+
+func TestLANAddress(t *testing.T) {
+	lb := func(ip string) corev1.Service {
+		var s corev1.Service
+		s.Spec.Type = corev1.ServiceTypeLoadBalancer
+		if ip != "" {
+			s.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{{IP: ip}}
+		}
+		return s
+	}
+	for _, tc := range []struct {
+		ip             string
+		port           int32
+		protocol       string
+		addr, wantLink string
+	}{
+		{"192.168.1.87", 80, "http", "192.168.1.87:80", "http://192.168.1.87"},          // Grafana
+		{"192.168.1.73", 8082, "http", "192.168.1.73:8082", "http://192.168.1.73:8082"}, // Longhorn UI
+		{"192.168.1.9", 443, "https", "192.168.1.9:443", "https://192.168.1.9"},
+		{"192.168.1.5", 5432, "postgres", "192.168.1.5:5432", ""}, // an address, not a page to open
+		{"", 80, "http", "", ""}, // no IP assigned yet
+	} {
+		addr, link := lanAddress(lb(tc.ip), tc.port, tc.protocol)
+		if addr != tc.addr || link != tc.wantLink {
+			t.Errorf("%s:%d %s = %q, %q; want %q, %q", tc.ip, tc.port, tc.protocol, addr, link, tc.addr, tc.wantLink)
 		}
 	}
 }

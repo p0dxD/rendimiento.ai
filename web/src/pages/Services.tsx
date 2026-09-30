@@ -154,6 +154,10 @@ function ServiceCard({ e, open: initiallyOpen }: { e: CatalogEntry; open: boolea
           </div>
         </div>
         <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
+          {e.lanURL && (
+            <a href={e.lanURL} target="_blank" rel="noreferrer" className="small mono" title="Open on your local network"
+              onClick={(ev) => ev.stopPropagation()}>{e.lan} ↗</a>
+          )}
           {e.usedBy.length > 0 && <span className="small muted hide-sm">used by {apps.size} app{apps.size === 1 ? "" : "s"}</span>}
           {e.pods > 0 && <span className={`badge ${readyTone}`}>{e.ready}/{e.pods} ready</span>}
           <span className="small muted">{open ? "▾" : "▸"}</span>
@@ -208,8 +212,12 @@ function ServiceCard({ e, open: initiallyOpen }: { e: CatalogEntry; open: boolea
               <div key={u} className="small">Public <a href={u} target="_blank" rel="noreferrer">{u.replace("https://", "")}</a></div>
             ))}
             {e.lan && (
-              <div className="small" style={{ color: "var(--warn)" }}>
-                Also open on your local network at <span className="mono">{e.lan}</span> (LoadBalancer)
+              <div className="small">
+                Local network{" "}
+                {e.lanURL
+                  ? <a href={e.lanURL} target="_blank" rel="noreferrer" className="mono">{e.lan} ↗</a>
+                  : <span className="mono">{e.lan}</span>}
+                <span className="muted"> (LoadBalancer: anyone on the home network can reach it)</span>
               </div>
             )}
             <div className="small muted" style={{ marginTop: 6 }}>

@@ -51,7 +51,7 @@ kubectl -n <app> get secret postgres-credentials -o jsonpath='{.data.uri}' | bas
 The **Services** page lists every Service in the cluster, so an app can find what to call. For each:
 
 - **where it comes from**: an app (with the repository folder and release), an add-on, an ArgoCD app, a Helm release, or a hand-made deployment; and its images, with links to their registry pages;
-- **what it exposes**: ports, protocol, public URLs, a LAN address, the health check, documented endpoints, and whether network policies restrict who can connect;
+- **what it exposes**: ports, protocol, public URLs, a LAN address (a link on the card itself when it's a web UI, such as Grafana or MinIO's console), the health check, documented endpoints, and whether network policies restrict who can connect;
 - **how to connect**: the cluster address, the short address from the same app, and a `rendimiento.yaml` snippet to paste (for databases, a `secretEnv` form, since credentials belong in secrets);
 - **who uses it**: every workload whose environment variables point at it (by cluster DNS name, short name within the namespace, or LAN address). Values stored in secrets cannot be seen.
 

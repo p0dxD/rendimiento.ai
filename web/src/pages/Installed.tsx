@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  installedApi, timeAgo,
-  type AddonCatalogEntry, type AddonDefinition, type AddonPhase, type CatalogField, type InstalledAddon,
+  catalogApi, installedApi, timeAgo,
+  type AddonCatalogEntry, type AddonDefinition, type AddonPhase, type CatalogEntry, type CatalogField, type InstalledAddon,
 } from "../api";
 import { ErrorBox, usePoll } from "../components/ui";
 
@@ -24,11 +24,38 @@ export function sourceLabel(a: { source: InstalledAddon["source"] }) {
   return "";
 }
 
+/** The add-ons' services reachable on the local network, by add-on name. */
+function useLANByAddon(): Record<string, CatalogEntry[]> {
+  const { data } = usePoll(() => catalogApi.list(), [], 30000);
+  return useMemo(() => {
+    const out: Record<string, CatalogEntry[]> = {};
+    for (const e of data?.entries ?? []) {
+      if (e.origin.kind === "addon" && e.origin.app && e.lan) (out[e.origin.app] ??= []).push(e);
+    }
+    return out;
+  }, [data]);
+}
+
+/** Links to an add-on's UIs on the local network (plain addresses for non-web services). */
+function LANLinks({ entries }: { entries?: CatalogEntry[] }) {
+  if (!entries?.length) return null;
+  return (
+    <div className="row small" style={{ gap: 10 }}>
+      {entries.map((e) => e.lanURL
+        ? <a key={e.id} href={e.lanURL} target="_blank" rel="noreferrer" className="mono" title={`${e.name}: open on your local network`}
+            onClick={(ev) => ev.stopPropagation()}>{e.lan} ↗</a>
+        : <span key={e.id} className="mono muted" title={`${e.name} (${e.protocol})`}>{e.lan}</span>)}
+    </div>
+  );
+}
+
 /** Installed add-ons, the catalog and its install form. */
 export function InstalledSection({ query }: { query: string }) {
   const { data, error, reload } = usePoll(() => installedApi.list(), [], 5000);
   const { data: catalog } = usePoll(() => installedApi.catalog(), []);
   const [installing, setInstalling] = useState<AddonCatalogEntry>();
+  const lan = useLANByAddon();
+  const nav = useNavigate();
   const q = query.trim().toLowerCase();
   const match = (...s: (string | undefined)[]) => !q || s.join(" ").toLowerCase().includes(q);
 
@@ -46,7 +73,7 @@ export function InstalledSection({ query }: { query: string }) {
       {data && installed.length === 0 && <div className="card muted">{q ? "No installed add-on matches." : "Nothing installed yet. Pick something from the catalog below."}</div>}
       <div className="stack">
         {installed.map((a) => (
-          <Link key={a.name} to={`/addons/${a.name}`} className="card row between" style={{ color: "inherit" }}>
+          <div key={a.name} className="card row between" style={{ cursor: "pointer" }} onClick={() => nav(`/addons/${a.name}`)}>
             <div style={{ minWidth: 0 }}>
               <div className="row" style={{ gap: 8 }}>
                 <strong>{a.title}</strong>
@@ -55,9 +82,10 @@ export function InstalledSection({ query }: { query: string }) {
                 {a.manualSync && <span className="chip">manual sync</span>}
               </div>
               <div className="small muted svc-line">{sourceLabel(a)}{a.status.message ? ` · ${a.status.message}` : ""}</div>
+              <LANLinks entries={lan[a.name]} />
             </div>
             <AddonPhaseBadge phase={a.status.phase} />
-          </Link>
+          </div>
         ))}
       </div>
       {data?.repo && <p className="small muted">Every add-on is a file in <a href={`https://github.com/${data.repo}/tree/HEAD/addons`} target="_blank" rel="noreferrer">{data.repo}/addons</a>: changes here are commits there, and edits pushed there show up here.{data.sync?.at && ` Last read ${timeAgo(data.sync.at)}.`}</p>}
@@ -227,6 +255,7 @@ export function AddonDetail() {
   const [err, setErr] = useState<unknown>();
   const [editing, setEditing] = useState<string>();
   const [confirm, setConfirm] = useState<"remove" | "uninstall">();
+  const lan = useLANByAddon();
 
   const act = async (f: () => Promise<unknown>) => {
     setBusy(true);
@@ -256,6 +285,7 @@ export function AddonDetail() {
         </div>
         <AddonPhaseBadge phase={st.phase} />
       </div>
+      {lan[a.name] && <div className="row small" style={{ gap: 8, marginTop: 8 }}><span className="muted">On your local network:</span><LANLinks entries={lan[a.name]} /></div>}
       {st.message && <p>{st.message}</p>}
       <ErrorBox error={err} />
 

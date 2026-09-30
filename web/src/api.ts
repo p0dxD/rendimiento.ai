@@ -383,6 +383,8 @@ export interface CatalogEntry {
   ports: { name?: string; port: number; target: string; protocol: string }[];
   public?: string[];
   lan?: string;
+  /** A link to open when the LAN address serves a web UI. */
+  lanURL?: string;
   health?: string;
   docs?: string;
   endpoints?: string[];
