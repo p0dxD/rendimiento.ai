@@ -14,6 +14,8 @@ Add-ons are the software your cluster needs that is not one of your apps: storag
 
 `kubectl get radd` shows them with their phase.
 
+An add-on whose services have a MetalLB address shows it on its card and its page. Web UIs, such as Longhorn's at 192.168.1.73:8082 and Hajimari's at 192.168.1.78:3000, are links you can open. Other services, such as a database port, show the address as plain text.
+
 ## Install one from the catalog
 
 **Add-ons → Add from the catalog → Install**, fill in the name, namespace, version and the few settings shown, optionally paste chart values in YAML (merged over the settings), choose the options, and **Install**. That commits `addons/<name>.yaml` to `p0dxD/gitops`; within seconds the add-on appears under *Installed*, is previewed, and is applied.

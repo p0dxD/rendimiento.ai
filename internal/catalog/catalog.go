@@ -97,8 +97,11 @@ type Entry struct {
 	ShortURL string   `json:"shortUrl"`
 	Ports    []Port   `json:"ports"`
 	Public   []string `json:"public,omitempty"`
-	// LAN is set when a LoadBalancer also exposes it on the local network.
+	// LAN is set when a LoadBalancer also exposes it on the local network
+	// (ip:port), and LANURL when that address is a web UI to open (http or
+	// https).
 	LAN       string   `json:"lan,omitempty"`
+	LANURL    string   `json:"lanURL,omitempty"`
 	Health    string   `json:"health,omitempty"`
 	Docs      string   `json:"docs,omitempty"`
 	Endpoints []string `json:"endpoints,omitempty"`
@@ -211,14 +214,10 @@ func assemble(s snapshot, infra []string) *Catalog {
 	out := &Catalog{Generated: time.Now(), Entries: []Entry{}}
 	// A service exposed on the LAN has a second, LoadBalancer Service
 	// (rendimiento.yaml `lan:`): show its address on the service's entry.
-	lanOf := map[string]string{} // namespace/service → ip:port
+	lanOf := map[string]corev1.Service{} // namespace/service → its LAN Service
 	for _, svc := range s.services {
 		if svc.Labels[render.LabelLAN] == "true" && svc.Labels[render.LabelManagedBy] == render.ManagedBy {
-			for _, ing := range svc.Status.LoadBalancer.Ingress {
-				if ing.IP != "" && len(svc.Spec.Ports) > 0 {
-					lanOf[svc.Namespace+"/"+svc.Labels[render.LabelService]] = fmt.Sprintf("%s:%d", ing.IP, svc.Spec.Ports[0].Port)
-				}
-			}
+			lanOf[svc.Namespace+"/"+svc.Labels[render.LabelService]] = svc
 		}
 	}
 	for _, svc := range s.services {
@@ -282,14 +281,11 @@ func assemble(s snapshot, infra []string) *Catalog {
 			}
 		}
 		if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
-			for _, ing := range svc.Status.LoadBalancer.Ingress {
-				if ing.IP != "" {
-					e.LAN = fmt.Sprintf("%s:%d", ing.IP, primary.Port)
-				}
-			}
+			e.LAN, e.LANURL = lanAddress(svc, primary.Port, e.Protocol)
 		}
-		if lan := lanOf[e.ID]; lan != "" {
-			e.LAN = lan
+		if lan, ok := lanOf[e.ID]; ok && len(lan.Spec.Ports) > 0 {
+			// The LAN Service forwards its port to the app's primary port.
+			e.LAN, e.LANURL = lanAddress(lan, lan.Spec.Ports[0].Port, e.Protocol)
 		}
 		e.Public = publicURLs(s.ingresses, svc)
 		pods := selected(s.pods, svc)
@@ -425,6 +421,23 @@ func guessProtocol(p corev1.ServicePort) string {
 		return "udp"
 	}
 	return "http"
+}
+
+// lanAddress is where a LoadBalancer Service answers on the local network
+// (ip:port, empty until the load balancer assigns an IP), and a link to
+// open when the protocol is a web one.
+func lanAddress(svc corev1.Service, port int32, protocol string) (string, string) {
+	for _, ing := range svc.Status.LoadBalancer.Ingress {
+		if ing.IP == "" {
+			continue
+		}
+		link := ""
+		if protocol == "http" || protocol == "https" {
+			link = address(protocol, ing.IP, port)
+		}
+		return fmt.Sprintf("%s:%d", ing.IP, port), link
+	}
+	return "", ""
 }
 
 func address(protocol, host string, port int32) string {
