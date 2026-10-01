@@ -46,6 +46,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/apps/{app}/runs` | CI runs |
 | POST | `/api/apps/{app}/runs` | start a run of the default branch (the **Run** button) |
 | GET | `/api/apps/{app}/releases` | release history (digest per service) |
+| GET | `/api/apps/{app}/reliability?range=24h\|7d\|30d` | uptime checks: per check, uptime, p50/p95, chart buckets and the latest check; outages; releases in the range |
 | POST | `/api/apps/{app}/rollback` | roll back to an earlier release (`{"release": N}`) |
 | GET | `/api/apps/{app}/resources` | the live Kubernetes objects and their health (the resource tree) |
 | PUT | `/api/apps/{app}/secrets/{secret}` | set a secret's values (write-only; values are never returned) |

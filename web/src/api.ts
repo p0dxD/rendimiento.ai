@@ -164,6 +164,39 @@ export interface App {
   createdAt: string;
   status: AppStatus;
   lastRun?: Run;
+  /** Share of successful uptime checks in the last 24 hours (absent before the first check). */
+  uptime24h?: number;
+}
+
+// ---- reliability (uptime checks) ----
+
+export type ReliabilityRange = "24h" | "7d" | "30d";
+export type CheckKind = "internal" | "public";
+
+export interface UptimeBucket { at: string; total: number; ok: number; p50Ms: number; p95Ms: number }
+
+export interface Probe { service: string; kind: CheckKind; at: string; ok: boolean; status?: number; latencyMs: number; error?: string }
+
+export interface UptimeSeries {
+  service: string;
+  kind: CheckKind;
+  total: number;
+  ok: number;
+  p50Ms: number;
+  p95Ms: number;
+  buckets: UptimeBucket[];
+  last?: Probe;
+}
+
+export interface Incident { id: number; service: string; kind: CheckKind; startedAt: string; endedAt?: string; error?: string }
+
+export interface Reliability {
+  range: ReliabilityRange;
+  since: string;
+  bucketSeconds: number;
+  series: UptimeSeries[];
+  incidents: Incident[];
+  releases: { number: number; at: string; sha: string; rollbackOf?: number }[];
 }
 
 export interface Release {
@@ -254,6 +287,7 @@ export const api = {
   runs: (app: string) => request<Run[]>("GET", `/api/apps/${app}/runs`),
   triggerRun: (app: string, branch?: string) => request<Run>("POST", `/api/apps/${app}/runs`, { branch }),
   releases: (app: string) => request<Release[]>("GET", `/api/apps/${app}/releases`),
+  reliability: (app: string, range: ReliabilityRange) => request<Reliability>("GET", `/api/apps/${app}/reliability?range=${range}`),
   rollback: (app: string, release: number) => request<Release>("POST", `/api/apps/${app}/rollback`, { release }),
   resources: (app: string) => request<ResourceNode>("GET", `/api/apps/${app}/resources`),
   putSecret: (app: string, secret: string, data: Record<string, string>) =>

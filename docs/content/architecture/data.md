@@ -48,6 +48,9 @@ erDiagram
     runs ||--o| releases : ""
     apps ||--o{ app_addons : ""
     addons ||--o{ addon_runs : ""
+    apps ||--o{ probes : ""
+    apps ||--o{ probe_hourly : ""
+    apps ||--o{ incidents : ""
     apps {
         bigint id PK
         text name UK
@@ -106,6 +109,31 @@ erDiagram
         text addon PK
         bool enabled
     }
+    probes {
+        bigint app_id FK
+        text service
+        text kind
+        timestamptz at
+        bool ok
+        int latency_ms
+    }
+    probe_hourly {
+        bigint app_id PK
+        text service PK
+        text kind PK
+        timestamptz hour PK
+        int total
+        int ok
+        int p50_ms
+        int p95_ms
+    }
+    incidents {
+        bigint id PK
+        bigint app_id FK
+        text service
+        timestamptz started_at
+        timestamptz ended_at
+    }
 ```
 
 ### Migrations
@@ -125,6 +153,10 @@ CI runs are a **queue in Postgres**, no message broker needed:
 ```
 
 `FOR UPDATE SKIP LOCKED` lets any number of workers pull from the queue at the same time: each claims a different row, and none waits for another. This is the standard pattern for job queues on Postgres.
+
+### Uptime data
+
+The [uptime checks](../guide/reliability.md) write one row per check to `probes` (bulk-inserted with `COPY`), kept **7 days**. Every 5 minutes, `RollupProbes` recomputes the last 3 hours of **hourly summaries** in `probe_hourly` (total, successful, p50 and p95 response time), kept **400 days**. The 24-hour chart reads raw checks; the 7- and 30-day charts read the summaries. Each service checked once a minute is 1,440 rows a day, so a dozen apps stay well under a million raw rows.
 
 ### Logs
 

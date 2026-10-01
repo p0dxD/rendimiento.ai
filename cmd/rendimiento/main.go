@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
@@ -41,6 +42,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/renovate"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/p0dxD/rendimiento.ai/internal/uptime"
 	"github.com/p0dxD/rendimiento.ai/web"
 )
 
@@ -246,6 +248,16 @@ func run(log *slog.Logger) error {
 			},
 		},
 	}
+	// Uptime checks of every app's services (the Reliability tab), on the
+	// leader only, so one replica checks.
+	var prober *uptime.Prober
+	if every, err := time.ParseDuration(env("UPTIME_INTERVAL", "1m")); err != nil || (every != 0 && every < 10*time.Second) {
+		return fmt.Errorf("UPTIME_INTERVAL must be 0 (off) or a duration of at least 10s, got %q", os.Getenv("UPTIME_INTERVAL"))
+	} else if every > 0 {
+		prober = &uptime.Prober{Store: st, Checker: uptime.NewChecker(10 * time.Second), Interval: every, Log: log.With("component", "uptime")}
+		uptime.Register(ctrlmetrics.Registry)
+	}
+
 	httpSrv := &http.Server{Addr: env("LISTEN", ":8080"), Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
 
 	errc := make(chan error, 3)
@@ -262,6 +274,9 @@ func run(log *slog.Logger) error {
 			log.Info("starting CI worker", "maxParallelSteps", parallel)
 			go renovateRunner.Loop(ctx)
 			go addonSyncer.Loop(ctx)
+			if prober != nil {
+				go prober.Run(ctx)
+			}
 			p.Work(ctx)
 		case <-ctx.Done():
 		}

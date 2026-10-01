@@ -11,11 +11,11 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 304 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 319 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/api`](#internal-api) | 5 | 1994 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 6 | 2082 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 885 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2733 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 428 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
@@ -29,7 +29,8 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/render`](#internal-render) | 3 | 1160 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
 | [`internal/spec`](#internal-spec) | 2 | 1551 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 3 | 1067 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/store`](#internal-store) | 5 | 1425 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/uptime`](#internal-uptime) | 2 | 506 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
 
@@ -90,7 +91,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>295 lines</small>
+<small>310 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -261,9 +262,19 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `deepMerge` | func | deepMerge copies src into dst, merging nested maps. |
 | `(*Server) patchInstalled` | method | patchInstalled flips switches in an add-on's definition (suspend, allow adoption changes) and commits it. |
 
+### `internal/api/reliability.go`
+
+<small>75 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `releaseMark` | struct |  |
+| `reliabilityView` | struct |  |
+| `(*Server) reliability` | method | reliability returns an app's uptime checks over a range (24h, 7d or 30d): per check, uptime, response times and chart buckets; its outages; and its releases, to mark on the charts. |
+
 ### `internal/api/server.go`
 
-<small>1065 lines</small>
+<small>1078 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1336,6 +1347,27 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) ResetForTests` | method | ResetForTests drops every table. |
 | `(*Store) Ping` | method | Ping checks the database connection. |
 
+### `internal/store/uptime.go`
+
+<small>258 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Probe` | struct | Probe is one uptime check of one service: inside the cluster ("internal") or through its public URL ("public"). |
+| `Incident` | struct | Incident is an outage of one check: from its first failed check until the next successful one (EndedAt is nil while it lasts). |
+| `(*Store) RecordProbes` | method | RecordProbes saves a round of checks. |
+| `(*Store) OpenIncident` | method | OpenIncident records the start of an outage and returns its ID. |
+| `(*Store) CloseIncident` | method | CloseIncident records the end of an outage. |
+| `(*Store) OpenIncidents` | method | OpenIncidents lists the outages still going on, across all apps: what a restarted prober picks up. |
+| `(*Store) Incidents` | method | Incidents lists an app's outages that overlap [since, now], newest first. |
+| `(*Store) incidents` | method |  |
+| `(*Store) RollupProbes` | method | RollupProbes (re)computes the hourly summaries of every hour from since's hour on. |
+| `(*Store) PruneProbes` | method | PruneProbes deletes checks older than 7 days and summaries older than 400 days (the hourly summaries keep the long-range charts). |
+| `UptimeBucket` | struct | UptimeBucket is one point of a chart: the checks in [At, At+bucket). |
+| `UptimeSeries` | struct | UptimeSeries is one check's history over a range: totals, response time percentiles (of successful checks) and the chart's buckets. |
+| `(*Store) Uptime` | method | Uptime returns every check of an app over [since, now] in buckets of the given size. |
+| `(*Store) UptimeSummary` | method | UptimeSummary is the share of successful checks per app since a time: the dashboard's uptime badges. |
+
 ### `internal/store/store_test.go`
 
 <small>361 lines · tests</small>
@@ -1348,6 +1380,50 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `TestRequeueOrphansRetriesThenGivesUp` | func |  |
 | `TestFinishAndCancelCloseSteps` | func |  |
 | `TestAddons` | func |  |
+
+### `internal/store/uptime_test.go`
+
+<small>100 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestUptime` | func |  |
+
+## `internal/uptime` {#internal-uptime}
+
+Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down.
+
+### `internal/uptime/uptime.go`
+
+<small>320 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Target` | struct | Target is one check: a URL to GET, or a host:port to connect to. |
+| `Targets` | func | Targets lists the checks for a set of apps. |
+| `Checker` | struct | Checker runs single checks. |
+| `NewChecker` | func | NewChecker returns a Checker that does not follow redirects (a redirect, say to a login page, means the service answered) and gives each check timeout to complete. |
+| `(*Checker) Check` | method | Check runs one check. |
+| `shortError` | func | shortError keeps the useful end of an error (Go wraps URLs and addresses around the cause). |
+| `Recorder` | interface | Recorder is what the prober stores results in (the store in production). |
+| `Prober` | struct | Prober checks every target once per Interval and records the results. |
+| `checkState` | struct |  |
+| `key` | func |  |
+| `(*Prober) Run` | method | Run checks until ctx is done. |
+| `(*Prober) Round` | method | Round checks every target once, records the results and updates outages. |
+| `(*Prober) observe` | method | observe updates a target's streak, its metrics, and opens or closes its outage. |
+| `Register` | func | Register adds the uptime metrics to a Prometheus registry (the controller-runtime one, served on METRICS_ADDR). |
+
+### `internal/uptime/uptime_test.go`
+
+<small>186 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestTargets` | func |  |
+| `TestCheck` | func |  |
+| `TestIncidents` | func |  |
+| `TestRound` | func |  |
 
 ## `templates` {#templates}
 
@@ -1373,7 +1449,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>557 lines</small>
+<small>591 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1392,6 +1468,13 @@ Package web embeds the built UI (npm run build → web/dist).
 | `ServiceStatus` | interface |  |
 | `AppStatus` | interface |  |
 | `App` | interface |  |
+| `ReliabilityRange` | type | ---- reliability (uptime checks) ---- |
+| `CheckKind` | type |  |
+| `UptimeBucket` | interface |  |
+| `Probe` | interface |  |
+| `UptimeSeries` | interface |  |
+| `Incident` | interface |  |
+| `Reliability` | interface |  |
 | `Release` | interface |  |
 | `ResourceNode` | interface |  |
 | `Installation` | interface |  |
@@ -1427,6 +1510,34 @@ Package web embeds the built UI (npm run build → web/dist).
 | `AddonCatalogEntry` | interface |  |
 | `AddonDefinition` | interface |  |
 | `installedApi` | const |  |
+
+### `web/src/components/reliability.tsx`
+
+<small>391 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `kindLabel` | const |  |
+| `fmtPct` | function |  |
+| `fmtMs` | function |  |
+| `fmtDuration` | function |  |
+| `BucketState` | type |  |
+| `stateLabel` | const |  |
+| `stateColor` | const |  |
+| `bucketState` | function |  |
+| `timeline` | function | Every bucket of the range, including the ones without checks. |
+| `fmtWhen` | function |  |
+| `checksOf` | function |  |
+| `ReliabilityTab` | component |  |
+| `CheckCard` | component |  |
+| `Tile` | component |  |
+| `Tip` | type |  |
+| `TipBox` | component |  |
+| `StatusStrip` | component | Was it up? One cell per bucket, in the reserved status colors, with a legend. |
+| `niceMax` | function |  |
+| `LatencyChart` | component | Response times: p95 and p50 per bucket, release markers, crosshair tooltip. |
+| `DataTable` | component | The same numbers without hovering: the table view. |
+| `Incidents` | component |  |
 
 ### `web/src/components/ui.tsx`
 
@@ -1470,7 +1581,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/AppPage.tsx`
 
-<small>371 lines</small>
+<small>374 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1487,7 +1598,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Dashboard.tsx`
 
-<small>61 lines</small>
+<small>67 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
