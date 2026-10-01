@@ -176,7 +176,10 @@ function CheckRow({ c }: { c: EnvCheck }) {
             <div className="small muted">{c.summary}</div>
           </div>
         </div>
-        {hasMore && <span className="small muted">{open ? "▾" : "▸"}</span>}
+        <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
+          {c.id === "notifications" && c.status === "ok" && <TestEmail />}
+          {hasMore && <span className="small muted">{open ? "▾" : "▸"}</span>}
+        </div>
       </div>
       {open && hasMore && (
         <div className="env-more">
@@ -190,6 +193,27 @@ function CheckRow({ c }: { c: EnvCheck }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** Sends a sample notification now, and says what happened. */
+function TestEmail() {
+  const [state, setState] = useState<"idle" | "sending" | "sent" | string>("idle");
+  const send = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setState("sending");
+    try {
+      const r = await envApi.testEmail();
+      setState(`sent to ${r.to.join(", ")}`);
+    } catch (err) {
+      setState("failed: " + (err as Error).message);
+    }
+  };
+  return (
+    <>
+      {state !== "idle" && state !== "sending" && <span className="small muted">{state}</span>}
+      <button disabled={state === "sending"} onClick={send}>{state === "sending" ? "Sending…" : "Send test email"}</button>
+    </>
   );
 }
 

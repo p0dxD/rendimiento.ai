@@ -23,6 +23,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 )
 
@@ -176,15 +177,28 @@ type Prober struct {
 	Log      *slog.Logger
 	// Parallel caps concurrent checks (default 8).
 	Parallel int
+	// Notify emails outages and recoveries (nil: no email); BaseURL links them.
+	Notify  *notify.Notifier
+	BaseURL string
 
-	mu    sync.Mutex
-	state map[string]*checkState // target key → its streak
+	mu      sync.Mutex
+	state   map[string]*checkState // target key → its streak
+	changes []change               // outages opened or closed this round
 }
 
 type checkState struct {
 	fails     int
 	firstFail store.Probe
-	incident  int64 // open incident ID, or 0
+	incident  int64     // open incident ID, or 0
+	since     time.Time // when the open incident started
+}
+
+// change is an outage that started or ended, for the round's emails.
+type change struct {
+	target Target
+	down   bool
+	since  time.Time
+	err    string
 }
 
 func key(appID int64, service, kind string) string {
@@ -199,7 +213,7 @@ func (p *Prober) Run(ctx context.Context) {
 	p.state = map[string]*checkState{}
 	if open, err := p.Store.OpenIncidents(ctx); err == nil {
 		for _, in := range open {
-			p.state[key(in.AppID, in.Service, in.Kind)] = &checkState{fails: FailuresToOpen, incident: in.ID}
+			p.state[key(in.AppID, in.Service, in.Kind)] = &checkState{fails: FailuresToOpen, incident: in.ID, since: in.StartedAt}
 		}
 	}
 	p.Log.Info("uptime checks started", "interval", p.Interval)
@@ -257,6 +271,104 @@ func (p *Prober) Round(ctx context.Context) {
 	for i, r := range results {
 		p.observe(ctx, targets[i], r)
 	}
+	p.notifyChanges()
+}
+
+// notifyChanges sends one email per app for the outages that started, and
+// one for those that ended, this round.
+func (p *Prober) notifyChanges() {
+	p.mu.Lock()
+	changes := p.changes
+	p.changes = nil
+	p.mu.Unlock()
+	type group struct{ down, up []change }
+	byApp := map[string]*group{}
+	var order []string
+	for _, c := range changes {
+		g := byApp[c.target.App]
+		if g == nil {
+			g = &group{}
+			byApp[c.target.App] = g
+			order = append(order, c.target.App)
+		}
+		if c.down {
+			g.down = append(g.down, c)
+		} else {
+			g.up = append(g.up, c)
+		}
+	}
+	for _, app := range order {
+		g := byApp[app]
+		if len(g.down) > 0 {
+			p.Notify.Notify(outageMessage(app, g.down, p.BaseURL))
+		}
+		if len(g.up) > 0 {
+			p.Notify.Notify(recoveryMessage(app, g.up, p.BaseURL))
+		}
+	}
+}
+
+func checkName(t Target) string {
+	if t.Kind == KindPublic {
+		return t.Service + " (public URL)"
+	}
+	return t.Service + " (inside the cluster)"
+}
+
+func outageMessage(app string, down []change, baseURL string) notify.Message {
+	var facts []notify.Fact
+	var names, details []string
+	for _, c := range down {
+		names = append(names, checkName(c.target))
+		facts = append(facts, notify.Fact{Label: checkName(c.target), Value: "down since " + c.since.Local().Format("15:04 MST")})
+		where := c.target.URL
+		if where == "" {
+			where = c.target.Addr
+		}
+		details = append(details, fmt.Sprintf("%s → %s", where, c.err))
+	}
+	subject := fmt.Sprintf("🔴 %s is down", app)
+	if len(down) == 1 {
+		subject = fmt.Sprintf("🔴 %s: %s is down", app, names[0])
+	}
+	return notify.Message{
+		Tone: notify.Critical, Subject: subject, Key: "down:" + app,
+		Title:   fmt.Sprintf("%s is down", app),
+		Summary: fmt.Sprintf("%s failed two checks in a row. rendimiento keeps checking every minute and will email you when it recovers.", strings.Join(names, " and ")),
+		Facts:   facts, Details: strings.Join(details, "\n"),
+		ActionURL: baseURL + "/apps/" + app + "/reliability", ActionLabel: "See reliability",
+	}
+}
+
+func recoveryMessage(app string, up []change, baseURL string) notify.Message {
+	var facts []notify.Fact
+	var names []string
+	for _, c := range up {
+		names = append(names, checkName(c.target))
+		value := "back up"
+		if !c.since.IsZero() {
+			value = "back up after " + humanDuration(time.Since(c.since))
+		}
+		facts = append(facts, notify.Fact{Label: checkName(c.target), Value: value})
+	}
+	return notify.Message{
+		Tone: notify.Good, Subject: fmt.Sprintf("✅ %s recovered", app), Key: "up:" + app,
+		Title:     fmt.Sprintf("%s recovered", app),
+		Summary:   fmt.Sprintf("%s answered normally again.", strings.Join(names, " and ")),
+		Facts:     facts,
+		ActionURL: baseURL + "/apps/" + app + "/reliability", ActionLabel: "See the outage",
+	}
+}
+
+func humanDuration(d time.Duration) string {
+	m := int(d.Round(time.Minute).Minutes())
+	switch {
+	case m < 1:
+		return "under a minute"
+	case m < 60:
+		return fmt.Sprintf("%d min", m)
+	}
+	return fmt.Sprintf("%d h %d min", m/60, m%60)
 }
 
 // observe updates a target's streak, its metrics, and opens or closes its outage.
@@ -285,6 +397,7 @@ func (p *Prober) observe(ctx context.Context, t Target, r store.Probe) {
 				return // try again on the next success
 			}
 			p.Log.Info("service recovered", "app", t.App, "service", t.Service, "check", t.Kind)
+			p.changes = append(p.changes, change{target: t, since: st.since})
 		}
 		*st = checkState{}
 		return
@@ -300,8 +413,9 @@ func (p *Prober) observe(ctx context.Context, t Target, r store.Probe) {
 			p.Log.Warn("uptime: could not open incident", "err", err)
 			return
 		}
-		st.incident = id
+		st.incident, st.since = id, st.firstFail.At
 		p.Log.Warn("service down", "app", t.App, "service", t.Service, "check", t.Kind, "error", st.firstFail.Error)
+		p.changes = append(p.changes, change{target: t, down: true, since: st.firstFail.At, err: st.firstFail.Error})
 	}
 }
 

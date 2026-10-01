@@ -11,26 +11,27 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 327 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 341 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/api`](#internal-api) | 6 | 2084 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 7 | 2116 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 885 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2733 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 428 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
 | [`internal/dns`](#internal-dns) | 4 | 768 | Package dns manages the public DNS record for each app domain. |
-| [`internal/environment`](#internal-environment) | 4 | 1296 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
+| [`internal/environment`](#internal-environment) | 4 | 1316 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
 | [`internal/events`](#internal-events) | 2 | 80 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 278 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1164 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
+| [`internal/notify`](#internal-notify) | 2 | 386 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
 | [`internal/pipeline`](#internal-pipeline) | 7 | 1577 | Package pipeline plans and executes CI runs. |
-| [`internal/platform`](#internal-platform) | 5 | 2196 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
+| [`internal/platform`](#internal-platform) | 5 | 2273 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/render`](#internal-render) | 3 | 1160 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
 | [`internal/spec`](#internal-spec) | 2 | 1573 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
 | [`internal/store`](#internal-store) | 5 | 1496 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
-| [`internal/uptime`](#internal-uptime) | 2 | 520 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
+| [`internal/uptime`](#internal-uptime) | 2 | 634 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
 
@@ -91,7 +92,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>318 lines</small>
+<small>332 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -262,6 +263,14 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `deepMerge` | func | deepMerge copies src into dst, merging nested maps. |
 | `(*Server) patchInstalled` | method | patchInstalled flips switches in an add-on's definition (suspend, allow adoption changes) and commits it. |
 
+### `internal/api/notifications.go`
+
+<small>28 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `(*Server) testNotification` | method | testNotification sends a sample email now, so the setup can be checked from the Environment page. |
+
 ### `internal/api/reliability.go`
 
 <small>77 lines</small>
@@ -274,7 +283,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1078 lines</small>
+<small>1082 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -634,7 +643,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 
 ### `internal/environment/checks.go`
 
-<small>520 lines</small>
+<small>536 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -657,6 +666,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 | `(*Checker) checkBuildNamespace` | method |  |
 | `(*Checker) checkBuildIsolation` | method | checkBuildIsolation reports whether CI pods, which run repo code, are fenced off from the rest of the cluster by a NetworkPolicy. |
 | `(*Checker) checkDNS` | method |  |
+| `(*Checker) checkNotifications` | method |  |
 | `(*Checker) checkGitHub` | method |  |
 | `(*Checker) checkDatabase` | method |  |
 | `(*Checker) providers` | method | providers describes each swappable slot, its active option and the roadmap. |
@@ -676,7 +686,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 
 ### `internal/environment/environment.go`
 
-<small>271 lines</small>
+<small>275 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -889,6 +899,39 @@ Package github talks to GitHub as a GitHub App: short-lived installation tokens 
 | `TestOpenPRSingleCommit` | func |  |
 | `TestVerifyWebhook` | func |  |
 
+## `internal/notify` {#internal-notify}
+
+Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries.
+
+### `internal/notify/notify.go`
+
+<small>277 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Tone` | type | Tone is a message's severity: it sets its color and label. |
+| `Fact` | struct | Fact is one row of a message's details table. |
+| `Message` | struct | Message is one notification. |
+| `Sender` | interface | Sender delivers a rendered email. |
+| `Notifier` | struct | Notifier renders messages and sends them, de-duplicated and rate-limited. |
+| `(*Notifier) Enabled` | method | Enabled reports whether messages are actually sent. |
+| `(*Notifier) Notify` | method | Notify sends m in the background (a slow mail API never delays the caller). |
+| `(*Notifier) allow` | method |  |
+| `(*Notifier) Send` | method | Send renders and sends m now, without de-duplication (the test email). |
+| `Render` | func | Render returns m as an email-safe HTML page and as plain text. |
+| `Resend` | struct | Resend sends email through Resend's HTTP API (https://resend.com). |
+| `(*Resend) Send` | method | Send posts one email to Resend. |
+
+### `internal/notify/notify_test.go`
+
+<small>109 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestRender` | func |  |
+| `TestNotifierDedupAndCap` | func |  |
+| `TestResend` | func |  |
+
 ## `internal/pipeline` {#internal-pipeline}
 
 Package pipeline plans and executes CI runs.
@@ -1002,7 +1045,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/platform.go`
 
-<small>913 lines</small>
+<small>919 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1064,7 +1107,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/verify.go`
 
-<small>399 lines</small>
+<small>470 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1074,6 +1117,8 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `(*Platform) stopVerification` | method | stopVerification ends an app's running verification as superseded (a newer release, or a rollback by hand, replaced the release). |
 | `(*Platform) verify` | method |  |
 | `(*Platform) verificationFailed` | method | verificationFailed rolls back to the last good release, or only reports when rollback is off or there is nothing to return to. |
+| `(*Platform) verifyMessage` | method | verifyMessage is the email for a release that failed verification: rolled back (to = {good release, new release number}) or kept (why). |
+| `shortSHA` | func |  |
 | `(*Platform) lastGoodRelease` | method | lastGoodRelease is the newest release before number that did not fail verification (releases from before verification existed count as good). |
 | `(*Platform) waitRollout` | method | waitRollout waits until the release is fully rolled out and healthy, it fails, or RolloutTimeout passes. |
 | `(*Platform) rolloutState` | method | rolloutState reads the App object: healthy once the controller reports the release Healthy, failed when it reports it Degraded or in Error. |
@@ -1085,6 +1130,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `(*Platform) ResumeVerifications` | method | ResumeVerifications restarts verifications interrupted by a restart: a release that is still the app's current one is watched again from the start; an older one is marked superseded. |
 | `fmtDur` | func |  |
 | `fmtMS` | func |  |
+| `(*Platform) notifyRunFailed` | method | notifyRunFailed emails a failed run of the default branch: nothing was released. |
 
 ### `internal/platform/platform_test.go`
 
@@ -1435,7 +1481,7 @@ Package uptime checks every app's services once a minute and keeps the results: 
 
 ### `internal/uptime/uptime.go`
 
-<small>325 lines</small>
+<small>439 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1448,9 +1494,15 @@ Package uptime checks every app's services once a minute and keeps the results: 
 | `Recorder` | interface | Recorder is what the prober stores results in (the store in production). |
 | `Prober` | struct | Prober checks every target once per Interval and records the results. |
 | `checkState` | struct |  |
+| `change` | struct | change is an outage that started or ended, for the round's emails. |
 | `key` | func |  |
 | `(*Prober) Run` | method | Run checks until ctx is done. |
 | `(*Prober) Round` | method | Round checks every target once, records the results and updates outages. |
+| `(*Prober) notifyChanges` | method | notifyChanges sends one email per app for the outages that started, and one for those that ended, this round. |
+| `checkName` | func |  |
+| `outageMessage` | func |  |
+| `recoveryMessage` | func |  |
+| `humanDuration` | func |  |
 | `(*Prober) observe` | method | observe updates a target's streak, its metrics, and opens or closes its outage. |
 | `Register` | func | Register adds the uptime metrics to a Prometheus registry (the controller-runtime one, served on METRICS_ADDR). |
 
@@ -1489,7 +1541,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>597 lines</small>
+<small>598 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1650,7 +1702,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Environment.tsx`
 
-<small>231 lines</small>
+<small>255 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1661,6 +1713,7 @@ Package web embeds the built UI (npm run build → web/dist).
 | `DynamicDNS` | component |  |
 | `ProviderCard` | component |  |
 | `CheckRow` | component |  |
+| `TestEmail` | component | Sends a sample notification now, and says what happened. |
 | `Meter` | component |  |
 | `gib` | const |  |
 | `cores` | const |  |

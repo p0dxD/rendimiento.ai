@@ -164,6 +164,10 @@ type Config struct {
 	BuildNamespace   string
 	PlatformURL      string
 	ExcludeNodes     []string // nodes build pods avoid
+	// NotifyTo are the notification email recipients; NotifyReady is true
+	// when they and an email provider are configured.
+	NotifyTo    []string
+	NotifyReady bool
 }
 
 // Pinger is satisfied by the store.

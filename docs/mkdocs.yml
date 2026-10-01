@@ -95,6 +95,7 @@ nav:
       - Builds and tests: guide/builds.md
       - Tasks (commands in CI): guide/tasks.md
       - Reliability (uptime and charts): guide/reliability.md
+      - Notifications (email): guide/notifications.md
       - Needs and the services catalog: guide/needs.md
       - Add-ons: guide/addons.md
       - Renovate: guide/renovate.md

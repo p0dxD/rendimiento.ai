@@ -31,6 +31,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/events"
 	"github.com/p0dxD/rendimiento.ai/internal/generate"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
@@ -71,6 +72,8 @@ type Platform struct {
 	Log       *slog.Logger
 	// Verify configures release verification and automatic rollback.
 	Verify VerifySettings
+	// Notify emails failed runs and rolled-back releases (nil: no email).
+	Notify *notify.Notifier
 
 	mu        sync.Mutex
 	cancels   map[int64]context.CancelFunc      // running run → cancel
@@ -690,6 +693,9 @@ func (p *Platform) execute(ctx context.Context, run *store.Run) {
 	}
 	if err := p.Store.FinishRun(ctx, run.ID, status, msg); err != nil {
 		log.Error("finish run", "err", err)
+	}
+	if status == store.RunFailed && run.Deploy {
+		p.notifyRunFailed(app, run, msg, toRun, results)
 	}
 	p.finishCheck(ctx, app, run, checkID, status, msg)
 	p.publishRun(app, run.ID)

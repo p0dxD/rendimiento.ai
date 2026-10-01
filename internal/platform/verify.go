@@ -12,6 +12,8 @@ import (
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/events"
+	"github.com/p0dxD/rendimiento.ai/internal/notify"
+	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 	"github.com/p0dxD/rendimiento.ai/internal/uptime"
 )
@@ -182,25 +184,62 @@ func (p *Platform) verify(ctx context.Context, app *store.App, rel *store.Releas
 // when rollback is off or there is nothing to return to.
 func (p *Platform) verificationFailed(ctx context.Context, app *store.App, rel *store.Release, reason string) {
 	log := p.Log.With("app", app.Name, "release", rel.Number)
+	kept := func(why string) {
+		p.setVerification(app, rel, store.VerifyFailedKept, reason+" ("+why+")")
+		log.Warn("release failed verification; kept", "reason", reason, "why", why)
+		p.Notify.Notify(p.verifyMessage(app, rel, reason, nil, why))
+	}
 	if !rel.Spec.Verify.AutoRollback() {
-		p.setVerification(app, rel, store.VerifyFailedKept, reason+" (automatic rollback is off: verify.rollback)")
-		log.Warn("release failed verification; kept", "reason", reason)
+		kept("automatic rollback is off: verify.rollback")
 		return
 	}
 	good, err := p.lastGoodRelease(ctx, app.ID, rel.Number)
 	if err != nil {
-		p.setVerification(app, rel, store.VerifyFailedKept, reason+" (no earlier good release to roll back to)")
-		log.Warn("release failed verification; nothing to roll back to", "reason", reason)
+		kept("no earlier good release to roll back to")
 		return
 	}
 	back, err := p.rollbackTo(ctx, app, good, fmt.Sprintf("automatic rollback: release #%d failed verification", rel.Number))
 	if err != nil {
-		p.setVerification(app, rel, store.VerifyFailedKept, reason+"; the automatic rollback failed: "+err.Error())
+		kept("the automatic rollback failed: " + err.Error())
 		log.Error("automatic rollback failed", "err", err)
 		return
 	}
 	p.setVerification(app, rel, store.VerifyFailed, fmt.Sprintf("%s; rolled back to release #%d (as #%d)", reason, good.Number, back.Number))
 	log.Warn("release failed verification; rolled back", "reason", reason, "to", good.Number, "as", back.Number)
+	p.Notify.Notify(p.verifyMessage(app, rel, reason, &[2]int64{good.Number, back.Number}, ""))
+}
+
+// verifyMessage is the email for a release that failed verification:
+// rolled back (to = {good release, new release number}) or kept (why).
+func (p *Platform) verifyMessage(app *store.App, rel *store.Release, reason string, to *[2]int64, why string) notify.Message {
+	facts := []notify.Fact{
+		{Label: "App", Value: app.Name},
+		{Label: "Failed release", Value: fmt.Sprintf("#%d (%s)", rel.Number, shortSHA(rel.SHA))},
+	}
+	m := notify.Message{
+		Key: fmt.Sprintf("verify:%s:%d", app.Name, rel.Number), Details: strings.ReplaceAll(reason, "; ", "\n"),
+		ActionURL: p.Config.BaseURL + "/apps/" + app.Name + "/releases", ActionLabel: "See releases",
+	}
+	if to != nil {
+		facts = append(facts, notify.Fact{Label: "Now running", Value: fmt.Sprintf("release #%d (the images of #%d)", to[1], to[0])})
+		m.Tone, m.Subject = notify.Critical, fmt.Sprintf("↩ %s: release #%d rolled back", app.Name, rel.Number)
+		m.Title = fmt.Sprintf("Release #%d was rolled back", rel.Number)
+		m.Summary = fmt.Sprintf("It broke a service that worked before it went live, so rendimiento put release #%d back. Nothing needs doing to recover; fix the cause and push again.", to[0])
+	} else {
+		facts = append(facts, notify.Fact{Label: "Kept because", Value: why})
+		m.Tone, m.Subject = notify.Warning, fmt.Sprintf("⚠ %s: release #%d failed verification", app.Name, rel.Number)
+		m.Title = fmt.Sprintf("Release #%d failed verification", rel.Number)
+		m.Summary = "It broke a service that worked before it went live, and it is still running."
+	}
+	m.Facts = facts
+	return m
+}
+
+func shortSHA(sha string) string {
+	if len(sha) > 7 {
+		return sha[:7]
+	}
+	return sha
 }
 
 // lastGoodRelease is the newest release before number that did not fail
@@ -396,4 +435,36 @@ func fmtMS(ms int) string {
 		return fmt.Sprintf("%d ms", ms)
 	}
 	return fmt.Sprintf("%.1f s", float64(ms)/1000)
+}
+
+// notifyRunFailed emails a failed run of the default branch: nothing was
+// released. It names the steps that failed, with their messages.
+func (p *Platform) notifyRunFailed(app *store.App, run *store.Run, msg string, steps []pipeline.Step, results map[string]pipeline.StepResult) {
+	var failed []string
+	for _, s := range steps {
+		if r := results[s.ID]; r.Status == pipeline.StatusFailed && !s.Optional {
+			line := s.ID
+			if r.Message != "" {
+				line += ": " + r.Message
+			}
+			failed = append(failed, line)
+		}
+	}
+	details := strings.Join(failed, "\n")
+	if details == "" {
+		details = msg
+	}
+	p.Notify.Notify(notify.Message{
+		Tone: notify.Critical, Key: fmt.Sprintf("run:%s:%s", app.Name, run.SHA),
+		Subject: fmt.Sprintf("✗ %s: build failed on %s", app.Name, run.Branch),
+		Title:   fmt.Sprintf("The %s build failed", app.Name),
+		Summary: fmt.Sprintf("A push to %s did not build, so nothing was released; the app keeps running its current release.", run.Branch),
+		Facts: []notify.Fact{
+			{Label: "App", Value: app.Name},
+			{Label: "Commit", Value: fmt.Sprintf("%s on %s", shortSHA(run.SHA), run.Branch)},
+			{Label: "Run", Value: fmt.Sprintf("#%d", run.ID)},
+		},
+		Details:   details,
+		ActionURL: fmt.Sprintf("%s/apps/%s/runs/%d", p.Config.BaseURL, app.Name, run.ID), ActionLabel: "Open the run",
+	})
 }

@@ -11,8 +11,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 | 3 | **Delivery stats and a public status page**: deploy frequency, lead time, change failure rate and recovery time on the dashboard; uptime per site on `status.joserod.space` | show the platform working, in numbers | `store` (runs, releases, incidents), a public read-only endpoint, a small page |
 | 4 | **Platform metrics in Grafana**: scrape `METRICS_ADDR` (uptime metrics are already exported there), add build metrics, and a dashboard | see builds slowing or queues growing before users do | a `VMServiceScrape`, a metrics port on the Service, `pipeline`, `platform` |
 | 5 | **Log archive** to MinIO | keep Postgres small | `store`, `platform/recorder.go` |
-| 6 | **Notifications**: run failed or release rolled back, sent to email, Discord or ntfy | know without watching the UI | new `internal/notify`, `platform` |
-| 7 | **Preview environments** per pull request (`pr-42.app.joserod.space`) | try changes before merging | `platform` (PR webhooks), `render` (name suffix), cleanup on close |
+| 6 | **Preview environments** per pull request (`pr-42.app.joserod.space`) | try changes before merging | `platform` (PR webhooks), `render` (name suffix), cleanup on close |
 
 ## Medium term
 
@@ -44,6 +43,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 - An add-on engine (Helm and kustomize from git), with previews, safety gates and Helm hooks, which replaced ArgoCD
 - Renovate as an add-on, which replaced the CronJob
 - ArgoCD and Jenkins uninstalled (2026-09-28)
+- Email notifications for failed builds, rollbacks, outages and recoveries (2026-10-01)
 - Release verification with automatic rollback: each release is watched for 5 minutes and rolled back to the last good one if it breaks a service (2026-10-01)
 - Uptime checks and the Reliability tab: every service checked once a minute, inside the cluster and publicly; uptime, response times and outages charted with release markers (2026-10-01)
 - Tasks: commands as CI steps with secrets, for Expo/EAS builds and smoke tests (2026-09-29)

@@ -38,6 +38,7 @@ func (c *Checker) checks(s *snapshot) []checkFunc {
 		c.checkBuildNamespace,
 		c.checkBuildIsolation,
 		c.checkDNS,
+		c.checkNotifications,
 		c.checkGitHub,
 		c.checkDatabase,
 	}
@@ -434,6 +435,21 @@ func (c *Checker) checkDNS(ctx context.Context) Check {
 	default:
 		ch.Status = Error
 		ch.Fix = "Replace the token in the rendimiento-dns secret (Zone:Read + DNS:Edit) and restart the platform."
+	}
+	return ch
+}
+
+func (c *Checker) checkNotifications(context.Context) Check {
+	ch := Check{ID: "notifications", Name: "Email notifications", Category: CatIntegrations}
+	switch {
+	case c.Config.NotifyReady:
+		ch.Status, ch.Summary = OK, "failed runs, rollbacks, outages and recoveries are emailed to "+strings.Join(c.Config.NotifyTo, ", ")
+	case len(c.Config.NotifyTo) > 0:
+		ch.Status, ch.Summary = Warning, "NOTIFY_EMAIL_TO is set but there is no RESEND_API_KEY, so nothing is sent"
+		ch.Fix = "Put RESEND_API_KEY (a Resend API key allowed to send from your domain) in the rendimiento-notify secret and restart the platform."
+	default:
+		ch.Status, ch.Summary = Warning, "off: nobody is told about failed runs, rollbacks or outages"
+		ch.Fix = "Set NOTIFY_EMAIL_TO in the rendimiento ConfigMap and RESEND_API_KEY in the rendimiento-notify secret, then restart the platform."
 	}
 	return ch
 }
