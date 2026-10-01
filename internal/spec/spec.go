@@ -35,7 +35,26 @@ type Spec struct {
 	// Tasks are commands run as CI steps next to the tests and builds
 	// (a mobile build, a smoke test, a release script).
 	Tasks []Task `json:"tasks,omitempty"`
+	// Verify tunes how each new release is watched after it goes live, and
+	// whether a failing one is rolled back automatically.
+	Verify *Verify `json:"verify,omitempty"`
 }
+
+// Verify configures release verification: after a release is live, its
+// services are checked for a while, and a release that breaks a service
+// that worked before is rolled back to the last good release.
+type Verify struct {
+	// Window is how long a new release is watched, in seconds (default:
+	// the platform's VERIFY_WINDOW, 5 minutes; 60 to 3600).
+	Window int `json:"window,omitempty"`
+	// Rollback false only reports a failed verification (default true).
+	Rollback *bool `json:"rollback,omitempty"`
+	// Disabled turns verification off for this app.
+	Disabled bool `json:"disabled,omitempty"`
+}
+
+// AutoRollback reports whether a release that fails verification is rolled back.
+func (v *Verify) AutoRollback() bool { return v == nil || v.Rollback == nil || *v.Rollback }
 
 // Task is a command run as a step of every CI run: the commit is checked
 // out, and the command runs in Image from Path. Unlike a test, a task can
@@ -875,6 +894,9 @@ func (s *Spec) Validate() error {
 	errs = append(errs, s.validateRoutes()...)
 	errs = append(errs, s.validateJobs(seen)...)
 	errs = append(errs, s.validateTasks()...)
+	if v := s.Verify; v != nil && v.Window != 0 && (v.Window < 60 || v.Window > 3600) {
+		errs = append(errs, fmt.Errorf("verify.window %d must be between 60 and 3600 seconds", v.Window))
+	}
 	return errors.Join(errs...)
 }
 

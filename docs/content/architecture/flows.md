@@ -71,6 +71,7 @@ sequenceDiagram
     K-->>C: App changed
     C->>K: apply Deployments, Services, Ingresses… (server-side apply)
     C->>K: rolling update, health rolls up into App status
+    Note over P: verification: wait until healthy, check every service<br/>for 5 min, roll back if one broke
 ```
 
 - Pushes to **other branches** stop after the builds: nothing is released; the check run shows on the commit and on any pull request.

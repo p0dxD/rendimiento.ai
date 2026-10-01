@@ -6,7 +6,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 
 | # | Item | Why | Where |
 |---|---|---|---|
-| 1 | **Verify each release, roll back automatically**: after a release goes live, watch its uptime checks, response times and an optional post-deploy task for a few minutes; roll back if they get clearly worse | turns the Reliability data into a safety net; post-deploy tasks also allow migrations and smoke tests of the new version | `internal/uptime` (compare before/after), `platform` (verification state, rollback), `spec.Task` (`stage: post-deploy`) |
+| 1 | **Post-deploy tasks**: smoke tests and migrations run against the new release, inside the app's namespace, as part of its verification | verification today watches health checks; a task can exercise real flows (log in, place an order) | `spec.Task` (`stage: post-deploy`), `platform/verify.go`, a task pod in the app's namespace |
 | 2 | **Move apps' databases onto `needs:`** | one way to get Postgres, with credentials generated and wired in | per app: `rendimiento.yaml`, data migration runbook |
 | 3 | **Delivery stats and a public status page**: deploy frequency, lead time, change failure rate and recovery time on the dashboard; uptime per site on `status.joserod.space` | show the platform working, in numbers | `store` (runs, releases, incidents), a public read-only endpoint, a small page |
 | 4 | **Platform metrics in Grafana**: scrape `METRICS_ADDR` (uptime metrics are already exported there), add build metrics, and a dashboard | see builds slowing or queues growing before users do | a `VMServiceScrape`, a metrics port on the Service, `pipeline`, `platform` |
@@ -44,6 +44,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 - An add-on engine (Helm and kustomize from git), with previews, safety gates and Helm hooks, which replaced ArgoCD
 - Renovate as an add-on, which replaced the CronJob
 - ArgoCD and Jenkins uninstalled (2026-09-28)
+- Release verification with automatic rollback: each release is watched for 5 minutes and rolled back to the last good one if it breaks a service (2026-10-01)
 - Uptime checks and the Reliability tab: every service checked once a minute, inside the cluster and publicly; uptime, response times and outages charted with release markers (2026-10-01)
 - Tasks: commands as CI steps with secrets, for Expo/EAS builds and smoke tests (2026-09-29)
 - The Services catalog, Environment checks, dynamic DNS

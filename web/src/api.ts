@@ -196,7 +196,7 @@ export interface Reliability {
   bucketSeconds: number;
   series: UptimeSeries[];
   incidents: Incident[];
-  releases: { number: number; at: string; sha: string; rollbackOf?: number }[];
+  releases: { number: number; at: string; sha: string; rollbackOf?: number; verifyStatus?: VerifyStatus }[];
 }
 
 export interface Release {
@@ -207,7 +207,13 @@ export interface Release {
   images: Record<string, string>;
   rollbackOf?: number;
   createdAt: string;
+  verifyStatus?: VerifyStatus;
+  verifyMessage?: string;
+  verifiedAt?: string;
 }
+
+/** What release verification concluded ("" for releases from before it existed). */
+export type VerifyStatus = "" | "verifying" | "passed" | "failed" | "failed-kept" | "skipped" | "superseded";
 
 export interface ResourceNode {
   kind: string;

@@ -415,6 +415,46 @@ type Release struct {
 	Spec       spec.Spec         `json:"spec"`
 	RollbackOf *int64            `json:"rollbackOf,omitempty"`
 	CreatedAt  time.Time         `json:"createdAt"`
+	// Verification of the release once live (see Verify* constants).
+	VerifyStatus  string     `json:"verifyStatus,omitempty"`
+	VerifyMessage string     `json:"verifyMessage,omitempty"`
+	VerifiedAt    *time.Time `json:"verifiedAt,omitempty"`
+}
+
+// Release verification states.
+const (
+	VerifyRunning    = "verifying"
+	VerifyPassed     = "passed"
+	VerifyFailed     = "failed"      // rolled back
+	VerifyFailedKept = "failed-kept" // failed, but rollback is off
+	VerifySkipped    = "skipped"
+	VerifySuperseded = "superseded"
+)
+
+// SetVerification records a release's verification state and message.
+func (s *Store) SetVerification(ctx context.Context, releaseID int64, status, message string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE releases SET verify_status = $2, verify_message = $3,
+		verified_at = CASE WHEN $2 IN ('verifying', '') THEN NULL ELSE now() END WHERE id = $1`, releaseID, status, message)
+	return err
+}
+
+// VerifyingReleases lists releases whose verification was interrupted
+// (the process stopped while watching them).
+func (s *Store) VerifyingReleases(ctx context.Context) ([]*Release, error) {
+	rows, err := s.pool.Query(ctx, `SELECT `+releaseCols+` FROM releases WHERE verify_status = 'verifying' ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*Release
+	for rows.Next() {
+		r, err := scanRelease(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
 }
 
 // CreateRelease assigns the next release number for the app.
@@ -439,12 +479,13 @@ func (s *Store) CreateRelease(ctx context.Context, r *Release) error {
 	})
 }
 
-const releaseCols = `id, app_id, number, run_id, sha, images, spec, rollback_of, created_at`
+const releaseCols = `id, app_id, number, run_id, sha, images, spec, rollback_of, created_at, verify_status, verify_message, verified_at`
 
 func scanRelease(row pgx.Row) (*Release, error) {
 	var r Release
 	var images, sp []byte
-	err := row.Scan(&r.ID, &r.AppID, &r.Number, &r.RunID, &r.SHA, &images, &sp, &r.RollbackOf, &r.CreatedAt)
+	err := row.Scan(&r.ID, &r.AppID, &r.Number, &r.RunID, &r.SHA, &images, &sp, &r.RollbackOf, &r.CreatedAt,
+		&r.VerifyStatus, &r.VerifyMessage, &r.VerifiedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}

@@ -68,6 +68,7 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 | Variable | Default | Meaning |
 |---|---|---|
 | `UPTIME_INTERVAL` | `1m` | How often every service is checked ([Reliability](../guide/reliability.md)); `0` turns checks off. At least `10s`. |
+| `VERIFY_WINDOW` | `5m` | How long each new release is watched before it counts as verified ([verifying releases](../guide/reliability.md#verifying-each-release)); `0` turns verification and automatic rollback off. At least `1m`. |
 
 ## Add-ons
 
