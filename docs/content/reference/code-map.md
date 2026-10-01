@@ -11,26 +11,27 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 344 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 384 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/api`](#internal-api) | 8 | 2282 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 9 | 2314 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 885 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2733 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 428 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
 | [`internal/dns`](#internal-dns) | 4 | 768 | Package dns manages the public DNS record for each app domain. |
-| [`internal/environment`](#internal-environment) | 4 | 1320 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
+| [`internal/environment`](#internal-environment) | 4 | 1341 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
 | [`internal/events`](#internal-events) | 2 | 80 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 278 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1164 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
+| [`internal/logarchive`](#internal-logarchive) | 2 | 277 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
 | [`internal/notify`](#internal-notify) | 2 | 386 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
 | [`internal/pipeline`](#internal-pipeline) | 7 | 1577 | Package pipeline plans and executes CI runs. |
 | [`internal/platform`](#internal-platform) | 5 | 2273 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/render`](#internal-render) | 3 | 1160 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
 | [`internal/spec`](#internal-spec) | 2 | 1573 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 7 | 1779 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/store`](#internal-store) | 8 | 1866 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/uptime`](#internal-uptime) | 2 | 634 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
@@ -92,7 +93,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>335 lines</small>
+<small>375 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -263,6 +264,14 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `deepMerge` | func | deepMerge copies src into dst, merging nested maps. |
 | `(*Server) patchInstalled` | method | patchInstalled flips switches in an add-on's definition (suspend, allow adoption changes) and commits it. |
 
+### `internal/api/logs.go`
+
+<small>26 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `(*Server) archivedLog` | method | archivedLog reads a step log from the log archive, or explains why it cannot: expired by the retention rule, or the archive is unreachable. |
+
 ### `internal/api/notifications.go`
 
 <small>28 lines</small>
@@ -297,7 +306,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1090 lines</small>
+<small>1096 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -658,7 +667,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 
 ### `internal/environment/checks.go`
 
-<small>536 lines</small>
+<small>555 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -681,6 +690,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 | `(*Checker) checkBuildNamespace` | method |  |
 | `(*Checker) checkBuildIsolation` | method | checkBuildIsolation reports whether CI pods, which run repo code, are fenced off from the rest of the cluster by a NetworkPolicy. |
 | `(*Checker) checkDNS` | method |  |
+| `(*Checker) checkLogArchive` | method |  |
 | `(*Checker) checkNotifications` | method |  |
 | `(*Checker) checkGitHub` | method |  |
 | `(*Checker) checkDatabase` | method |  |
@@ -701,7 +711,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 
 ### `internal/environment/environment.go`
 
-<small>276 lines</small>
+<small>278 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -913,6 +923,38 @@ Package github talks to GitHub as a GitHub App: short-lived installation tokens 
 | `TestRepoFSDrivesDetection` | func |  |
 | `TestOpenPRSingleCommit` | func |  |
 | `TestVerifyWebhook` | func |  |
+
+## `internal/logarchive` {#internal-logarchive}
+
+Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI.
+
+### `internal/logarchive/logarchive.go`
+
+<small>194 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Objects` | interface | Objects stores and fetches whole objects (MinIO in production). |
+| `Store` | interface | Store is what the archiver needs from the database. |
+| `Archive` | struct | Archive moves finished runs' step logs to Objects every Every. |
+| `(*Archive) Run` | method | Run sweeps until ctx is done. |
+| `(*Archive) Sweep` | method | Sweep archives the logs of finished runs, in batches, until none are left or one fails. |
+| `Key` | func | Key is a step log's object key. |
+| `(*Archive) Read` | method | Read returns an archived log's text. |
+| `compress` | func |  |
+| `MinIO` | struct | MinIO stores objects in one bucket of a MinIO (or other S3) server. |
+| `NewMinIO` | func | NewMinIO connects to endpoint (host:port) with an access key. |
+| `(*MinIO) Put` | method | Put uploads one object. |
+| `(*MinIO) Get` | method | Get downloads one object; ErrExpired when it no longer exists. |
+| `(*MinIO) EnsureRetention` | method | EnsureRetention checks the bucket exists and sets its rule: logs under Prefix are deleted days after they were archived. |
+
+### `internal/logarchive/logarchive_test.go`
+
+<small>83 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestSweepAndRead` | func |  |
 
 ## `internal/notify` {#internal-notify}
 
@@ -1413,7 +1455,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/store.go`
 
-<small>573 lines</small>
+<small>618 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1444,7 +1486,11 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) ListRuns` | method | ListRuns returns an app's most recent runs, newest first. |
 | `(*Store) UpdateStep` | method | UpdateStep records a step's status, digest, message and times. |
 | `(*Store) AppendLog` | method | AppendLog adds output to a step's log, keeping at most maxLog bytes (the tail, where errors are). |
-| `(*Store) StepLog` | method | StepLog returns a step's stored log. |
+| `(*Store) StepLog` | method | StepLog returns a step's stored log, or, once archived, the key of its object in the log archive (and an empty log). |
+| `ArchivableStep` | struct | ArchivableStep is a finished run's step whose log is still in Postgres. |
+| `(*Store) UnarchivedSteps` | method | UnarchivedSteps lists up to limit steps with a log in Postgres, of runs that finished before `before` (their logs are complete), oldest first. |
+| `(*Store) MarkArchived` | method | MarkArchived records that a step's log is stored under ref and empties the column. |
+| `(*Store) ArchiveStats` | method | ArchiveStats counts archived logs and their size, and logs waiting to be archived. |
 | `Release` | struct | Release is what was deployed: the images (by digest) and spec of one successful run, or of a rollback. |
 | `(*Store) SetVerification` | method | SetVerification records a release's verification state and message. |
 | `(*Store) VerifyingReleases` | method | VerifyingReleases lists releases whose verification was interrupted (the process stopped while watching them). |
@@ -1483,6 +1529,14 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) UptimeSummary` | method | UptimeSummary is the share of successful checks per app since a time: the dashboard's uptime badges. |
 | `CheckStats` | struct | CheckStats summarizes one check's results over a period. |
 | `(*Store) ProbeStats` | method | ProbeStats summarizes an app's checks in [from, to), per service and check kind: the baseline a new release is compared with. |
+
+### `internal/store/logarchive_test.go`
+
+<small>42 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestLogArchiveBookkeeping` | func |  |
 
 ### `internal/store/stats_test.go`
 

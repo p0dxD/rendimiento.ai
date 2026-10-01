@@ -36,6 +36,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
 	"github.com/p0dxD/rendimiento.ai/internal/environment"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/p0dxD/rendimiento.ai/internal/logarchive"
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
@@ -67,16 +68,18 @@ type Server struct {
 	PublicStats    bool
 	PublicOrigins  []string
 	PublicTimeZone string
-	public         publicCache
-	AllowedUsers   []string // GitHub logins allowed to sign in
-	SetupToken     string   // guards the one-time GitHub App setup
-	AppName        string   // name for the GitHub App, e.g. "rendimiento-joserod"
-	GitHubAPI      string   // overridden in tests
-	UI             fs.FS    // built web UI; nil serves a placeholder
-	Environment    *environment.Checker
-	Catalog        *catalog.Builder
-	Renovate       *renovate.Runner
-	Addons         *addon.Syncer
+	// Logs reads step logs archived to object storage (nil when off).
+	Logs         *logarchive.Archive
+	public       publicCache
+	AllowedUsers []string // GitHub logins allowed to sign in
+	SetupToken   string   // guards the one-time GitHub App setup
+	AppName      string   // name for the GitHub App, e.g. "rendimiento-joserod"
+	GitHubAPI    string   // overridden in tests
+	UI           fs.FS    // built web UI; nil serves a placeholder
+	Environment  *environment.Checker
+	Catalog      *catalog.Builder
+	Renovate     *renovate.Runner
+	Addons       *addon.Syncer
 }
 
 const sessionCookie = "rendimiento_session"
@@ -975,7 +978,7 @@ func (s *Server) stepLog(w http.ResponseWriter, r *http.Request, _ string) {
 	if !ok {
 		return
 	}
-	log, err := s.Store.StepLog(r.Context(), id, r.PathValue("step"))
+	log, ref, err := s.Store.StepLog(r.Context(), id, r.PathValue("step"))
 	if errors.Is(err, store.ErrNotFound) {
 		httpError(w, http.StatusNotFound, "no such step")
 		return
@@ -983,6 +986,9 @@ func (s *Server) stepLog(w http.ResponseWriter, r *http.Request, _ string) {
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if ref != "" {
+		log = s.archivedLog(r.Context(), ref)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	io.WriteString(w, log)

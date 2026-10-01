@@ -37,6 +37,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/events"
 	"github.com/p0dxD/rendimiento.ai/internal/generate"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/p0dxD/rendimiento.ai/internal/logarchive"
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
@@ -275,6 +276,37 @@ func run(log *slog.Logger) error {
 	srv.Environment.Config.NotifyTo, srv.Environment.Config.NotifyReady = notifier.To, notifier.Enabled()
 	log.Info("email notifications", "enabled", notifier.Enabled(), "to", notifier.To)
 
+	// Log archive: finished runs' step logs move to object storage (MinIO),
+	// which deletes them after LOG_RETENTION_DAYS.
+	var logArchive *logarchive.Archive
+	var logBucket *logarchive.MinIO
+	if endpoint := os.Getenv("LOG_ARCHIVE_ENDPOINT"); endpoint != "" {
+		days, err := strconv.Atoi(env("LOG_RETENTION_DAYS", "365"))
+		if err != nil || days < 1 {
+			return fmt.Errorf("LOG_RETENTION_DAYS must be a number of days, got %q", os.Getenv("LOG_RETENTION_DAYS"))
+		}
+		logBucket, err = logarchive.NewMinIO(endpoint, os.Getenv("LOG_ARCHIVE_ACCESS_KEY"), os.Getenv("LOG_ARCHIVE_SECRET_KEY"),
+			env("LOG_ARCHIVE_BUCKET", "rendimiento-logs"), env("LOG_ARCHIVE_SECURE", "false") == "true")
+		if err != nil {
+			return fmt.Errorf("log archive: %w", err)
+		}
+		logArchive = &logarchive.Archive{Objects: logBucket, Store: st, Log: log.With("component", "logarchive"), RetentionDays: days}
+		srv.Logs = logArchive
+		srv.Environment.Config.LogArchive = func(ctx context.Context) (bool, string) {
+			if ok, err := logBucket.Client.BucketExists(ctx, logBucket.Bucket); err != nil || !ok {
+				if err == nil {
+					err = fmt.Errorf("bucket %q does not exist", logBucket.Bucket)
+				}
+				return false, "cannot reach the archive: " + err.Error()
+			}
+			n, size, pending, err := st.ArchiveStats(ctx)
+			if err != nil {
+				return false, err.Error()
+			}
+			return true, fmt.Sprintf("%d step logs archived (%.1f MB of text) in %s/%s, %d waiting; kept %d days", n, float64(size)/1e6, endpoint, logBucket.Bucket, pending, days)
+		}
+	}
+
 	// Release verification: watch each new release, roll back a broken one.
 	verifyWindow, err := time.ParseDuration(env("VERIFY_WINDOW", "5m"))
 	if err != nil || (verifyWindow != 0 && verifyWindow < time.Minute) {
@@ -302,6 +334,14 @@ func run(log *slog.Logger) error {
 				go prober.Run(ctx)
 			}
 			p.ResumeVerifications(ctx)
+			if logArchive != nil {
+				go func() {
+					if err := logBucket.EnsureRetention(ctx, logArchive.RetentionDays); err != nil {
+						log.Warn("log archive: could not set the retention rule", "err", err)
+					}
+					logArchive.Run(ctx)
+				}()
+			}
 			p.Work(ctx)
 		case <-ctx.Done():
 		}

@@ -97,7 +97,7 @@ func TestAppsRunsReleases(t *testing.T) {
 	if build.Status != "succeeded" || build.Digest != "sha256:1" || build.StartedAt == nil || build.FinishedAt == nil || build.DependsOn[0] != "web:test" {
 		t.Fatalf("step = %+v", build)
 	}
-	if log, _ := s.StepLog(ctx, run.ID, "web:build"); log != "line 1\nline 2\n" {
+	if log, _, _ := s.StepLog(ctx, run.ID, "web:build"); log != "line 1\nline 2\n" {
 		t.Fatalf("log = %q", log)
 	}
 	if err := s.FinishRun(ctx, run.ID, RunSucceeded, ""); err != nil {
@@ -203,7 +203,7 @@ func TestSessionsAndLogCap(t *testing.T) {
 	big := strings.Repeat("x", maxLog)
 	_ = s.AppendLog(ctx, run.ID, "web:build", big)
 	_ = s.AppendLog(ctx, run.ID, "web:build", "TAIL")
-	log, _ := s.StepLog(ctx, run.ID, "web:build")
+	log, _, _ := s.StepLog(ctx, run.ID, "web:build")
 	if len(log) != maxLog || !strings.HasSuffix(log, "TAIL") {
 		t.Fatalf("log len %d, suffix ok %v", len(log), strings.HasSuffix(log, "TAIL"))
 	}
@@ -235,7 +235,7 @@ func TestRequeueOrphansRetriesThenGivesUp(t *testing.T) {
 			if requeued != 1 || got.Status != RunQueued || got.Steps[0].Status != "pending" {
 				t.Fatalf("attempt %d: requeued=%d run=%+v", attempt, requeued, got)
 			}
-			if log, _ := s.StepLog(ctx, run.ID, "web:build"); log != "" {
+			if log, _, _ := s.StepLog(ctx, run.ID, "web:build"); log != "" {
 				t.Fatalf("stale log kept: %q", log)
 			}
 		} else {

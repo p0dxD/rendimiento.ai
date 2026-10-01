@@ -391,14 +391,60 @@ func (s *Store) AppendLog(ctx context.Context, runID int64, stepID, chunk string
 	return err
 }
 
-// StepLog returns a step's stored log.
-func (s *Store) StepLog(ctx context.Context, runID int64, stepID string) (string, error) {
-	var log string
-	err := s.pool.QueryRow(ctx, `SELECT log FROM steps WHERE run_id = $1 AND step_id = $2`, runID, stepID).Scan(&log)
+// StepLog returns a step's stored log, or, once archived, the key of its
+// object in the log archive (and an empty log).
+func (s *Store) StepLog(ctx context.Context, runID int64, stepID string) (log, ref string, err error) {
+	err = s.pool.QueryRow(ctx, `SELECT log, log_ref FROM steps WHERE run_id = $1 AND step_id = $2`, runID, stepID).Scan(&log, &ref)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrNotFound
+		return "", "", ErrNotFound
 	}
-	return log, err
+	return log, ref, err
+}
+
+// ArchivableStep is a finished run's step whose log is still in Postgres.
+type ArchivableStep struct {
+	RunID  int64
+	StepID string
+	App    string
+	Log    string
+}
+
+// UnarchivedSteps lists up to limit steps with a log in Postgres, of runs
+// that finished before `before` (their logs are complete), oldest first.
+func (s *Store) UnarchivedSteps(ctx context.Context, before time.Time, limit int) ([]ArchivableStep, error) {
+	rows, err := s.pool.Query(ctx, `SELECT st.run_id, st.step_id, a.name, st.log FROM steps st
+		JOIN runs r ON r.id = st.run_id JOIN apps a ON a.id = r.app_id
+		WHERE st.log_ref = '' AND st.log <> '' AND r.finished_at IS NOT NULL AND r.finished_at < $1
+		ORDER BY st.run_id LIMIT $2`, before, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ArchivableStep
+	for rows.Next() {
+		var a ArchivableStep
+		if err := rows.Scan(&a.RunID, &a.StepID, &a.App, &a.Log); err != nil {
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
+// MarkArchived records that a step's log (bytes long, in bytes) is stored
+// under ref and empties the column. It reports false, changing nothing, if
+// the log changed since it was read.
+func (s *Store) MarkArchived(ctx context.Context, runID int64, stepID, ref string, bytes int) (bool, error) {
+	tag, err := s.pool.Exec(ctx, `UPDATE steps SET log = '', log_ref = $3, log_bytes = $4, archived_at = now()
+		WHERE run_id = $1 AND step_id = $2 AND log_ref = '' AND octet_length(log) = $4`, runID, stepID, ref, bytes)
+	return tag.RowsAffected() == 1, err
+}
+
+// ArchiveStats counts archived logs and their size, and logs waiting to be archived.
+func (s *Store) ArchiveStats(ctx context.Context) (archived int, bytes int64, pending int, err error) {
+	err = s.pool.QueryRow(ctx, `SELECT count(*) FILTER (WHERE log_ref <> ''), COALESCE(sum(log_bytes) FILTER (WHERE log_ref <> ''), 0),
+		count(*) FILTER (WHERE log_ref = '' AND log <> '') FROM steps`).Scan(&archived, &bytes, &pending)
+	return
 }
 
 // ---- releases ----

@@ -86,6 +86,16 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 | `PUBLIC_STATS_ORIGINS` | *(none)* | `https://joserod.space,https://www.joserod.space` | browser origins allowed to fetch it (CORS) |
 | `PUBLIC_STATS_TZ` | `UTC` | `America/New_York` | the time zone its days are counted in |
 
+## Log archive
+
+| Variable | Default | This cluster | Meaning |
+|---|---|---|---|
+| `LOG_ARCHIVE_ENDPOINT` | *(empty: off)* | `minio-api.minio.svc.cluster.local:9000` | S3/MinIO `host:port` that [step logs are archived](../architecture/data.md#the-log-archive) to |
+| `LOG_ARCHIVE_BUCKET` | `rendimiento-logs` | | the bucket |
+| `LOG_ARCHIVE_SECURE` | `false` | | use HTTPS |
+| `LOG_ARCHIVE_ACCESS_KEY`, `LOG_ARCHIVE_SECRET_KEY` | — | from Secret `rendimiento-logs` | credentials of a user allowed to use the bucket |
+| `LOG_RETENTION_DAYS` | `365` | | archived logs are deleted after this many days (a lifecycle rule on the bucket) |
+
 ## Add-ons
 
 | Variable | Default | Meaning |
@@ -102,3 +112,4 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 | `rendimiento-github` | App ID, private key, webhook secret, OAuth client | the setup flow |
 | `rendimiento-dns` | `CLOUDFLARE_API_TOKEN`, `DNS_TARGET` | you |
 | `rendimiento-notify` | `RESEND_API_KEY` | you |
+| `rendimiento-logs` | `LOG_ARCHIVE_ACCESS_KEY`, `LOG_ARCHIVE_SECRET_KEY` | you (a MinIO user limited to the bucket) |
