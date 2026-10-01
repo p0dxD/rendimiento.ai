@@ -36,6 +36,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
 	"github.com/p0dxD/rendimiento.ai/internal/environment"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/renovate"
@@ -50,14 +51,16 @@ type CredentialStore interface {
 
 // Server holds everything the HTTP API needs; Handler returns its routes.
 type Server struct {
-	Platform     *platform.Platform
-	Store        *store.Store
-	Kube         client.Client
-	GitHub       *gh.Holder
-	Credentials  CredentialStore
-	DNS          dns.Provider
-	Log          *slog.Logger
-	BaseURL      string   // https://rendimiento.joserod.space
+	Platform    *platform.Platform
+	Store       *store.Store
+	Kube        client.Client
+	GitHub      *gh.Holder
+	Credentials CredentialStore
+	DNS         dns.Provider
+	Log         *slog.Logger
+	BaseURL     string // https://rendimiento.joserod.space
+	// Notify sends notification emails (the test email; nil when off).
+	Notify       *notify.Notifier
 	AllowedUsers []string // GitHub logins allowed to sign in
 	SetupToken   string   // guards the one-time GitHub App setup
 	AppName      string   // name for the GitHub App, e.g. "rendimiento-joserod"
@@ -114,6 +117,7 @@ func (s *Server) Handler() http.Handler {
 	auth("GET /api/apps/{app}/addons", s.appAddons)
 	auth("PUT /api/apps/{app}/addons/{addon}", s.putAppAddon)
 	auth("POST /api/dns/sync", s.dnsSync)
+	auth("POST /api/notifications/test", s.testNotification)
 	auth("POST /api/propose", s.propose)
 	auth("GET /api/namespaces/{name}/migration", s.migration)
 	auth("GET /api/apps", s.listApps)

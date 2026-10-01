@@ -70,6 +70,14 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 | `UPTIME_INTERVAL` | `1m` | How often every service is checked ([Reliability](../guide/reliability.md)); `0` turns checks off. At least `10s`. |
 | `VERIFY_WINDOW` | `5m` | How long each new release is watched before it counts as verified ([verifying releases](../guide/reliability.md#verifying-each-release)); `0` turns verification and automatic rollback off. At least `1m`. |
 
+## Notifications
+
+| Variable | Default | This cluster | Meaning |
+|---|---|---|---|
+| `NOTIFY_EMAIL_TO` | *(empty: off)* | `jose0797@gmail.com` | who gets [notification emails](../guide/notifications.md), comma-separated |
+| `NOTIFY_EMAIL_FROM` | `rendimiento <alerts@joserod.space>` | | the sender; must be on a Resend-verified domain |
+| `RESEND_API_KEY` | — | from Secret `rendimiento-notify` | the Resend API key |
+
 ## Add-ons
 
 | Variable | Default | Meaning |
@@ -85,3 +93,4 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 | `rendimiento-setup` | `token` | you, once |
 | `rendimiento-github` | App ID, private key, webhook secret, OAuth client | the setup flow |
 | `rendimiento-dns` | `CLOUDFLARE_API_TOKEN`, `DNS_TARGET` | you |
+| `rendimiento-notify` | `RESEND_API_KEY` | you |

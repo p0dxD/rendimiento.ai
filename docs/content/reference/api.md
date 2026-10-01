@@ -29,6 +29,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/zones` | DNS zones the token can edit |
 | GET | `/api/environment` | the Environment page's checks |
 | GET | `/api/services` | the Services catalog (apps, add-ons, cluster services, connection info) |
+| POST | `/api/notifications/test` | send a sample notification email now (the Environment page's button) |
 | POST | `/api/dns/sync` | re-create every app's DNS records now |
 | POST | `/api/propose` | detect a repo and return a proposed `rendimiento.yaml` + Dockerfile |
 | GET | `/api/namespaces/{name}/migration` | what already exists in a namespace (for adopting existing workloads) |

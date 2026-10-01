@@ -392,6 +392,7 @@ export interface EnvReport {
 export const envApi = {
   report: (refresh = false) => request<EnvReport>("GET", `/api/environment${refresh ? "?refresh=1" : ""}`),
   dnsSync: () => request<{ ip: string; changed: boolean; updated: string[] | null }>("POST", "/api/dns/sync"),
+  testEmail: () => request<{ sent: boolean; to: string[] }>("POST", "/api/notifications/test"),
 };
 
 // ---- services catalog ----

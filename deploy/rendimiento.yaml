@@ -39,6 +39,10 @@ data:
   GPU_HOST_PATHS: /usr/lib/aarch64-linux-gnu/nvidia
   GPU_ENV: NVIDIA_VISIBLE_DEVICES=all;NVIDIA_DRIVER_CAPABILITIES=all;LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu/nvidia:/usr/local/cuda/lib64
   GPU_SHARED_MEMORY: 1Gi
+  # Failed builds, rolled-back releases, outages and recoveries are emailed
+  # here, through Resend (RESEND_API_KEY in the rendimiento-notify secret).
+  NOTIFY_EMAIL_TO: jose0797@gmail.com
+  NOTIFY_EMAIL_FROM: rendimiento <alerts@joserod.space>
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -63,6 +67,8 @@ spec:
             - configMapRef: { name: rendimiento }
             # CLOUDFLARE_API_TOKEN and DNS_TARGET; optional until DNS automation is wanted.
             - secretRef: { name: rendimiento-dns, optional: true }
+            # RESEND_API_KEY for notification emails; optional (no email without it).
+            - secretRef: { name: rendimiento-notify, optional: true }
           env:
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: rendimiento-db, key: password } }

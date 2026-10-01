@@ -37,6 +37,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/events"
 	"github.com/p0dxD/rendimiento.ai/internal/generate"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
@@ -258,6 +259,19 @@ func run(log *slog.Logger) error {
 		prober = &uptime.Prober{Store: st, Checker: checker, Interval: every, Log: log.With("component", "uptime")}
 		uptime.Register(ctrlmetrics.Registry)
 	}
+	// Email notifications: failed runs, rollbacks, outages, recoveries.
+	notifier := &notify.Notifier{To: splitList(os.Getenv("NOTIFY_EMAIL_TO")), Log: log.With("component", "notify")}
+	if key := os.Getenv("RESEND_API_KEY"); key != "" {
+		notifier.Sender = &notify.Resend{APIKey: key, From: env("NOTIFY_EMAIL_FROM", "rendimiento <alerts@joserod.space>")}
+	}
+	p.Notify = notifier
+	if prober != nil {
+		prober.Notify, prober.BaseURL = notifier, baseURL
+	}
+	srv.Notify = notifier
+	srv.Environment.Config.NotifyTo, srv.Environment.Config.NotifyReady = notifier.To, notifier.Enabled()
+	log.Info("email notifications", "enabled", notifier.Enabled(), "to", notifier.To)
+
 	// Release verification: watch each new release, roll back a broken one.
 	verifyWindow, err := time.ParseDuration(env("VERIFY_WINDOW", "5m"))
 	if err != nil || (verifyWindow != 0 && verifyWindow < time.Minute) {

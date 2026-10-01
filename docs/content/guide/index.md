@@ -7,6 +7,7 @@ How to use rendimiento's features, one chapter per area:
 - **[Builds and tests](builds.md)**: Dockerfile or Railpack, tests, what gets rebuilt, and when.
 - **[Tasks: commands in CI](tasks.md)**: mobile builds, smoke tests and scripts as CI steps, with secrets.
 - **[Reliability](reliability.md)**: uptime checks of every service, charted: uptime, response times, outages, releases.
+- **[Notifications](notifications.md)**: emails about failed builds, rolled-back releases, outages and recoveries.
 - **[Needs and the services catalog](needs.md)**: databases, caches and other services, wired in without configuration.
 - **[Add-ons](addons.md)**: installing and adopting cluster software from Helm charts and git.
 - **[Renovate](renovate.md)**: dependency updates.
