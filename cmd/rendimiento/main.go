@@ -269,6 +269,9 @@ func run(log *slog.Logger) error {
 		prober.Notify, prober.BaseURL = notifier, baseURL
 	}
 	srv.Notify = notifier
+	srv.PublicStats = env("PUBLIC_STATS", "false") == "true"
+	srv.PublicOrigins = splitList(os.Getenv("PUBLIC_STATS_ORIGINS"))
+	srv.PublicTimeZone = env("PUBLIC_STATS_TZ", "UTC")
 	srv.Environment.Config.NotifyTo, srv.Environment.Config.NotifyReady = notifier.To, notifier.Enabled()
 	log.Info("email notifications", "enabled", notifier.Enabled(), "to", notifier.To)
 

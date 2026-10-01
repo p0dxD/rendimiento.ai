@@ -11,16 +11,16 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 341 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 344 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/api`](#internal-api) | 7 | 2116 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 8 | 2282 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 885 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2733 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 428 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
 | [`internal/dns`](#internal-dns) | 4 | 768 | Package dns manages the public DNS record for each app domain. |
-| [`internal/environment`](#internal-environment) | 4 | 1316 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
+| [`internal/environment`](#internal-environment) | 4 | 1320 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
 | [`internal/events`](#internal-events) | 2 | 80 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 278 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1164 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
@@ -30,7 +30,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/render`](#internal-render) | 3 | 1160 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
 | [`internal/spec`](#internal-spec) | 2 | 1573 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 5 | 1496 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/store`](#internal-store) | 7 | 1779 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/uptime`](#internal-uptime) | 2 | 634 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
@@ -92,7 +92,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>332 lines</small>
+<small>335 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -271,6 +271,20 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 |---|---|---|
 | `(*Server) testNotification` | method | testNotification sends a sample email now, so the setup can be checked from the Environment page. |
 
+### `internal/api/public.go`
+
+<small>137 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `PublicStats` | struct | PublicStats is what GET /api/public/stats returns: aggregate numbers for a public page (a portfolio, a status page). |
+| `publicSite` | struct |  |
+| `publicNode` | struct |  |
+| `publicCluster` | struct |  |
+| `publicCache` | struct | publicCache keeps the last answer for a minute, so visitors cannot make the platform recompute it on every page view. |
+| `(*Server) publicStats` | method | publicStats serves PublicStats when PublicStats is on (no login needed). |
+| `(*Server) buildPublicStats` | method |  |
+
 ### `internal/api/reliability.go`
 
 <small>77 lines</small>
@@ -283,7 +297,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1082 lines</small>
+<small>1090 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -347,7 +361,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server_test.go`
 
-<small>279 lines · tests</small>
+<small>300 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -358,6 +372,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `TestUIFallback` | func |  |
 | `TestJSONStatusKeepsContentType` | func | Regression: 201 responses were sent without Content-Type because the header was set after WriteHeader, and the UI then read them as text. |
 | `TestMigrationCheckByName` | func |  |
+| `TestPublicStats` | func | Public stats are off unless turned on, need no login when on, allow only the configured origins, and say nothing private. |
 
 ## `internal/catalog` {#internal-catalog}
 
@@ -673,7 +688,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 
 ### `internal/environment/cluster.go`
 
-<small>254 lines</small>
+<small>257 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -686,7 +701,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 
 ### `internal/environment/environment.go`
 
-<small>275 lines</small>
+<small>276 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1381,6 +1396,21 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) GetAddonRun` | method | GetAddonRun returns one run with its log. |
 | `prefixed` | func | prefixed qualifies a column list with a table alias ("a.id, a.name"). |
 
+### `internal/store/stats.go`
+
+<small>201 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `DeliveryStats` | struct | DeliveryStats summarize how the platform shipped over a period: the public stats page's headline numbers. |
+| `Count` | struct | Count is a number for a day. |
+| `(*Store) Delivery` | method | Delivery computes DeliveryStats for the days since `days` ago, with days counted in time zone tz (an IANA name). |
+| `SiteStats` | struct | SiteStats is the public view of one app's public URL check. |
+| `DayRatio` | struct | DayRatio is a day's share of successful checks (nil: no checks that day). |
+| `(*Store) PublicSites` | method | PublicSites returns every public URL check with its uptime over 24 hours and 30 days, its typical response time and its daily uptime for `days` days (days counted in time zone tz). |
+| `ReleaseEvent` | struct | ReleaseEvent is one release, for the public activity feed. |
+| `(*Store) RecentReleases` | method | RecentReleases lists the newest releases across all apps. |
+
 ### `internal/store/store.go`
 
 <small>573 lines</small>
@@ -1453,6 +1483,14 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) UptimeSummary` | method | UptimeSummary is the share of successful checks per app since a time: the dashboard's uptime badges. |
 | `CheckStats` | struct | CheckStats summarizes one check's results over a period. |
 | `(*Store) ProbeStats` | method | ProbeStats summarizes an app's checks in [from, to), per service and check kind: the baseline a new release is compared with. |
+
+### `internal/store/stats_test.go`
+
+<small>82 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestDeliveryAndPublicStats` | func |  |
 
 ### `internal/store/store_test.go`
 

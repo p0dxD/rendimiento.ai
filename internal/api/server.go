@@ -60,16 +60,23 @@ type Server struct {
 	Log         *slog.Logger
 	BaseURL     string // https://rendimiento.joserod.space
 	// Notify sends notification emails (the test email; nil when off).
-	Notify       *notify.Notifier
-	AllowedUsers []string // GitHub logins allowed to sign in
-	SetupToken   string   // guards the one-time GitHub App setup
-	AppName      string   // name for the GitHub App, e.g. "rendimiento-joserod"
-	GitHubAPI    string   // overridden in tests
-	UI           fs.FS    // built web UI; nil serves a placeholder
-	Environment  *environment.Checker
-	Catalog      *catalog.Builder
-	Renovate     *renovate.Runner
-	Addons       *addon.Syncer
+	Notify *notify.Notifier
+	// PublicStats serves GET /api/public/stats without login, for a public
+	// page; PublicOrigins may fetch it from browsers; PublicTimeZone counts
+	// its days (an IANA name, default UTC).
+	PublicStats    bool
+	PublicOrigins  []string
+	PublicTimeZone string
+	public         publicCache
+	AllowedUsers   []string // GitHub logins allowed to sign in
+	SetupToken     string   // guards the one-time GitHub App setup
+	AppName        string   // name for the GitHub App, e.g. "rendimiento-joserod"
+	GitHubAPI      string   // overridden in tests
+	UI             fs.FS    // built web UI; nil serves a placeholder
+	Environment    *environment.Checker
+	Catalog        *catalog.Builder
+	Renovate       *renovate.Runner
+	Addons         *addon.Syncer
 }
 
 const sessionCookie = "rendimiento_session"
@@ -82,6 +89,7 @@ func (s *Server) Handler() http.Handler {
 
 	// Public endpoints.
 	mux.HandleFunc("POST /api/webhooks/github", s.webhook)
+	mux.HandleFunc("GET /api/public/stats", s.publicStats)
 	mux.HandleFunc("GET /api/auth/login", s.login)
 	mux.HandleFunc("GET /api/auth/callback", s.callback)
 	mux.HandleFunc("POST /api/auth/logout", s.logout)

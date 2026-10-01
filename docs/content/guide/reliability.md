@@ -97,6 +97,19 @@ verify:
 
 The platform-wide window is `VERIFY_WINDOW` (default `5m`, `0` turns verification off). Verification runs on the leader. If the platform restarts mid-window, the release is watched again from the start, unless a newer one replaced it.
 
+## Public stats
+
+With `PUBLIC_STATS=true`, rendimiento publishes **aggregate numbers** at `GET /api/public/stats`, without login, for a public page. [joserod.space](https://joserod.space/#live) uses it for its *Live from the Home Lab* section, fetched server-side over the cluster network (`http://rendimiento.rendimiento-system.svc.cluster.local/api/public/stats`).
+
+| Part | Contents |
+|---|---|
+| `delivery30d` | deploys, builds and their success, typical build time and push-to-live time, verified and failed releases, automatic rollbacks, outages and mean recovery, deploys per day |
+| `sites` | every public URL check: up now, uptime over 24 h and 30 days, typical response time, daily uptime for 90 days, hourly for 48 hours |
+| `cluster` | distribution and version, pods, apps, and per node its role, architecture, CPU and memory (capacity and live use), pods and GPUs |
+| `recent` | the latest releases: app, number, time, verification result, whether it was an automatic rollback |
+
+It contains no IP addresses, internal hostnames, secrets, commit messages or authors. It's computed at most once a minute, and served with `Cache-Control: max-age=60`, so visitors can't make the platform recompute it. Browsers on `PUBLIC_STATS_ORIGINS` may fetch it directly.
+
 ## Where the data lives
 
 Results are kept in rendimiento's own Postgres, so it works without any monitoring stack:

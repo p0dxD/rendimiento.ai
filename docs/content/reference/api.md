@@ -11,6 +11,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | Method | Path | Does |
 |---|---|---|
 | GET | `/healthz` | `ok`; readiness and liveness probes |
+| GET | `/api/public/stats` | aggregate numbers for a public page; only with `PUBLIC_STATS=true`, cached a minute ([what it contains](../guide/reliability.md#public-stats)) |
 | POST | `/api/webhooks/github` | GitHub App webhooks (push, pull request, installation), verified by HMAC |
 | GET | `/api/auth/login` | redirects to GitHub OAuth |
 | GET | `/api/auth/callback` | OAuth callback; creates the session |

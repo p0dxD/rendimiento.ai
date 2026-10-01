@@ -277,3 +277,24 @@ func TestMigrationCheckByName(t *testing.T) {
 		t.Fatalf("existing namespace: %d %s", r.StatusCode, body)
 	}
 }
+
+// Public stats are off unless turned on, need no login when on, allow only
+// the configured origins, and say nothing private.
+func TestPublicStats(t *testing.T) {
+	e := newEnv(t, false)
+	if resp, _ := e.do(t, "GET", "/api/public/stats", "", nil, nil); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("off: %d", resp.StatusCode)
+	}
+	e.s.PublicStats, e.s.PublicOrigins, e.s.PublicTimeZone = true, []string{"https://joserod.space"}, "America/New_York"
+	resp, body := e.do(t, "GET", "/api/public/stats", "", nil, map[string]string{"Origin": "https://joserod.space"})
+	if resp.StatusCode != 200 || resp.Header.Get("Access-Control-Allow-Origin") != "https://joserod.space" {
+		t.Fatalf("on: %d %q", resp.StatusCode, resp.Header.Get("Access-Control-Allow-Origin"))
+	}
+	var st PublicStats
+	if err := json.Unmarshal([]byte(body), &st); err != nil || st.Delivery == nil || st.TimeZone != "America/New_York" || st.Sites == nil {
+		t.Fatalf("body = %s (%v)", body, err)
+	}
+	if resp, _ := e.do(t, "GET", "/api/public/stats", "", nil, map[string]string{"Origin": "https://evil.example"}); resp.Header.Get("Access-Control-Allow-Origin") != "" {
+		t.Fatal("an unlisted origin was allowed")
+	}
+}

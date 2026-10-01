@@ -78,6 +78,14 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 | `NOTIFY_EMAIL_FROM` | `rendimiento <alerts@joserod.space>` | | the sender; must be on a Resend-verified domain |
 | `RESEND_API_KEY` | — | from Secret `rendimiento-notify` | the Resend API key |
 
+## Public stats
+
+| Variable | Default | This cluster | Meaning |
+|---|---|---|---|
+| `PUBLIC_STATS` | `false` | `true` | serve [`GET /api/public/stats`](../guide/reliability.md#public-stats) without login |
+| `PUBLIC_STATS_ORIGINS` | *(none)* | `https://joserod.space,https://www.joserod.space` | browser origins allowed to fetch it (CORS) |
+| `PUBLIC_STATS_TZ` | `UTC` | `America/New_York` | the time zone its days are counted in |
+
 ## Add-ons
 
 | Variable | Default | Meaning |
