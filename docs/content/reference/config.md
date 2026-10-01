@@ -63,6 +63,12 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 | `DNS_PROXIED` | `false` | create records behind Cloudflare's proxy (`true` here) |
 | `DDNS_INTERVAL` | `5m` | how often dynamic DNS checks the public IP (≥ 1m) |
 
+## Uptime checks
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `UPTIME_INTERVAL` | `1m` | How often every service is checked ([Reliability](../guide/reliability.md)); `0` turns checks off. At least `10s`. |
+
 ## Add-ons
 
 | Variable | Default | Meaning |

@@ -225,3 +225,56 @@ ul.reasons { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size
 .addon-repos .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 textarea.code { width: 100%; min-height: 280px; font-family: var(--mono); font-size: 12.5px; }
 .addon-h { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 8px 0 8px; }
+
+/* ---- reliability charts ----
+   Series hues are the validated reference palette (slots 1-2, checked
+   against this UI's surfaces in both themes); status colors are reserved
+   for state and always come with a label. */
+:root {
+  --viz-series-1: #2a78d6;  /* p95 */
+  --viz-series-2: #eb6834;  /* p50 */
+  --viz-good: #0ca30c;
+  --viz-warning: #fab219;
+  --viz-critical: #d03b3b;
+  --viz-nodata: #e1e0d9;
+  --viz-grid: #ecebe6;
+  --viz-axis: #c3c2b7;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --viz-series-1: #3987e5;
+    --viz-series-2: #d95926;
+    --viz-nodata: #2c2c2a;
+    --viz-grid: #23232a;
+    --viz-axis: #383835;
+  }
+}
+.rel-filters { display: flex; gap: 6px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.rel-filters button[aria-pressed="true"] { background: var(--text); color: var(--surface); border-color: var(--text); }
+.rel-filters.loading ~ * { opacity: 0.6; transition: opacity 0.2s; }
+.rel-check h3 { margin: 0; font-size: 15px; }
+.rel-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin: 14px 0; }
+.rel-tile .label { font-size: 12px; color: var(--muted); }
+.rel-tile .value { font-size: 22px; font-weight: 600; line-height: 1.25; }
+.rel-tile .note { font-size: 12px; color: var(--muted); }
+.rel-strip { display: flex; gap: 2px; height: 28px; align-items: stretch; }
+.rel-strip > span { flex: 1; min-width: 1px; border-radius: 2px; }
+.rel-strip > span:hover { filter: brightness(1.15); outline: 1px solid var(--text); outline-offset: 1px; }
+.rel-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.rel-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+.rel-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.rel-legend i.line { width: 14px; height: 2px; border-radius: 1px; vertical-align: 3px; }
+.rel-chart { position: relative; }
+.rel-chart svg { display: block; width: 100%; overflow: visible; }
+.rel-chart text { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.rel-tip {
+  position: absolute; pointer-events: none; z-index: 3; min-width: 150px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); padding: 8px 10px; font-size: 12px;
+}
+.rel-tip .when { color: var(--muted); margin-bottom: 4px; }
+.rel-tip .row { gap: 6px; flex-wrap: nowrap; }
+.rel-tip strong { font-variant-numeric: tabular-nums; }
+.rel-tip i { display: inline-block; width: 12px; height: 2px; border-radius: 1px; }
+.rel-check details { margin-top: 10px; }
+.rel-check details table td, .rel-check details table th { padding: 4px 8px; font-size: 12px; font-variant-numeric: tabular-nums; }

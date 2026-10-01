@@ -125,6 +125,7 @@ func (s *Server) Handler() http.Handler {
 	auth("GET /api/apps/{app}/runs", s.listRuns)
 	auth("POST /api/apps/{app}/runs", s.triggerRun)
 	auth("GET /api/apps/{app}/releases", s.listReleases)
+	auth("GET /api/apps/{app}/reliability", s.reliability)
 	auth("POST /api/apps/{app}/rollback", s.rollback)
 	auth("GET /api/apps/{app}/resources", s.resources)
 	auth("PUT /api/apps/{app}/secrets/{secret}", s.putSecret)
@@ -525,6 +526,9 @@ type appView struct {
 	Status    v1alpha1.AppStatus `json:"status"`
 	LastRun   *store.Run         `json:"lastRun,omitempty"`
 	Suspended bool               `json:"suspended"`
+	// Uptime24h is the share of successful uptime checks in the last 24
+	// hours (absent before the first check).
+	Uptime24h *float64 `json:"uptime24h,omitempty"`
 }
 
 func (s *Server) view(ctx context.Context, a *store.App) appView {
@@ -545,9 +549,18 @@ func (s *Server) listApps(w http.ResponseWriter, r *http.Request, _ string) {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	uptime, err := s.Store.UptimeSummary(r.Context(), time.Now().Add(-24*time.Hour))
+	if err != nil {
+		s.Log.Warn("uptime summary", "err", err) // the list is still useful without it
+	}
 	out := make([]appView, 0, len(apps))
 	for _, a := range apps {
-		out = append(out, s.view(r.Context(), a))
+		v := s.view(r.Context(), a)
+		if u := uptime[a.ID]; u.Total > 0 {
+			ratio := float64(u.OK) / float64(u.Total)
+			v.Uptime24h = &ratio
+		}
+		out = append(out, v)
 	}
 	writeJSON(w, out)
 }

@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { api, envApi, timeAgo } from "../api";
 import { ErrorBox, PhaseBadge, RunBadge, usePoll } from "../components/ui";
+import { fmtPct } from "../components/reliability";
 
 export function Dashboard() {
   const { data: apps, error } = usePoll(api.apps, [], 10000);
@@ -39,6 +40,11 @@ export function Dashboard() {
                 <strong style={{ fontSize: 16 }}>{a.name}</strong>
                 <PhaseBadge status={a.status} />
               </div>
+              {a.uptime24h !== undefined && (
+                <div className="small muted" title="Share of successful uptime checks in the last 24 hours">
+                  <span className={`badge ${a.uptime24h >= 0.999 ? "ok" : a.uptime24h >= 0.98 ? "warn" : "bad"}`}>{fmtPct(Math.round(a.uptime24h * 100000), 100000)} up</span> last 24 h
+                </div>
+              )}
               <div className="small muted">{a.repo} · {a.spec.services.length} service{a.spec.services.length > 1 ? "s" : ""}
                 {a.status.release ? ` · release #${a.status.release}` : ""}</div>
               {urls.map((s) => (

@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo } from "../api";
 import { ErrorBox, PhaseBadge, ResourceTree, RunBadge, Switch, usePoll } from "../components/ui";
+import { ReliabilityTab } from "../components/reliability";
 
 const tabs = [
   { id: "", label: "Overview" },
   { id: "runs", label: "Runs" },
   { id: "releases", label: "Releases" },
+  { id: "reliability", label: "Reliability" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -45,6 +47,7 @@ export function AppPage() {
       {tab === "" && <Overview name={name} app={app} />}
       {tab === "runs" && <Runs name={name} />}
       {tab === "releases" && <Releases name={name} current={app.status.release} />}
+      {tab === "reliability" && <ReliabilityTab app={app} />}
       {tab === "settings" && <Settings name={name} secrets={appSecretNames(app.spec)} />}
     </>
   );
