@@ -265,7 +265,7 @@ func TestOnboardPushDeployRollback(t *testing.T) {
 		return kube.Get(ctx, client.ObjectKey{Namespace: "hello", Name: "hello"}, &d) == nil &&
 			strings.HasSuffix(d.Spec.Template.Spec.Containers[0].Image, "@sha256:aaaaaaaa")
 	})
-	if log, _ := p.Store.StepLog(ctx, runs[0].ID, "hello:build"); log != "running hello:build\n" {
+	if log, _, _ := p.Store.StepLog(ctx, runs[0].ID, "hello:build"); log != "running hello:build\n" {
 		t.Fatalf("log = %q", log)
 	}
 	if c := fake.checks[1]; c.Conclusion != "success" {

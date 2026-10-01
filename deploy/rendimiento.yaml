@@ -48,6 +48,12 @@ data:
   PUBLIC_STATS: "true"
   PUBLIC_STATS_ORIGINS: https://joserod.space,https://www.joserod.space
   PUBLIC_STATS_TZ: America/New_York
+  # Finished runs' step logs move to MinIO (gzip), which deletes them after
+  # LOG_RETENTION_DAYS. Credentials: the rendimiento-logs secret (a MinIO
+  # user that can only use this bucket).
+  LOG_ARCHIVE_ENDPOINT: minio-api.minio.svc.cluster.local:9000
+  LOG_ARCHIVE_BUCKET: rendimiento-logs
+  LOG_RETENTION_DAYS: "365"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -74,6 +80,8 @@ spec:
             - secretRef: { name: rendimiento-dns, optional: true }
             # RESEND_API_KEY for notification emails; optional (no email without it).
             - secretRef: { name: rendimiento-notify, optional: true }
+            # LOG_ARCHIVE_ACCESS_KEY / LOG_ARCHIVE_SECRET_KEY for the log archive.
+            - secretRef: { name: rendimiento-logs, optional: true }
           env:
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: rendimiento-db, key: password } }

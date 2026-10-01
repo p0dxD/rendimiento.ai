@@ -39,6 +39,7 @@ func (c *Checker) checks(s *snapshot) []checkFunc {
 		c.checkBuildIsolation,
 		c.checkDNS,
 		c.checkNotifications,
+		c.checkLogArchive,
 		c.checkGitHub,
 		c.checkDatabase,
 	}
@@ -435,6 +436,24 @@ func (c *Checker) checkDNS(ctx context.Context) Check {
 	default:
 		ch.Status = Error
 		ch.Fix = "Replace the token in the rendimiento-dns secret (Zone:Read + DNS:Edit) and restart the platform."
+	}
+	return ch
+}
+
+func (c *Checker) checkLogArchive(ctx context.Context) Check {
+	ch := Check{ID: "log-archive", Name: "Log archive", Category: CatIntegrations}
+	if c.Config.LogArchive == nil {
+		ch.Status, ch.Summary = Warning, "off: build logs stay in Postgres forever"
+		ch.Fix = "Set LOG_ARCHIVE_ENDPOINT (an S3/MinIO host:port) in the rendimiento ConfigMap and LOG_ARCHIVE_ACCESS_KEY/LOG_ARCHIVE_SECRET_KEY in the rendimiento-logs secret, then restart the platform."
+		return ch
+	}
+	ok, summary := c.Config.LogArchive(ctx)
+	ch.Summary = summary
+	if ok {
+		ch.Status = OK
+	} else {
+		ch.Status = Error
+		ch.Fix = "Check that the bucket exists and the rendimiento-logs credentials can read and write it."
 	}
 	return ch
 }

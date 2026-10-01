@@ -169,6 +169,8 @@ type Config struct {
 	// when they and an email provider are configured.
 	NotifyTo    []string
 	NotifyReady bool
+	// LogArchive describes the step log archive (nil: not configured).
+	LogArchive func(ctx context.Context) (ok bool, summary string)
 }
 
 // Pinger is satisfied by the store.

@@ -160,7 +160,29 @@ The [uptime checks](../guide/reliability.md) write one row per check to `probes`
 
 ### Logs
 
-Each step's log is a text column, appended in chunks (`right(log || chunk, 1 MiB)`): the head is dropped past 1 MiB and the tail, where errors are, is kept. Add-on run logs are stored the same way, truncated in the middle past 512 KiB.
+While a run is going, each step's log is a text column, appended in chunks (`right(log || chunk, 1 MiB)`). Past 1 MiB the head is dropped and the tail, where errors are, is kept. Add-on run logs are stored the same way, truncated in the middle past 512 KiB.
+
+### The log archive
+
+Once a run has been finished for 2 minutes, its step logs **move to object storage**. The `logarchive.Archive` sweeper runs every 5 minutes on the leader:
+
+```mermaid
+flowchart LR
+    pg[(steps.log<br/>Postgres)] -- finished run --> sweep[sweeper<br/>every 5 min]
+    sweep -- gzip --> minio[(MinIO<br/>rendimiento-logs/runs/app/run/step.log.gz)]
+    sweep -- "log = '', log_ref = key" --> pg
+    ui[run page] -- GET …/log --> api[API]
+    api -- log_ref set --> minio
+    minio -. lifecycle rule .-> gone[deleted after<br/>LOG_RETENTION_DAYS]
+```
+
+- **Compressed:** logs are gzip'd at the highest level; build logs shrink about 10–20×.
+- **Safe:** the column is emptied only after the upload succeeded, and only if the log didn't change meanwhile. A sweep that fails (MinIO down) is retried on the next one, and nothing is lost.
+- **Transparent:** the UI asks the API for a log as before. The API reads it from MinIO when `log_ref` is set, and says so plainly when the log has expired or the archive can't be reached.
+- **Rotated:** at startup the platform sets a **lifecycle rule** on the bucket, *delete objects under `runs/` after `LOG_RETENTION_DAYS`* (365). MinIO does the deleting, so storage stays bounded with no job to run.
+- **Least privilege:** the platform uses its own MinIO user, `rendimiento-logs`, whose policy allows only this bucket.
+
+The Environment page's *Log archive* check shows how many logs are archived, their size, how many are waiting, and the retention.
 
 ## Kubernetes objects
 
