@@ -64,6 +64,7 @@ tasks:
 | `services` | list | **required** | The app's services (at least one). |
 | `jobs` | list | none | Scheduled jobs (CronJobs). |
 | `tasks` | list | none | Commands run as CI steps ([Tasks](tasks.md)). |
+| `verify` | object | on, 5 min, rollback | How each release is verified after it goes live: `window` (seconds, 60–3600), `rollback` (`false` only reports), `disabled` ([Reliability](reliability.md#verifying-each-release)). |
 | `sharedNamespace` | bool | `false` | The app's namespace is owned by something else (e.g. ArgoCD): it must exist, and rendimiento never creates, labels, owns or deletes it. |
 | `postgres` | object | see [needs](#postgres-and-redis) | Settings for `needs: [postgres]`. |
 | `redis` | object | see [needs](#postgres-and-redis) | Settings for `needs: [redis]`. |

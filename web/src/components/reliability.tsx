@@ -263,7 +263,7 @@ function LatencyChart({ data, series }: { data: Reliability; series: UptimeSerie
       { key: "var(--viz-series-1)", value: fmtMs(h.b.p95Ms), label: "p95" },
       { key: "var(--viz-series-2)", value: fmtMs(h.b.p50Ms), label: "p50" },
       { value: fmtPct(h.b.ok, h.b.total), label: `up (${h.b.total} checks)` },
-      ...relsIn.map((r) => ({ value: `#${r.number}`, label: r.rollbackOf ? `rollback to #${r.rollbackOf}` : "released" })),
+      ...relsIn.map((r) => ({ value: `#${r.number}`, label: r.rollbackOf ? `rollback to #${r.rollbackOf}` : r.verifyStatus === "failed" ? "released, failed verification, rolled back" : "released" })),
     ] : [{ value: h.b ? "All checks failed" : "No checks", label: "" }],
   } : null;
 
@@ -299,7 +299,7 @@ function LatencyChart({ data, series }: { data: Reliability; series: UptimeSerie
           return (
             <g key={r.number}>
               <line x1={rx} x2={rx} y1={T - 4} y2={H - B} stroke="var(--muted)" strokeWidth={1} opacity={0.6} />
-              <text x={rx} y={T - 7} textAnchor="middle">#{r.number}</text>
+              <text x={rx} y={T - 7} textAnchor="middle">#{r.number}{r.verifyStatus === "failed" ? " ✕" : ""}</text>
             </g>
           );
         })}

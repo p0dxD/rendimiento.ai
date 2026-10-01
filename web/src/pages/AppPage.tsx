@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo } from "../api";
+import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo, type Release } from "../api";
 import { ErrorBox, PhaseBadge, ResourceTree, RunBadge, Switch, usePoll } from "../components/ui";
 import { ReliabilityTab } from "../components/reliability";
 
@@ -39,6 +39,7 @@ export function AppPage() {
       {app.status.message && app.status.phase !== "Healthy" && (
         <div className={`alert ${app.status.phase === "Error" || app.status.phase === "Degraded" ? "" : "info"}`} style={{ marginTop: 12 }}>{app.status.message}</div>
       )}
+      <VerificationBanner name={name} />
       <nav className="tabs">
         {tabs.map((t) => (
           <Link key={t.id} to={`/apps/${name}${t.id ? "/" + t.id : ""}`} className={tab === t.id ? "active" : ""}>{t.label}</Link>
@@ -259,7 +260,11 @@ function Releases({ name, current }: { name: string; current?: number }) {
                 <strong>Release #{r.number}</strong>
                 {r.number === current && <span className="badge ok">live</span>}
                 {r.rollbackOf && <span className="badge warn">rollback to #{r.rollbackOf}</span>}
+                <VerifyBadge r={r} />
               </div>
+              {r.verifyMessage && r.verifyStatus !== "skipped" && r.verifyStatus !== "superseded" && (
+                <div className="small" style={{ color: r.verifyStatus === "failed" || r.verifyStatus === "failed-kept" ? "var(--bad)" : "var(--muted)" }}>{r.verifyMessage}</div>
+              )}
               <div className="small muted">
                 <span className="mono">{r.sha.slice(0, 7)}</span> · {timeAgo(r.createdAt)}
                 {r.runId && <> · <Link to={`/apps/${name}/runs/${r.runId}`}>run #{r.runId}</Link></>}
@@ -273,6 +278,36 @@ function Releases({ name, current }: { name: string; current?: number }) {
       </ul>
     </>
   );
+}
+
+const verifyBadge: Record<string, [string, string]> = {
+  verifying: ["live", "Verifying…"],
+  passed: ["ok", "Verified"],
+  failed: ["bad", "Failed · rolled back"],
+  "failed-kept": ["bad", "Failed verification"],
+  superseded: ["", "Not verified: replaced"],
+};
+
+/** What release verification concluded, with its message on hover. */
+function VerifyBadge({ r }: { r: Release }) {
+  const b = r.verifyStatus ? verifyBadge[r.verifyStatus] : undefined;
+  if (!b) return null;
+  return <span className={`badge ${b[0]}`} title={r.verifyMessage}>{b[1]}</span>;
+}
+
+/** A banner while the newest release is verified, or after it was rolled back. */
+function VerificationBanner({ name }: { name: string }) {
+  const { data: rels } = usePoll(() => api.releases(name), [name], 10000);
+  const newest = rels?.find((r) => !r.rollbackOf);
+  if (!newest) return null;
+  if (newest.verifyStatus === "verifying") {
+    return <div className="alert info" style={{ marginTop: 12 }}>Verifying release #{newest.number}: {newest.verifyMessage}. It is rolled back automatically if it breaks a service.</div>;
+  }
+  const recent = newest.verifiedAt && Date.now() - new Date(newest.verifiedAt).getTime() < 24 * 3600 * 1000;
+  if (recent && (newest.verifyStatus === "failed" || newest.verifyStatus === "failed-kept")) {
+    return <div className="alert" style={{ marginTop: 12 }}>Release #{newest.number} failed verification: {newest.verifyMessage}</div>;
+  }
+  return null;
 }
 
 function Settings({ name, secrets }: { name: string; secrets: string[] }) {

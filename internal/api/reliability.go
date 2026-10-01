@@ -20,6 +20,8 @@ type releaseMark struct {
 	At         time.Time `json:"at"`
 	SHA        string    `json:"sha"`
 	RollbackOf *int64    `json:"rollbackOf,omitempty"`
+	// VerifyStatus is what release verification concluded.
+	VerifyStatus string `json:"verifyStatus,omitempty"`
 }
 
 type reliabilityView struct {
@@ -67,7 +69,7 @@ func (s *Server) reliability(w http.ResponseWriter, r *http.Request, _ string) {
 	marks := []releaseMark{}
 	for _, rel := range rels {
 		if rel.CreatedAt.After(since) {
-			marks = append(marks, releaseMark{Number: rel.Number, At: rel.CreatedAt, SHA: rel.SHA, RollbackOf: rel.RollbackOf})
+			marks = append(marks, releaseMark{Number: rel.Number, At: rel.CreatedAt, SHA: rel.SHA, RollbackOf: rel.RollbackOf, VerifyStatus: rel.VerifyStatus})
 		}
 	}
 	writeJSON(w, reliabilityView{Range: name, Since: since, BucketSec: int(rg.bucket.Seconds()),

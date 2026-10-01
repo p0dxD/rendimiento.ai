@@ -256,3 +256,32 @@ func (s *Store) UptimeSummary(ctx context.Context, since time.Time) (map[int64]U
 	}
 	return out, rows.Err()
 }
+
+// CheckStats summarizes one check's results over a period.
+type CheckStats struct {
+	Total int
+	OK    int
+	P95MS int // of successful checks
+}
+
+// ProbeStats summarizes an app's checks in [from, to), per service and
+// check kind: the baseline a new release is compared with.
+func (s *Store) ProbeStats(ctx context.Context, appID int64, from, to time.Time) (map[[2]string]CheckStats, error) {
+	rows, err := s.pool.Query(ctx, `SELECT service, kind, count(*), count(*) FILTER (WHERE ok),
+		COALESCE(percentile_disc(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE ok), 0)
+		FROM probes WHERE app_id = $1 AND at >= $2 AND at < $3 GROUP BY 1, 2`, appID, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[[2]string]CheckStats{}
+	for rows.Next() {
+		var service, kind string
+		var st CheckStats
+		if err := rows.Scan(&service, &kind, &st.Total, &st.OK, &st.P95MS); err != nil {
+			return nil, err
+		}
+		out[[2]string{service, kind}] = st
+	}
+	return out, rows.Err()
+}

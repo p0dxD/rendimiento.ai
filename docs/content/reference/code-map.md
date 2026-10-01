@@ -11,11 +11,11 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 319 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 327 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/api`](#internal-api) | 6 | 2082 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 6 | 2084 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 885 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2733 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 428 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
@@ -25,12 +25,12 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/generate`](#internal-generate) | 2 | 278 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1164 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
 | [`internal/pipeline`](#internal-pipeline) | 7 | 1577 | Package pipeline plans and executes CI runs. |
-| [`internal/platform`](#internal-platform) | 3 | 1624 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
+| [`internal/platform`](#internal-platform) | 5 | 2196 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/render`](#internal-render) | 3 | 1160 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
-| [`internal/spec`](#internal-spec) | 2 | 1551 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 5 | 1425 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
-| [`internal/uptime`](#internal-uptime) | 2 | 506 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
+| [`internal/spec`](#internal-spec) | 2 | 1573 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
+| [`internal/store`](#internal-store) | 5 | 1496 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/uptime`](#internal-uptime) | 2 | 520 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
 
@@ -91,7 +91,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>310 lines</small>
+<small>318 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -264,7 +264,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/reliability.go`
 
-<small>75 lines</small>
+<small>77 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1002,7 +1002,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/platform.go`
 
-<small>897 lines</small>
+<small>913 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1035,7 +1035,8 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `touched` | func | touched reports whether any of files is under dir or a watched path. |
 | `reusable` | func | reusable decides which built services and jobs can keep the image from the latest release because nothing they are built from changed since. |
 | `skippedTasks` | func | skippedTasks returns the task steps that do not run this time, with why: deploy-only tasks on branch and pull request runs (they may read secrets), and tasks whose path and watch paths are unchanged since the latest release. |
-| `(*Platform) Rollback` | method | Rollback creates a new release that restores an earlier one's images and spec. |
+| `(*Platform) Rollback` | method | Rollback creates a new release that restores an earlier one's images and spec (the Rollback button). |
+| `(*Platform) rollbackTo` | method | rollbackTo releases an earlier release's images and spec again, as a new release whose verification is recorded as skipped with note. |
 | `(*Platform) pointApp` | method | pointApp writes the release into the App object; the controller does the rest. |
 | `(*Platform) startCheck` | method |  |
 | `(*Platform) finishCheck` | method |  |
@@ -1061,6 +1062,30 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `(*logWriter) flushLoop` | method |  |
 | `(*logWriter) Close` | method | Close flushes what is left. |
 
+### `internal/platform/verify.go`
+
+<small>399 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `VerifySettings` | struct | VerifySettings configure release verification: after a release is live, its services are checked for Window; a release that breaks a service that worked before it is rolled back to the last good release. |
+| `RolloutState` | type | RolloutState is where a release's rollout stands. |
+| `(*Platform) startVerification` | method | startVerification watches a new release in the background. |
+| `(*Platform) stopVerification` | method | stopVerification ends an app's running verification as superseded (a newer release, or a rollback by hand, replaced the release). |
+| `(*Platform) verify` | method |  |
+| `(*Platform) verificationFailed` | method | verificationFailed rolls back to the last good release, or only reports when rollback is off or there is nothing to return to. |
+| `(*Platform) lastGoodRelease` | method | lastGoodRelease is the newest release before number that did not fail verification (releases from before verification existed count as good). |
+| `(*Platform) waitRollout` | method | waitRollout waits until the release is fully rolled out and healthy, it fails, or RolloutTimeout passes. |
+| `(*Platform) rolloutState` | method | rolloutState reads the App object: healthy once the controller reports the release Healthy, failed when it reports it Degraded or in Error. |
+| `windowStats` | struct | windowStats accumulates one check's results during a verification window. |
+| `(*windowStats) add` | method |  |
+| `(*windowStats) p95` | method |  |
+| `judge` | func | judge decides a verification. |
+| `(*Platform) setVerification` | method | setVerification records the state and tells open App pages. |
+| `(*Platform) ResumeVerifications` | method | ResumeVerifications restarts verifications interrupted by a restart: a release that is still the app's current one is watched again from the start; an older one is marked superseded. |
+| `fmtDur` | func |  |
+| `fmtMS` | func |  |
+
 ### `internal/platform/platform_test.go`
 
 <small>628 lines · tests</small>
@@ -1072,6 +1097,15 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `TestChangeDetection` | func | Only what changed since the last release is tested, built and rolled. |
 | `TestTasks` | func |  |
 | `TestDisconnectAndSuggestedName` | func | Disconnect leaves everything running and unowned; the wizard suggests the namespace that already serves a repo's hosts. |
+
+### `internal/platform/verify_test.go`
+
+<small>157 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestJudge` | func |  |
+| `TestReleaseVerification` | func | A release that breaks its service is rolled back to the last good one; a healthy release passes. |
 
 ## `internal/render` {#internal-render}
 
@@ -1196,11 +1230,13 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 
 ### `internal/spec/spec.go`
 
-<small>1149 lines</small>
+<small>1171 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Spec` | struct | Spec is a parsed rendimiento.yaml. |
+| `Verify` | struct | Verify configures release verification: after a release is live, its services are checked for a while, and a release that breaks a service that worked before is rolled back to the last good release. |
+| `(*Verify) AutoRollback` | method | AutoRollback reports whether a release that fails verification is rolled back. |
 | `Task` | struct | Task is a command run as a step of every CI run: the commit is checked out, and the command runs in Image from Path. |
 | `(Task) SecretNames` | method | SecretNames lists every secret the task reads. |
 | `(Spec) SecretNames` | method | SecretNames lists every secret the app's services, jobs and tasks read: the ones that can be set from the app's settings. |
@@ -1301,7 +1337,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/store.go`
 
-<small>532 lines</small>
+<small>573 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1334,6 +1370,8 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) AppendLog` | method | AppendLog adds output to a step's log, keeping at most maxLog bytes (the tail, where errors are). |
 | `(*Store) StepLog` | method | StepLog returns a step's stored log. |
 | `Release` | struct | Release is what was deployed: the images (by digest) and spec of one successful run, or of a rollback. |
+| `(*Store) SetVerification` | method | SetVerification records a release's verification state and message. |
+| `(*Store) VerifyingReleases` | method | VerifyingReleases lists releases whose verification was interrupted (the process stopped while watching them). |
 | `(*Store) CreateRelease` | method | CreateRelease assigns the next release number for the app. |
 | `scanRelease` | func |  |
 | `(*Store) GetRelease` | method | GetRelease returns an app's release by number. |
@@ -1349,7 +1387,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/uptime.go`
 
-<small>258 lines</small>
+<small>287 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1367,6 +1405,8 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `UptimeSeries` | struct | UptimeSeries is one check's history over a range: totals, response time percentiles (of successful checks) and the chart's buckets. |
 | `(*Store) Uptime` | method | Uptime returns every check of an app over [since, now] in buckets of the given size. |
 | `(*Store) UptimeSummary` | method | UptimeSummary is the share of successful checks per app since a time: the dashboard's uptime badges. |
+| `CheckStats` | struct | CheckStats summarizes one check's results over a period. |
+| `(*Store) ProbeStats` | method | ProbeStats summarizes an app's checks in [from, to), per service and check kind: the baseline a new release is compared with. |
 
 ### `internal/store/store_test.go`
 
@@ -1383,7 +1423,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/uptime_test.go`
 
-<small>100 lines · tests</small>
+<small>101 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1395,7 +1435,7 @@ Package uptime checks every app's services once a minute and keeps the results: 
 
 ### `internal/uptime/uptime.go`
 
-<small>320 lines</small>
+<small>325 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1416,7 +1456,7 @@ Package uptime checks every app's services once a minute and keeps the results: 
 
 ### `internal/uptime/uptime_test.go`
 
-<small>186 lines · tests</small>
+<small>195 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1449,7 +1489,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>591 lines</small>
+<small>597 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1476,6 +1516,7 @@ Package web embeds the built UI (npm run build → web/dist).
 | `Incident` | interface |  |
 | `Reliability` | interface |  |
 | `Release` | interface |  |
+| `VerifyStatus` | type | What release verification concluded ("" for releases from before it existed). |
 | `ResourceNode` | interface |  |
 | `Installation` | interface |  |
 | `Repo` | interface |  |
@@ -1581,7 +1622,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/AppPage.tsx`
 
-<small>374 lines</small>
+<small>409 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1592,6 +1633,9 @@ Package web embeds the built UI (npm run build → web/dist).
 | `DependencyUpdates` | component | The app's Renovate switch and what the last run did for its repo. |
 | `Runs` | component |  |
 | `Releases` | component |  |
+| `verifyBadge` | const |  |
+| `VerifyBadge` | component | What release verification concluded, with its message on hover. |
+| `VerificationBanner` | component | A banner while the newest release is verified, or after it was rolled back. |
 | `Settings` | component |  |
 | `DangerZone` | component |  |
 | `SecretForm` | component |  |

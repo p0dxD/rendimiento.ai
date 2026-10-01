@@ -251,12 +251,19 @@ func run(log *slog.Logger) error {
 	// Uptime checks of every app's services (the Reliability tab), on the
 	// leader only, so one replica checks.
 	var prober *uptime.Prober
+	checker := uptime.NewChecker(10 * time.Second)
 	if every, err := time.ParseDuration(env("UPTIME_INTERVAL", "1m")); err != nil || (every != 0 && every < 10*time.Second) {
 		return fmt.Errorf("UPTIME_INTERVAL must be 0 (off) or a duration of at least 10s, got %q", os.Getenv("UPTIME_INTERVAL"))
 	} else if every > 0 {
-		prober = &uptime.Prober{Store: st, Checker: uptime.NewChecker(10 * time.Second), Interval: every, Log: log.With("component", "uptime")}
+		prober = &uptime.Prober{Store: st, Checker: checker, Interval: every, Log: log.With("component", "uptime")}
 		uptime.Register(ctrlmetrics.Registry)
 	}
+	// Release verification: watch each new release, roll back a broken one.
+	verifyWindow, err := time.ParseDuration(env("VERIFY_WINDOW", "5m"))
+	if err != nil || (verifyWindow != 0 && verifyWindow < time.Minute) {
+		return fmt.Errorf("VERIFY_WINDOW must be 0 (off) or a duration of at least 1m, got %q", os.Getenv("VERIFY_WINDOW"))
+	}
+	p.Verify = platform.VerifySettings{Window: verifyWindow, Check: checker.Check}
 
 	httpSrv := &http.Server{Addr: env("LISTEN", ":8080"), Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
 
@@ -277,6 +284,7 @@ func run(log *slog.Logger) error {
 			if prober != nil {
 				go prober.Run(ctx)
 			}
+			p.ResumeVerifications(ctx)
 			p.Work(ctx)
 		case <-ctx.Done():
 		}

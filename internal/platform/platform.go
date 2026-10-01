@@ -69,9 +69,12 @@ type Platform struct {
 	Hub       *events.Hub
 	Config    Config
 	Log       *slog.Logger
+	// Verify configures release verification and automatic rollback.
+	Verify VerifySettings
 
-	mu      sync.Mutex
-	cancels map[int64]context.CancelFunc // running run → cancel
+	mu        sync.Mutex
+	cancels   map[int64]context.CancelFunc      // running run → cancel
+	verifying map[int64]context.CancelCauseFunc // app → its running verification
 }
 
 // ---- onboarding ----
@@ -682,6 +685,7 @@ func (p *Platform) execute(ctx context.Context, run *store.Run) {
 			status, msg = store.RunFailed, "release failed: "+err.Error()
 		} else {
 			msg = fmt.Sprintf("released #%d", rel.Number)
+			p.startVerification(ctx, app, rel)
 		}
 	}
 	if err := p.Store.FinishRun(ctx, run.ID, status, msg); err != nil {
@@ -792,17 +796,29 @@ func skippedTasks(sp spec.Spec, deploy bool, files []string, prev *store.Release
 	return skip
 }
 
-// Rollback creates a new release that restores an earlier one's images and spec.
+// Rollback creates a new release that restores an earlier one's images and
+// spec (the Rollback button). It ends any verification of the app.
 func (p *Platform) Rollback(ctx context.Context, app *store.App, number int64) (*store.Release, error) {
 	old, err := p.Store.GetRelease(ctx, app.ID, number)
 	if err != nil {
 		return nil, err
 	}
+	p.stopVerification(app.ID)
+	return p.rollbackTo(ctx, app, old, "rolled back by hand")
+}
+
+// rollbackTo releases an earlier release's images and spec again, as a new
+// release whose verification is recorded as skipped with note.
+func (p *Platform) rollbackTo(ctx context.Context, app *store.App, old *store.Release, note string) (*store.Release, error) {
 	rel := &store.Release{AppID: app.ID, SHA: old.SHA, Images: old.Images, Spec: old.Spec, RollbackOf: &old.Number}
 	if err := p.Store.CreateRelease(ctx, rel); err != nil {
 		return nil, err
 	}
-	return rel, p.pointApp(ctx, app.Name, rel)
+	if err := p.pointApp(ctx, app.Name, rel); err != nil {
+		return nil, err
+	}
+	p.setVerification(app, rel, store.VerifySkipped, note)
+	return rel, nil
 }
 
 // pointApp writes the release into the App object; the controller does the rest.

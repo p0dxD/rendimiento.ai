@@ -52,6 +52,51 @@ The dashboard shows each app's **24-hour uptime** on its card:
 
 An outage starts after **two failed checks in a row**, dated from the first one. One failure alone is usually a blip, such as a pod restarting or a slow response. The outage ends at the next successful check. Outages survive platform restarts: a restarted platform picks up the open ones and closes them when the service recovers.
 
+## Verifying each release
+
+Every release on the default branch is **watched after it goes live**, and a release that breaks a service is **rolled back automatically**.
+
+```mermaid
+flowchart LR
+    rel[release #8 goes live] --> roll{rollout healthy<br/>within 10 min?}
+    roll -- no: crash loop, failed rollout --> fail
+    roll -- yes --> watch[check every service<br/>every 20 s for 5 min]
+    watch --> judge{a check that worked<br/>before now fails?}
+    judge -- no --> pass[Verified]
+    judge -- yes --> fail[Failed]
+    fail --> back[roll back to the last<br/>good release, as #9]
+```
+
+1. **The rollout:** the release must become healthy within 10 minutes, meaning every pod on the new version and ready. A rollout that fails or crash-loops fails verification right away.
+2. **The window:** for 5 minutes, every check of the release (inside the cluster and public) runs every 20 seconds.
+3. **The verdict.** A check fails the release when **at least 3 of its checks, and at least a fifth, failed**, and it was healthy (90%+ up) in the hour before the release, or is new. Two exceptions:
+   - A check that was **already failing before** is reported but not blamed on the release.
+   - A release that's **much slower** (p95 three times higher, and a second more) is reported, not rolled back, because cold caches make that noisy.
+4. **The rollback:** a failed release is rolled back to the **newest earlier release that didn't fail verification**, as a new release (`rollback to #7`). Rollbacks, manual or automatic, aren't verified again, so there's no rollback loop.
+
+The result shows on each release in the **Releases** tab, with the reason:
+
+| Badge | Meaning |
+|---|---|
+| Verifying… | being watched now |
+| Verified | healthy for the whole window |
+| Failed · rolled back | broke a service, and the last good release is back |
+| Failed verification | broke a service, kept because `verify.rollback: false` or there was nothing to return to |
+| Not verified: replaced | a newer release (or a manual rollback) came before the window ended |
+
+While a release is verified, and for a day after one fails, a banner on the app's page says so. On the response-time chart, a rolled-back release's marker reads `#8 ✕`.
+
+**Per app**, in `rendimiento.yaml`:
+
+```yaml
+verify:
+  window: 600        # watch for 10 minutes (60–3600 s; default: the platform's 5 min)
+  rollback: false    # only report a failed verification
+  # disabled: true   # don't verify this app's releases
+```
+
+The platform-wide window is `VERIFY_WINDOW` (default `5m`, `0` turns verification off). Verification runs on the leader. If the platform restarts mid-window, the release is watched again from the start, unless a newer one replaced it.
+
 ## Where the data lives
 
 Results are kept in rendimiento's own Postgres, so it works without any monitoring stack:
@@ -82,8 +127,9 @@ That's ready for Grafana once it's scraped.
 | Piece | Where |
 |---|---|
 | What to check, running checks, outages, metrics | `internal/uptime` (`Targets`, `Checker`, `Prober`) |
+| Release verification and automatic rollback | `internal/platform/verify.go` (`startVerification`, `judge`, `rollbackTo`) |
 | Storage, summaries, chart queries | `internal/store/uptime.go`, migration `0005_uptime.sql` |
 | The API | `GET /api/apps/{app}/reliability` in `internal/api/reliability.go` |
 | The charts | `web/src/components/reliability.tsx`: plain SVG, no chart library |
 
-**Next:** using these checks to *verify each release* after it goes live, and to **roll it back automatically** when it's clearly worse. See the [roadmap](../future/roadmap.md).
+**Next:** post-deploy *tasks* (smoke tests and migrations run against the new version, inside the app's namespace) as part of verification. See the [roadmap](../future/roadmap.md).
