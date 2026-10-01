@@ -43,6 +43,11 @@ data:
   # here, through Resend (RESEND_API_KEY in the rendimiento-notify secret).
   NOTIFY_EMAIL_TO: jose0797@gmail.com
   NOTIFY_EMAIL_FROM: rendimiento <alerts@joserod.space>
+  # GET /api/public/stats (no login): aggregate numbers for the live
+  # section of joserod.space, which fetches it server-side in the cluster.
+  PUBLIC_STATS: "true"
+  PUBLIC_STATS_ORIGINS: https://joserod.space,https://www.joserod.space
+  PUBLIC_STATS_TZ: America/New_York
 ---
 apiVersion: apps/v1
 kind: Deployment

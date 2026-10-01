@@ -106,6 +106,7 @@ type Node struct {
 	MemBytes      int64    `json:"memBytes"`
 	MemUsed       *int64   `json:"memUsed,omitempty"`
 	Unschedulable bool     `json:"unschedulable,omitempty"`
+	GPUs          int64    `json:"gpus,omitempty"` // nvidia.com/gpu capacity
 }
 
 // Problem is an unhealthy workload or certificate somewhere in the cluster.

@@ -129,6 +129,9 @@ func (c *Checker) snapshot(ctx context.Context) *snapshot {
 			MemBytes:      n.Status.Capacity.Memory().Value(),
 			Unschedulable: n.Spec.Unschedulable,
 		}
+		if q, ok := n.Status.Capacity["nvidia.com/gpu"]; ok {
+			node.GPUs = q.Value()
+		}
 		for label := range n.Labels {
 			if role, ok := strings.CutPrefix(label, "node-role.kubernetes.io/"); ok && role != "" {
 				node.Roles = append(node.Roles, role)
