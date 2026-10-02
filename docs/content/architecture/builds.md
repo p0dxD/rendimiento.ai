@@ -94,6 +94,9 @@ buildctl --addr tcp://buildkitd-2.buildkitd-pool.devops-tools.svc.cluster.local:
 ## Caching, twice
 
 1. **Each daemon's local cache**, on a node-local volume (`local-path`, up to about 15 GB, garbage-collected). Fastest, but only on that node.
+
+    !!! warning "Mind the units in `buildkitd.toml`"
+        Since BuildKit 0.17, a bare number in the GC settings is **bytes**. The pool first had `gckeepstorage = 15000`, meant as 15 GB, which BuildKit read as 15 kB. Every daemon threw its cache away after each build, and every build re-downloaded its base images and cached layers: a tiny Go app went from 85 s to over 7 minutes. The config in `p0dxD/gitops/buildkit/config.yaml` now uses explicit units: `reservedSpace = "5GB"`, `maxUsedSpace = "15GB"`, `minFreeSpace = "15%"`. To check what a daemon really applies: `kubectl -n devops-tools exec buildkitd-0 -- buildctl --addr unix:///run/buildkit/buildkitd.sock debug workers --verbose`.
 2. **A registry cache per image**: `--export-cache …:buildcache,mode=max` stores *every* intermediate layer (mode `max`, not just the final ones) under the image's `buildcache` tag; `--import-cache` reads it. Any daemon can use it, so a service moved to another daemon is still reasonably warm.
 
 ## The BuildKit pool
