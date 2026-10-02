@@ -2,13 +2,16 @@ package platform
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"testing/fstest"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 	"github.com/p0dxD/rendimiento.ai/internal/uptime"
@@ -145,4 +148,104 @@ tasks:
 	if log, err := p.Store.ReleaseTaskLog(ctx, app.ID, 2, "migrate"); err != nil || log != "running migrate\n" {
 		t.Fatalf("task log = %q, %v", log, err)
 	}
+}
+
+func TestPreDeployJobUsesTheNewImage(t *testing.T) {
+	rel := &store.Release{Number: 8, Images: map[string]string{"api": "reg/shop-api@sha256:NEW"}}
+	base := &corev1.Container{Image: "reg/shop-api@sha256:OLD", Env: []corev1.EnvVar{{Name: "DATABASE_URL", Value: "x"}}}
+	job := taskJob("shop", rel, spec.Task{Name: "migrate", Stage: spec.StagePreDeploy, Service: "api", Command: "./migrate"}, base, nil, "abcde")
+	c := job.Spec.Template.Spec.Containers[0]
+	if c.Image != "reg/shop-api@sha256:NEW" || c.Env[0].Name != "DATABASE_URL" || job.Name != "pre-migrate-r8-abcde" || job.Labels["rendimiento.ai/stage"] != "pre-deploy" {
+		t.Fatalf("pre-deploy job: image %s env %v name %s labels %v", c.Image, c.Env, job.Name, job.Labels)
+	}
+	post := taskJob("shop", rel, spec.Task{Name: "smoke", Stage: spec.StagePostDeploy, Service: "api", Command: "./smoke"}, base, nil, "abcde")
+	if post.Spec.Template.Spec.Containers[0].Image != "reg/shop-api@sha256:OLD" {
+		t.Fatal("a post-deploy job runs the live (already new) Deployment's image as is")
+	}
+}
+
+// Pre-deploy tasks are skipped on an app's first release, run before the
+// rollout afterwards, and a failed one stops the release from deploying.
+func TestPreDeploy(t *testing.T) {
+	p, fake, _, kube := setup(t)
+	ctx := context.Background()
+	failing := false
+	var ran []string
+	p.Verify = VerifySettings{
+		Window: 50 * time.Millisecond, Every: 10 * time.Millisecond,
+		Rollout: func(context.Context, string, int64) (RolloutState, string, error) { return RolloutHealthy, "", nil },
+		Check: func(_ context.Context, tg uptime.Target) store.Probe {
+			return store.Probe{AppID: tg.AppID, Service: tg.Service, Kind: tg.Kind, OK: true, At: time.Now()}
+		},
+		RunTask: func(_ context.Context, _ *store.App, rel *store.Release, task spec.Task) store.ReleaseTask {
+			ran = append(ran, fmt.Sprintf("%s@%d", task.Name, rel.Number))
+			if failing {
+				return store.ReleaseTask{Status: store.TaskFailed, Message: "exit 1 · duplicate column"}
+			}
+			return store.ReleaseTask{Status: store.TaskSucceeded}
+		},
+	}
+	yaml := `services:
+  - name: web
+tasks:
+  - { name: migrate, stage: pre-deploy, service: web, command: ./migrate }
+`
+	sha := func(c byte) string { return strings.Repeat(string(c), 40) }
+	tree := fstest.MapFS{"rendimiento.yaml": {Data: []byte(yaml)}}
+	for _, c := range "abc" {
+		fake.files[sha(byte(c))] = tree
+	}
+	fake.files["main"] = tree
+	sp, _ := spec.Parse([]byte(yaml))
+	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/shop", DefaultBranch: "main", Name: "shop", Spec: *sp}, false); err != nil {
+		t.Fatal(err)
+	}
+	app, _ := p.Store.GetApp(ctx, "shop")
+	push := func(c byte) *store.Run {
+		t.Helper()
+		runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/shop", Branch: "main", SHA: sha(c)})
+		if err != nil || len(runs) != 1 {
+			t.Fatalf("push: %v %v", runs, err)
+		}
+		return waitRun(t, p, runs[0].ID)
+	}
+	live := func() int64 {
+		var cr v1alpha1.App
+		_ = kube.Get(ctx, client.ObjectKey{Name: "shop"}, &cr)
+		return cr.Spec.Release
+	}
+
+	// 1. First release: nothing to migrate yet; deployed.
+	if r := push('a'); r.Status != store.RunSucceeded || live() != 1 || len(ran) != 0 {
+		t.Fatalf("first release: run %s %q, live #%d, ran %v", r.Status, r.Message, live(), ran)
+	}
+	tasks, _ := p.Store.ReleaseTasks(ctx, []int64{mustRelease(t, p, app.ID, 1).ID})
+	if ts := tasks[mustRelease(t, p, app.ID, 1).ID]; len(ts) != 1 || ts[0].Status != store.TaskSkipped || ts[0].Stage != spec.StagePreDeploy {
+		t.Fatalf("first release tasks = %+v", ts)
+	}
+	// 2. Second release: the migration runs before the rollout; deployed.
+	if r := push('b'); r.Status != store.RunSucceeded || live() != 2 || strings.Join(ran, ",") != "migrate@2" {
+		t.Fatalf("second release: run %s %q, live #%d, ran %v", r.Status, r.Message, live(), ran)
+	}
+	// 3. The migration fails: release 3 is recorded but never deployed.
+	failing = true
+	r := push('c')
+	if r.Status != store.RunFailed || !strings.Contains(r.Message, "release #3 not deployed") || live() != 2 {
+		t.Fatalf("blocked release: run %s %q, live #%d", r.Status, r.Message, live())
+	}
+	if rel := mustRelease(t, p, app.ID, 3); rel.VerifyStatus != store.VerifyBlocked || !strings.Contains(rel.VerifyMessage, "pre-deploy task migrate failed") {
+		t.Fatalf("release 3: %s %q", rel.VerifyStatus, rel.VerifyMessage)
+	}
+	if _, err := p.Rollback(ctx, app, 3); err == nil || !strings.Contains(err.Error(), "never deployed") {
+		t.Fatalf("rollback to a blocked release: %v", err)
+	}
+}
+
+func mustRelease(t *testing.T, p *Platform, appID, number int64) *store.Release {
+	t.Helper()
+	r, err := p.Store.GetRelease(context.Background(), appID, number)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
 }

@@ -688,9 +688,13 @@ func (p *Platform) execute(ctx context.Context, run *store.Run) {
 	}
 	if status == store.RunSucceeded && run.Deploy {
 		rel, err := p.release(ctx, app, run, sp, toRun, results, reuse)
-		if err != nil {
+		var blocked errPreDeploy
+		switch {
+		case errors.As(err, &blocked):
+			status, msg = store.RunFailed, fmt.Sprintf("release #%d not deployed: %s", rel.Number, blocked.reason)
+		case err != nil:
 			status, msg = store.RunFailed, "release failed: "+err.Error()
-		} else {
+		default:
 			msg = fmt.Sprintf("released #%d", rel.Number)
 			p.startVerification(ctx, app, rel)
 		}
@@ -721,11 +725,48 @@ func (p *Platform) release(ctx context.Context, app *store.App, run *store.Run, 
 			images[svc.Name] = svc.Image // ready-made image, released as given
 		}
 	}
+	_, prevErr := p.Store.LatestRelease(ctx, app.ID)
+	first := errors.Is(prevErr, store.ErrNotFound)
 	rel := &store.Release{AppID: app.ID, RunID: &run.ID, SHA: run.SHA, Images: images, Spec: sp}
 	if err := p.Store.CreateRelease(ctx, rel); err != nil {
 		return nil, err
 	}
+	if err := p.preDeploy(ctx, app, rel, first); err != nil {
+		return rel, err
+	}
 	return rel, p.pointApp(ctx, app.Name, rel)
+}
+
+// errPreDeploy means a release was recorded but not deployed: a required
+// pre-deploy task failed.
+type errPreDeploy struct{ reason string }
+
+func (e errPreDeploy) Error() string { return e.reason }
+
+// preDeploy runs the release's pre-deploy tasks before it is rolled out. A
+// failed required task stops the release (recorded as blocked); the app
+// keeps running its current release. On an app's first release there is no
+// environment yet (namespace, secrets, databases), so they are skipped.
+func (p *Platform) preDeploy(ctx context.Context, app *store.App, rel *store.Release, first bool) error {
+	tasks := stageTasks(rel, spec.StagePreDeploy)
+	if len(tasks) == 0 {
+		return nil
+	}
+	if first {
+		for _, t := range tasks {
+			p.saveTask(store.ReleaseTask{ReleaseID: rel.ID, Name: t.Name, Stage: spec.StagePreDeploy, Optional: t.Optional, Status: store.TaskSkipped,
+				Message: "the app's first release: its environment does not exist yet; pre-deploy tasks run from the next release"})
+		}
+		return nil
+	}
+	results := p.runStage(ctx, app, rel, spec.StagePreDeploy)
+	failures, _ := judgeTasks(results)
+	if len(failures) == 0 {
+		return nil
+	}
+	reason := strings.Join(failures, "; ")
+	p.setVerification(app, rel, store.VerifyBlocked, "not deployed: "+reason)
+	return errPreDeploy{reason: reason}
 }
 
 var fullSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -797,7 +838,7 @@ func skippedTasks(sp spec.Spec, deploy bool, files []string, prev *store.Release
 	skip := map[string]string{}
 	for _, t := range sp.Tasks {
 		switch {
-		case t.PostDeploy():
+		case t.Deploys():
 			continue // not a CI step
 		case t.When == spec.TaskOnDeploy && !deploy:
 			skip[pipeline.TaskStepID(t.Name)] = "runs only for pushes to the default branch (when: deploy)"
@@ -814,6 +855,9 @@ func (p *Platform) Rollback(ctx context.Context, app *store.App, number int64) (
 	old, err := p.Store.GetRelease(ctx, app.ID, number)
 	if err != nil {
 		return nil, err
+	}
+	if old.VerifyStatus == store.VerifyBlocked {
+		return nil, fmt.Errorf("release #%d was never deployed (a pre-deploy task failed), so it cannot be rolled back to", number)
 	}
 	p.stopVerification(app.ID)
 	return p.rollbackTo(ctx, app, old, "rolled back by hand")

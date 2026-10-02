@@ -63,12 +63,14 @@ func (v *Verify) AutoRollback() bool { return v == nil || v.Rollback == nil || *
 type Task struct {
 	Name string `json:"name"`
 	// Stage is when the task runs: "build" (default: a CI step, before the
-	// release) or "post-deploy" (after the release is live, in the app's
-	// namespace, as part of its verification: a failure rolls it back).
+	// release), "pre-deploy" (after the build, before the rollout, in the
+	// app's namespace: a failure stops the release from deploying) or
+	// "post-deploy" (after the release is live, as part of its
+	// verification: a failure rolls it back).
 	Stage string `json:"stage,omitempty"`
-	// Image runs the command in this image. Post-deploy tasks may instead
-	// name a Service: they then run in that service's released image, with
-	// its environment (env, secrets, needs), e.g. for migrations.
+	// Image runs the command in this image. Pre- and post-deploy tasks may
+	// instead name a Service: they then run in that service's new image,
+	// with its environment (env, secrets, needs), e.g. for migrations.
 	Image   string `json:"image,omitempty"`
 	Service string `json:"service,omitempty"`
 	Command string `json:"command"`
@@ -103,11 +105,19 @@ const (
 	TaskOnAlways = "always"
 
 	StageBuild      = "build"
+	StagePreDeploy  = "pre-deploy"
 	StagePostDeploy = "post-deploy"
 )
 
 // PostDeploy reports whether the task runs after the release is live.
 func (t Task) PostDeploy() bool { return t.Stage == StagePostDeploy }
+
+// PreDeploy reports whether the task runs before the release is rolled out.
+func (t Task) PreDeploy() bool { return t.Stage == StagePreDeploy }
+
+// Deploys reports whether the task runs around a deploy (pre or post),
+// in the app's namespace, rather than as a CI step.
+func (t Task) Deploys() bool { return t.PreDeploy() || t.PostDeploy() }
 
 // SecretNames lists every secret the task reads.
 func (t Task) SecretNames() []string {
@@ -945,9 +955,9 @@ func (s *Spec) validateTasks() []error {
 				errs = append(errs, fmt.Errorf("%s needs both image and command", p))
 			}
 			if t.Service != "" {
-				errs = append(errs, fmt.Errorf("%s.service only applies to post-deploy tasks (stage: post-deploy)", p))
+				errs = append(errs, fmt.Errorf("%s.service only applies to pre- and post-deploy tasks", p))
 			}
-		case StagePostDeploy:
+		case StagePreDeploy, StagePostDeploy:
 			if (t.Image == "") == (t.Service == "") || strings.TrimSpace(t.Command) == "" {
 				errs = append(errs, fmt.Errorf("%s needs a command and exactly one of image or service", p))
 			}
@@ -955,10 +965,10 @@ func (s *Spec) validateTasks() []error {
 				errs = append(errs, fmt.Errorf("%s.service %q is not a service of this app", p, t.Service))
 			}
 			if len(t.Watch) > 0 || (t.Path != "" && t.Path != ".") {
-				errs = append(errs, fmt.Errorf("%s: path and watch only apply to build tasks (post-deploy tasks run on every release)", p))
+				errs = append(errs, fmt.Errorf("%s: path and watch only apply to build tasks (%s tasks run on every release)", p, t.Stage))
 			}
 		default:
-			errs = append(errs, fmt.Errorf("%s.stage %q must be build or post-deploy", p, t.Stage))
+			errs = append(errs, fmt.Errorf("%s.stage %q must be build, pre-deploy or post-deploy", p, t.Stage))
 		}
 		if strings.HasPrefix(t.Path, "/") || strings.Contains(t.Path, "..") {
 			errs = append(errs, fmt.Errorf("%s.path %q must be relative to the repo root", p, t.Path))
@@ -997,14 +1007,14 @@ func (s *Spec) validateTasks() []error {
 	}
 	for i, t := range s.Tasks {
 		for _, a := range t.After {
-			if t.PostDeploy() {
-				// Post-deploy tasks wait only for each other: the builds are done.
-				if other, ok := tasks[a]; !ok || !other.PostDeploy() {
-					errs = append(errs, fmt.Errorf("tasks[%d].after: %q is not a post-deploy task of this app", i, a))
+			if t.Deploys() {
+				// Deploy tasks wait only for tasks of their own stage: the builds are done.
+				if other, ok := tasks[a]; !ok || other.Stage != t.Stage {
+					errs = append(errs, fmt.Errorf("tasks[%d].after: %q is not a %s task of this app", i, a, t.Stage))
 					continue
 				}
-			} else if other, ok := tasks[a]; ok && other.PostDeploy() {
-				errs = append(errs, fmt.Errorf("tasks[%d].after: %q runs after the release; a build task cannot wait for it", i, a))
+			} else if other, ok := tasks[a]; ok && other.Deploys() {
+				errs = append(errs, fmt.Errorf("tasks[%d].after: %q runs around the deploy; a build task cannot wait for it", i, a))
 				continue
 			}
 			switch {

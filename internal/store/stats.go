@@ -36,8 +36,8 @@ func (s *Store) Delivery(ctx context.Context, days int, tz string) (*DeliverySta
 	st := &DeliveryStats{DeploysPerDay: []Count{}}
 	err := s.pool.QueryRow(ctx, `
 		SELECT
-		  (SELECT count(*) FROM releases WHERE created_at >= $1 AND rollback_of IS NULL),
-		  (SELECT count(DISTINCT app_id) FROM releases WHERE created_at >= $1 AND rollback_of IS NULL),
+		  (SELECT count(*) FROM releases WHERE created_at >= $1 AND rollback_of IS NULL AND verify_status <> 'blocked'),
+		  (SELECT count(DISTINCT app_id) FROM releases WHERE created_at >= $1 AND rollback_of IS NULL AND verify_status <> 'blocked'),
 		  (SELECT count(*) FROM runs WHERE deploy AND created_at >= $1 AND status IN ('succeeded', 'failed')),
 		  (SELECT count(*) FROM runs WHERE deploy AND created_at >= $1 AND status = 'succeeded'),
 		  (SELECT COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM finished_at - started_at)), 0)
@@ -61,7 +61,7 @@ func (s *Store) Delivery(ctx context.Context, days int, tz string) (*DeliverySta
 		SELECT to_char(d, 'YYYY-MM-DD'), COALESCE(n, 0)
 		FROM generate_series((now() AT TIME ZONE $2)::date - $1::int + 1, (now() AT TIME ZONE $2)::date, '1 day') AS d
 		LEFT JOIN (SELECT (created_at AT TIME ZONE $2)::date AS day, count(*) AS n FROM releases
-		           WHERE rollback_of IS NULL AND created_at >= now() - make_interval(days => $1::int + 1) GROUP BY 1) r ON r.day = d
+		           WHERE rollback_of IS NULL AND verify_status <> 'blocked' AND created_at >= now() - make_interval(days => $1::int + 1) GROUP BY 1) r ON r.day = d
 		ORDER BY d`, days, tz)
 	if err != nil {
 		return nil, err
