@@ -400,3 +400,34 @@ tasks:
 		}
 	}
 }
+
+func TestPostDeployTasks(t *testing.T) {
+	s, err := Parse([]byte(`services: [{name: api}, {name: db, image: postgres:17}]
+tasks:
+  - {name: migrate, stage: post-deploy, service: api, command: ./migrate up}
+  - {name: smoke, stage: post-deploy, image: curl, command: curl -f http://api, after: [migrate]}
+  - {name: lint, image: node, command: npm run lint}
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.Tasks[0].PostDeploy() || !s.Tasks[1].PostDeploy() || s.Tasks[2].PostDeploy() || s.Tasks[2].Stage != StageBuild {
+		t.Fatalf("stages: %+v", s.Tasks)
+	}
+	for _, tc := range []struct{ tasks, want string }{
+		{"[{name: t, stage: post-deploy, command: c}]", "exactly one of image or service"},
+		{"[{name: t, stage: post-deploy, image: i, service: api, command: c}]", "exactly one of image or service"},
+		{"[{name: t, stage: post-deploy, service: nope, command: c}]", `service "nope" is not a service`},
+		{"[{name: t, stage: post-deploy, image: i, command: c, path: web}]", "only apply to build tasks"},
+		{"[{name: t, stage: later, image: i, command: c}]", "must be build or post-deploy"},
+		{"[{name: t, image: i, service: api, command: c}]", "only applies to post-deploy tasks"},
+		{"[{name: a, image: i, command: c}, {name: b, stage: post-deploy, image: i, command: c, after: [a]}]", "is not a post-deploy task"},
+		{"[{name: a, stage: post-deploy, image: i, command: c}, {name: b, image: i, command: c, after: [a]}]", "a build task cannot wait for it"},
+		{"[{name: t, stage: post-deploy, image: i, command: c, after: [api]}]", "is not a post-deploy task"},
+	} {
+		_, err := Parse([]byte("services: [{name: api}]\ntasks: " + tc.tasks))
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: got %v, want %q", tc.tasks, err, tc.want)
+		}
+	}
+}

@@ -18,6 +18,7 @@ func TestPlanTasks(t *testing.T) {
 tasks:
   - {name: mobile, image: node:20, command: npx eas-cli build, path: mobile, secretEnv: {EXPO_TOKEN: expo/token}, timeout: 600}
   - {name: smoke, image: curl, command: curl -f x, after: [api, mobile], optional: true}
+  - {name: migrate, stage: post-deploy, service: api, command: ./migrate}
 `))
 	if err != nil {
 		t.Fatal(err)
@@ -34,6 +35,9 @@ tasks:
 	}
 	if strings.Join(smoke.DependsOn, ",") != "api:build,mobile:task" || !smoke.Optional {
 		t.Fatalf("smoke = %+v", smoke)
+	}
+	if _, ok := byID["migrate:task"]; ok {
+		t.Fatal("a post-deploy task is not a CI step")
 	}
 	if err := validate(steps); err != nil {
 		t.Fatal(err)

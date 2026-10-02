@@ -114,6 +114,9 @@ func Plan(app, registry string, s spec.Spec) []Step {
 		})
 	}
 	for _, t := range s.Tasks {
+		if t.PostDeploy() {
+			continue // runs after the release, during its verification
+		}
 		step := Step{
 			ID: TaskStepID(t.Name), Service: TaskKey(t.Name), Kind: KindTask, Path: t.Path,
 			Image: t.Image, Command: t.Command, App: app, Env: t.Env, Secrets: t.Secrets, SecretEnv: t.SecretEnv,

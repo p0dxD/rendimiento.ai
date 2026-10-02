@@ -11,11 +11,11 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 384 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 385 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/api`](#internal-api) | 9 | 2314 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 9 | 2352 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 885 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2733 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 428 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
@@ -24,14 +24,14 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/events`](#internal-events) | 2 | 80 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 278 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1164 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/logarchive`](#internal-logarchive) | 2 | 277 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
+| [`internal/logarchive`](#internal-logarchive) | 2 | 308 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
 | [`internal/notify`](#internal-notify) | 2 | 386 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
-| [`internal/pipeline`](#internal-pipeline) | 7 | 1577 | Package pipeline plans and executes CI runs. |
-| [`internal/platform`](#internal-platform) | 5 | 2273 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
+| [`internal/pipeline`](#internal-pipeline) | 7 | 1584 | Package pipeline plans and executes CI runs. |
+| [`internal/platform`](#internal-platform) | 7 | 2862 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/render`](#internal-render) | 3 | 1160 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
-| [`internal/spec`](#internal-spec) | 2 | 1573 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 8 | 1866 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/spec`](#internal-spec) | 2 | 1649 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
+| [`internal/store`](#internal-store) | 9 | 1949 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/uptime`](#internal-uptime) | 2 | 634 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
@@ -93,7 +93,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>375 lines</small>
+<small>376 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -266,11 +266,12 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/logs.go`
 
-<small>26 lines</small>
+<small>54 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `(*Server) archivedLog` | method | archivedLog reads a step log from the log archive, or explains why it cannot: expired by the retention rule, or the archive is unreachable. |
+| `(*Server) releaseTaskLog` | method | releaseTaskLog serves the log of a release's post-deploy task. |
 
 ### `internal/api/notifications.go`
 
@@ -306,7 +307,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1096 lines</small>
+<small>1106 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -930,7 +931,7 @@ Package logarchive moves the step logs of finished CI runs out of Postgres into 
 
 ### `internal/logarchive/logarchive.go`
 
-<small>194 lines</small>
+<small>204 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -950,10 +951,11 @@ Package logarchive moves the step logs of finished CI runs out of Postgres into 
 
 ### `internal/logarchive/logarchive_test.go`
 
-<small>83 lines · tests</small>
+<small>104 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
+| `TestSweepStopsWithoutProgress` | func | A sweep that cannot mark anything stops instead of uploading forever. |
 | `TestSweepAndRead` | func |  |
 
 ## `internal/notify` {#internal-notify}
@@ -1018,7 +1020,7 @@ Package pipeline plans and executes CI runs.
 
 ### `internal/pipeline/plan.go`
 
-<small>142 lines</small>
+<small>145 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1087,7 +1089,7 @@ Package pipeline plans and executes CI runs.
 
 ### `internal/pipeline/task_test.go`
 
-<small>122 lines · tests</small>
+<small>126 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1102,7 +1104,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/platform.go`
 
-<small>919 lines</small>
+<small>925 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1148,6 +1150,25 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `withInstallation` | func |  |
 | `(*Platform) CloneToken` | method | CloneToken is plugged into the executor: it mints a token for the installation carried in the run's context. |
 
+### `internal/platform/posttask.go`
+
+<small>384 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `postDeployTasks` | func | postDeployTasks are the release's post-deploy tasks. |
+| `(*Platform) runPostDeploy` | method | runPostDeploy runs a release's post-deploy tasks, each once its after: tasks succeeded (a task whose dependency failed is skipped), and records each one's state as it goes. |
+| `(*Platform) saveTask` | method |  |
+| `judgeTasks` | func | judgeTasks folds post-deploy results into a verification: a failed required task fails the release; a failed optional one is a warning. |
+| `taskJob` | func | taskJob builds the Job for a post-deploy task. |
+| `(*Platform) runTaskJob` | method | runTaskJob runs one post-deploy task as a Job and waits for it, keeping its log. |
+| `(*Platform) waitTaskPod` | method | waitTaskPod returns the name of a Job's pod once it has started (or finished), or "" if it never does. |
+| `jobFailed` | func |  |
+| `jobFailure` | func |  |
+| `lastLines` | func |  |
+| `lockedWriter` | struct |  |
+| `(*lockedWriter) Write` | method | Write appends b under the lock (the log stream and the reader share the buffer). |
+
 ### `internal/platform/recorder.go`
 
 <small>99 lines</small>
@@ -1164,7 +1185,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/verify.go`
 
-<small>470 lines</small>
+<small>521 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1188,6 +1209,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `fmtDur` | func |  |
 | `fmtMS` | func |  |
 | `(*Platform) notifyRunFailed` | method | notifyRunFailed emails a failed run of the default branch: nothing was released. |
+| `(*Platform) postDeployOnly` | method | postDeployOnly runs a release's post-deploy tasks without verification (it is off): once the rollout is healthy, results are recorded only. |
 
 ### `internal/platform/platform_test.go`
 
@@ -1200,6 +1222,15 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `TestChangeDetection` | func | Only what changed since the last release is tested, built and rolled. |
 | `TestTasks` | func |  |
 | `TestDisconnectAndSuggestedName` | func | Disconnect leaves everything running and unowned; the wizard suggests the namespace that already serves a repo's hosts. |
+
+### `internal/platform/posttask_test.go`
+
+<small>148 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestTaskJob` | func |  |
+| `TestPostDeployVerification` | func | A required post-deploy task that fails fails verification and rolls the release back; an optional one is only reported; one waiting on a failed task is skipped. |
 
 ### `internal/platform/verify_test.go`
 
@@ -1333,7 +1364,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 
 ### `internal/spec/spec.go`
 
-<small>1171 lines</small>
+<small>1216 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1341,6 +1372,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 | `Verify` | struct | Verify configures release verification: after a release is live, its services are checked for a while, and a release that breaks a service that worked before is rolled back to the last good release. |
 | `(*Verify) AutoRollback` | method | AutoRollback reports whether a release that fails verification is rolled back. |
 | `Task` | struct | Task is a command run as a step of every CI run: the commit is checked out, and the command runs in Image from Path. |
+| `(Task) PostDeploy` | method | PostDeploy reports whether the task runs after the release is live. |
 | `(Task) SecretNames` | method | SecretNames lists every secret the task reads. |
 | `(Spec) SecretNames` | method | SecretNames lists every secret the app's services, jobs and tasks read: the ones that can be set from the app's settings. |
 | `PostgresOptions` | struct | PostgresOptions configure the app's database (one per app, shared by every service that needs it). |
@@ -1394,7 +1426,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 
 ### `internal/spec/spec_test.go`
 
-<small>402 lines · tests</small>
+<small>433 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1411,6 +1443,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 | `TestValidateBuildGPUCatalog` | func |  |
 | `TestNeeds` | func |  |
 | `TestTasks` | func |  |
+| `TestPostDeployTasks` | func |  |
 
 ## `internal/store` {#internal-store}
 
@@ -1438,6 +1471,17 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) GetAddonRun` | method | GetAddonRun returns one run with its log. |
 | `prefixed` | func | prefixed qualifies a column list with a table alias ("a.id, a.name"). |
 
+### `internal/store/release_tasks.go`
+
+<small>76 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `ReleaseTask` | struct | ReleaseTask is one post-deploy task of a release (see spec.Task). |
+| `(*Store) SaveReleaseTask` | method | SaveReleaseTask records a post-deploy task's state (and the tail of its log). |
+| `(*Store) ReleaseTasks` | method | ReleaseTasks returns the post-deploy tasks of the given releases, by release ID, without their logs. |
+| `(*Store) ReleaseTaskLog` | method | ReleaseTaskLog returns the log of one post-deploy task of an app's release. |
+
 ### `internal/store/stats.go`
 
 <small>201 lines</small>
@@ -1455,7 +1499,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/store.go`
 
-<small>618 lines</small>
+<small>621 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1489,7 +1533,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) StepLog` | method | StepLog returns a step's stored log, or, once archived, the key of its object in the log archive (and an empty log). |
 | `ArchivableStep` | struct | ArchivableStep is a finished run's step whose log is still in Postgres. |
 | `(*Store) UnarchivedSteps` | method | UnarchivedSteps lists up to limit steps with a log in Postgres, of runs that finished before `before` (their logs are complete), oldest first. |
-| `(*Store) MarkArchived` | method | MarkArchived records that a step's log is stored under ref and empties the column. |
+| `(*Store) MarkArchived` | method | MarkArchived records that a step's log (bytes long, in bytes) is stored under ref and empties the column. |
 | `(*Store) ArchiveStats` | method | ArchiveStats counts archived logs and their size, and logs waiting to be archived. |
 | `Release` | struct | Release is what was deployed: the images (by digest) and spec of one successful run, or of a rollback. |
 | `(*Store) SetVerification` | method | SetVerification records a release's verification state and message. |
@@ -1532,7 +1576,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/logarchive_test.go`
 
-<small>42 lines · tests</small>
+<small>46 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1633,7 +1677,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>598 lines</small>
+<small>610 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1660,6 +1704,7 @@ Package web embeds the built UI (npm run build → web/dist).
 | `Incident` | interface |  |
 | `Reliability` | interface |  |
 | `Release` | interface |  |
+| `ReleaseTask` | interface | A post-deploy task of a release: a command run against it once live. |
 | `VerifyStatus` | type | What release verification concluded ("" for releases from before it existed). |
 | `ResourceNode` | interface |  |
 | `Installation` | interface |  |
@@ -1766,7 +1811,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/AppPage.tsx`
 
-<small>409 lines</small>
+<small>442 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1777,6 +1822,8 @@ Package web embeds the built UI (npm run build → web/dist).
 | `DependencyUpdates` | component | The app's Renovate switch and what the last run did for its repo. |
 | `Runs` | component |  |
 | `Releases` | component |  |
+| `taskBadge` | const |  |
+| `PostDeployTask` | component | One post-deploy task under its release: status, duration, and its log on demand. |
 | `verifyBadge` | const |  |
 | `VerifyBadge` | component | What release verification concluded, with its message on hover. |
 | `VerificationBanner` | component | A banner while the newest release is verified, or after it was rolled back. |

@@ -14,6 +14,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/events"
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
+	"github.com/p0dxD/rendimiento.ai/internal/spec"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 	"github.com/p0dxD/rendimiento.ai/internal/uptime"
 )
@@ -34,6 +35,8 @@ type VerifySettings struct {
 	Check func(ctx context.Context, t uptime.Target) store.Probe
 	// Rollout reports a release's rollout; nil reads the App object.
 	Rollout func(ctx context.Context, app string, release int64) (RolloutState, string, error)
+	// RunTask runs one post-deploy task; nil runs it as a Job.
+	RunTask func(ctx context.Context, app *store.App, rel *store.Release, t spec.Task) store.ReleaseTask
 }
 
 // RolloutState is where a release's rollout stands.
@@ -60,14 +63,16 @@ func (p *Platform) startVerification(ctx context.Context, app *store.App, rel *s
 		window = time.Duration(v.Window) * time.Second
 	}
 	switch {
+	case rel.RollbackOf != nil:
+		return // the rollback records its own status; its tasks ran before
 	case p.Verify.Window == 0 || p.Verify.Check == nil:
 		p.setVerification(app, rel, store.VerifySkipped, "release verification is off on this platform")
+		p.postDeployOnly(ctx, app, rel)
 		return
 	case v != nil && v.Disabled:
 		p.setVerification(app, rel, store.VerifySkipped, "verification is off for this app (verify.disabled)")
+		p.postDeployOnly(ctx, app, rel)
 		return
-	case rel.RollbackOf != nil:
-		return // the rollback records its own status
 	}
 	vctx, cancel := context.WithCancelCause(ctx)
 	p.mu.Lock()
@@ -128,7 +133,14 @@ func (p *Platform) verify(ctx context.Context, app *store.App, rel *store.Releas
 		return
 	}
 
-	// 2. The window: check every service of the release every few seconds.
+	// 2. Post-deploy tasks run alongside the window, against the live release.
+	var post chan []store.ReleaseTask
+	if len(postDeployTasks(rel)) > 0 {
+		post = make(chan []store.ReleaseTask, 1)
+		go func() { post <- p.runPostDeploy(ctx, app, rel) }()
+	}
+
+	// 3. The window: check every service of the release every few seconds.
 	baseline, err := p.Store.ProbeStats(ctx, app.ID, rel.CreatedAt.Add(-time.Hour), rel.CreatedAt)
 	if err != nil {
 		log.Warn("verification: no baseline", "err", err)
@@ -160,12 +172,35 @@ func (p *Platform) verify(ctx context.Context, app *store.App, rel *store.Releas
 		}
 	}
 
-	// 3. The verdict.
+	// 4. The verdict: the checks, then the post-deploy tasks (waited for).
 	ok, reason, warnings := judge(baseline, got)
+	var taskCount int
+	if post != nil {
+		var results []store.ReleaseTask
+		select {
+		case results = <-post:
+		case <-ctx.Done():
+			superseded()
+			return
+		}
+		taskCount = len(results)
+		failures, taskWarnings := judgeTasks(results)
+		warnings = append(warnings, taskWarnings...)
+		if len(failures) > 0 {
+			ok = false
+			if reason != "" {
+				reason += "; "
+			}
+			reason += strings.Join(failures, "; ")
+		}
+	}
 	if ok {
 		msg := fmt.Sprintf("all %d checks stayed healthy for %s", len(targets), fmtDur(window))
 		if len(targets) == 0 {
 			msg = "rolled out healthy (no services to check)"
+		}
+		if taskCount > 0 {
+			msg += fmt.Sprintf(", and %d post-deploy task(s) passed", taskCount)
 		}
 		if len(warnings) > 0 {
 			msg += "; " + strings.Join(warnings, "; ")
@@ -467,4 +502,20 @@ func (p *Platform) notifyRunFailed(app *store.App, run *store.Run, msg string, s
 		Details:   details,
 		ActionURL: fmt.Sprintf("%s/apps/%s/runs/%d", p.Config.BaseURL, app.Name, run.ID), ActionLabel: "Open the run",
 	})
+}
+
+// postDeployOnly runs a release's post-deploy tasks without verification
+// (it is off): once the rollout is healthy, results are recorded only.
+func (p *Platform) postDeployOnly(ctx context.Context, app *store.App, rel *store.Release) {
+	if len(postDeployTasks(rel)) == 0 {
+		return
+	}
+	go func() {
+		if healthy, why := p.waitRollout(ctx, app.Name, rel.Number); !healthy {
+			p.Log.Warn("post-deploy tasks not run: the release did not become healthy", "app", app.Name, "release", rel.Number, "why", why)
+			return
+		}
+		p.runPostDeploy(ctx, app, rel)
+		p.Hub.Publish(appTopic(app.Name), events.Event{Type: "release", Data: rel})
+	}()
 }

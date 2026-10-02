@@ -141,6 +141,7 @@ func (s *Server) Handler() http.Handler {
 	auth("POST /api/apps/{app}/runs", s.triggerRun)
 	auth("GET /api/apps/{app}/releases", s.listReleases)
 	auth("GET /api/apps/{app}/reliability", s.reliability)
+	auth("GET /api/apps/{app}/releases/{number}/tasks/{task}/log", s.releaseTaskLog)
 	auth("POST /api/apps/{app}/rollback", s.rollback)
 	auth("GET /api/apps/{app}/resources", s.resources)
 	auth("PUT /api/apps/{app}/secrets/{secret}", s.putSecret)
@@ -712,6 +713,15 @@ func (s *Server) listReleases(w http.ResponseWriter, r *http.Request, _ string) 
 	}
 	if rels == nil {
 		rels = []*store.Release{}
+	}
+	ids := make([]int64, len(rels))
+	for i, rel := range rels {
+		ids[i] = rel.ID
+	}
+	if tasks, err := s.Store.ReleaseTasks(r.Context(), ids); err == nil {
+		for _, rel := range rels {
+			rel.Tasks = tasks[rel.ID]
+		}
 	}
 	writeJSON(w, rels)
 }

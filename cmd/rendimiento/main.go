@@ -313,6 +313,7 @@ func run(log *slog.Logger) error {
 		return fmt.Errorf("VERIFY_WINDOW must be 0 (off) or a duration of at least 1m, got %q", os.Getenv("VERIFY_WINDOW"))
 	}
 	p.Verify = platform.VerifySettings{Window: verifyWindow, Check: checker.Check}
+	p.Clientset = clientset
 
 	httpSrv := &http.Server{Addr: env("LISTEN", ":8080"), Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
 

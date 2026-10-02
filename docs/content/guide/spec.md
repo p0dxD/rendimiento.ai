@@ -208,7 +208,9 @@ Commands run as CI steps; see [Tasks](tasks.md) for when they run and how secret
 | Field | Type | Default | Meaning |
 |---|---|---|---|
 | `name` | string ≤ 40 | **required** | Unique among services, jobs and tasks. The step is `<name>:task`. |
-| `image` | image | **required** | What the command runs in. |
+| `stage` | `build` \| `post-deploy` | `build` | `build`: a CI step. `post-deploy`: runs against the live release, in its namespace, as part of verification ([post-deploy tasks](tasks.md#post-deploy-tasks)). |
+| `service` | service name | — | Post-deploy only: run in this service's live image with its environment (instead of `image`). |
+| `image` | image | **required** (build) | What the command runs in. Post-deploy tasks give `image` or `service`. |
 | `command` | string | **required** | Run with `sh -c`. |
 | `path` | string | `.` | Working directory, relative to the repo root; also what counts as a change. |
 | `watch` | list of paths | none | More paths whose changes run the task. |
