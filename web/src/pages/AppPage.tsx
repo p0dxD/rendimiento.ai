@@ -268,14 +268,14 @@ function Releases({ name, current }: { name: string; current?: number }) {
                 </div>
               )}
               {r.verifyMessage && r.verifyStatus !== "skipped" && r.verifyStatus !== "superseded" && (
-                <div className="small" style={{ color: r.verifyStatus === "failed" || r.verifyStatus === "failed-kept" ? "var(--bad)" : "var(--muted)" }}>{r.verifyMessage}</div>
+                <div className="small" style={{ color: r.verifyStatus === "failed" || r.verifyStatus === "failed-kept" || r.verifyStatus === "blocked" ? "var(--bad)" : "var(--muted)" }}>{r.verifyMessage}</div>
               )}
               <div className="small muted">
                 <span className="mono">{r.sha.slice(0, 7)}</span> · {timeAgo(r.createdAt)}
                 {r.runId && <> · <Link to={`/apps/${name}/runs/${r.runId}`}>run #{r.runId}</Link></>}
               </div>
             </div>
-            {r.number !== current && (
+            {r.number !== current && r.verifyStatus !== "blocked" && (
               <button disabled={busy !== undefined} onClick={() => rollback(r.number)}>{busy === r.number ? "Rolling back…" : "Roll back"}</button>
             )}
           </li>
@@ -301,7 +301,7 @@ function PostDeployTask({ app, release, t }: { app: string; release: number; t: 
   return (
     <div className="small">
       <div className="row" style={{ gap: 8 }}>
-        <span className="muted">post-deploy</span>
+        <span className="muted">{t.stage}</span>
         <strong className="mono">{t.name}</strong>
         <span className={`badge ${tone}`}>{label}{t.optional && t.status === "failed" ? " (optional)" : ""}</span>
         {t.startedAt && t.finishedAt && <span className="muted">{duration(t.startedAt, t.finishedAt)}</span>}
@@ -319,6 +319,7 @@ const verifyBadge: Record<string, [string, string]> = {
   failed: ["bad", "Failed · rolled back"],
   "failed-kept": ["bad", "Failed verification"],
   superseded: ["", "Not verified: replaced"],
+  blocked: ["bad", "Not deployed"],
 };
 
 /** What release verification concluded, with its message on hover. */
@@ -339,6 +340,9 @@ function VerificationBanner({ name }: { name: string }) {
   const recent = newest.verifiedAt && Date.now() - new Date(newest.verifiedAt).getTime() < 24 * 3600 * 1000;
   if (recent && (newest.verifyStatus === "failed" || newest.verifyStatus === "failed-kept")) {
     return <div className="alert" style={{ marginTop: 12 }}>Release #{newest.number} failed verification: {newest.verifyMessage}</div>;
+  }
+  if (recent && newest.verifyStatus === "blocked") {
+    return <div className="alert" style={{ marginTop: 12 }}>Release #{newest.number} was not deployed: a pre-deploy task failed ({newest.verifyMessage?.replace(/^not deployed: /, "")}). The app keeps running its current release.</div>;
   }
   return null;
 }

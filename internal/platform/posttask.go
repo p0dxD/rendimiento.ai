@@ -32,22 +32,30 @@ import (
 // defaultTaskTimeout bounds a post-deploy task without its own timeout.
 const defaultTaskTimeout = 10 * time.Minute
 
-// postDeployTasks are the release's post-deploy tasks.
-func postDeployTasks(rel *store.Release) []spec.Task {
+// stageTasks are the release's tasks of one stage (pre- or post-deploy).
+func stageTasks(rel *store.Release, stage string) []spec.Task {
 	var out []spec.Task
 	for _, t := range rel.Spec.Tasks {
-		if t.PostDeploy() {
+		if t.Stage == stage {
 			out = append(out, t)
 		}
 	}
 	return out
 }
 
-// runPostDeploy runs a release's post-deploy tasks, each once its after:
-// tasks succeeded (a task whose dependency failed is skipped), and records
-// each one's state as it goes.
+// postDeployTasks are the release's post-deploy tasks.
+func postDeployTasks(rel *store.Release) []spec.Task { return stageTasks(rel, spec.StagePostDeploy) }
+
+// runPostDeploy runs a release's post-deploy tasks (see runStage).
 func (p *Platform) runPostDeploy(ctx context.Context, app *store.App, rel *store.Release) []store.ReleaseTask {
-	tasks := postDeployTasks(rel)
+	return p.runStage(ctx, app, rel, spec.StagePostDeploy)
+}
+
+// runStage runs a release's tasks of one stage, each once its after: tasks
+// succeeded (a task whose dependency failed is skipped), and records each
+// one's state as it goes.
+func (p *Platform) runStage(ctx context.Context, app *store.App, rel *store.Release, stage string) []store.ReleaseTask {
+	tasks := stageTasks(rel, stage)
 	run := p.Verify.RunTask
 	if run == nil {
 		run = p.runTaskJob
@@ -82,7 +90,7 @@ func (p *Platform) runPostDeploy(ctx context.Context, app *store.App, rel *store
 				}
 			}
 			if blocked != "" {
-				r := store.ReleaseTask{ReleaseID: rel.ID, Name: t.Name, Optional: t.Optional, Status: store.TaskSkipped, Message: blocked + " did not succeed"}
+				r := store.ReleaseTask{ReleaseID: rel.ID, Name: t.Name, Stage: stage, Optional: t.Optional, Status: store.TaskSkipped, Message: blocked + " did not succeed"}
 				p.saveTask(r)
 				results[t.Name], done[t.Name] = r, true
 				continue
@@ -91,9 +99,9 @@ func (p *Platform) runPostDeploy(ctx context.Context, app *store.App, rel *store
 			go func(t spec.Task) {
 				defer wg.Done()
 				now := time.Now()
-				p.saveTask(store.ReleaseTask{ReleaseID: rel.ID, Name: t.Name, Optional: t.Optional, Status: store.TaskRunning, StartedAt: &now})
+				p.saveTask(store.ReleaseTask{ReleaseID: rel.ID, Name: t.Name, Stage: stage, Optional: t.Optional, Status: store.TaskRunning, StartedAt: &now})
 				r := run(ctx, app, rel, t)
-				r.ReleaseID, r.Name, r.Optional, r.StartedAt = rel.ID, t.Name, t.Optional, &now
+				r.ReleaseID, r.Name, r.Stage, r.Optional, r.StartedAt = rel.ID, t.Name, stage, t.Optional, &now
 				if r.FinishedAt == nil {
 					end := time.Now()
 					r.FinishedAt = &end
@@ -131,7 +139,11 @@ func judgeTasks(results []store.ReleaseTask) (failures, warnings []string) {
 		if r.Status == store.TaskSucceeded {
 			continue
 		}
-		line := fmt.Sprintf("post-deploy task %s %s", r.Name, r.Status)
+		stage := r.Stage
+		if stage == "" {
+			stage = spec.StagePostDeploy
+		}
+		line := fmt.Sprintf("%s task %s %s", stage, r.Name, r.Status)
 		if r.Message != "" {
 			line += ": " + r.Message
 		}
@@ -149,7 +161,11 @@ var nonJobName = regexp.MustCompile(`[^a-z0-9-]+`)
 // taskJob builds the Job for a post-deploy task. base, for a service: task,
 // is the service's live container: its image, env and mounts are reused.
 func taskJob(app string, rel *store.Release, t spec.Task, base *corev1.Container, baseVolumes []corev1.Volume, suffix string) *batchv1.Job {
-	name := nonJobName.ReplaceAllString(strings.ToLower(fmt.Sprintf("post-%s-r%d", t.Name, rel.Number)), "-")
+	prefix := "post"
+	if t.PreDeploy() {
+		prefix = "pre"
+	}
+	name := nonJobName.ReplaceAllString(strings.ToLower(fmt.Sprintf("%s-%s-r%d", prefix, t.Name, rel.Number)), "-")
 	if len(name) > 52 {
 		name = name[:52]
 	}
@@ -161,13 +177,19 @@ func taskJob(app string, rel *store.Release, t spec.Task, base *corev1.Container
 	deadline := int64(timeout.Seconds())
 	labels := map[string]string{
 		render.LabelManagedBy: render.ManagedBy, render.LabelApp: app,
-		"rendimiento.ai/post-deploy": nonJobName.ReplaceAllString(t.Name, "-"),
-		"rendimiento.ai/release":     fmt.Sprint(rel.Number),
+		"rendimiento.ai/task":    nonJobName.ReplaceAllString(t.Name, "-"),
+		"rendimiento.ai/stage":   t.Stage,
+		"rendimiento.ai/release": fmt.Sprint(rel.Number),
 	}
 	c := corev1.Container{Name: "task", Image: t.Image, Command: []string{"sh", "-c", t.Command}}
 	var volumes []corev1.Volume
 	if base != nil {
 		c.Image, c.Env, c.EnvFrom = base.Image, append([]corev1.EnvVar(nil), base.Env...), append([]corev1.EnvFromSource(nil), base.EnvFrom...)
+		// Before the rollout the live Deployment still runs the previous
+		// release: keep its environment, use the new release's image.
+		if img := rel.Images[t.Service]; t.PreDeploy() && img != "" {
+			c.Image = img
+		}
 		// Secret and ConfigMap files come along; data volumes do not (a
 		// ReadWriteOnce claim is the running pod's).
 		keep := map[string]bool{}

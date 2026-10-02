@@ -114,8 +114,8 @@ func Plan(app, registry string, s spec.Spec) []Step {
 		})
 	}
 	for _, t := range s.Tasks {
-		if t.PostDeploy() {
-			continue // runs after the release, during its verification
+		if t.Deploys() {
+			continue // runs around the deploy, in the app's namespace
 		}
 		step := Step{
 			ID: TaskStepID(t.Name), Service: TaskKey(t.Name), Kind: KindTask, Path: t.Path,

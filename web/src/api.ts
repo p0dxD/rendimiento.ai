@@ -216,6 +216,7 @@ export interface Release {
 /** A post-deploy task of a release: a command run against it once live. */
 export interface ReleaseTask {
   name: string;
+  stage: "pre-deploy" | "post-deploy";
   status: "running" | "succeeded" | "failed" | "skipped";
   optional?: boolean;
   message?: string;
@@ -224,7 +225,7 @@ export interface ReleaseTask {
 }
 
 /** What release verification concluded ("" for releases from before it existed). */
-export type VerifyStatus = "" | "verifying" | "passed" | "failed" | "failed-kept" | "skipped" | "superseded";
+export type VerifyStatus = "" | "verifying" | "passed" | "failed" | "failed-kept" | "skipped" | "superseded" | "blocked";
 
 export interface ResourceNode {
   kind: string;

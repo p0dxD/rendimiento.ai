@@ -476,6 +476,7 @@ const (
 	VerifyFailed     = "failed"      // rolled back
 	VerifyFailedKept = "failed-kept" // failed, but rollback is off
 	VerifySkipped    = "skipped"
+	VerifyBlocked    = "blocked" // a pre-deploy task failed: never deployed
 	VerifySuperseded = "superseded"
 )
 

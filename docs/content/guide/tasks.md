@@ -93,6 +93,31 @@ Task pods run under the same [guard rails](../architecture/pipeline.md#guard-rai
 - **Works:** EAS builds (they run on Expo's servers), calls to public APIs and your public sites, publishing packages, notifications.
 - **Doesn't work yet:** database migrations against the app's own Postgres, or calling a service only reachable inside the cluster. That needs a *post-deploy* task running in the app's namespace, which is on the [roadmap](../future/roadmap.md).
 
+## Pre-deploy tasks
+
+A task with **`stage: pre-deploy`** runs after the images are built but **before the rollout**. It's the place for database migrations: the schema changes before any new code serves traffic.
+
+```yaml
+tasks:
+  - name: migrate
+    stage: pre-deploy
+    service: api                 # the api's NEW image, with the environment of the running api
+    command: python manage.py migrate --noinput
+```
+
+```mermaid
+flowchart LR
+    ci[tests + builds pass] --> rec[release #12 recorded]
+    rec --> pre{pre-deploy tasks<br/>in the app's namespace}
+    pre -- all pass --> roll[roll out #12] --> post[post-deploy tasks<br/>+ verification]
+    pre -- one fails --> stop[#12 not deployed<br/>the app keeps #11]
+```
+
+- **Where:** a Job in the app's namespace, like post-deploy tasks. With `service:`, it runs the service's **new** image with the environment of the Deployment **currently running** (its `DATABASE_URL`, secrets, `needs:`).
+- **When it fails:** the release is recorded but **not deployed**. It shows *Not deployed* with the reason, the run fails, and you get an email ("release not deployed"). The app keeps running its current release, so nothing needs undoing. A blocked release can't be rolled back to, because its migration never succeeded.
+- **The first release:** the app's environment (namespace, database, secrets) doesn't exist before it, so pre-deploy tasks are skipped with a note and run from the second release on. Make migrations safe to re-run (most migration tools are).
+- **Ordering:** `after:` refers to other pre-deploy tasks. `optional: true` only reports a failure, and the release deploys anyway.
+
 ## Post-deploy tasks
 
 A task with **`stage: post-deploy`** runs *after* the release is live, against the new version, as part of [release verification](reliability.md#verifying-each-release):
@@ -124,8 +149,8 @@ tasks:
 - **What else they get:** `RENDIMIENTO_APP`, `RENDIMIENTO_RELEASE` and `GIT_SHA`, besides their `env`, `secrets` and `secretEnv` (read directly from the app's namespace).
 - **Where you see them:** under each release in the **Releases** tab, with status, duration, the failure's reason, and a **Log** button. Jobs delete themselves after a day; the log stays with the release (its last 256 KiB).
 
-!!! warning "Migrations run after the new code starts"
-    The new version's pods are already serving when a post-deploy migration runs, and a rollback doesn't undo a migration. Write migrations that both versions can live with: add before you remove, the "expand and contract" pattern. A pre-deploy stage, where migrations run before the rollout, is on the [roadmap](../future/roadmap.md).
+!!! tip "Migrations belong in pre-deploy"
+    A post-deploy migration runs after the new version's pods are already serving. Use [`stage: pre-deploy`](#pre-deploy-tasks) for migrations, and keep post-deploy for smoke tests and checks of the live release. Either way a rollback doesn't undo a migration, so write migrations that the previous version can also live with: add before you remove, the "expand and contract" pattern.
 
 When verification is off (`VERIFY_WINDOW=0` or `verify.disabled`), post-deploy tasks still run once the rollout is healthy, and their results are recorded, but nothing is rolled back.
 

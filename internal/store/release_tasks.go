@@ -12,6 +12,7 @@ import (
 type ReleaseTask struct {
 	ReleaseID  int64      `json:"-"`
 	Name       string     `json:"name"`
+	Stage      string     `json:"stage"`  // pre-deploy or post-deploy
 	Status     string     `json:"status"` // running, succeeded, failed, skipped
 	Optional   bool       `json:"optional,omitempty"`
 	Message    string     `json:"message,omitempty"`
@@ -37,18 +38,22 @@ func (s *Store) SaveReleaseTask(ctx context.Context, t ReleaseTask) error {
 	if len(log) > maxTaskLog {
 		log = log[len(log)-maxTaskLog:]
 	}
-	_, err := s.pool.Exec(ctx, `INSERT INTO release_tasks (release_id, name, status, optional, message, log, started_at, finished_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		ON CONFLICT (release_id, name) DO UPDATE SET status = $3, optional = $4, message = $5, log = $6, started_at = $7, finished_at = $8`,
-		t.ReleaseID, t.Name, t.Status, t.Optional, t.Message, log, t.StartedAt, t.FinishedAt)
+	stage := t.Stage
+	if stage == "" {
+		stage = "post-deploy"
+	}
+	_, err := s.pool.Exec(ctx, `INSERT INTO release_tasks (release_id, name, status, optional, message, log, started_at, finished_at, stage)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (release_id, name) DO UPDATE SET status = $3, optional = $4, message = $5, log = $6, started_at = $7, finished_at = $8, stage = $9`,
+		t.ReleaseID, t.Name, t.Status, t.Optional, t.Message, log, t.StartedAt, t.FinishedAt, stage)
 	return err
 }
 
 // ReleaseTasks returns the post-deploy tasks of the given releases, by
 // release ID, without their logs.
 func (s *Store) ReleaseTasks(ctx context.Context, releaseIDs []int64) (map[int64][]ReleaseTask, error) {
-	rows, err := s.pool.Query(ctx, `SELECT release_id, name, status, optional, message, started_at, finished_at
-		FROM release_tasks WHERE release_id = ANY($1) ORDER BY release_id, started_at NULLS LAST, name`, releaseIDs)
+	rows, err := s.pool.Query(ctx, `SELECT release_id, name, stage, status, optional, message, started_at, finished_at
+		FROM release_tasks WHERE release_id = ANY($1) ORDER BY release_id, stage DESC, started_at NULLS LAST, name`, releaseIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +61,7 @@ func (s *Store) ReleaseTasks(ctx context.Context, releaseIDs []int64) (map[int64
 	out := map[int64][]ReleaseTask{}
 	for rows.Next() {
 		var t ReleaseTask
-		if err := rows.Scan(&t.ReleaseID, &t.Name, &t.Status, &t.Optional, &t.Message, &t.StartedAt, &t.FinishedAt); err != nil {
+		if err := rows.Scan(&t.ReleaseID, &t.Name, &t.Stage, &t.Status, &t.Optional, &t.Message, &t.StartedAt, &t.FinishedAt); err != nil {
 			return nil, err
 		}
 		out[t.ReleaseID] = append(out[t.ReleaseID], t)

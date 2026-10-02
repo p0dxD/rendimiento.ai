@@ -489,6 +489,23 @@ func (p *Platform) notifyRunFailed(app *store.App, run *store.Run, msg string, s
 	if details == "" {
 		details = msg
 	}
+	if strings.Contains(msg, "not deployed:") {
+		// The build passed; a pre-deploy task stopped the release.
+		p.Notify.Notify(notify.Message{
+			Tone: notify.Critical, Key: fmt.Sprintf("predeploy:%s:%s", app.Name, run.SHA),
+			Subject: fmt.Sprintf("⛔ %s: release not deployed", app.Name),
+			Title:   "A pre-deploy task stopped the release",
+			Summary: "The build passed, but a pre-deploy task (a migration, a check) failed, so the release was not rolled out. The app keeps running its current release; nothing needs undoing.",
+			Facts: []notify.Fact{
+				{Label: "App", Value: app.Name},
+				{Label: "Commit", Value: fmt.Sprintf("%s on %s", shortSHA(run.SHA), run.Branch)},
+				{Label: "Run", Value: fmt.Sprintf("#%d", run.ID)},
+			},
+			Details:   msg,
+			ActionURL: fmt.Sprintf("%s/apps/%s/releases", p.Config.BaseURL, app.Name), ActionLabel: "See releases",
+		})
+		return
+	}
 	p.Notify.Notify(notify.Message{
 		Tone: notify.Critical, Key: fmt.Sprintf("run:%s:%s", app.Name, run.SHA),
 		Subject: fmt.Sprintf("✗ %s: build failed on %s", app.Name, run.Branch),

@@ -742,6 +742,10 @@ func (s *Server) rollback(w http.ResponseWriter, r *http.Request, login string) 
 		httpError(w, http.StatusNotFound, "no such release")
 		return
 	}
+	if err != nil && strings.Contains(err.Error(), "never deployed") {
+		httpError(w, http.StatusConflict, err.Error())
+		return
+	}
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return

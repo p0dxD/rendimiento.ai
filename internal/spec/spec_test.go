@@ -419,11 +419,13 @@ tasks:
 		{"[{name: t, stage: post-deploy, image: i, service: api, command: c}]", "exactly one of image or service"},
 		{"[{name: t, stage: post-deploy, service: nope, command: c}]", `service "nope" is not a service`},
 		{"[{name: t, stage: post-deploy, image: i, command: c, path: web}]", "only apply to build tasks"},
-		{"[{name: t, stage: later, image: i, command: c}]", "must be build or post-deploy"},
-		{"[{name: t, image: i, service: api, command: c}]", "only applies to post-deploy tasks"},
+		{"[{name: t, stage: later, image: i, command: c}]", "must be build, pre-deploy or post-deploy"},
+		{"[{name: t, image: i, service: api, command: c}]", "only applies to pre- and post-deploy tasks"},
 		{"[{name: a, image: i, command: c}, {name: b, stage: post-deploy, image: i, command: c, after: [a]}]", "is not a post-deploy task"},
 		{"[{name: a, stage: post-deploy, image: i, command: c}, {name: b, image: i, command: c, after: [a]}]", "a build task cannot wait for it"},
 		{"[{name: t, stage: post-deploy, image: i, command: c, after: [api]}]", "is not a post-deploy task"},
+		{"[{name: a, stage: pre-deploy, image: i, command: c}, {name: b, stage: post-deploy, image: i, command: c, after: [a]}]", "is not a post-deploy task"},
+		{"[{name: t, stage: pre-deploy, command: c}]", "exactly one of image or service"},
 	} {
 		_, err := Parse([]byte("services: [{name: api}]\ntasks: " + tc.tasks))
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
