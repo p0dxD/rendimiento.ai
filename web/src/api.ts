@@ -210,6 +210,17 @@ export interface Release {
   verifyStatus?: VerifyStatus;
   verifyMessage?: string;
   verifiedAt?: string;
+  tasks?: ReleaseTask[];
+}
+
+/** A post-deploy task of a release: a command run against it once live. */
+export interface ReleaseTask {
+  name: string;
+  status: "running" | "succeeded" | "failed" | "skipped";
+  optional?: boolean;
+  message?: string;
+  startedAt?: string;
+  finishedAt?: string;
 }
 
 /** What release verification concluded ("" for releases from before it existed). */
@@ -293,6 +304,7 @@ export const api = {
   runs: (app: string) => request<Run[]>("GET", `/api/apps/${app}/runs`),
   triggerRun: (app: string, branch?: string) => request<Run>("POST", `/api/apps/${app}/runs`, { branch }),
   releases: (app: string) => request<Release[]>("GET", `/api/apps/${app}/releases`),
+  releaseTaskLog: (app: string, release: number, task: string) => request<string>("GET", `/api/apps/${app}/releases/${release}/tasks/${encodeURIComponent(task)}/log`),
   reliability: (app: string, range: ReliabilityRange) => request<Reliability>("GET", `/api/apps/${app}/reliability?range=${range}`),
   rollback: (app: string, release: number) => request<Release>("POST", `/api/apps/${app}/rollback`, { release }),
   resources: (app: string) => request<ResourceNode>("GET", `/api/apps/${app}/resources`),

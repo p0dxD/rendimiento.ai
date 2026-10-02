@@ -35,6 +35,13 @@ rules:
   - apiGroups: [batch]
     resources: [cronjobs]
     verbs: [get, list, watch, create, update, patch, delete]
+  # Post-deploy tasks run as Jobs in the app's namespace; their logs are kept.
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch, create, delete]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
   - apiGroups: [cert-manager.io]
     resources: [certificates]
     verbs: [get, list, watch]

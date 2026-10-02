@@ -61,8 +61,16 @@ func (v *Verify) AutoRollback() bool { return v == nil || v.Rollback == nil || *
 // read the app's secrets, so by default it only runs for pushes to the
 // default branch. A failed task fails the run (no release) unless Optional.
 type Task struct {
-	Name    string `json:"name"`
-	Image   string `json:"image"`
+	Name string `json:"name"`
+	// Stage is when the task runs: "build" (default: a CI step, before the
+	// release) or "post-deploy" (after the release is live, in the app's
+	// namespace, as part of its verification: a failure rolls it back).
+	Stage string `json:"stage,omitempty"`
+	// Image runs the command in this image. Post-deploy tasks may instead
+	// name a Service: they then run in that service's released image, with
+	// its environment (env, secrets, needs), e.g. for migrations.
+	Image   string `json:"image,omitempty"`
+	Service string `json:"service,omitempty"`
 	Command string `json:"command"`
 	// Path is the working directory, relative to the repo root (default
 	// "."). With Watch, it is also what counts as a change: on a push that
@@ -93,7 +101,13 @@ type Task struct {
 const (
 	TaskOnDeploy = "deploy"
 	TaskOnAlways = "always"
+
+	StageBuild      = "build"
+	StagePostDeploy = "post-deploy"
 )
+
+// PostDeploy reports whether the task runs after the release is live.
+func (t Task) PostDeploy() bool { return t.Stage == StagePostDeploy }
 
 // SecretNames lists every secret the task reads.
 func (t Task) SecretNames() []string {
@@ -674,6 +688,9 @@ func (s *Spec) Default() {
 		if t.Path == "" {
 			t.Path = "."
 		}
+		if t.Stage == "" {
+			t.Stage = StageBuild
+		}
 		if t.When == "" {
 			t.When = TaskOnDeploy
 		}
@@ -922,8 +939,26 @@ func (s *Spec) validateTasks() []error {
 		}
 		used[t.Name] = "task"
 		tasks[t.Name] = t
-		if t.Image == "" || strings.TrimSpace(t.Command) == "" {
-			errs = append(errs, fmt.Errorf("%s needs both image and command", p))
+		switch t.Stage {
+		case StageBuild:
+			if t.Image == "" || strings.TrimSpace(t.Command) == "" {
+				errs = append(errs, fmt.Errorf("%s needs both image and command", p))
+			}
+			if t.Service != "" {
+				errs = append(errs, fmt.Errorf("%s.service only applies to post-deploy tasks (stage: post-deploy)", p))
+			}
+		case StagePostDeploy:
+			if (t.Image == "") == (t.Service == "") || strings.TrimSpace(t.Command) == "" {
+				errs = append(errs, fmt.Errorf("%s needs a command and exactly one of image or service", p))
+			}
+			if t.Service != "" && used[t.Service] != "service" {
+				errs = append(errs, fmt.Errorf("%s.service %q is not a service of this app", p, t.Service))
+			}
+			if len(t.Watch) > 0 || (t.Path != "" && t.Path != ".") {
+				errs = append(errs, fmt.Errorf("%s: path and watch only apply to build tasks (post-deploy tasks run on every release)", p))
+			}
+		default:
+			errs = append(errs, fmt.Errorf("%s.stage %q must be build or post-deploy", p, t.Stage))
 		}
 		if strings.HasPrefix(t.Path, "/") || strings.Contains(t.Path, "..") {
 			errs = append(errs, fmt.Errorf("%s.path %q must be relative to the repo root", p, t.Path))
@@ -962,6 +997,16 @@ func (s *Spec) validateTasks() []error {
 	}
 	for i, t := range s.Tasks {
 		for _, a := range t.After {
+			if t.PostDeploy() {
+				// Post-deploy tasks wait only for each other: the builds are done.
+				if other, ok := tasks[a]; !ok || !other.PostDeploy() {
+					errs = append(errs, fmt.Errorf("tasks[%d].after: %q is not a post-deploy task of this app", i, a))
+					continue
+				}
+			} else if other, ok := tasks[a]; ok && other.PostDeploy() {
+				errs = append(errs, fmt.Errorf("tasks[%d].after: %q runs after the release; a build task cannot wait for it", i, a))
+				continue
+			}
 			switch {
 			case a == t.Name:
 				errs = append(errs, fmt.Errorf("tasks[%d].after: a task cannot wait for itself", i))

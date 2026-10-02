@@ -465,6 +465,8 @@ type Release struct {
 	VerifyStatus  string     `json:"verifyStatus,omitempty"`
 	VerifyMessage string     `json:"verifyMessage,omitempty"`
 	VerifiedAt    *time.Time `json:"verifiedAt,omitempty"`
+	// Tasks are its post-deploy tasks (filled in by the API, not scanned).
+	Tasks []ReleaseTask `json:"tasks,omitempty"`
 }
 
 // Release verification states.

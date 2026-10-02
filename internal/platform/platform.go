@@ -31,6 +31,8 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/events"
 	"github.com/p0dxD/rendimiento.ai/internal/generate"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
@@ -74,6 +76,8 @@ type Platform struct {
 	Verify VerifySettings
 	// Notify emails failed runs and rolled-back releases (nil: no email).
 	Notify *notify.Notifier
+	// Clientset runs post-deploy tasks (Jobs in app namespaces) and reads their logs.
+	Clientset kubernetes.Interface
 
 	mu        sync.Mutex
 	cancels   map[int64]context.CancelFunc      // running run → cancel
@@ -793,6 +797,8 @@ func skippedTasks(sp spec.Spec, deploy bool, files []string, prev *store.Release
 	skip := map[string]string{}
 	for _, t := range sp.Tasks {
 		switch {
+		case t.PostDeploy():
+			continue // not a CI step
 		case t.When == spec.TaskOnDeploy && !deploy:
 			skip[pipeline.TaskStepID(t.Name)] = "runs only for pushes to the default branch (when: deploy)"
 		case prev != nil && !touched(files, t.Path, t.Watch):

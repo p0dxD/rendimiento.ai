@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo, type Release } from "../api";
+import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo, type Release, type ReleaseTask } from "../api";
 import { ErrorBox, PhaseBadge, ResourceTree, RunBadge, Switch, usePoll } from "../components/ui";
 import { ReliabilityTab } from "../components/reliability";
 
@@ -262,6 +262,11 @@ function Releases({ name, current }: { name: string; current?: number }) {
                 {r.rollbackOf && <span className="badge warn">rollback to #{r.rollbackOf}</span>}
                 <VerifyBadge r={r} />
               </div>
+              {(r.tasks?.length ?? 0) > 0 && (
+                <div className="stack" style={{ marginTop: 6 }}>
+                  {r.tasks!.map((t) => <PostDeployTask key={t.name} app={name} release={r.number} t={t} />)}
+                </div>
+              )}
               {r.verifyMessage && r.verifyStatus !== "skipped" && r.verifyStatus !== "superseded" && (
                 <div className="small" style={{ color: r.verifyStatus === "failed" || r.verifyStatus === "failed-kept" ? "var(--bad)" : "var(--muted)" }}>{r.verifyMessage}</div>
               )}
@@ -277,6 +282,34 @@ function Releases({ name, current }: { name: string; current?: number }) {
         ))}
       </ul>
     </>
+  );
+}
+
+const taskBadge: Record<ReleaseTask["status"], [string, string]> = {
+  running: ["live", "Running"], succeeded: ["ok", "Passed"], failed: ["bad", "Failed"], skipped: ["", "Skipped"],
+};
+
+/** One post-deploy task under its release: status, duration, and its log on demand. */
+function PostDeployTask({ app, release, t }: { app: string; release: number; t: ReleaseTask }) {
+  const [log, setLog] = useState<string>();
+  const [open, setOpen] = useState(false);
+  const toggle = async () => {
+    if (!open && log === undefined) setLog(await api.releaseTaskLog(app, release, t.name).catch((e) => String(e)));
+    setOpen(!open);
+  };
+  const [tone, label] = taskBadge[t.status];
+  return (
+    <div className="small">
+      <div className="row" style={{ gap: 8 }}>
+        <span className="muted">post-deploy</span>
+        <strong className="mono">{t.name}</strong>
+        <span className={`badge ${tone}`}>{label}{t.optional && t.status === "failed" ? " (optional)" : ""}</span>
+        {t.startedAt && t.finishedAt && <span className="muted">{duration(t.startedAt, t.finishedAt)}</span>}
+        {t.status !== "skipped" && <button className="chip-btn" onClick={toggle}>{open ? "Hide log" : "Log"}</button>}
+      </div>
+      {t.message && t.status !== "succeeded" && <div style={{ color: t.status === "failed" ? "var(--bad)" : "var(--muted)" }}>{t.message}</div>}
+      {open && <pre className="log" style={{ maxHeight: 240, marginTop: 6 }}>{log || "No output."}</pre>}
+    </div>
   );
 }
 

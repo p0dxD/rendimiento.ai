@@ -93,6 +93,42 @@ Task pods run under the same [guard rails](../architecture/pipeline.md#guard-rai
 - **Works:** EAS builds (they run on Expo's servers), calls to public APIs and your public sites, publishing packages, notifications.
 - **Doesn't work yet:** database migrations against the app's own Postgres, or calling a service only reachable inside the cluster. That needs a *post-deploy* task running in the app's namespace, which is on the [roadmap](../future/roadmap.md).
 
+## Post-deploy tasks
+
+A task with **`stage: post-deploy`** runs *after* the release is live, against the new version, as part of [release verification](reliability.md#verifying-each-release):
+
+```yaml
+tasks:
+  - name: migrate
+    stage: post-deploy
+    service: api                 # the api's new image and environment (DATABASE_URL from needs…)
+    command: python manage.py migrate --noinput
+
+  - name: smoke
+    stage: post-deploy
+    image: curlimages/curl:8.10.1
+    command: curl -fsS http://web/api/health && curl -fsS http://web/api/products | grep -q items
+    after: [migrate]             # post-deploy tasks wait only for each other
+
+  - name: report
+    stage: post-deploy
+    image: curlimages/curl:8.10.1
+    command: ./notify-slack.sh
+    optional: true               # a failure is reported, never rolled back
+```
+
+- **Where:** a Kubernetes Job in **the app's namespace**, so it reaches the app's services by name (`http://web`) and its databases. It does *not* run in the isolated build namespace.
+- **Which image:** `image:` runs that image. `service:` runs **that service's live image with its environment**: env, secrets, `needs:` addresses and secret files, copied from the Deployment the controller just applied. That's exactly what a migration needs. The service's data volume isn't mounted, since it belongs to the running pod.
+- **When:** once the release has rolled out healthy, alongside the verification window. Tasks without `after:` start together; a task whose `after:` failed is **skipped**.
+- **What a failure does:** a required task that fails (non-zero exit, or `timeout`, default 10 minutes) **fails verification, and the release is rolled back** to the last good one. The rollback email names the task and its last lines. An `optional: true` task that fails is only reported.
+- **What else they get:** `RENDIMIENTO_APP`, `RENDIMIENTO_RELEASE` and `GIT_SHA`, besides their `env`, `secrets` and `secretEnv` (read directly from the app's namespace).
+- **Where you see them:** under each release in the **Releases** tab, with status, duration, the failure's reason, and a **Log** button. Jobs delete themselves after a day; the log stays with the release (its last 256 KiB).
+
+!!! warning "Migrations run after the new code starts"
+    The new version's pods are already serving when a post-deploy migration runs, and a rollback doesn't undo a migration. Write migrations that both versions can live with: add before you remove, the "expand and contract" pattern. A pre-deploy stage, where migrations run before the rollout, is on the [roadmap](../future/roadmap.md).
+
+When verification is off (`VERIFY_WINDOW=0` or `verify.disabled`), post-deploy tasks still run once the rollout is healthy, and their results are recorded, but nothing is rolled back.
+
 ## Recipes
 
 **Expo / EAS build on every mobile change:**

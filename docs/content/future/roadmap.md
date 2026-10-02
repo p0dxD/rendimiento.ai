@@ -6,7 +6,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 
 | # | Item | Why | Where |
 |---|---|---|---|
-| 1 | **Post-deploy tasks**: smoke tests and migrations run against the new release, inside the app's namespace, as part of its verification | verification today watches health checks; a task can exercise real flows (log in, place an order) | `spec.Task` (`stage: post-deploy`), `platform/verify.go`, a task pod in the app's namespace |
+| 1 | **Pre-deploy tasks**: run migrations with the new image *before* the rollout (`stage: pre-deploy`), so new code never meets an old schema | post-deploy migrations need expand-and-contract discipline | `platform.release` (before `pointApp`), `platform/posttask.go`'s Job runner |
 | 2 | **Move apps' databases onto `needs:`** | one way to get Postgres, with credentials generated and wired in | per app: `rendimiento.yaml`, data migration runbook |
 | 3 | **Delivery stats and a public status page**: deploy frequency, lead time, change failure rate and recovery time on the dashboard; uptime per site on `status.joserod.space` | show the platform working, in numbers | `store` (runs, releases, incidents), a public read-only endpoint, a small page |
 | 4 | **Platform metrics in Grafana**: scrape `METRICS_ADDR` (uptime metrics are already exported there), add build metrics, and a dashboard | see builds slowing or queues growing before users do | a `VMServiceScrape`, a metrics port on the Service, `pipeline`, `platform` |
@@ -42,6 +42,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 - An add-on engine (Helm and kustomize from git), with previews, safety gates and Helm hooks, which replaced ArgoCD
 - Renovate as an add-on, which replaced the CronJob
 - ArgoCD and Jenkins uninstalled (2026-09-28)
+- Post-deploy tasks: smoke tests and migrations against the live release, in its namespace; a failure rolls it back (2026-10-02)
 - Step logs archived to MinIO (gzip) and deleted after 365 days by a lifecycle rule (2026-10-01)
 - Email notifications for failed builds, rollbacks, outages and recoveries (2026-10-01)
 - Release verification with automatic rollback: each release is watched for 5 minutes and rolled back to the last good one if it breaks a service (2026-10-01)
