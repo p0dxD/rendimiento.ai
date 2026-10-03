@@ -83,7 +83,8 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 | Variable | Default | This cluster | Meaning |
 |---|---|---|---|
 | `PUBLIC_STATS` | `false` | `true` | serve [`GET /api/public/stats`](../guide/reliability.md#public-stats) without login |
-| `PUBLIC_STATS_ORIGINS` | *(none)* | `https://joserod.space,https://www.joserod.space` | browser origins allowed to fetch it (CORS) |
+| `STATS_LISTEN` | *(empty: on the main listener)* | `:8081` | serve the public stats only on this internal port, not on the public listener |
+| `PUBLIC_STATS_ORIGINS` | *(none)* | | browser origins allowed to fetch it (CORS); not needed when it's fetched server-side |
 | `PUBLIC_STATS_TZ` | `UTC` | `America/New_York` | the time zone its days are counted in |
 
 ## Log archive

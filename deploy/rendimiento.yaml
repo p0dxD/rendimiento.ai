@@ -43,10 +43,12 @@ data:
   # here, through Resend (RESEND_API_KEY in the rendimiento-notify secret).
   NOTIFY_EMAIL_TO: jose0797@gmail.com
   NOTIFY_EMAIL_FROM: rendimiento <alerts@joserod.space>
-  # GET /api/public/stats (no login): aggregate numbers for the live
-  # section of joserod.space, which fetches it server-side in the cluster.
+  # GET /api/public/stats: aggregate numbers for the live section of
+  # joserod.space, served only on the internal port 8081 (the Service's
+  # "stats" port, which the public ingress does not route), so it is
+  # reachable from inside the cluster but not from the internet.
   PUBLIC_STATS: "true"
-  PUBLIC_STATS_ORIGINS: https://joserod.space,https://www.joserod.space
+  STATS_LISTEN: ":8081"
   PUBLIC_STATS_TZ: America/New_York
   # Finished runs' step logs move to MinIO (gzip), which deletes them after
   # LOG_RETENTION_DAYS. Credentials: the rendimiento-logs secret (a MinIO
@@ -92,6 +94,7 @@ spec:
           ports:
             - { name: http, containerPort: 8080 }
             - { name: metrics, containerPort: 9090 }
+            - { name: stats, containerPort: 8081 }
           readinessProbe:
             httpGet: { path: /healthz, port: http }
             periodSeconds: 10
@@ -117,7 +120,10 @@ metadata:
   namespace: rendimiento-system
 spec:
   selector: { app: rendimiento }
-  ports: [{ name: http, port: 80, targetPort: http }]
+  ports:
+    - { name: http, port: 80, targetPort: http }
+    # In-cluster only: the public stats (the Ingress routes only "http").
+    - { name: stats, port: 8081, targetPort: stats }
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

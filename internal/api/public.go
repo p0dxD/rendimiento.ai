@@ -2,17 +2,31 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"slices"
+	"sort"
 	"sync"
 	"time"
 
+	"github.com/p0dxD/rendimiento.ai/internal/environment"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 )
 
+// StatsHandler serves only GET /api/public/stats: for an internal-only
+// listener (STATS_LISTEN) that the public ingress does not route, so the
+// numbers reach the cluster's own pages but not the internet.
+func (s *Server) StatsHandler() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/public/stats", s.publicStats)
+	return mux
+}
+
 // PublicStats is what GET /api/public/stats returns: aggregate numbers for
-// a public page (a portfolio, a status page). Only public site names and
-// URLs, node names and counts; no addresses, secrets or commit messages.
+// a public page (a portfolio, a status page). It is kept deliberately
+// vague about the setup: public site URLs, app names and counts, nodes by
+// generic label with their load; no node names, operating systems,
+// software versions, addresses, secrets or commit messages.
 type PublicStats struct {
 	GeneratedAt time.Time            `json:"generatedAt"`
 	TimeZone    string               `json:"timeZone"`
@@ -28,10 +42,9 @@ type publicSite struct {
 }
 
 type publicNode struct {
-	Name     string   `json:"name"`
-	Role     string   `json:"role"` // control-plane or worker
+	Label    string   `json:"label"` // "control plane", "worker 1"…, "GPU node"
+	Role     string   `json:"role"`  // control-plane or worker
 	Arch     string   `json:"arch"`
-	OS       string   `json:"os"`
 	Ready    bool     `json:"ready"`
 	Pods     int      `json:"pods"`
 	CPUCores float64  `json:"cpuCores"`
@@ -42,11 +55,9 @@ type publicNode struct {
 }
 
 type publicCluster struct {
-	Distribution string       `json:"distribution"`
-	Version      string       `json:"version"`
-	Pods         int          `json:"pods"`
-	Apps         int          `json:"apps"`
-	Nodes        []publicNode `json:"nodes"`
+	Pods  int          `json:"pods"`
+	Apps  int          `json:"apps"`
+	Nodes []publicNode `json:"nodes"`
 }
 
 // publicCache keeps the last answer for a minute, so visitors cannot make
@@ -123,13 +134,22 @@ func (s *Server) buildPublicStats(ctx context.Context) (*PublicStats, error) {
 	}
 	if s.Environment != nil {
 		rep := s.Environment.Report(ctx, false)
-		out.Cluster.Distribution, out.Cluster.Version, out.Cluster.Pods = rep.Cluster.Name, rep.Cluster.Version, rep.Cluster.Pods
-		for _, n := range rep.Nodes {
-			role := "worker"
-			if slices.Contains(n.Roles, "control-plane") || slices.Contains(n.Roles, "master") {
-				role = "control-plane"
+		out.Cluster.Pods = rep.Cluster.Pods
+		nodes := append([]environment.Node(nil), rep.Nodes...)
+		sort.Slice(nodes, func(i, j int) bool { return nodes[i].Name < nodes[j].Name })
+		workers := 0
+		for _, n := range nodes {
+			role, label := "worker", ""
+			switch {
+			case slices.Contains(n.Roles, "control-plane") || slices.Contains(n.Roles, "master"):
+				role, label = "control-plane", "control plane"
+			case n.GPUs > 0:
+				label = "GPU node"
+			default:
+				workers++
+				label = fmt.Sprintf("worker %d", workers)
 			}
-			out.Cluster.Nodes = append(out.Cluster.Nodes, publicNode{Name: n.Name, Role: role, Arch: n.Arch, OS: n.OS, Ready: n.Ready,
+			out.Cluster.Nodes = append(out.Cluster.Nodes, publicNode{Label: label, Role: role, Arch: n.Arch, Ready: n.Ready,
 				Pods: n.Pods, CPUCores: n.CPUCores, CPUUsed: n.CPUUsed, MemBytes: n.MemBytes, MemUsed: n.MemUsed, GPUs: n.GPUs})
 		}
 	}

@@ -11,11 +11,11 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 385 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 402 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/api`](#internal-api) | 9 | 2356 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 9 | 2399 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 885 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2733 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 428 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
@@ -93,7 +93,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>376 lines</small>
+<small>393 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -283,10 +283,11 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/public.go`
 
-<small>137 lines</small>
+<small>157 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
+| `(*Server) StatsHandler` | method | StatsHandler serves only GET /api/public/stats: for an internal-only listener (STATS_LISTEN) that the public ingress does not route, so the numbers reach the cluster's own pages but not the internet. |
 | `PublicStats` | struct | PublicStats is what GET /api/public/stats returns: aggregate numbers for a public page (a portfolio, a status page). |
 | `publicSite` | struct |  |
 | `publicNode` | struct |  |
@@ -307,7 +308,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1110 lines</small>
+<small>1115 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -371,7 +372,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server_test.go`
 
-<small>300 lines · tests</small>
+<small>318 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|

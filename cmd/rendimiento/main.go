@@ -273,6 +273,10 @@ func run(log *slog.Logger) error {
 	srv.PublicStats = env("PUBLIC_STATS", "false") == "true"
 	srv.PublicOrigins = splitList(os.Getenv("PUBLIC_STATS_ORIGINS"))
 	srv.PublicTimeZone = env("PUBLIC_STATS_TZ", "UTC")
+	// With STATS_LISTEN, the stats are served only on that internal port
+	// (not routed by the public ingress), never on the public listener.
+	statsAddr := os.Getenv("STATS_LISTEN")
+	srv.StatsInternalOnly = statsAddr != ""
 	srv.Environment.Config.NotifyTo, srv.Environment.Config.NotifyReady = notifier.To, notifier.Enabled()
 	log.Info("email notifications", "enabled", notifier.Enabled(), "to", notifier.To)
 
@@ -317,7 +321,7 @@ func run(log *slog.Logger) error {
 
 	httpSrv := &http.Server{Addr: env("LISTEN", ":8080"), Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
 
-	errc := make(chan error, 3)
+	errc := make(chan error, 4)
 	go func() { errc <- mgr.Start(ctx) }()
 	go func() {
 		// CI workers run only on the leader so one replica owns the queue.
@@ -348,6 +352,16 @@ func run(log *slog.Logger) error {
 		}
 		errc <- nil
 	}()
+	var statsSrv *http.Server
+	if statsAddr != "" {
+		statsSrv = &http.Server{Addr: statsAddr, Handler: srv.StatsHandler(), ReadHeaderTimeout: 10 * time.Second}
+		go func() {
+			log.Info("serving public stats internally", "addr", statsAddr)
+			if err := statsSrv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+				errc <- err
+			}
+		}()
+	}
 	go func() {
 		log.Info("listening", "addr", httpSrv.Addr, "baseURL", baseURL)
 		if err := httpSrv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
@@ -365,6 +379,9 @@ func run(log *slog.Logger) error {
 	}
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if statsSrv != nil {
+		_ = statsSrv.Shutdown(shutdown)
+	}
 	return httpSrv.Shutdown(shutdown)
 }
 
