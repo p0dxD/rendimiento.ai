@@ -2,7 +2,7 @@
 
 Connect a GitHub repo, press **Deploy**, get a live HTTPS URL. rendimiento is a CI/CD control plane for your own Kubernetes cluster. It combines CI (what Jenkins did), GitOps delivery (what ArgoCD did) and cluster add-ons (Helm charts and manifests from git) in **one small Go binary** with a React UI.
 
-It runs a six-node Raspberry Pi + GPU node k3s cluster, and deploys every app on it, including its own documentation.
+It runs a small home k3s cluster, and deploys every app on it, including its own documentation.
 
 ```mermaid
 flowchart LR
@@ -46,7 +46,7 @@ services:
     port: 3000
     size: small              # small | medium | large
     replicas: 2
-    domain: myapp.joserod.space
+    domain: myapp.example.com
     health: { path: /api/health }
     test: { image: node:20-bookworm, command: npm ci && npm test }
     needs: [postgres]        # DATABASE_URL is injected

@@ -18,7 +18,7 @@ Code from repositories runs in CI: tests and Dockerfile `RUN` lines. It is conta
 
 1. **No credentials**: build pods get no Kubernetes service-account token; the only secret is a clone token for that one run.
 2. **Network**: the `isolate-builds` NetworkPolicy allows DNS, the BuildKit daemons and the public internet only. Other apps, databases, the Kubernetes API, the node network and the home LAN (`192.168.0.0/16`) are unreachable. This was verified from test pods on every node.
-3. **Nodes**: builds never run on the GPU node (its kernel cannot enforce NetworkPolicy) or the control plane.
+3. **Nodes**: builds never run on the control plane or on nodes listed in `BUILD_EXCLUDE_NODES` (for example, nodes that cannot enforce NetworkPolicy).
 4. **Limits**: a deadline per step, memory limits per test pod.
 5. **Forks**: pull requests from forks are never built.
 

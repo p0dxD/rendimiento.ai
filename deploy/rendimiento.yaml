@@ -4,10 +4,12 @@ metadata:
   name: rendimiento
   namespace: rendimiento-system
 data:
-  BASE_URL: https://rendimiento.joserod.space
-  ALLOWED_USERS: p0dxD
-  GITHUB_APP_NAME: rendimiento-joserod
-  DNS_ZONE: joserod.space
+  # Example values: a real cluster's settings live outside this public
+  # repository (an overlay applied over these manifests; see the book).
+  BASE_URL: https://rendimiento.example.com
+  ALLOWED_USERS: your-github-login
+  GITHUB_APP_NAME: rendimiento
+  DNS_ZONE: example.com
   DNS_PROXIED: "true"
   REGISTRY: registry.example.lan:5000
   REGISTRY_INSECURE: "true"
@@ -19,8 +21,8 @@ data:
   # Longest a single test or build step may run. First builds on the Pis
   # start with a cold cache (e.g. compiling a Python wheel from source).
   STEP_TIMEOUT: 45m
-  # the GPU node's kernel lacks an ipset type kube-router needs, so it cannot
-  # enforce the build NetworkPolicy; it is also the GPU node. Never build there.
+  # Nodes that must never run builds: e.g. a node whose kernel cannot
+  # enforce the build NetworkPolicy, or a GPU node reserved for inference.
   BUILD_EXCLUDE_NODES: gpu-node
   # One replica with the Recreate strategy never overlaps, so leader
   # election only adds a way to crash when the API server is slow.
@@ -32,8 +34,8 @@ data:
   # CLI image comes from `make railpack-image`; keep both versions in step.
   RAILPACK_IMAGE: registry.example.lan:5000/rendimiento-railpack:0.40.0
   RAILPACK_FRONTEND: ghcr.io/railwayapp/railpack-frontend:v0.40.0
-  # How a service with `gpu: 1` gets the GPU node Orin's GPU: its runtime
-  # class, the host's driver libraries (read-only) and a larger /dev/shm.
+  # How a service with `gpu: 1` gets a GPU (here: an NVIDIA device plugin): its
+  # runtime class, the host's driver libraries (read-only) and a larger /dev/shm.
   GPU_RESOURCE: nvidia.com/gpu
   GPU_RUNTIME_CLASS: nvidia
   GPU_HOST_PATHS: /usr/lib/aarch64-linux-gnu/nvidia
@@ -42,9 +44,9 @@ data:
   # Failed builds, rolled-back releases, outages and recoveries are emailed
   # here, through Resend (RESEND_API_KEY in the rendimiento-notify secret).
   NOTIFY_EMAIL_TO: you@example.com
-  NOTIFY_EMAIL_FROM: rendimiento <alerts@joserod.space>
-  # GET /api/public/stats: aggregate numbers for the live section of
-  # joserod.space, served only on the internal port 8081 (the Service's
+  NOTIFY_EMAIL_FROM: rendimiento <alerts@example.com>
+  # GET /api/public/stats: aggregate numbers for a public page (a portfolio,
+  # a status page), served only on the internal port 8081 (the Service's
   # "stats" port, which the public ingress does not route), so it is
   # reachable from inside the cluster but not from the internet.
   PUBLIC_STATS: "true"
@@ -141,10 +143,10 @@ metadata:
 spec:
   ingressClassName: nginx
   tls:
-    - hosts: [rendimiento.joserod.space]
+    - hosts: [rendimiento.example.com]
       secretName: rendimiento-tls
   rules:
-    - host: rendimiento.joserod.space
+    - host: rendimiento.example.com
       http:
         paths:
           - path: /

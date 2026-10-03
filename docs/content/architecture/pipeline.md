@@ -69,7 +69,7 @@ The scripts, exactly as they run:
 
 - **No Kubernetes credentials** (`automountServiceAccountToken: false`).
 - **Network isolation** (NetworkPolicy `isolate-builds`): only DNS, BuildKit on port 1234 and the public internet; not other apps, databases, the Kubernetes API or the home network. Code from a repository (a test, a `RUN` line) cannot reach anything else.
-- **Node exclusion** (`BUILD_EXCLUDE_NODES`): never the GPU node, whose kernel cannot enforce NetworkPolicy. The control plane is excluded by its taint.
+- **Node exclusion** (`BUILD_EXCLUDE_NODES`): nodes that cannot enforce NetworkPolicy, or are reserved for other work, are listed here. The control plane is excluded by its taint.
 - **A deadline** (`STEP_TIMEOUT`, 45 minutes) on each pod.
 - **Retries of transient API errors** (`transientRetry`): creating the secret or pod is retried on "database is locked", 5xx and timeouts, which happen when the control plane is busy.
 - **Random pod-name suffixes**, so a retried run never collides with pods its interrupted predecessor left behind.

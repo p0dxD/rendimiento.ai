@@ -30,13 +30,13 @@ func TestBuildOnCluster(t *testing.T) {
 		BuildkitAddr:     "tcp://buildkitd.devops-tools.svc.cluster.local:1234",
 		InsecureRegistry: true,
 		Timeout:          20 * time.Minute,
-		ExcludeNodes:     []string{"gpu-node"},
+		ExcludeNodes:     itestList("ITEST_EXCLUDE_NODES"),
 	}
 	src := Source{Repo: "https://github.com/mccutchen/go-httpbin.git", Branch: "main"}
 	steps := []Step{
 		{ID: "httpbin:test", Service: "httpbin", Kind: KindTest, Path: ".", Image: "golang:1.26", Command: "go vet ./cmd/..."},
 		{ID: "httpbin:build", Service: "httpbin", Kind: KindBuild, Path: ".", Dockerfile: "Dockerfile",
-			Target: "registry.example.lan:5000/rendimiento-itest-httpbin", DependsOn: []string{"httpbin:test"}},
+			Target: itestRegistry() + "/rendimiento-itest-httpbin", DependsOn: []string{"httpbin:test"}},
 	}
 	rec := &bufRecorder{logs: map[string]*bytes.Buffer{}}
 	res, err := NewRunner(exec, rec, 1).Run(context.Background(), "itest", src, steps)
@@ -69,12 +69,12 @@ func TestRailpackBuildOnCluster(t *testing.T) {
 		BuildkitAddr:     "tcp://buildkitd.devops-tools.svc.cluster.local:1234",
 		InsecureRegistry: true,
 		Timeout:          20 * time.Minute,
-		ExcludeNodes:     []string{"gpu-node"},
-		RailpackImage:    "registry.example.lan:5000/rendimiento-railpack:0.40.0",
+		ExcludeNodes:     itestList("ITEST_EXCLUDE_NODES"),
+		RailpackImage:    itestEnv("ITEST_RAILPACK_IMAGE", itestRegistry()+"/rendimiento-railpack:0.40.0"),
 	}
 	src := Source{Repo: "https://github.com/p0dxD/hello-rendimiento.git", Branch: "main"}
 	steps := []Step{{ID: "hello:build", Service: "hello", Kind: KindBuild, Path: ".", Dockerfile: "Dockerfile",
-		Builder: "railpack", Target: "registry.example.lan:5000/rendimiento-itest-railpack"}}
+		Builder: "railpack", Target: itestRegistry() + "/rendimiento-itest-railpack"}}
 	rec := &bufRecorder{logs: map[string]*bytes.Buffer{}}
 	res, err := NewRunner(exec, rec, 1).Run(context.Background(), "itest-rp", src, steps)
 	if err != nil {
@@ -106,4 +106,25 @@ func tail(s string, n int) string {
 		lines = lines[len(lines)-n:]
 	}
 	return strings.Join(lines, "\n")
+}
+
+// The cluster the integration tests build on is described by ITEST_*
+// variables (set in local.mk), not hard-coded in this public repository.
+func itestEnv(name, fallback string) string {
+	if v := os.Getenv(name); v != "" {
+		return v
+	}
+	return fallback
+}
+
+func itestRegistry() string { return itestEnv("ITEST_REGISTRY", "registry.example.lan:5000") }
+
+func itestList(name string) []string {
+	var out []string
+	for _, v := range strings.Split(os.Getenv(name), ",") {
+		if v = strings.TrimSpace(v); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }

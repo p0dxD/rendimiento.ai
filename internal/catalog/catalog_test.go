@@ -117,11 +117,11 @@ func TestAssemble(t *testing.T) {
 
 func TestImageLink(t *testing.T) {
 	for ref, want := range map[string]string{
-		"postgres:15-alpine":                      "https://hub.docker.com/_/postgres",
-		"dustynv/ollama:r36.4.0":                  "https://hub.docker.com/r/dustynv/ollama",
-		"docker.io/library/redis@sha256:abc":      "https://hub.docker.com/r/library/redis",
-		"ghcr.io/railwayapp/railpack-frontend:v1": "https://github.com/railwayapp/railpack-frontend",
-		"quay.io/prometheus/node-exporter:v1":     "https://quay.io/repository/prometheus/node-exporter",
+		"postgres:15-alpine":                       "https://hub.docker.com/_/postgres",
+		"dustynv/ollama:r36.4.0":                   "https://hub.docker.com/r/dustynv/ollama",
+		"docker.io/library/redis@sha256:abc":       "https://hub.docker.com/r/library/redis",
+		"ghcr.io/railwayapp/railpack-frontend:v1":  "https://github.com/railwayapp/railpack-frontend",
+		"quay.io/prometheus/node-exporter:v1":      "https://quay.io/repository/prometheus/node-exporter",
 		"registry.example.lan:5000/app@sha256:abc": "",
 	} {
 		if got := imageLink(ref); got != want {

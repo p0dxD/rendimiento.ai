@@ -17,6 +17,11 @@ NODE_IMAGE=${NODE_IMAGE:-node:20-bookworm}
 CONTROLLER_GEN=${CONTROLLER_GEN:-v0.22.0}
 SETUP_ENVTEST=${SETUP_ENVTEST:-v0.25.1}
 ENVTEST_K8S=${ENVTEST_K8S:-1.37.0}
+# Comma-separated node names that must not run the tests (set in local.mk).
+EXCLUDE_EXPR=""
+if [ -n "${TEST_EXCLUDE_NODES:-}" ]; then
+  EXCLUDE_EXPR="              - { key: kubernetes.io/hostname, operator: NotIn, values: [${TEST_EXCLUDE_NODES}] }"
+fi
 
 cd "$(dirname "$0")/.."
 
@@ -49,8 +54,10 @@ spec:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
           - matchExpressions:
-              # Never the control plane or the GPU node (GPU, no NetworkPolicy).
-              - { key: kubernetes.io/hostname, operator: NotIn, values: [main, gpu-node] }
+              # Never the control plane, nor the nodes in TEST_EXCLUDE_NODES
+              # (e.g. a GPU node, or one that cannot enforce NetworkPolicy).
+              - { key: node-role.kubernetes.io/control-plane, operator: DoesNotExist }
+$EXCLUDE_EXPR
   containers:
     - name: go
       image: $GO_IMAGE

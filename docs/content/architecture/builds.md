@@ -101,7 +101,7 @@ buildctl --addr tcp://buildkitd-2.buildkitd-pool.devops-tools.svc.cluster.local:
 
 ## The BuildKit pool
 
-One daemon cannot use more than one node's CPUs. The pool runs **one daemon per worker** (worker4, worker1, worker2, worker3; not the control plane, not the GPU node) as a StatefulSet with pod anti-affinity. It is an [add-on](addons.md) defined in `p0dxD/gitops/buildkit/`.
+One daemon cannot use more than one node's CPUs. The pool runs **one daemon per worker node** (not on the control plane, nor on nodes excluded from builds such as a GPU node) as a StatefulSet with pod anti-affinity. It is an [add-on](addons.md) defined in `p0dxD/gitops/buildkit/`.
 
 The platform finds the daemons through a **headless Service** (`buildkitd-pool`): its DNS SRV records list only daemons that are *ready*. For each build, `KubeExecutor.buildkitFor` chooses one by **rendezvous hashing** on the image name:
 

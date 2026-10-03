@@ -45,7 +45,7 @@ rendimiento was built alongside the existing Jenkins and ArgoCD, and every app w
 |---|---|
 | Sep 23–24 | First version: GitHub App setup, detection, CI on BuildKit, the App controller, DNS and TLS. Deployed at `rendimiento.joserod.space`. |
 | Sep 24–26 | Migrated **secplus**, **simplerfc** (SQLite volume moved), **podoi** (with its Postgres), **stockpulse** (web, API, Postgres, scraper job), **wellness** (UI, API, Postgres, serverless functions). |
-| Sep 27 | Migrated **jobsentry** (gate, ui, intel, whois in a namespace shared with ArgoCD), then **linguistic-ai + ollama** on the GPU node's GPU. Added Railpack builds, the Services catalog, categories. **Jenkins** switched off. **Renovate** became an add-on authenticated as the GitHub App. |
+| Sep 27 | Migrated **jobsentry** (gate, ui, intel, whois in a namespace shared with ArgoCD), then **linguistic-ai + ollama** on the GPU node. Added Railpack builds, the Services catalog, categories. **Jenkins** switched off. **Renovate** became an add-on authenticated as the GitHub App. |
 | Sep 28 | The **add-on engine**; took over **umami**, **hajimari**, **longhorn-backups** and **Longhorn** from ArgoCD with zero changes; **ArgoCD** switched off. Added `needs:`, Helm hooks, the BuildKit pool, remote tests and this book. |
 
 ## Lessons learned the hard way
@@ -73,8 +73,8 @@ Every one of these is now handled in the code, and most have a test. They are wo
 ??? failure "The control plane's disk filled up"
     Old local `docker build`s left 24.7 GB of dangling images on `main`, which is also the k3s control plane. Builds now happen only on the BuildKit pool, and tests run on a worker with [`make test-remote`](../develop/testing.md#remote-tests).
 
-??? failure "the GPU node's GPU could not allocate memory after a reboot"
-    CUDA on the GPU node allocates from system RAM, and fragmented memory made 256 MB allocations fail with gigabytes free. The weekly update playbook now drops caches and compacts memory before the node rejoins.
+??? failure "The GPU could not allocate memory after a reboot"
+    CUDA on that board allocates from system RAM, and fragmented memory made 256 MB allocations fail with gigabytes free. The update playbook now drops caches and compacts memory before the node rejoins.
 
 ??? failure "Renovate's token expired for five weeks, silently"
     A personal token behind a CronJob stopped working and nobody noticed. Renovate now runs as a rendimiento add-on with a fresh GitHub App token per run, and its runs are visible in the UI.

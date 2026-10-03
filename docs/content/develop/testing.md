@@ -37,7 +37,7 @@ make itest                                       # real builds on the BuildKit p
 --8<-- "hack/test-remote.sh:93:109"
 ```
 
-1. A pod with three containers is created in `rendimiento-builds`, avoiding `main` and the GPU node: **go** (the toolchain), **node** (the typecheck) and **postgres** (a sidecar the store tests use on `localhost`).
+1. A pod with three containers is created in `rendimiento-builds`, avoiding the control plane and any `TEST_EXCLUDE_NODES`: **go** (the toolchain), **node** (the typecheck) and **postgres** (a sidecar the store tests use on `localhost`).
 2. A **node-local cache** volume (`rendimiento-test-cache`, local-path) keeps Go modules, the build cache, envtest binaries and npm's cache between runs; the first run fills it (about 20 minutes), later runs reuse it.
 3. The working tree, **including uncommitted changes**, is streamed in as a tarball.
 4. `controller-gen`, `go vet`, `go test -p 1 ./...` and `npm run typecheck` run, their output streamed here.

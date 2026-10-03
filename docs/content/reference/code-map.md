@@ -26,7 +26,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/github`](#internal-github) | 5 | 1164 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 308 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
 | [`internal/notify`](#internal-notify) | 2 | 386 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
-| [`internal/pipeline`](#internal-pipeline) | 7 | 1584 | Package pipeline plans and executes CI runs. |
+| [`internal/pipeline`](#internal-pipeline) | 7 | 1605 | Package pipeline plans and executes CI runs. |
 | [`internal/platform`](#internal-platform) | 7 | 3048 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/render`](#internal-render) | 3 | 1160 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
@@ -1064,7 +1064,7 @@ Package pipeline plans and executes CI runs.
 
 ### `internal/pipeline/kube_integration_test.go`
 
-<small>109 lines · tests</small>
+<small>130 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|

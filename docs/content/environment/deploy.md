@@ -2,6 +2,36 @@
 
 rendimiento deploys apps, but it does not deploy itself. The platform is installed with plain Kubernetes manifests in [`deploy/`](https://github.com/p0dxD/rendimiento.ai/tree/main/deploy), applied with `kubectl apply -k deploy`. Keeping the platform outside its own control means a broken rendimiento can always be fixed with `kubectl`.
 
+## Your own settings
+
+The manifests in `deploy/` carry **example values** (`example.com`, `registry.example.lan`, `you@example.com`). A real cluster's settings belong in a **private overlay**, a kustomization in a private repository that builds on `deploy/` and replaces what differs:
+
+```yaml
+# kustomization.yaml in a private repository, next to a clone of this one
+resources:
+  - ../../rendimiento.ai/deploy
+images:
+  - name: registry.example.lan:5000/rendimiento
+    newName: registry.home.lan:5000/rendimiento   # your registry
+patches:
+  - path: configmap.yaml          # the rendimiento ConfigMap with your settings
+  - target: { kind: Ingress, name: rendimiento }
+    patch: |-
+      - { op: replace, path: /spec/rules/0/host, value: rendimiento.your-domain.com }
+      - { op: replace, path: /spec/tls/0/hosts/0, value: rendimiento.your-domain.com }
+```
+
+Then point the Makefile at it from a `local.mk` (git-ignored) at the repository root:
+
+```makefile
+IMAGE := registry.home.lan:5000/rendimiento
+DEPLOY_DIR := $(HOME)/private-repo/rendimiento-platform
+TEST_EXCLUDE_NODES := my-gpu-node     # nodes remote tests must avoid
+ITEST_REGISTRY := registry.home.lan:5000
+```
+
+`make deploy` renders `DEPLOY_DIR` (`deploy/` by default) and applies it. Your hostnames, node names and email then never enter the public repository.
+
 ## What gets installed
 
 ```mermaid

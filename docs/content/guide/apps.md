@@ -43,7 +43,7 @@ Declare names in `rendimiento.yaml` (`secrets`, `secretEnv`, `secretFiles`); set
 
 ## GPUs
 
-`gpu: 1` requests the GPU node's GPU. The cluster's GPU profile (settings `GPU_*`) adds the NVIDIA runtime class, the host's driver libraries (read-only), `NVIDIA_*` variables and a larger shared-memory mount. A GPU service runs one replica with the Recreate strategy.
+`gpu: 1` requests a GPU. The cluster's GPU profile (settings `GPU_*`) adds the NVIDIA runtime class, the host's driver libraries (read-only), `NVIDIA_*` variables and a larger shared-memory mount. A GPU service runs one replica with the Recreate strategy.
 
 ## Expose a service on the LAN
 

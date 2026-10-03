@@ -1,6 +1,10 @@
 export PATH := $(HOME)/.local/go/bin:$(HOME)/go/bin:$(PATH)
+# This cluster's values (registry, deploy overlay, nodes to avoid) live in
+# local.mk, which is not in the public repository.
+-include local.mk
 TEST_DATABASE_URL ?= postgres://postgres:test@127.0.0.1:55432/rendimiento
 IMAGE ?= registry.example.lan:5000/rendimiento
+DEPLOY_DIR ?= deploy
 
 .PHONY: generate ui build test test-remote test-db itest image railpack-image deploy docs-codemap docs-check
 
@@ -29,10 +33,11 @@ test: generate
 # The same steps on a worker node: main is the k3s control plane, and
 # compiling plus envtest there slows the API server. Prefer this one.
 test-remote:
-	hack/test-remote.sh
+	TEST_EXCLUDE_NODES="$(TEST_EXCLUDE_NODES)" hack/test-remote.sh
 
 itest: ## real build on the cluster's buildkitd
-	go test -tags integration ./internal/pipeline -run TestBuildOnCluster -v -timeout 25m
+	ITEST_REGISTRY="$(ITEST_REGISTRY)" ITEST_EXCLUDE_NODES="$(ITEST_EXCLUDE_NODES)" ITEST_RAILPACK_IMAGE="$(ITEST_RAILPACK_IMAGE)" \
+	  go test -tags integration ./internal/pipeline -run TestBuildOnCluster -v -timeout 25m
 
 # --8<-- [start:image]
 # Build on the cluster's BuildKit pool (the buildkitd Service reaches one of
@@ -59,8 +64,10 @@ railpack-image: ## the railpack CLI image build pods use (RAILPACK_IMAGE)
 	  --local context=/src --local dockerfile=/src --opt build-arg:VERSION=$(RAILPACK_VERSION) \
 	  --output type=image,name=$(IMAGE)-railpack:$(RAILPACK_VERSION),push=true,registry.insecure=true
 
+# DEPLOY_DIR is deploy/ (example values) or a private overlay with a real
+# cluster's settings on top of it (set in local.mk).
 deploy:
-	kubectl apply -k deploy
+	kubectl kustomize --load-restrictor=LoadRestrictionsNone $(DEPLOY_DIR) | kubectl apply -f -
 
 # The book's code reference, generated from the Go and TypeScript sources.
 # The book's image regenerates it on every build; run this to preview it.

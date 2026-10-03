@@ -1,14 +1,14 @@
 # Settings
 
-rendimiento is configured only through **environment variables**, read once at startup in `cmd/rendimiento/main.go`. On the cluster, they come from the `rendimiento` ConfigMap and three Secrets (`deploy/rendimiento.yaml`). To change a setting, edit the ConfigMap and run `kubectl -n rendimiento-system rollout restart deploy/rendimiento`.
+rendimiento is configured only through **environment variables**, read once at startup in `cmd/rendimiento/main.go`. On a cluster, they come from the `rendimiento` ConfigMap and a few Secrets (`deploy/rendimiento.yaml` has example values; keep a real cluster's values in a private overlay, see [How the platform is deployed](../environment/deploy.md#your-own-settings)). To change a setting, edit the ConfigMap and run `kubectl -n rendimiento-system rollout restart deploy/rendimiento`.
 
 ## Core
 
-| Variable | Default | This cluster | Meaning |
+| Variable | Default | Example | Meaning |
 |---|---|---|---|
 | `DATABASE_URL` | *(required)* | from Secret `rendimiento-db` | Postgres connection string |
-| `BASE_URL` | `http://localhost:8080` | `https://rendimiento.joserod.space` | public URL; used for OAuth callbacks, webhooks and links in GitHub checks |
-| `ALLOWED_USERS` | *(empty: nobody)* | `p0dxD` | GitHub logins allowed to sign in (comma- or space-separated) |
+| `BASE_URL` | `http://localhost:8080` | `https://rendimiento.example.com` | public URL; used for OAuth callbacks, webhooks and links in GitHub checks |
+| `ALLOWED_USERS` | *(empty: nobody)* | `your-github-login` | GitHub logins allowed to sign in (comma- or space-separated) |
 | `SETUP_TOKEN` | — | from Secret `rendimiento-setup` | protects `/api/setup/github` until the GitHub App exists |
 | `NAMESPACE` | `rendimiento-system` | | where the platform and its Secrets live |
 | `LISTEN` | `:8080` | | HTTP address (API, UI, webhooks) |
@@ -19,12 +19,12 @@ rendimiento is configured only through **environment variables**, read once at s
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `GITHUB_APP_NAME` | `rendimiento` | the App's name, used when creating it with the manifest flow (`rendimiento-joserod` here) |
+| `GITHUB_APP_NAME` | `rendimiento` | the App's name, used when creating it with the manifest flow (`rendimiento` here) |
 | `GITHUB_SECRET` | `rendimiento-github` | the Secret the App's credentials are saved in after setup |
 
 ## Builds
 
-| Variable | Default | This cluster | Meaning |
+| Variable | Default | Example | Meaning |
 |---|---|---|---|
 | `REGISTRY` | `registry.example.lan:5000` | | where images and build caches are pushed |
 | `REGISTRY_INSECURE` | `true` | | registry over plain HTTP |
@@ -59,7 +59,7 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 |---|---|---|
 | `CLOUDFLARE_API_TOKEN` | — | token with *Zone:DNS:Edit* |
 | `DNS_TARGET` | — | where app hostnames point; an IP turns on dynamic DNS |
-| `DNS_ZONE` | — | the default zone offered in the wizard (`joserod.space`) |
+| `DNS_ZONE` | — | the default zone offered in the wizard (`example.com`) |
 | `DNS_PROXIED` | `false` | create records behind Cloudflare's proxy (`true` here) |
 | `DDNS_INTERVAL` | `5m` | how often dynamic DNS checks the public IP (≥ 1m) |
 
@@ -72,7 +72,7 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 
 ## Notifications
 
-| Variable | Default | This cluster | Meaning |
+| Variable | Default | Example | Meaning |
 |---|---|---|---|
 | `NOTIFY_EMAIL_TO` | *(empty: off)* | `you@example.com` | who gets [notification emails](../guide/notifications.md), comma-separated |
 | `NOTIFY_EMAIL_FROM` | `rendimiento <alerts@joserod.space>` | | the sender; must be on a Resend-verified domain |
@@ -80,7 +80,7 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 
 ## Public stats
 
-| Variable | Default | This cluster | Meaning |
+| Variable | Default | Example | Meaning |
 |---|---|---|---|
 | `PUBLIC_STATS` | `false` | `true` | serve [`GET /api/public/stats`](../guide/reliability.md#public-stats) without login |
 | `STATS_LISTEN` | *(empty: on the main listener)* | `:8081` | serve the public stats only on this internal port, not on the public listener |
@@ -89,7 +89,7 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 
 ## Log archive
 
-| Variable | Default | This cluster | Meaning |
+| Variable | Default | Example | Meaning |
 |---|---|---|---|
 | `LOG_ARCHIVE_ENDPOINT` | *(empty: off)* | `minio-api.minio.svc.cluster.local:9000` | S3/MinIO `host:port` that [step logs are archived](../architecture/data.md#the-log-archive) to |
 | `LOG_ARCHIVE_BUCKET` | `rendimiento-logs` | | the bucket |

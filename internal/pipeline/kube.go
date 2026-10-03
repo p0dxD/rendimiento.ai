@@ -46,8 +46,8 @@ type KubeExecutor struct {
 	Token   func(ctx context.Context, repo string) (string, error)
 	Timeout time.Duration
 	// ExcludeNodes keeps build pods off these nodes, e.g. ones that cannot
-	// enforce the build namespace's NetworkPolicy (the GPU node's kernel lacks
-	// an ipset type kube-router needs) or that are reserved for other work.
+	// enforce the build namespace's NetworkPolicy or that are reserved for
+	// other work.
 	ExcludeNodes []string
 	// RailpackImage has the railpack CLI; it writes the build plan for
 	// services without a Dockerfile. Empty disables Railpack builds.
