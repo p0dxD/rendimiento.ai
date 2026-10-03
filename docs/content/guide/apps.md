@@ -35,7 +35,7 @@ Declare names in `rendimiento.yaml` (`secrets`, `secretEnv`, `secretFiles`); set
 
 ## Volumes
 
-`volume: { size: 5Gi, mount: /data }` creates a Longhorn volume that survives restarts, rollouts and even removing the service from the file. Use `existingClaim` to keep an existing volume. Add a Longhorn backup label to include it in the nightly backups ([runbooks](../environment/runbooks.md#backups)).
+`volume: { size: 5Gi, mount: /data }` creates a Longhorn volume that survives restarts, rollouts and even removing the service from the file. Use `existingClaim` to keep an existing volume. Add a Longhorn backup label to include it in the nightly backups.
 
 ## Scheduled jobs
 
@@ -47,7 +47,7 @@ Declare names in `rendimiento.yaml` (`secrets`, `secretEnv`, `secretFiles`); set
 
 ## Expose a service on the LAN
 
-`lan: { ip: 192.168.1.85 }` adds a LoadBalancer Service with that address from MetalLB's pool (`.70`–`.99`), on port 80 (or `lan.port`). Useful for dashboards and tools that should not be public. This book is served that way.
+`lan: { ip: 192.168.1.50 }` adds a LoadBalancer Service with that address from MetalLB's pool, on port 80 (or `lan.port`). Useful for dashboards and tools that should not be public. This book is served that way.
 
 ## Rollback
 

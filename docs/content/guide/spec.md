@@ -37,7 +37,7 @@ services:
     port: 11434
     gpu: 1
     volume: { size: 20Gi, mount: /root/.ollama }
-    lan: { ip: 192.168.1.85 }                # also reachable on the home network
+    lan: { ip: 192.168.1.50 }                 # also reachable on the home network
     catalog:
       title: Ollama
       env: OLLAMA_HOST
