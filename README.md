@@ -26,7 +26,7 @@ flowchart LR
 
 ## The book
 
-Everything is explained in **[the rendimiento book](docs/content/index.md)**: concepts, the architecture with diagrams, how this cluster is set up, the `rendimiento.yaml` reference, Go for this codebase, recipes for common changes, design patterns, scaling and the roadmap. It deploys itself from this repo (`rendimiento.yaml`, `docs/Dockerfile`) at **http://192.168.1.81** on the home network.
+Everything is explained in **[the rendimiento book](docs/content/index.md)**: concepts, the architecture with diagrams, how the platform is deployed, the `rendimiento.yaml` reference, Go for this codebase, recipes for common changes, design patterns, scaling and the roadmap. It deploys itself from this repo (`rendimiento.yaml`, `docs/Dockerfile`) on the home network.
 
 Preview it locally:
 
