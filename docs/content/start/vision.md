@@ -74,7 +74,7 @@ Every one of these is now handled in the code, and most have a test. They are wo
     Old local `docker build`s left 24.7 GB of dangling images on `main`, which is also the k3s control plane. Builds now happen only on the BuildKit pool, and tests run on a worker with [`make test-remote`](../develop/testing.md#remote-tests).
 
 ??? failure "The Jetson's GPU could not allocate memory after a reboot"
-    CUDA on the Jetson allocates from system RAM, and fragmented memory made 256 MB allocations fail with gigabytes free. The weekly update playbook now drops caches and compacts memory before the node rejoins. ([runbooks](../environment/runbooks.md#the-ai-models-fail-with-cudamalloc-out-of-memory))
+    CUDA on the Jetson allocates from system RAM, and fragmented memory made 256 MB allocations fail with gigabytes free. The weekly update playbook now drops caches and compacts memory before the node rejoins.
 
 ??? failure "Renovate's token expired for five weeks, silently"
     A personal token behind a CronJob stopped working and nobody noticed. Renovate now runs as a rendimiento add-on with a fresh GitHub App token per run, and its runs are visible in the UI.

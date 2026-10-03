@@ -11,8 +11,9 @@ services:
     size: small
     replicas: 1
     health: { path: / }
-    # No public domain: the book is reachable on the LAN through MetalLB.
-    lan: { ip: 192.168.1.81 }
+    # A LAN address from MetalLB's pool (any free one): the home-network
+    # edition of the book, with private pages, is served from main_configs.
+    lan: {}
     catalog:
       category: devtools
       title: rendimiento book

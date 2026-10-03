@@ -32,7 +32,7 @@ flowchart LR
 
 -   :material-server-network: **Running it?**
 
-    [Your environment](environment/index.md) describes the cluster, how the platform itself is deployed, and [runbooks](environment/runbooks.md) for the things that go wrong.
+    [Your environment](environment/index.md) describes how the platform itself is deployed. The description of one particular cluster and its runbooks are kept in a private repository.
 
 -   :material-graph-outline: **Understanding it?**
 
@@ -66,4 +66,4 @@ flowchart LR
 | Know if the cluster is healthy | the Environment tab checks every dependency and node | [Tour](start/tour.md#environment) |
 
 !!! note "This book is part of the code"
-    It lives in [`docs/`](https://github.com/p0dxD/rendimiento.ai/tree/main/docs) of the repository and is deployed by rendimiento itself, from its own `rendimiento.yaml`, on your LAN at **http://192.168.1.81**. Change the code, change the book in the same pull request. The [code map](reference/code-map.md) is regenerated from the source on every build, so it is never out of date.
+    It lives in [`docs/`](https://github.com/p0dxD/rendimiento.ai/tree/main/docs) of the repository and is deployed by rendimiento itself, from its own `rendimiento.yaml`, on the home network (its address is in the Services page). Change the code, change the book in the same pull request. The [code map](reference/code-map.md) is regenerated from the source on every build, so it is never out of date.

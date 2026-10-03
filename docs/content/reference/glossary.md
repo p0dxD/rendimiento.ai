@@ -40,7 +40,7 @@
 : Ensures only one replica runs the controllers at a time.
 
 **MetalLB**
-: Gives `LoadBalancer` Services an IP on the home network (pool 192.168.1.70–99).
+: Gives `LoadBalancer` Services an IP on the home network, from a pool of addresses reserved for it.
 
 **Needs**
 : `needs:` in `rendimiento.yaml`. It declares a database, a cache or another service, and rendimiento provides it and wires in its connection details.

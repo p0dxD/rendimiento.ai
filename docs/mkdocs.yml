@@ -74,9 +74,7 @@ nav:
       - A tour of the UI: start/tour.md
   - Your environment:
       - environment/index.md
-      - The cluster: environment/cluster.md
       - How the platform is deployed: environment/deploy.md
-      - Runbooks: environment/runbooks.md
   - Architecture:
       - architecture/index.md
       - Big picture: architecture/overview.md

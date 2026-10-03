@@ -14,7 +14,7 @@ Add-ons are the software your cluster needs that is not one of your apps: storag
 
 `kubectl get radd` shows them with their phase.
 
-An add-on whose services have a MetalLB address shows it on its card and its page. Web UIs, such as Longhorn's at 192.168.1.73:8082 and Hajimari's at 192.168.1.78:3000, are links you can open. Other services, such as a database port, show the address as plain text.
+An add-on whose services have a MetalLB address shows it on its card and its page. Web UIs, such as Longhorn's or Hajimari's, are links you can open. Other services, such as a database port, show the address as plain text.
 
 ## Install one from the catalog
 

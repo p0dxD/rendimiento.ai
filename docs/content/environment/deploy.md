@@ -127,7 +127,7 @@ On restart the platform:
 
 | What | Where it comes from |
 |---|---|
-| BuildKit daemons | the `buildkit` add-on (`p0dxD/gitops/buildkit/`): a StatefulSet on colorpi and worker1–3 |
+| BuildKit daemons | the `buildkit` add-on (`p0dxD/gitops/buildkit/`): a StatefulSet with one daemon per worker node |
 | Railpack CLI image | `make railpack-image` from `deploy/railpack/Dockerfile`, checksum-pinned |
 | Railpack frontend | pulled by BuildKit from `ghcr.io/railwayapp/railpack-frontend` at the pinned version |
 | Clone and build client images | `alpine/git`, `moby/buildkit` (the client must match the daemon's version) |
