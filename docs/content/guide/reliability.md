@@ -99,16 +99,18 @@ The platform-wide window is `VERIFY_WINDOW` (default `5m`, `0` turns verificatio
 
 ## Public stats
 
-With `PUBLIC_STATS=true`, rendimiento publishes **aggregate numbers** at `GET /api/public/stats`, without login, for a public page. [joserod.space](https://joserod.space/#live) uses it for its *Live from the Home Lab* section, fetched server-side over the cluster network (`http://rendimiento.rendimiento-system.svc.cluster.local/api/public/stats`).
+With `PUBLIC_STATS=true`, rendimiento publishes **aggregate numbers** at `GET /api/public/stats` for a public page. [joserod.space](https://joserod.space/#live) uses it for its *Live from the Home Lab* section.
+
+With `STATS_LISTEN` set (`:8081` here), the stats are served **only on that internal port**, which the Service exposes as `stats` and the public Ingress doesn't route. The page fetches them server-side over the cluster network (`http://rendimiento.rendimiento-system.svc.cluster.local:8081/api/public/stats`), so they're reachable from inside the cluster but **not from the internet**.
 
 | Part | Contents |
 |---|---|
-| `delivery30d` | deploys, builds and their success, typical build time and push-to-live time, verified and failed releases, automatic rollbacks, outages and mean recovery, deploys per day |
+| `delivery30d` | deploys, builds and their success, typical build and push-to-live times, verified and failed releases, automatic rollbacks, outages and mean recovery, deploys per day |
 | `sites` | every public URL check: up now, uptime over 24 h and 30 days, typical response time, daily uptime for 90 days, hourly for 48 hours |
-| `cluster` | distribution and version, pods, apps, and per node its role, architecture, CPU and memory (capacity and live use), pods and GPUs |
+| `cluster` | pods and apps, and per node a **generic label** (control plane, worker 1…, GPU node), architecture, readiness, CPU and memory, pods, GPUs |
 | `recent` | the latest releases: app, number, time, verification result, whether it was an automatic rollback |
 
-It contains no IP addresses, internal hostnames, secrets, commit messages or authors. It's computed at most once a minute, and served with `Cache-Control: max-age=60`, so visitors can't make the platform recompute it. Browsers on `PUBLIC_STATS_ORIGINS` may fetch it directly.
+It's deliberately vague about the setup. There are **no node names, operating systems or software versions** (an exact version tells an attacker which known vulnerabilities to try), and no addresses, secrets, commit messages or authors. It's computed at most once a minute.
 
 ## Where the data lives
 

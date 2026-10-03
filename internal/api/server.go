@@ -68,6 +68,9 @@ type Server struct {
 	PublicStats    bool
 	PublicOrigins  []string
 	PublicTimeZone string
+	// StatsInternalOnly keeps /api/public/stats off the main (public)
+	// listener; it is then served only by StatsHandler.
+	StatsInternalOnly bool
 	// Logs reads step logs archived to object storage (nil when off).
 	Logs         *logarchive.Archive
 	public       publicCache
@@ -92,7 +95,9 @@ func (s *Server) Handler() http.Handler {
 
 	// Public endpoints.
 	mux.HandleFunc("POST /api/webhooks/github", s.webhook)
-	mux.HandleFunc("GET /api/public/stats", s.publicStats)
+	if !s.StatsInternalOnly {
+		mux.HandleFunc("GET /api/public/stats", s.publicStats)
+	}
 	mux.HandleFunc("GET /api/auth/login", s.login)
 	mux.HandleFunc("GET /api/auth/callback", s.callback)
 	mux.HandleFunc("POST /api/auth/logout", s.logout)

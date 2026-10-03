@@ -297,4 +297,22 @@ func TestPublicStats(t *testing.T) {
 	if resp, _ := e.do(t, "GET", "/api/public/stats", "", nil, map[string]string{"Origin": "https://evil.example"}); resp.Header.Get("Access-Control-Allow-Origin") != "" {
 		t.Fatal("an unlisted origin was allowed")
 	}
+	if strings.Contains(body, `"version"`) || strings.Contains(body, `"os"`) || strings.Contains(body, `"name":"worker`) {
+		t.Fatalf("public stats reveal versions, OS or node names: %s", body)
+	}
+
+	// Internal only: the public listener no longer serves them (and does not
+	// fall through to the UI), the internal handler does.
+	internal := &Server{Store: e.s.Store, Log: e.s.Log, PublicStats: true, StatsInternalOnly: true,
+		UI: e.s.UI, AllowedUsers: e.s.AllowedUsers, Kube: e.s.Kube, Platform: e.s.Platform, GitHub: e.s.GitHub, Credentials: e.s.Credentials, DNS: e.s.DNS}
+	pub := httptest.NewServer(internal.Handler())
+	defer pub.Close()
+	if resp, err := http.Get(pub.URL + "/api/public/stats"); err != nil || resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("public listener with StatsInternalOnly: %v %v", resp.StatusCode, err)
+	}
+	priv := httptest.NewServer(internal.StatsHandler())
+	defer priv.Close()
+	if resp, err := http.Get(priv.URL + "/api/public/stats"); err != nil || resp.StatusCode != 200 {
+		t.Fatalf("internal listener: %v %v", resp.StatusCode, err)
+	}
 }
