@@ -169,7 +169,7 @@ Once a run has been finished for 2 minutes, its step logs **move to object stora
 ```mermaid
 flowchart LR
     pg[(steps.log<br/>Postgres)] -- finished run --> sweep[sweeper<br/>every 5 min]
-    sweep -- gzip --> minio[(MinIO<br/>rendimiento-logs/runs/app/run/step.log.gz)]
+    sweep -- gzip --> minio[(S3 storage, Garage<br/>rendimiento-logs/runs/app/run/step.log.gz)]
     sweep -- "log = '', log_ref = key" --> pg
     ui[run page] -- GET …/log --> api[API]
     api -- log_ref set --> minio
@@ -177,10 +177,10 @@ flowchart LR
 ```
 
 - **Compressed:** logs are gzip'd at the highest level; build logs shrink about 10–20×.
-- **Safe:** the column is emptied only after the upload succeeded, and only if the log didn't change meanwhile. A sweep that fails (MinIO down) is retried on the next one, and nothing is lost.
-- **Transparent:** the UI asks the API for a log as before. The API reads it from MinIO when `log_ref` is set, and says so plainly when the log has expired or the archive can't be reached.
-- **Rotated:** at startup the platform sets a **lifecycle rule** on the bucket, *delete objects under `runs/` after `LOG_RETENTION_DAYS`* (365). MinIO does the deleting, so storage stays bounded with no job to run.
-- **Least privilege:** the platform uses its own MinIO user, `rendimiento-logs`, whose policy allows only this bucket.
+- **Safe:** the column is emptied only after the upload succeeded, and only if the log didn't change meanwhile. A sweep that fails (storage down) is retried on the next one, and nothing is lost.
+- **Transparent:** the UI asks the API for a log as before. The API reads it from object storage when `log_ref` is set, and says so plainly when the log has expired or the archive can't be reached.
+- **Rotated:** at startup the platform sets a **lifecycle rule** on the bucket, *delete objects under `runs/` after `LOG_RETENTION_DAYS`* (365). The storage does the deleting, so storage stays bounded with no job to run.
+- **Least privilege:** the platform uses its own key, `rendimiento-logs`, which can use only this bucket.
 
 The Environment page's *Log archive* check shows how many logs are archived, their size, how many are waiting, and the retention.
 

@@ -444,7 +444,7 @@ func (c *Checker) checkLogArchive(ctx context.Context) Check {
 	ch := Check{ID: "log-archive", Name: "Log archive", Category: CatIntegrations}
 	if c.Config.LogArchive == nil {
 		ch.Status, ch.Summary = Warning, "off: build logs stay in Postgres forever"
-		ch.Fix = "Set LOG_ARCHIVE_ENDPOINT (an S3/MinIO host:port) in the rendimiento ConfigMap and LOG_ARCHIVE_ACCESS_KEY/LOG_ARCHIVE_SECRET_KEY in the rendimiento-logs secret, then restart the platform."
+		ch.Fix = "Set LOG_ARCHIVE_ENDPOINT (an S3-compatible host:port) in the rendimiento ConfigMap and LOG_ARCHIVE_ACCESS_KEY/LOG_ARCHIVE_SECRET_KEY in the rendimiento-logs secret, then restart the platform."
 		return ch
 	}
 	ok, summary := c.Config.LogArchive(ctx)

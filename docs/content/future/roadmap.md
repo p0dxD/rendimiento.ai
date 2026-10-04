@@ -41,6 +41,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 - An add-on engine (Helm and kustomize from git), with previews, safety gates and Helm hooks, which replaced ArgoCD
 - Renovate as an add-on, which replaced the CronJob
 - ArgoCD and Jenkins uninstalled (2026-09-28)
+- Object storage moved from MinIO, whose images are no longer free to pull, to Garage: Longhorn's backups and the log archive (2026-10-04)
 - Pre-deploy tasks: migrations before the rollout; a failure stops the release (2026-10-02)
 - Post-deploy tasks: smoke tests and migrations against the live release, in its namespace; a failure rolls it back (2026-10-02)
 - Step logs archived to MinIO (gzip) and deleted after 365 days by a lifecycle rule (2026-10-01)

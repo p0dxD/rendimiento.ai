@@ -280,7 +280,7 @@ func run(log *slog.Logger) error {
 	srv.Environment.Config.NotifyTo, srv.Environment.Config.NotifyReady = notifier.To, notifier.Enabled()
 	log.Info("email notifications", "enabled", notifier.Enabled(), "to", notifier.To)
 
-	// Log archive: finished runs' step logs move to object storage (MinIO),
+	// Log archive: finished runs' step logs move to S3-compatible storage (Garage here),
 	// which deletes them after LOG_RETENTION_DAYS.
 	var logArchive *logarchive.Archive
 	var logBucket *logarchive.MinIO

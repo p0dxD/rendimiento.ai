@@ -52,10 +52,10 @@ data:
   PUBLIC_STATS: "true"
   STATS_LISTEN: ":8081"
   PUBLIC_STATS_TZ: America/New_York
-  # Finished runs' step logs move to MinIO (gzip), which deletes them after
-  # LOG_RETENTION_DAYS. Credentials: the rendimiento-logs secret (a MinIO
-  # user that can only use this bucket).
-  LOG_ARCHIVE_ENDPOINT: minio-api.minio.svc.cluster.local:9000
+  # Finished runs' step logs move to S3-compatible storage (gzip; Garage
+  # here), which deletes them after LOG_RETENTION_DAYS. Credentials: the
+  # rendimiento-logs secret (a key that can only use this bucket).
+  LOG_ARCHIVE_ENDPOINT: garage.garage.svc.cluster.local:3900
   LOG_ARCHIVE_BUCKET: rendimiento-logs
   LOG_RETENTION_DAYS: "365"
 ---
