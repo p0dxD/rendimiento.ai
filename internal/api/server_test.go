@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -332,5 +334,33 @@ func TestDeliveryReport(t *testing.T) {
 	}
 	if rep.Days != 30 || rep.TimeZone != "America/New_York" || rep.Current == nil || rep.Previous == nil || len(rep.Weekly) != 12 || len(rep.Current.DeploysPerDay) != 30 {
 		t.Fatalf("report = %s", body)
+	}
+}
+
+// The Problems page needs a login; problems can be listed, counted and dismissed.
+func TestProblemsAPI(t *testing.T) {
+	e := newEnv(t, true)
+	ctx := context.Background()
+	if r, _ := e.do(t, "GET", "/api/problems", "", nil, nil); r.StatusCode != 401 {
+		t.Fatalf("without a session: %d", r.StatusCode)
+	}
+	_ = e.s.Store.RecordProblem(ctx, store.Problem{Fingerprint: "x", Level: "WARN", App: "shop", Message: "rejected", LastAt: time.Now()})
+	me := e.session(t, "p0dxD")
+	r, body := e.do(t, "GET", "/api/problems?app=shop", "", me, nil)
+	var list ProblemList
+	if r.StatusCode != 200 || json.Unmarshal([]byte(body), &list) != nil || list.Open != 1 || len(list.Problems) != 1 || list.OpenFor != 24 {
+		t.Fatalf("%d %s", r.StatusCode, body)
+	}
+	if r, body := e.do(t, "GET", "/api/problems/count", "", me, nil); r.StatusCode != 200 || !strings.Contains(body, `"open":1`) {
+		t.Fatalf("count: %d %s", r.StatusCode, body)
+	}
+	if r, _ := e.do(t, "POST", fmt.Sprintf("/api/problems/%d/dismiss", list.Problems[0].ID), "", me, nil); r.StatusCode != 204 {
+		t.Fatalf("dismiss: %d", r.StatusCode)
+	}
+	if r, _ := e.do(t, "POST", "/api/problems/424242/dismiss", "", me, nil); r.StatusCode != 404 {
+		t.Fatalf("dismiss unknown: %d", r.StatusCode)
+	}
+	if _, body := e.do(t, "GET", "/api/problems/count", "", me, nil); !strings.Contains(body, `"open":0`) {
+		t.Fatalf("after dismissing: %s", body)
 	}
 }

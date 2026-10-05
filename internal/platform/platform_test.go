@@ -34,6 +34,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/events"
 	"github.com/p0dxD/rendimiento.ai/internal/generate"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
@@ -625,4 +626,61 @@ func mustApp(t *testing.T, p *Platform, name string) *store.App {
 		t.Fatal(err)
 	}
 	return a
+}
+
+type captureSender struct{ subjects chan string }
+
+func (c captureSender) Send(_ context.Context, _ []string, subject, _, _ string) error {
+	c.subjects <- subject
+	return nil
+}
+
+// A push whose rendimiento.yaml is invalid is a failed run with the reason,
+// a failed check on the commit and an email; the app's spec is unchanged
+// and nothing is built.
+func TestInvalidSpecIsAFailedRun(t *testing.T) {
+	p, fake, _, _ := setup(t)
+	ctx := context.Background()
+	mails := captureSender{subjects: make(chan string, 4)}
+	p.Notify = &notify.Notifier{Sender: mails, To: []string{"you@example.com"}}
+	good := "services:\n  - name: web\n    domain: shop.example.com\n"
+	bad := "services:\n  - name: web\n    domain: shop.example.com\n    aliases: [shop.example.com]\n"
+	fake.files["main"] = fstest.MapFS{"rendimiento.yaml": {Data: []byte(good)}}
+	fake.files[strings.Repeat("b", 40)] = fstest.MapFS{"rendimiento.yaml": {Data: []byte(bad)}}
+	sp, _ := spec.Parse([]byte(good))
+	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/shop", DefaultBranch: "main", Name: "shop", Spec: *sp}, false); err != nil {
+		t.Fatal(err)
+	}
+
+	runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/shop", Branch: "main", SHA: strings.Repeat("b", 40)})
+	if err != nil || len(runs) != 1 {
+		t.Fatalf("push: %v %v", runs, err)
+	}
+	time.Sleep(3 * time.Second) // a worker polls every 2 s: it must leave the run alone
+	run, err := p.Store.GetRun(ctx, runs[0].ID)
+	if err != nil || run.Status != store.RunFailed || !strings.Contains(run.Message, `rendimiento.yaml at bbbbbbb`) ||
+		!strings.Contains(run.Message, "used more than once") || len(run.Steps) != 0 || run.FinishedAt == nil {
+		t.Fatalf("run = %+v, %v", run, err)
+	}
+	fake.mu.Lock()
+	var concluded string
+	for _, c := range fake.checks {
+		concluded = c.Conclusion
+	}
+	fake.mu.Unlock()
+	if concluded != "failure" {
+		t.Fatalf("check conclusion = %q", concluded)
+	}
+	select {
+	case s := <-mails.subjects:
+		if !strings.Contains(s, "shop: rendimiento.yaml has an error") {
+			t.Fatalf("email subject %q", s)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no email")
+	}
+	app, _ := p.Store.GetApp(ctx, "shop")
+	if len(app.Spec.Services[0].Aliases) != 0 {
+		t.Fatalf("the invalid spec was saved: %+v", app.Spec.Services[0])
+	}
 }

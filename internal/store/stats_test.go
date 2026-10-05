@@ -97,3 +97,49 @@ func mustTZ(t *testing.T, name string) *time.Location {
 	}
 	return loc
 }
+
+// Repeats fold into one problem with a count; dismissing hides it until it
+// happens again; old ones are pruned.
+func TestProblems(t *testing.T) {
+	s := open(t)
+	ctx := context.Background()
+	now := time.Now()
+	p := Problem{Fingerprint: "f1", Level: "WARN", Component: "notify", Message: "notification email failed", Detail: "no route", LastAt: now.Add(-time.Minute)}
+	for i := 0; i < 3; i++ {
+		if err := s.RecordProblem(ctx, p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_ = s.RecordProblem(ctx, Problem{Fingerprint: "f2", Level: "ERROR", App: "shop", Message: "rejected", LastAt: now})
+	_ = s.RecordProblem(ctx, Problem{Fingerprint: "old", Level: "WARN", Message: "long ago", LastAt: now.AddDate(0, 0, -40)})
+
+	all, err := s.ListProblems(ctx, "", now.AddDate(0, 0, -30), false, 50)
+	if err != nil || len(all) != 2 || all[0].Message != "rejected" || all[1].Count != 3 {
+		t.Fatalf("problems = %+v, %v", all, err)
+	}
+	if shop, _ := s.ListProblems(ctx, "shop", now.AddDate(0, 0, -30), false, 50); len(shop) != 1 {
+		t.Fatalf("shop's problems = %+v", shop)
+	}
+	if n, _ := s.OpenProblems(ctx); n != 2 {
+		t.Fatalf("open = %d", n)
+	}
+	if err := s.DismissProblem(ctx, all[1].ID); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := s.OpenProblems(ctx); n != 1 {
+		t.Fatalf("open after dismissing = %d", n)
+	}
+	if with, _ := s.ListProblems(ctx, "", now.AddDate(0, 0, -30), true, 50); len(with) != 2 || with[1].DismissedAt == nil {
+		t.Fatalf("with dismissed = %+v", with)
+	}
+	_ = s.RecordProblem(ctx, p) // it happens again
+	if n, _ := s.OpenProblems(ctx); n != 2 {
+		t.Fatalf("a dismissed problem that recurs is open again; open = %d", n)
+	}
+	if err := s.DismissProblem(ctx, 999999); err != ErrNotFound {
+		t.Fatalf("dismiss unknown = %v", err)
+	}
+	if n, err := s.PruneProblems(ctx, now.AddDate(0, 0, -30)); err != nil || n != 1 {
+		t.Fatalf("pruned %d, %v", n, err)
+	}
+}

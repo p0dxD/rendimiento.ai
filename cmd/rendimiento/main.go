@@ -41,6 +41,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
+	"github.com/p0dxD/rendimiento.ai/internal/problems"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/renovate"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
@@ -56,15 +57,19 @@ func env(key, def string) string {
 }
 
 func main() {
-	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	// Warnings and errors also go to the Problems page; plain is the same
+	// log without that, for the recorder's own messages.
+	plain := slog.NewJSONHandler(os.Stdout, nil)
+	problemLog := problems.NewRecorder()
+	log := slog.New(problemLog.Handler(plain))
 	ctrl.SetLogger(toLogr(log))
-	if err := run(log); err != nil {
+	if err := run(log, problemLog, slog.New(plain)); err != nil {
 		log.Error("fatal", "err", err)
 		os.Exit(1)
 	}
 }
 
-func run(log *slog.Logger) error {
+func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -88,6 +93,7 @@ func run(log *slog.Logger) error {
 	if err := st.Migrate(ctx); err != nil {
 		return fmt.Errorf("migrate: %w", err)
 	}
+	go problemLog.Run(ctx, st, plain)
 	if requeued, failed, err := st.RequeueOrphans(ctx); err != nil {
 		return fmt.Errorf("recover interrupted runs: %w", err)
 	} else if requeued+failed > 0 {

@@ -62,9 +62,20 @@ export function RunPage() {
         {run.message && ` · ${run.message}`}
       </p>
 
-      <div className="card">
-        <PipelineGraph run={run} selected={selected} onSelect={setSelected} />
-      </div>
+      {run.steps?.length ? (
+        <div className="card">
+          <PipelineGraph run={run} selected={selected} onSelect={setSelected} />
+        </div>
+      ) : run.status === "failed" && run.message ? (
+        <div className="alert" role="alert">
+          <strong>Nothing was built.</strong> {run.message}
+          <div className="small" style={{ marginTop: 6 }}>Fix the file and push again; the app keeps running its current release.</div>
+        </div>
+      ) : (
+        <div className="card">
+          <PipelineGraph run={run} selected={selected} onSelect={setSelected} />
+        </div>
+      )}
 
       {step && (
         <>

@@ -294,3 +294,13 @@ textarea.code { width: 100%; min-height: 280px; font-family: var(--mono); font-s
 .dlv details { margin-top: 6px; }
 .dlv-table { margin-top: 8px; }
 .dlv-table td, .dlv-table th { padding: 4px 10px; font-size: 12px; font-variant-numeric: tabular-nums; text-align: left; }
+
+/* Problems page, nav count and app banner. */
+.nav-count {
+  display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9px;
+  background: var(--bad); color: var(--surface); font-size: 11px; font-weight: 600; line-height: 18px; text-align: center;
+}
+.problem-h { font-size: 15px; margin: 0 0 4px; }
+.problem-detail { margin: 0; padding: 8px 10px; border-radius: 6px; background: var(--idle-bg); font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+.problem-list { margin: 6px 0; padding-left: 18px; }
+.problem-list li { word-break: break-word; }

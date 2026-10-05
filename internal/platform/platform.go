@@ -546,7 +546,11 @@ func (p *Platform) QueueRun(ctx context.Context, app *store.App, branch, sha, ev
 	}
 	sp, err := spec.Parse(raw)
 	if err != nil {
-		return nil, fmt.Errorf("%s at %s: %w", spec.FileName, ref, err)
+		err = fmt.Errorf("%s at %s: %w", spec.FileName, shortSHA(ref), err)
+		if sha == "" {
+			return nil, err // no commit to record the failure against
+		}
+		return p.rejectRun(ctx, app, branch, sha, event, err)
 	}
 	if sha == "" {
 		sha = branch
@@ -566,6 +570,36 @@ func (p *Platform) QueueRun(ctx context.Context, app *store.App, branch, sha, ev
 		return nil, err
 	}
 	p.Hub.Publish(appTopic(app.Name), events.Event{Type: "run", Data: run})
+	return run, nil
+}
+
+// rejectRun records a push whose rendimiento.yaml is invalid as a failed
+// run, so it shows where pushes are looked for: on the app page, as a red
+// check on the commit in GitHub and, for the default branch, in an email.
+// Nothing was built or released.
+func (p *Platform) rejectRun(ctx context.Context, app *store.App, branch, sha, event string, cause error) (*store.Run, error) {
+	run := &store.Run{AppID: app.ID, SHA: sha, Branch: branch, Event: event, Deploy: branch == app.DefaultBranch}
+	if err := p.Store.CreateRejectedRun(ctx, run, cause.Error()); err != nil {
+		return nil, err
+	}
+	p.Log.Warn("rendimiento.yaml rejected; the push was not built", "app", app.Name, "run", run.ID, "branch", branch, "err", cause)
+	p.Hub.Publish(appTopic(app.Name), events.Event{Type: "run", Data: run})
+	p.finishCheck(ctx, app, run, p.startCheck(ctx, app, run), store.RunFailed, cause.Error())
+	if run.Deploy {
+		p.Notify.Notify(notify.Message{
+			Tone: notify.Critical, Key: fmt.Sprintf("spec:%s:%s", app.Name, sha),
+			Subject: fmt.Sprintf("✗ %s: rendimiento.yaml has an error", app.Name),
+			Title:   "The push was not deployed",
+			Summary: fmt.Sprintf("rendimiento.yaml on %s has an error, so nothing was built or released; the app keeps running its current release. Fix the file and push again.", branch),
+			Facts: []notify.Fact{
+				{Label: "App", Value: app.Name},
+				{Label: "Commit", Value: fmt.Sprintf("%s on %s", shortSHA(sha), branch)},
+				{Label: "Run", Value: fmt.Sprintf("#%d", run.ID)},
+			},
+			Details:   cause.Error(),
+			ActionURL: fmt.Sprintf("%s/apps/%s/runs/%d", p.Config.BaseURL, app.Name, run.ID), ActionLabel: "Open the run",
+		})
+	}
 	return run, nil
 }
 

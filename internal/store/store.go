@@ -307,6 +307,17 @@ const closeSteps = `UPDATE steps SET
 		finished_at = COALESCE(finished_at, now())
 	WHERE status IN ('pending', 'running') AND run_id `
 
+// CreateRejectedRun records a run that failed before it could start (its
+// rendimiento.yaml was invalid): it is created finished, with no steps, so
+// no worker ever claims it.
+func (s *Store) CreateRejectedRun(ctx context.Context, r *Run, message string) error {
+	r.Status, r.Message = RunFailed, message
+	return s.pool.QueryRow(ctx, `
+		INSERT INTO runs (app_id, sha, branch, event, deploy, status, message, started_at, finished_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, now(), now()) RETURNING id, created_at, started_at, finished_at`,
+		r.AppID, r.SHA, r.Branch, r.Event, r.Deploy, RunFailed, message).Scan(&r.ID, &r.CreatedAt, &r.StartedAt, &r.FinishedAt)
+}
+
 // FinishRun records a run's outcome and closes any step still pending or running.
 func (s *Store) FinishRun(ctx context.Context, runID int64, status, message string) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {

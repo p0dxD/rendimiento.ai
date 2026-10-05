@@ -11,6 +11,7 @@ import { Environment } from "./pages/Environment";
 import { Services } from "./pages/Services";
 import { Addons } from "./pages/Addons";
 import { AddonDetail } from "./pages/Installed";
+import { Problems, ProblemsNavLink } from "./pages/Problems";
 import "./styles.css";
 
 function Logo() {
@@ -72,6 +73,7 @@ function Shell() {
         <NavLink to="/services" className="nav-link">Services</NavLink>
         <NavLink to="/addons" className="nav-link">Add-ons</NavLink>
         <NavLink to="/environment" className="nav-link">Environment</NavLink>
+        <ProblemsNavLink />
         <span className="spacer" />
         <Link to="/new" className="btn primary">New app</Link>
         <span className="muted small hide-sm">{state.login}</span>
@@ -84,6 +86,7 @@ function Shell() {
           <Route path="/environment" element={<Environment />} />
           <Route path="/services" element={<Services />} />
           <Route path="/addons" element={<Addons />} />
+          <Route path="/problems" element={<Problems />} />
           <Route path="/addons/:name" element={<AddonDetail />} />
           <Route path="/services/:ns/:name" element={<Services />} />
           <Route path="/apps/:name" element={<AppPage />} />

@@ -168,6 +168,28 @@ export interface App {
   uptime24h?: number;
 }
 
+// ---- problems (the platform's own warnings and errors) ----
+
+export interface Problem {
+  id: number;
+  level: "WARN" | "ERROR";
+  component: string;
+  app: string;
+  message: string;
+  detail: string;
+  attrs: string;
+  count: number;
+  firstAt: string;
+  lastAt: string;
+  dismissedAt?: string;
+}
+
+export interface ProblemList {
+  open: number;
+  openForHours: number;
+  problems: Problem[];
+}
+
 // ---- delivery (the dashboard's DORA numbers) ----
 
 export interface DeliveryStats {
@@ -342,6 +364,10 @@ export const api = {
   releases: (app: string) => request<Release[]>("GET", `/api/apps/${app}/releases`),
   releaseTaskLog: (app: string, release: number, task: string) => request<string>("GET", `/api/apps/${app}/releases/${release}/tasks/${encodeURIComponent(task)}/log`),
   delivery: () => request<DeliveryReport>("GET", "/api/stats/delivery"),
+  problems: (opts: { app?: string; dismissed?: boolean } = {}) =>
+    request<ProblemList>("GET", `/api/problems?app=${encodeURIComponent(opts.app ?? "")}${opts.dismissed ? "&dismissed=1" : ""}`),
+  problemCount: () => request<{ open: number }>("GET", "/api/problems/count"),
+  dismissProblem: (id: number) => request<void>("POST", `/api/problems/${id}/dismiss`),
   reliability: (app: string, range: ReliabilityRange) => request<Reliability>("GET", `/api/apps/${app}/reliability?range=${range}`),
   rollback: (app: string, release: number) => request<Release>("POST", `/api/apps/${app}/rollback`, { release }),
   resources: (app: string) => request<ResourceNode>("GET", `/api/apps/${app}/resources`),

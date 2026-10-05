@@ -39,6 +39,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 - An add-on engine (Helm and kustomize from git), with previews, safety gates and Helm hooks, which replaced ArgoCD
 - Renovate as an add-on, which replaced the CronJob
 - ArgoCD and Jenkins uninstalled (2026-09-28)
+- The Problems page: the platform's own warnings and errors, grouped, with a count in the top bar and a banner on the app concerned; an invalid `rendimiento.yaml` is a failed run, a red check on GitHub and an email (2026-10-05)
 - Apps' databases moved onto `needs: [postgres]`: podoi, wellness and stockpulse, each copied with row counts checked, overnight with no outage (2026-10-05)
 - Delivery stats on the dashboard: deploys, lead time, change failure rate and time to recover for the last 30 days, with trends against the 30 before and twelve-week trend lines (2026-10-04)
 - Object storage moved from MinIO, whose images are no longer free to pull, to Garage: Longhorn's backups and the log archive (2026-10-04)

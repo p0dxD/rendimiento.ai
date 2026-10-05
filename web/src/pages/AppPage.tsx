@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo, type Release, type ReleaseTask } from "../api";
 import { ErrorBox, PhaseBadge, ResourceTree, RunBadge, Switch, usePoll } from "../components/ui";
 import { ReliabilityTab } from "../components/reliability";
+import { AppProblems } from "./Problems";
 
 const tabs = [
   { id: "", label: "Overview" },
@@ -40,6 +41,7 @@ export function AppPage() {
         <div className={`alert ${app.status.phase === "Error" || app.status.phase === "Degraded" ? "" : "info"}`} style={{ marginTop: 12 }}>{app.status.message}</div>
       )}
       <VerificationBanner name={name} />
+      <AppProblems name={name} />
       <nav className="tabs">
         {tabs.map((t) => (
           <Link key={t.id} to={`/apps/${name}${t.id ? "/" + t.id : ""}`} className={tab === t.id ? "active" : ""}>{t.label}</Link>
