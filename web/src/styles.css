@@ -285,7 +285,7 @@ textarea.code { width: 100%; min-height: 280px; font-family: var(--mono); font-s
 .dlv-tiles .rel-tile { display: flex; flex-direction: column; }
 /* Trend lines sit at the bottom of every tile, so they line up across the row. */
 .dlv-spark { margin: auto 0 4px; padding-top: 8px; }
-.dlv-spark-empty { height: 40px; display: flex; align-items: flex-end; border-bottom: 1px solid var(--viz-axis); padding-bottom: 4px; }
+.dlv-spark-empty { min-height: 40px; box-sizing: border-box; display: flex; align-items: flex-end; border-bottom: 1px solid var(--viz-axis); padding-bottom: 4px; }
 .dlv-spark svg { height: 40px; }
 .dlv-dot {
   position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
