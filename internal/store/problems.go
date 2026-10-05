@@ -20,21 +20,24 @@ type Problem struct {
 	FirstAt     time.Time  `json:"firstAt"`
 	LastAt      time.Time  `json:"lastAt"`
 	DismissedAt *time.Time `json:"dismissedAt,omitempty"`
+	ResolvedAt  *time.Time `json:"resolvedAt,omitempty"`
+	Resolution  string     `json:"resolution,omitempty"` // what fixed it, e.g. "fixed by c6eae54"
 }
 
 // ProblemOpenFor is how long a problem counts as open after it last
-// happened (unless dismissed).
+// happened (unless dismissed or resolved).
 const ProblemOpenFor = 24 * time.Hour
 
 // RecordProblem adds an occurrence: a new row, or one more on the row with
-// the same fingerprint, which also undoes a dismissal.
+// the same fingerprint, which also undoes a dismissal or resolution.
 func (s *Store) RecordProblem(ctx context.Context, p Problem) error {
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO problems (fingerprint, level, component, app, message, detail, attrs, first_at, last_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
 		ON CONFLICT (fingerprint) DO UPDATE SET
 		  count = problems.count + 1, detail = EXCLUDED.detail, attrs = EXCLUDED.attrs,
-		  last_at = GREATEST(problems.last_at, EXCLUDED.last_at), dismissed_at = NULL`,
+		  last_at = GREATEST(problems.last_at, EXCLUDED.last_at), dismissed_at = NULL,
+		  resolved_at = NULL, resolution = ''`,
 		p.Fingerprint, p.Level, p.Component, p.App, p.Message, p.Detail, p.Attrs, p.LastAt)
 	return err
 }
@@ -44,7 +47,7 @@ func (s *Store) RecordProblem(ctx context.Context, p Problem) error {
 // unless asked for.
 func (s *Store) ListProblems(ctx context.Context, app string, since time.Time, withDismissed bool, limit int) ([]Problem, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, level, component, app, message, detail, attrs, count, first_at, last_at, dismissed_at
+		SELECT id, level, component, app, message, detail, attrs, count, first_at, last_at, dismissed_at, resolved_at, resolution
 		FROM problems
 		WHERE last_at >= $1 AND ($2 = '' OR app = $2) AND ($3 OR dismissed_at IS NULL)
 		ORDER BY last_at DESC LIMIT $4`, since, app, withDismissed, limit)
@@ -55,7 +58,7 @@ func (s *Store) ListProblems(ctx context.Context, app string, since time.Time, w
 	out := []Problem{}
 	for rows.Next() {
 		var p Problem
-		if err := rows.Scan(&p.ID, &p.Level, &p.Component, &p.App, &p.Message, &p.Detail, &p.Attrs, &p.Count, &p.FirstAt, &p.LastAt, &p.DismissedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Level, &p.Component, &p.App, &p.Message, &p.Detail, &p.Attrs, &p.Count, &p.FirstAt, &p.LastAt, &p.DismissedAt, &p.ResolvedAt, &p.Resolution); err != nil {
 			return nil, err
 		}
 		out = append(out, p)
@@ -64,10 +67,10 @@ func (s *Store) ListProblems(ctx context.Context, app string, since time.Time, w
 }
 
 // OpenProblems counts problems that happened within ProblemOpenFor and are
-// not dismissed.
+// neither dismissed nor resolved.
 func (s *Store) OpenProblems(ctx context.Context) (int, error) {
 	var n int
-	err := s.pool.QueryRow(ctx, `SELECT count(*) FROM problems WHERE dismissed_at IS NULL AND last_at >= $1`,
+	err := s.pool.QueryRow(ctx, `SELECT count(*) FROM problems WHERE dismissed_at IS NULL AND resolved_at IS NULL AND last_at >= $1`,
 		time.Now().Add(-ProblemOpenFor)).Scan(&n)
 	return n, err
 }
@@ -84,5 +87,24 @@ func (s *Store) DismissProblem(ctx context.Context, id int64) error {
 // PruneProblems deletes problems that last happened before `before`.
 func (s *Store) PruneProblems(ctx context.Context, before time.Time) (int64, error) {
 	tag, err := s.pool.Exec(ctx, `DELETE FROM problems WHERE last_at < $1`, before)
+	return tag.RowsAffected(), err
+}
+
+// ProblemMatch picks the problems a fix resolves: same message, and the
+// same app (when set) and attribute (when set, e.g. "branch=main").
+type ProblemMatch struct {
+	Message string
+	App     string
+	Attr    string
+}
+
+// ResolveProblems marks the unresolved problems matching m as resolved,
+// saying what fixed them; it returns how many it resolved.
+func (s *Store) ResolveProblems(ctx context.Context, m ProblemMatch, resolution string) (int64, error) {
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE problems SET resolved_at = now(), resolution = $4
+		WHERE resolved_at IS NULL AND message = $1 AND ($2 = '' OR app = $2)
+		  AND ($3 = '' OR position(' ' || $3 || ' ' in ' ' || attrs || ' ') > 0)`,
+		m.Message, m.App, m.Attr, resolution)
 	return tag.RowsAffected(), err
 }

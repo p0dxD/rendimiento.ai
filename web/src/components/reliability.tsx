@@ -9,9 +9,10 @@ import {
   type App, type CheckKind, type Reliability, type ReliabilityRange, type Service, type UptimeBucket, type UptimeSeries,
 } from "../api";
 import { ErrorBox, usePoll } from "./ui";
+import { locale, t, tn } from "../i18n";
 
 const ranges: { id: ReliabilityRange; label: string }[] = [
-  { id: "24h", label: "Last 24 hours" },
+  { id: "24h", label: "Last 24 hours" }, // labels are translated where shown
   { id: "7d", label: "Last 7 days" },
   { id: "30d", label: "Last 30 days" },
 ];
@@ -32,10 +33,10 @@ export function fmtMs(ms: number): string {
 
 function fmtDuration(ms: number): string {
   const m = Math.round(ms / 60000);
-  if (m < 1) return "under a minute";
-  if (m < 60) return `${m} min`;
+  if (m < 1) return t("under a minute");
+  if (m < 60) return t("{n} min", { n: m });
   const h = Math.floor(m / 60);
-  return h < 48 ? `${h} h ${m % 60} min` : `${Math.floor(h / 24)} days`;
+  return h < 48 ? t("{h} h {m} min", { h, m: m % 60 }) : t("{n} days", { n: Math.floor(h / 24) });
 }
 
 type BucketState = "good" | "warning" | "critical" | "nodata";
@@ -63,14 +64,14 @@ function timeline(data: Reliability, s: UptimeSeries) {
 function fmtWhen(t: number, range: ReliabilityRange) {
   const d = new Date(t);
   return range === "24h"
-    ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : d.toLocaleDateString([], { month: "short", day: "numeric" }) + (range === "7d" ? " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
+    ? d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString(locale, { month: "short", day: "numeric" }) + (range === "7d" ? " " + d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "");
 }
 
 function checksOf(svc: Service): { kind: CheckKind; target: string }[] {
   const out: { kind: CheckKind; target: string }[] = [];
   const path = svc.health?.path;
-  out.push({ kind: "internal", target: path ? `GET ${path}` : `TCP port ${svc.port ?? 8080}` });
+  out.push({ kind: "internal", target: path ? `GET ${path}` : t("TCP port {n}", { n: svc.port ?? 8080 }) });
   if (svc.domain) out.push({ kind: "public", target: `https://${svc.domain}${path ?? "/"}` });
   return out;
 }
@@ -83,18 +84,18 @@ export function ReliabilityTab({ app }: { app: App }) {
   const services = app.spec.services.filter((s) => (s.replicas ?? 1) > 0);
   return (
     <>
-      <div className={`rel-filters${loading ? " loading" : ""}`} role="group" aria-label="Time range">
+      <div className={`rel-filters${loading ? " loading" : ""}`} role="group" aria-label={t("Time range")}>
         {ranges.map((r) => (
-          <button key={r.id} aria-pressed={range === r.id} onClick={() => setRange(r.id)}>{r.label}</button>
+          <button key={r.id} aria-pressed={range === r.id} onClick={() => setRange(r.id)}>{t(r.label)}</button>
         ))}
-        <span className="small muted">Every service is checked once a minute: its health check inside the cluster, and its public URL through Cloudflare.</span>
+        <span className="small muted">{t("Every service is checked once a minute: its health check inside the cluster, and its public URL through Cloudflare.")}</span>
       </div>
       <ErrorBox error={error} />
-      {!data && !error && <p className="muted">Loading…</p>}
+      {!data && !error && <p className="muted">{t("Loading…")}</p>}
       {data && (
         <div className="stack">
           {data.series.length === 0 && (
-            <div className="card muted">No checks yet. The first results appear about a minute after the platform starts checking this app.</div>
+            <div className="card muted">{t("No checks yet. The first results appear about a minute after the platform starts checking this app.")}</div>
           )}
           {services.flatMap((svc) => checksOf(svc).map((c) => {
             const s = data.series.find((x) => x.service === svc.name && x.kind === c.kind);
@@ -112,30 +113,30 @@ function CheckCard({ data, series: s, target }: { data: Reliability; series: Upt
   const outages = data.incidents.filter((i) => i.service === s.service && i.kind === s.kind).length;
   const last = s.last;
   return (
-    <section className="card rel-check" aria-label={`${s.service}, ${kindLabel[s.kind]}`}>
+    <section className="card rel-check" aria-label={`${s.service}, ${t(kindLabel[s.kind])}`}>
       <div className="row between">
         <div>
-          <h3><strong>{s.service}</strong> <span className="muted" style={{ fontWeight: 400 }}>· {kindLabel[s.kind]}</span></h3>
+          <h3><strong>{s.service}</strong> <span className="muted" style={{ fontWeight: 400 }}>· {t(kindLabel[s.kind])}</span></h3>
           <div className="small muted mono">{target}</div>
         </div>
         {last && (
           <span className={`badge ${last.ok ? "ok" : "bad"}`} title={last.error}>
-            {last.ok ? "Up" : "Down"} · checked {timeAgo(last.at)}
+            {last.ok ? t("Up") : t("Down")} · {t("checked {when}", { when: timeAgo(last.at) })}
           </span>
         )}
       </div>
 
       <div className="rel-tiles">
-        <Tile label="Uptime" value={fmtPct(s.ok, s.total)} note={`${s.ok.toLocaleString()} of ${s.total.toLocaleString()} checks`} />
-        <Tile label="Typical response (p50)" value={s.p50Ms ? fmtMs(s.p50Ms) : "—"} note="half of checks were faster" />
-        <Tile label="Slowest 5% (p95)" value={s.p95Ms ? fmtMs(s.p95Ms) : "—"} note="95% of checks were faster" />
-        <Tile label="Outages" value={String(outages)} note={outages ? "listed below" : "none in this range"} />
+        <Tile label={t("Uptime")} value={fmtPct(s.ok, s.total)} note={t("{ok} of {total} checks", { ok: s.ok.toLocaleString(locale), total: s.total.toLocaleString(locale) })} />
+        <Tile label={t("Typical response (p50)")} value={s.p50Ms ? fmtMs(s.p50Ms) : "—"} note={t("half of checks were faster")} />
+        <Tile label={t("Slowest 5% (p95)")} value={s.p95Ms ? fmtMs(s.p95Ms) : "—"} note={t("95% of checks were faster")} />
+        <Tile label={t("Outages")} value={String(outages)} note={outages ? t("listed below") : t("none in this range")} />
       </div>
 
       <StatusStrip data={data} series={s} />
       <LatencyChart data={data} series={s} />
       <DataTable data={data} series={s} />
-      {last && !last.ok && last.error && <div className="small" style={{ marginTop: 8 }}>Latest failure: <span className="mono">{last.error}</span></div>}
+      {last && !last.ok && last.error && <div className="small" style={{ marginTop: 8 }}>{t("Latest failure:")} <span className="mono">{last.error}</span></div>}
     </section>
   );
 }
@@ -177,11 +178,11 @@ function StatusStrip({ data, series }: { data: Reliability; series: UptimeSeries
     <div style={{ position: "relative" }}>
       <div className="rel-legend" aria-hidden="true">
         {(["good", "warning", "critical", "nodata"] as BucketState[]).map((st) => (
-          <span key={st}><i style={{ background: stateColor[st] }} />{stateLabel[st]}</span>
+          <span key={st}><i style={{ background: stateColor[st] }} />{t(stateLabel[st])}</span>
         ))}
       </div>
       <div className="rel-strip" ref={ref} onPointerLeave={() => setTip(null)}
-        role="img" aria-label={`Availability: ${fmtPct(series.ok, series.total)} of checks succeeded`}>
+        role="img" aria-label={t("Availability: {pct} of checks succeeded", { pct: fmtPct(series.ok, series.total) })}>
         {cells.map(({ at, b }) => {
           const st = bucketState(b);
           return (
@@ -192,15 +193,15 @@ function StatusStrip({ data, series }: { data: Reliability; series: UptimeSeries
                   x: Math.min(e.clientX - box.left + 12, box.width - 170), y: 36,
                   when: `${fmtWhen(at, data.range)} – ${fmtWhen(at + size, data.range)}`,
                   lines: [
-                    { value: stateLabel[st], label: "" },
-                    ...(b ? [{ value: fmtPct(b.ok, b.total), label: `of ${b.total} checks` }] : []),
+                    { value: t(stateLabel[st]), label: "" },
+                    ...(b ? [{ value: fmtPct(b.ok, b.total), label: tn(b.total, "of {n} check", "of {n} checks") }] : []),
                   ],
                 });
               }} />
           );
         })}
       </div>
-      <div className="rel-axis"><span>{fmtWhen(cells[0]?.at ?? Date.now(), data.range)}</span><span>now</span></div>
+      <div className="rel-axis"><span>{fmtWhen(cells[0]?.at ?? Date.now(), data.range)}</span><span>{t("now")}</span></div>
       <TipBox tip={tip} />
     </div>
   );
@@ -255,28 +256,28 @@ function LatencyChart({ data, series }: { data: Reliability; series: UptimeSerie
   const releases = data.releases.filter((r) => new Date(r.at).getTime() >= t0);
 
   const h = hover !== null ? cells[hover] : null;
-  const relsIn = h ? releases.filter((r) => { const t = new Date(r.at).getTime(); return t >= h.at && t < h.at + size; }) : [];
+  const relsIn = h ? releases.filter((r) => { const ms = new Date(r.at).getTime(); return ms >= h.at && ms < h.at + size; }) : [];
   const tip: Tip = h ? {
     x: Math.min(x(mid(h.at)) + 12, width - 180), y: 8,
     when: `${fmtWhen(h.at, data.range)} – ${fmtWhen(h.at + size, data.range)}`,
     lines: h.b && h.b.ok > 0 ? [
       { key: "var(--viz-series-1)", value: fmtMs(h.b.p95Ms), label: "p95" },
       { key: "var(--viz-series-2)", value: fmtMs(h.b.p50Ms), label: "p50" },
-      { value: fmtPct(h.b.ok, h.b.total), label: `up (${h.b.total} checks)` },
-      ...relsIn.map((r) => ({ value: `#${r.number}`, label: r.rollbackOf ? `rollback to #${r.rollbackOf}` : r.verifyStatus === "failed" ? "released, failed verification, rolled back" : "released" })),
-    ] : [{ value: h.b ? "All checks failed" : "No checks", label: "" }],
+      { value: fmtPct(h.b.ok, h.b.total), label: tn(h.b.total, "up ({n} check)", "up ({n} checks)") },
+      ...relsIn.map((r) => ({ value: `#${r.number}`, label: r.rollbackOf ? t("rollback to #{n}", { n: r.rollbackOf }) : r.verifyStatus === "failed" ? t("released, failed verification, rolled back") : t("released") })),
+    ] : [{ value: h.b ? t("All checks failed") : t("No checks"), label: "" }],
   } : null;
 
   const endLabels = lastWith?.b && Math.abs(y(lastWith.b.p95Ms) - y(lastWith.b.p50Ms)) >= 12;
   return (
     <div className="rel-chart" ref={wrap}>
       <div className="rel-legend">
-        <span><i className="line" style={{ background: "var(--viz-series-1)" }} />Slowest 5% (p95)</span>
-        <span><i className="line" style={{ background: "var(--viz-series-2)" }} />Typical (p50)</span>
-        {releases.length > 0 && <span><i className="line" style={{ background: "var(--muted)", width: 2, height: 10, verticalAlign: -1 }} />Release</span>}
+        <span><i className="line" style={{ background: "var(--viz-series-1)" }} />{t("Slowest 5% (p95)")}</span>
+        <span><i className="line" style={{ background: "var(--viz-series-2)" }} />{t("Typical (p50)")}</span>
+        {releases.length > 0 && <span><i className="line" style={{ background: "var(--muted)", width: 2, height: 10, verticalAlign: -1 }} />{t("Release")}</span>}
       </div>
       <svg viewBox={`0 0 ${width} ${H}`} height={H} role="img"
-        aria-label={`Response time: p50 ${fmtMs(series.p50Ms)}, p95 ${fmtMs(series.p95Ms)} over the range`}
+        aria-label={t("Response time: p50 {p50}, p95 {p95} over the range", { p50: fmtMs(series.p50Ms), p95: fmtMs(series.p95Ms) })}
         onPointerMove={(e) => {
           const box = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
           const px = ((e.clientX - box.left) / box.width) * width;
@@ -291,8 +292,8 @@ function LatencyChart({ data, series }: { data: Reliability; series: UptimeSerie
             <text x={L - 6} y={y(v) + 4} textAnchor="end">{fmtMs(v)}</text>
           </g>
         ))}
-        {xTicks.map((t, i) => (
-          <text key={t} x={x(t)} y={H - 6} textAnchor={i === 0 ? "start" : i === nTicks - 1 ? "end" : "middle"}>{i === nTicks - 1 ? "now" : fmtWhen(t, data.range)}</text>
+        {xTicks.map((tick, i) => (
+          <text key={tick} x={x(tick)} y={H - 6} textAnchor={i === 0 ? "start" : i === nTicks - 1 ? "end" : "middle"}>{i === nTicks - 1 ? t("now") : fmtWhen(tick, data.range)}</text>
         ))}
         {releases.map((r) => {
           const rx = x(new Date(r.at).getTime());
@@ -334,16 +335,16 @@ function DataTable({ data, series }: { data: Reliability; series: UptimeSeries }
   const size = data.bucketSeconds * 1000;
   return (
     <details>
-      <summary className="small muted">Data table</summary>
+      <summary className="small muted">{t("Data table")}</summary>
       <div style={{ maxHeight: 260, overflow: "auto" }}>
         <table>
-          <thead><tr><th>From</th><th>Checks</th><th>Uptime</th><th>p50</th><th>p95</th></tr></thead>
+          <thead><tr><th>{t("From")}</th><th>{t("Checks")}</th><th>{t("Uptime")}</th><th>p50</th><th>p95</th></tr></thead>
           <tbody>
             {[...series.buckets].reverse().map((b) => {
-              const t = new Date(b.at).getTime();
+              const from = new Date(b.at).getTime();
               return (
                 <tr key={b.at}>
-                  <td>{fmtWhen(t, data.range)} – {fmtWhen(t + size, data.range)}</td>
+                  <td>{fmtWhen(from, data.range)} – {fmtWhen(from + size, data.range)}</td>
                   <td>{b.ok}/{b.total}</td>
                   <td>{fmtPct(b.ok, b.total)}</td>
                   <td>{b.ok ? fmtMs(b.p50Ms) : "—"}</td>
@@ -361,13 +362,13 @@ function DataTable({ data, series }: { data: Reliability; series: UptimeSeries }
 function Incidents({ data }: { data: Reliability }) {
   return (
     <section className="card">
-      <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>Outages</h3>
+      <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>{t("Outages")}</h3>
       {data.incidents.length === 0 ? (
-        <p className="small muted" style={{ margin: 0 }}>None in this range. An outage starts after two failed checks in a row and ends at the next successful one.</p>
+        <p className="small muted" style={{ margin: 0 }}>{t("None in this range. An outage starts after two failed checks in a row and ends at the next successful one.")}</p>
       ) : (
         <div style={{ overflowX: "auto" }}>
         <table>
-          <thead><tr><th>Service</th><th>Check</th><th>Started</th><th>Lasted</th><th>First error</th></tr></thead>
+          <thead><tr><th>{t("Service")}</th><th>{t("Check")}</th><th>{t("Started")}</th><th>{t("Lasted")}</th><th>{t("First error")}</th></tr></thead>
           <tbody>
             {data.incidents.map((i) => {
               const start = new Date(i.startedAt).getTime();
@@ -375,9 +376,9 @@ function Incidents({ data }: { data: Reliability }) {
               return (
                 <tr key={i.id}>
                   <td>{i.service}</td>
-                  <td>{kindLabel[i.kind]}</td>
-                  <td title={new Date(start).toLocaleString()}>{timeAgo(i.startedAt)}</td>
-                  <td>{i.endedAt ? fmtDuration(end - start) : <span className="badge bad">Ongoing · {fmtDuration(end - start)}</span>}</td>
+                  <td>{t(kindLabel[i.kind])}</td>
+                  <td title={new Date(start).toLocaleString(locale)}>{timeAgo(i.startedAt)}</td>
+                  <td>{i.endedAt ? fmtDuration(end - start) : <span className="badge bad">{t("Ongoing")} · {fmtDuration(end - start)}</span>}</td>
                   <td className="mono small">{i.error}</td>
                 </tr>
               );

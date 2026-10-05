@@ -143,3 +143,39 @@ func TestProblems(t *testing.T) {
 		t.Fatalf("pruned %d, %v", n, err)
 	}
 }
+
+// A fix resolves matching problems (by message, app and attribute); a
+// resolved problem is not open, and reopens if it happens again.
+func TestResolveProblems(t *testing.T) {
+	s := open(t)
+	ctx := context.Background()
+	rejected := func(fp, app, branch string) Problem {
+		return Problem{Fingerprint: fp, Level: "WARN", App: app, Message: "rejected", Attrs: "run=7 branch=" + branch, LastAt: time.Now()}
+	}
+	for _, p := range []Problem{rejected("a", "shop", "main"), rejected("b", "shop", "main-2"), rejected("c", "blog", "main")} {
+		if err := s.RecordProblem(ctx, p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n, err := s.ResolveProblems(ctx, ProblemMatch{Message: "rejected", App: "shop", Attr: "branch=main"}, "fixed by abc1234")
+	if err != nil || n != 1 {
+		t.Fatalf("resolved %d (only shop on main, not main-2 or blog), %v", n, err)
+	}
+	if open, _ := s.OpenProblems(ctx); open != 2 {
+		t.Fatalf("open = %d", open)
+	}
+	list, _ := s.ListProblems(ctx, "shop", time.Now().Add(-time.Hour), false, 10)
+	var got *Problem
+	for i := range list {
+		if list[i].Attrs == "run=7 branch=main" {
+			got = &list[i]
+		}
+	}
+	if got == nil || got.ResolvedAt == nil || got.Resolution != "fixed by abc1234" {
+		t.Fatalf("resolved problem = %+v", got)
+	}
+	_ = s.RecordProblem(ctx, rejected("a", "shop", "main")) // broken again
+	if open, _ := s.OpenProblems(ctx); open != 3 {
+		t.Fatalf("a resolved problem that recurs is open again; open = %d", open)
+	}
+}

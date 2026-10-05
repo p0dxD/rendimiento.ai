@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AppStatus, ResourceNode, Run, Step } from "../api";
+import { t } from "../i18n";
 
 type Tone = "ok" | "warn" | "bad" | "idle";
 
@@ -13,12 +14,17 @@ const phaseTone: Record<string, Tone> = {
 };
 const phaseLabel: Record<string, string> = { WaitingForBuild: "Waiting for first build" };
 
+/** A status word from the API (a phase, a run or step status, a health), in the UI's language. */
+export function statusText(s: string): string {
+  return t(phaseLabel[s] ?? s);
+}
+
 export function PhaseBadge({ status }: { status: AppStatus }) {
   const phase = status.phase ?? "Pending";
   const tone = phaseTone[phase] ?? "idle";
   return (
     <span className={`badge ${tone} ${phase === "Progressing" ? "live" : ""}`} title={status.message}>
-      {phaseLabel[phase] ?? phase}
+      {statusText(phase)}
     </span>
   );
 }
@@ -27,12 +33,12 @@ const runTone: Record<string, Tone> = { succeeded: "ok", running: "warn", queued
 
 export function RunBadge({ status }: { status: Run["status"] | Step["status"] }) {
   const tone = runTone[status] ?? (status === "skipped" || status === "pending" ? "idle" : "idle");
-  return <span className={`badge ${tone} ${status === "running" ? "live" : ""}`}>{status}</span>;
+  return <span className={`badge ${tone} ${status === "running" ? "live" : ""}`}>{statusText(status)}</span>;
 }
 
 export function HealthBadge({ health }: { health: ResourceNode["health"] }) {
   const tone: Tone = health === "Healthy" ? "ok" : health === "Degraded" ? "bad" : health === "Missing" ? "idle" : "warn";
-  return <span className={`badge ${tone}`}>{health}</span>;
+  return <span className={`badge ${tone}`}>{statusText(health)}</span>;
 }
 
 export function ErrorBox({ error }: { error: unknown }) {
@@ -141,7 +147,7 @@ export function PipelineGraph({ run, selected, onSelect }: { run: Run; selected?
 
   return (
     <div className="pipeline">
-      <svg width={Math.max(width, 200)} height={Math.max(height, H + PAD * 2)} role="img" aria-label="Pipeline steps">
+      <svg width={Math.max(width, 200)} height={Math.max(height, H + PAD * 2)} role="img" aria-label={t("Pipeline steps")}>
         {steps.flatMap((s) =>
           s.dependsOn.map((dep) => {
             const a = pos(byId.get(dep)!), b = pos(s);
@@ -166,13 +172,13 @@ export function PipelineGraph({ run, selected, onSelect }: { run: Run; selected?
           const color = stepColors[s.status];
           return (
             <g key={s.id} className="stepbox" transform={`translate(${p.x},${p.y})`} onClick={() => onSelect(s.id)} opacity={s.status === "reused" ? 0.55 : 1}
-              tabIndex={0} role="button" aria-label={`${s.id} ${s.status}`} onKeyDown={(e) => e.key === "Enter" && onSelect(s.id)}>
+              tabIndex={0} role="button" aria-label={`${s.id} ${statusText(s.status)}`} onKeyDown={(e) => e.key === "Enter" && onSelect(s.id)}>
               <rect width={W} height={H} rx={9} fill="var(--surface)" stroke={selected === s.id ? "var(--accent)" : "var(--border)"} strokeWidth={selected === s.id ? 2 : 1} />
               <rect width={5} height={H - 16} x={9} y={8} rx={2.5} fill={color}>
                 {s.status === "running" && <animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite" />}
               </rect>
               <text x={24} y={22} fontSize={13} fontWeight={600} fill="var(--text)">{s.service}</text>
-              <text x={24} y={40} fontSize={12} fill="var(--muted)">{s.kind} · {s.status}</text>
+              <text x={24} y={40} fontSize={12} fill="var(--muted)">{t(s.kind)} · {statusText(s.status)}</text>
             </g>
           );
         })}
@@ -180,8 +186,8 @@ export function PipelineGraph({ run, selected, onSelect }: { run: Run; selected?
           <g transform={`translate(${deployX},${deployY})`}>
             <rect width={W} height={H} rx={9} fill="var(--surface)" stroke="var(--border)" />
             <rect width={5} height={H - 16} x={9} y={8} rx={2.5} fill={stepColors[deployStatus]} />
-            <text x={24} y={22} fontSize={13} fontWeight={600} fill="var(--text)">deploy</text>
-            <text x={24} y={40} fontSize={12} fill="var(--muted)">{run.status === "succeeded" ? run.message : deployStatus}</text>
+            <text x={24} y={22} fontSize={13} fontWeight={600} fill="var(--text)">{t("deploy")}</text>
+            <text x={24} y={40} fontSize={12} fill="var(--muted)">{run.status === "succeeded" ? run.message : statusText(deployStatus)}</text>
           </g>
         )}
       </svg>

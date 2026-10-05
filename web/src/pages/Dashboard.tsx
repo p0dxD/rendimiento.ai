@@ -3,6 +3,7 @@ import { api, envApi, timeAgo } from "../api";
 import { ErrorBox, PhaseBadge, RunBadge, usePoll } from "../components/ui";
 import { fmtPct } from "../components/reliability";
 import { DeliveryPanel } from "../components/delivery";
+import { t, tn } from "../i18n";
 
 export function Dashboard() {
   const { data: apps, error } = usePoll(api.apps, [], 10000);
@@ -13,23 +14,23 @@ export function Dashboard() {
     <>
       <div className="row between">
         <div>
-          <h1>Apps</h1>
-          <p className="sub">Everything rendimiento builds and runs.</p>
+          <h1>{t("Apps")}</h1>
+          <p className="sub">{t("Everything rendimiento builds and runs.")}</p>
         </div>
       </div>
       <ErrorBox error={error} />
       {env && env.overall !== "ok" && (
         <Link to="/environment" className={`card env-hero ${env.overall === "warning" ? "warn" : "bad"}`} style={{ marginBottom: 16, color: "var(--text)" }}>
-          <span className={`badge ${env.overall === "warning" ? "warn" : "bad"}`}>Environment</span>
+          <span className={`badge ${env.overall === "warning" ? "warn" : "bad"}`}>{t("Environment")}</span>
           <span>{env.summary}</span>
-          <span className="small" style={{ color: "var(--accent)" }}>View details →</span>
+          <span className="small" style={{ color: "var(--accent)" }}>{t("View details →")}</span>
         </Link>
       )}
       {apps && apps.length > 0 && <DeliveryPanel />}
       {apps && apps.length === 0 && (
         <div className="card empty">
-          <p>No apps yet.</p>
-          <Link to="/new" className="btn primary big">Deploy your first app</Link>
+          <p>{t("No apps yet.")}</p>
+          <Link to="/new" className="btn primary big">{t("Deploy your first app")}</Link>
         </div>
       )}
       <div className="grid">
@@ -43,12 +44,12 @@ export function Dashboard() {
                 <PhaseBadge status={a.status} />
               </div>
               {a.uptime24h !== undefined && (
-                <div className="small muted" title="Share of successful uptime checks in the last 24 hours">
-                  <span className={`badge ${a.uptime24h >= 0.999 ? "ok" : a.uptime24h >= 0.98 ? "warn" : "bad"}`}>{fmtPct(Math.round(a.uptime24h * 100000), 100000)} up</span> last 24 h
+                <div className="small muted" title={t("Share of successful uptime checks in the last 24 hours")}>
+                  <span className={`badge ${a.uptime24h >= 0.999 ? "ok" : a.uptime24h >= 0.98 ? "warn" : "bad"}`}>{t("{pct} up", { pct: fmtPct(Math.round(a.uptime24h * 100000), 100000) })}</span> {t("last 24 h")}
                 </div>
               )}
-              <div className="small muted">{a.repo} · {a.spec.services.length} service{a.spec.services.length > 1 ? "s" : ""}
-                {a.status.release ? ` · release #${a.status.release}` : ""}</div>
+              <div className="small muted">{a.repo} · {tn(a.spec.services.length, "{n} service", "{n} services")}
+                {a.status.release ? ` · ${t("release #{n}", { n: a.status.release })}` : ""}</div>
               {urls.map((s) => (
                 <a key={s.name} href={s.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="small">{s.url}</a>
               ))}

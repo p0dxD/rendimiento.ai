@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, duration, subscribe, timeAgo, type Run } from "../api";
 import { ErrorBox, PipelineGraph, RunBadge } from "../components/ui";
+import { t } from "../i18n";
 
 export function RunPage() {
   const { name = "", id = "" } = useParams();
@@ -40,24 +41,24 @@ export function RunPage() {
   }, [logs, selected]);
 
   if (error) return <ErrorBox error={error} />;
-  if (!run) return <p className="muted">Loading…</p>;
+  if (!run) return <p className="muted">{t("Loading…")}</p>;
   const step = run.steps?.find((s) => s.id === selected);
 
   return (
     <>
-      <p className="small"><Link to={`/apps/${name}/runs`}>← {name} runs</Link></p>
+      <p className="small"><Link to={`/apps/${name}/runs`}>{t("← {name} runs", { name })}</Link></p>
       <div className="row between">
         <div className="row">
-          <h1>Run #{run.id}</h1>
+          <h1>{t("Run #{n}", { n: run.id })}</h1>
           <RunBadge status={run.status} />
         </div>
         {(run.status === "running" || run.status === "queued") && (
-          <button className="danger" onClick={() => api.cancelRun(run.id).catch((e) => alert(e.message))}>Cancel</button>
+          <button className="danger" onClick={() => api.cancelRun(run.id).catch((e) => alert(e.message))}>{t("Cancel")}</button>
         )}
       </div>
       <p className="sub">
-        <span className="mono">{run.sha.slice(0, 7)}</span> on <strong>{run.branch}</strong> · {run.event}
-        {run.deploy ? " · deploys on success" : " · build only"} · {timeAgo(run.createdAt)}
+        <span className="mono">{run.sha.slice(0, 7)}</span> {t("on")} <strong>{run.branch}</strong> · {t(run.event)}
+        {run.deploy ? ` · ${t("deploys on success")}` : ` · ${t("build only")}`} · {timeAgo(run.createdAt)}
         {run.startedAt && ` · ${duration(run.startedAt, run.finishedAt)}`}
         {run.message && ` · ${run.message}`}
       </p>
@@ -68,8 +69,8 @@ export function RunPage() {
         </div>
       ) : run.status === "failed" && run.message ? (
         <div className="alert" role="alert">
-          <strong>Nothing was built.</strong> {run.message}
-          <div className="small" style={{ marginTop: 6 }}>Fix the file and push again; the app keeps running its current release.</div>
+          <strong>{t("Nothing was built.")}</strong> {run.message}
+          <div className="small" style={{ marginTop: 6 }}>{t("Fix the file and push again; the app keeps running its current release.")}</div>
         </div>
       ) : (
         <div className="card">
@@ -90,7 +91,7 @@ export function RunPage() {
           {step.message && step.status !== "succeeded" && step.status !== "reused" && <div className="alert" style={{ marginBottom: 8 }}>{step.message}</div>}
           <pre className="log" ref={logRef}
             onScroll={(e) => { const el = e.currentTarget; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40; }}>
-            {formatLog(logs[step.id]) || (step.status === "pending" ? "Waiting to start…" : step.status === "skipped" ? "Skipped." : step.status === "reused" ? "Nothing in this service changed, so it was not rebuilt: " + (step.message ?? "") : "No output yet.")}
+            {formatLog(logs[step.id]) || (step.status === "pending" ? t("Waiting to start…") : step.status === "skipped" ? t("Skipped.") : step.status === "reused" ? t("Nothing in this service changed, so it was not rebuilt: ") + (step.message ?? "") : t("No output yet."))}
           </pre>
         </>
       )}

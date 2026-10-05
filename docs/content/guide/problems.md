@@ -8,7 +8,10 @@ Outages of your apps are not problems: they're on each app's [Reliability tab](r
 
 - Each problem has its **level** (warning or error), its **message** and the error it reported, the **app** it concerns (if any), and the **part of the platform** that reported it.
 - **Repeats are grouped.** The same problem happening again (even with a different commit or number in it) adds to its count: *"40 times since 2:10 PM, last 3 min ago"*.
-- A problem is **open** for 24 hours after it last happened. **Dismiss** hides it until it happens again.
+- A problem is **open** for 24 hours after it last happened, unless it is **resolved** or **dismissed** first:
+    - **Resolved** means rendimiento saw proof it's fixed, and says what: a rejected `rendimiento.yaml` is resolved by the next push accepted on the same branch (*"fixed by c6eae54"*), a failed email by the next email sent.
+    - **Dismiss** hides a problem by hand.
+    - Either way, it reopens if it happens again.
 - Problems are kept for **30 days** after they last happened.
 - Problems about an app also appear as a **banner on the app's page**.
 
@@ -21,7 +24,7 @@ If a push has a `rendimiento.yaml` that cannot be used (a typo, a host listed tw
 - in an **email**, for the default branch (see [Notifications](notifications.md));
 - on the Problems page and the app's banner.
 
-Fix the file and push again.
+Fix the file and push again: once that push is accepted, the problem is marked resolved.
 
 ## How it works
 

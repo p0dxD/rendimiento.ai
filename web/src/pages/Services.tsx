@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { catalogApi, timeAgo, type CatalogEntry, type CatalogGroup } from "../api";
 import { ErrorBox, usePoll } from "../components/ui";
+import { t, tn } from "../i18n";
 
+// Labels and blurbs are translated where shown.
 const groups: { id: CatalogGroup; label: string; blurb: string }[] = [
   { id: "apps", label: "Your apps & add-ons", blurb: "Deployed by rendimiento: your apps (described by each repo's rendimiento.yaml) and installed add-ons." },
   { id: "other", label: "Elsewhere in the cluster", blurb: "Deployed another way (ArgoCD, Helm, kubectl). Apps can call them the same way; rendimiento only reads them." },
@@ -20,7 +22,7 @@ const categories: { id: string; label: string }[] = [
   { id: "devtools", label: "Developer tools" },
   { id: "platform", label: "Platform" },
 ];
-const categoryLabel = (id: string) => categories.find((c) => c.id === id)?.label ?? id;
+const categoryLabel = (id: string) => t(categories.find((c) => c.id === id)?.label ?? id);
 
 const originLabel: Record<CatalogEntry["origin"]["kind"], string> = {
   rendimiento: "rendimiento",
@@ -71,26 +73,26 @@ export function Services() {
   };
 
   if (error) return <ErrorBox error={error} />;
-  if (!data) return <p className="muted">Looking around the cluster…</p>;
+  if (!data) return <p className="muted">{t("Looking around the cluster…")}</p>;
   const focus = ns && name ? `${ns}/${name}` : undefined;
 
   return (
     <>
       <div className="row between">
         <div>
-          <h1>Services</h1>
+          <h1>{t("Services")}</h1>
           <p className="sub" style={{ marginBottom: 0 }}>
-            Everything your apps can call: where it comes from, what it exposes and how to connect to it.
+            {t("Everything your apps can call: where it comes from, what it exposes and how to connect to it.")}
           </p>
         </div>
         <div className="row small muted">
-          updated {timeAgo(data.generated)}
-          <button onClick={refresh} disabled={refreshing}>{refreshing ? "Looking…" : "Refresh"}</button>
+          {t("updated {when}", { when: timeAgo(data.generated) })}
+          <button onClick={refresh} disabled={refreshing}>{refreshing ? t("Looking…") : t("Refresh")}</button>
         </div>
       </div>
 
       <div className="row" style={{ marginTop: 16 }}>
-        <input className="svc-search" placeholder="Search by name, host, image or protocol…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="svc-search" placeholder={t("Search by name, host, image or protocol…")} value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
 
       {!q && (
@@ -98,19 +100,19 @@ export function Services() {
           {groups.map((g) => (
             <a key={g.id} href="#" className={group === g.id ? "active" : ""}
               onClick={(e) => { e.preventDefault(); setGroup(g.id); setCategory(undefined); }}>
-              {g.label} <span className="muted small">{counts[g.id] ?? 0}</span>
+              {t(g.label)} <span className="muted small">{counts[g.id] ?? 0}</span>
             </a>
           ))}
         </div>
       )}
-      {!q && <p className="small muted" style={{ marginTop: 0 }}>{groups.find((g) => g.id === group)?.blurb}</p>}
-      {q && <p className="small muted" style={{ marginTop: 16 }}>{shown.length} match{shown.length === 1 ? "" : "es"} across all groups</p>}
+      {!q && <p className="small muted" style={{ marginTop: 0 }}>{t(groups.find((g) => g.id === group)?.blurb ?? "")}</p>}
+      {q && <p className="small muted" style={{ marginTop: 16 }}>{tn(shown.length, "{n} match across all groups", "{n} matches across all groups")}</p>}
 
       <div className="row svc-cats">
-        <button className={`chip-btn ${!category ? "on" : ""}`} onClick={() => setCategory(undefined)}>All <span>{inScope.length}</span></button>
+        <button className={`chip-btn ${!category ? "on" : ""}`} onClick={() => setCategory(undefined)}>{t("All")} <span>{inScope.length}</span></button>
         {categories.filter((c) => catCounts[c.id]).map((c) => (
           <button key={c.id} className={`chip-btn ${category === c.id ? "on" : ""}`} onClick={() => setCategory(category === c.id ? undefined : c.id)}>
-            {c.label} <span>{catCounts[c.id]}</span>
+            {t(c.label)} <span>{catCounts[c.id]}</span>
           </button>
         ))}
       </div>
@@ -120,14 +122,14 @@ export function Services() {
         if (items.length === 0) return null;
         return (
           <section key={c.id} className="svc-section">
-            <h2>{c.label} <span className="muted small">{items.length}</span></h2>
+            <h2>{t(c.label)} <span className="muted small">{items.length}</span></h2>
             <div className="stack">
               {items.map((e) => <ServiceCard key={e.id} e={e} open={focus === e.id} />)}
             </div>
           </section>
         );
       })}
-      {shown.length === 0 && <div className="card muted" style={{ marginTop: 16 }}>Nothing here.</div>}
+      {shown.length === 0 && <div className="card muted" style={{ marginTop: 16 }}>{t("Nothing here.")}</div>}
 
       {group === "apps" && !q && <DocsHint />}
     </>
@@ -147,7 +149,7 @@ function ServiceCard({ e, open: initiallyOpen }: { e: CatalogEntry; open: boolea
             {e.title !== e.name && <span className="mono small muted">{e.name}</span>}
             <span className="chip">{e.namespace}</span>
             <span className="chip">{e.protocol}</span>
-            <span className="chip">{originLabel[e.origin.kind]}</span>
+            <span className="chip">{t(originLabel[e.origin.kind])}</span>
           </div>
           <div className="small muted svc-line">
             {e.description ?? e.origin.summary}
@@ -155,11 +157,11 @@ function ServiceCard({ e, open: initiallyOpen }: { e: CatalogEntry; open: boolea
         </div>
         <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
           {e.lanURL && (
-            <a href={e.lanURL} target="_blank" rel="noreferrer" className="small mono" title="Open on your local network"
+            <a href={e.lanURL} target="_blank" rel="noreferrer" className="small mono" title={t("Open on your local network")}
               onClick={(ev) => ev.stopPropagation()}>{e.lan} ↗</a>
           )}
-          {e.usedBy.length > 0 && <span className="small muted hide-sm">used by {apps.size} app{apps.size === 1 ? "" : "s"}</span>}
-          {e.pods > 0 && <span className={`badge ${readyTone}`}>{e.ready}/{e.pods} ready</span>}
+          {e.usedBy.length > 0 && <span className="small muted hide-sm">{tn(apps.size, "used by {n} app", "used by {n} apps")}</span>}
+          {e.pods > 0 && <span className={`badge ${readyTone}`}>{t("{ready}/{total} ready", { ready: e.ready, total: e.pods })}</span>}
           <span className="small muted">{open ? "▾" : "▸"}</span>
         </div>
       </div>
@@ -167,30 +169,30 @@ function ServiceCard({ e, open: initiallyOpen }: { e: CatalogEntry; open: boolea
       {open && (
         <div className="svc-body">
           <section>
-            <h3>Where it comes from</h3>
+            <h3>{t("Where it comes from")}</h3>
             <p className="small">{e.origin.summary}</p>
             {e.origin.app && e.origin.kind === "addon" && (
-              <div className="small">Add-on <Link to={`/addons/${e.origin.app}`}>{e.origin.app}</Link></div>
+              <div className="small">{t("Add-on")} <Link to={`/addons/${e.origin.app}`}>{e.origin.app}</Link></div>
             )}
             {e.origin.app && e.origin.kind !== "addon" && (
-              <div className="small">App <Link to={`/apps/${e.origin.app}`}>{e.origin.app}</Link>{e.origin.release ? ` · release #${e.origin.release}` : ""}</div>
+              <div className="small">{t("App")} <Link to={`/apps/${e.origin.app}`}>{e.origin.app}</Link>{e.origin.release ? ` · ${t("release #{n}", { n: e.origin.release })}` : ""}</div>
             )}
             {e.origin.repoUrl && (
-              <div className="small">Code <a href={e.origin.repoUrl} target="_blank" rel="noreferrer">{e.origin.repoUrl.replace("https://github.com/", "")}</a></div>
+              <div className="small">{t("Code")} <a href={e.origin.repoUrl} target="_blank" rel="noreferrer">{e.origin.repoUrl.replace("https://github.com/", "")}</a></div>
             )}
-            {e.origin.argoApp && <div className="small">ArgoCD application <span className="mono">{e.origin.argoApp}</span></div>}
-            {e.origin.helmRelease && <div className="small">Helm release <span className="mono">{e.origin.helmRelease}</span></div>}
+            {e.origin.argoApp && <div className="small">{t("ArgoCD application")} <span className="mono">{e.origin.argoApp}</span></div>}
+            {e.origin.helmRelease && <div className="small">{t("Helm release")} <span className="mono">{e.origin.helmRelease}</span></div>}
             {(e.origin.images ?? []).map((i) => (
               <div key={i.ref} className="small svc-image">
-                {i.built ? "Image built from the repo " : "Image "}
+                {i.built ? t("Image built from the repo") + " " : t("Image") + " "}
                 {i.link ? <a href={i.link} target="_blank" rel="noreferrer" className="mono">{i.ref}</a> : <span className="mono">{i.ref}</span>}
               </div>
             ))}
-            {e.docs && <div className="small" style={{ marginTop: 6 }}><a href={e.docs} target="_blank" rel="noreferrer">API documentation ↗</a></div>}
+            {e.docs && <div className="small" style={{ marginTop: 6 }}><a href={e.docs} target="_blank" rel="noreferrer">{t("API documentation ↗")}</a></div>}
           </section>
 
           <section>
-            <h3>What it exposes</h3>
+            <h3>{t("What it exposes")}</h3>
             <table className="svc-ports">
               <tbody>
                 {e.ports.map((p) => (
@@ -202,55 +204,55 @@ function ServiceCard({ e, open: initiallyOpen }: { e: CatalogEntry; open: boolea
                 ))}
               </tbody>
             </table>
-            {e.health && <div className="small">Health check <span className="mono">{e.health}</span></div>}
+            {e.health && <div className="small">{t("Health check")} <span className="mono">{e.health}</span></div>}
             {(e.endpoints ?? []).length > 0 && (
               <ul className="small svc-endpoints">
                 {e.endpoints!.map((x) => <li key={x}>{x}</li>)}
               </ul>
             )}
             {(e.public ?? []).map((u) => (
-              <div key={u} className="small">Public <a href={u} target="_blank" rel="noreferrer">{u.replace("https://", "")}</a></div>
+              <div key={u} className="small">{t("Public")} <a href={u} target="_blank" rel="noreferrer">{u.replace("https://", "")}</a></div>
             ))}
             {e.lan && (
               <div className="small">
-                Local network{" "}
+                {t("Local network")}{" "}
                 {e.lanURL
                   ? <a href={e.lanURL} target="_blank" rel="noreferrer" className="mono">{e.lan} ↗</a>
                   : <span className="mono">{e.lan}</span>}
-                <span className="muted"> (LoadBalancer: anyone on the home network can reach it)</span>
+                <span className="muted"> ({t("LoadBalancer: anyone on the home network can reach it")})</span>
               </div>
             )}
             <div className="small muted" style={{ marginTop: 6 }}>
               {e.networkPolicies === 0
-                ? "No network policy in its namespace: any pod in the cluster can connect."
-                : `${e.networkPolicies} network polic${e.networkPolicies === 1 ? "y limits" : "ies limit"} who can connect in this namespace.`}
+                ? t("No network policy in its namespace: any pod in the cluster can connect.")
+                : tn(e.networkPolicies, "{n} network policy limits who can connect in this namespace.", "{n} network policies limit who can connect in this namespace.")}
             </div>
           </section>
 
           <section>
-            <h3>How to connect</h3>
-            <div className="small muted">From any app</div>
+            <h3>{t("How to connect")}</h3>
+            <div className="small muted">{t("From any app")}</div>
             <Copyable text={e.url} />
             {e.group === "apps" && (
               <>
-                <div className="small muted" style={{ marginTop: 6 }}>From another service of the {e.origin.app} app</div>
+                <div className="small muted" style={{ marginTop: 6 }}>{t("From another service of the {app} app", { app: e.origin.app ?? "" })}</div>
                 <Copyable text={e.shortUrl} />
               </>
             )}
-            <div className="small muted" style={{ marginTop: 8 }}>In the calling service's rendimiento.yaml</div>
+            <div className="small muted" style={{ marginTop: 8 }}>{t("In the calling service's rendimiento.yaml")}</div>
             <Copyable text={e.snippet} block />
           </section>
 
           <section>
-            <h3>Used by</h3>
+            <h3>{t("Used by")}</h3>
             {e.usedBy.length === 0 ? (
-              <p className="small muted">Nothing found. Only plain environment values are checked; addresses stored in secrets aren't read.</p>
+              <p className="small muted">{t("Nothing found. Only plain environment values are checked; addresses stored in secrets aren't read.")}</p>
             ) : (
               <ul className="small svc-users">
                 {e.usedBy.map((u) => (
                   <li key={u.namespace + u.workload + u.env}>
                     {u.app ? <Link to={`/apps/${u.app}`}>{u.app}</Link> : <span className="mono">{u.namespace}</span>}
-                    <span className="muted"> / {u.workload}</span> via <span className="mono">{u.env}</span>
+                    <span className="muted"> / {u.workload}</span> {t("via")} <span className="mono">{u.env}</span>
                   </li>
                 ))}
               </ul>
@@ -277,7 +279,7 @@ function Copyable({ text, block }: { text: string; block?: boolean }) {
   return (
     <div className={`copyable ${block ? "block" : ""}`}>
       {block ? <pre className="file">{text}</pre> : <code>{text}</code>}
-      <button className="small" onClick={copy}>{done ? "Copied" : "Copy"}</button>
+      <button className="small" onClick={copy}>{done ? t("Copied") : t("Copy")}</button>
     </div>
   );
 }
@@ -285,8 +287,8 @@ function Copyable({ text, block }: { text: string; block?: boolean }) {
 function DocsHint() {
   return (
     <details className="card" style={{ marginTop: 16 }}>
-      <summary><strong>Describe your service for others</strong> <span className="small muted">(optional, in rendimiento.yaml)</span></summary>
-      <p className="small">Addresses, ports and callers are worked out automatically. Add a <code>catalog</code> block to say what the service is and how to use it:</p>
+      <summary><strong>{t("Describe your service for others")}</strong> <span className="small muted">({t("optional, in rendimiento.yaml")})</span></summary>
+      <p className="small">{t("Addresses, ports and callers are worked out automatically. Add a")} <code>catalog</code> {t("block to say what the service is and how to use it:")}</p>
       <pre className="file">{`services:
   - name: ollama-internal
     image: dustynv/ollama:r36.4.0

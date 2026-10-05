@@ -67,6 +67,9 @@ type Notifier struct {
 	// PerHour caps emails per rolling hour (default 20); past it, messages
 	// are dropped and logged, so a bad night cannot flood the inbox.
 	PerHour int
+	// OnSent, if set, is called after each email that was sent; the
+	// platform uses it to resolve earlier send failures (MsgSendFailed).
+	OnSent func()
 
 	mu   sync.Mutex
 	sent map[string]time.Time
@@ -87,7 +90,7 @@ func (n *Notifier) Notify(m Message) bool {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if err := n.Send(ctx, m); err != nil && n.Log != nil {
-			n.Log.Warn("notification email failed", "subject", m.Subject, "err", err)
+			n.Log.Warn(MsgSendFailed, "subject", m.Subject, "err", err)
 		}
 	}()
 	return true
@@ -145,8 +148,17 @@ func (n *Notifier) Send(ctx context.Context, m Message) error {
 	if err != nil {
 		return err
 	}
-	return n.Sender.Send(ctx, n.To, m.Subject, html, text)
+	if err := n.Sender.Send(ctx, n.To, m.Subject, html, text); err != nil {
+		return err
+	}
+	if n.OnSent != nil {
+		n.OnSent()
+	}
+	return nil
 }
+
+// MsgSendFailed is the problem recorded when an email could not be sent.
+const MsgSendFailed = "notification email failed"
 
 // ---- rendering ----
 

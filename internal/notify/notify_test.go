@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -105,5 +106,24 @@ func TestResend(t *testing.T) {
 	}
 	if err := r.Send(context.Background(), []string{"me@example.com"}, "reject", "", ""); err == nil || !strings.Contains(err.Error(), "domain not verified") {
 		t.Fatalf("a rejected email: %v", err)
+	}
+}
+
+// OnSent runs after an email went out, not after a failed one.
+type failingSender struct{}
+
+func (failingSender) Send(context.Context, []string, string, string, string) error {
+	return errors.New("no route to host")
+}
+
+func TestOnSent(t *testing.T) {
+	calls := 0
+	n := &Notifier{Sender: &fakeSender{}, To: []string{"me@example.com"}, OnSent: func() { calls++ }}
+	if err := n.Send(context.Background(), Message{Subject: "x"}); err != nil || calls != 1 {
+		t.Fatalf("sent: err %v, OnSent calls %d", err, calls)
+	}
+	n.Sender = failingSender{}
+	if err := n.Send(context.Background(), Message{Subject: "y"}); err == nil || calls != 1 {
+		t.Fatalf("failed: err %v, OnSent calls %d", err, calls)
 	}
 }

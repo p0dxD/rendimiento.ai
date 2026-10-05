@@ -2,6 +2,7 @@ import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError } from "./api";
+import { lang, setLang, t } from "./i18n";
 import { Dashboard } from "./pages/Dashboard";
 import { NewApp } from "./pages/NewApp";
 import { AppPage } from "./pages/AppPage";
@@ -24,6 +25,17 @@ function Logo() {
   );
 }
 
+/** EN/ES: shows the other language, in that language. */
+function LangSwitch() {
+  const other = lang === "es" ? "en" : "es";
+  return (
+    <button className="lang-switch" onClick={() => setLang(other)} title={other === "es" ? "Cambiar a español" : "Switch to English"}
+      aria-label={other === "es" ? "Cambiar a español" : "Switch to English"}>
+      {other.toUpperCase()}
+    </button>
+  );
+}
+
 function Shell() {
   const [state, setState] = useState<{ login?: string; configured?: boolean; loading: boolean }>({ loading: true });
 
@@ -41,7 +53,7 @@ function Shell() {
     })();
   }, []);
 
-  if (state.loading) return <div className="center muted">Loading…</div>;
+  if (state.loading) return <div className="center muted">{t("Loading…")}</div>;
 
   if (!state.configured) {
     return (
@@ -58,8 +70,9 @@ function Shell() {
           <div className="row" style={{ justifyContent: "center" }}>
             <span className="brand" style={{ fontSize: 22 }}><Logo /> rendimiento.ai</span>
           </div>
-          <p className="muted">Connect a repo, press deploy, get a live HTTPS URL.</p>
-          <a className="btn primary big" href="/api/auth/login">Sign in with GitHub</a>
+          <p className="muted">{t("Connect a repo, press deploy, get a live HTTPS URL.")}</p>
+          <a className="btn primary big" href="/api/auth/login">{t("Sign in with GitHub")}</a>
+          <div className="row" style={{ justifyContent: "center" }}><LangSwitch /></div>
         </div>
       </div>
     );
@@ -69,15 +82,16 @@ function Shell() {
     <>
       <header className="topbar">
         <Link to="/" className="brand"><Logo /> rendimiento.ai</Link>
-        <NavLink to="/" end className="nav-link">Apps</NavLink>
-        <NavLink to="/services" className="nav-link">Services</NavLink>
-        <NavLink to="/addons" className="nav-link">Add-ons</NavLink>
-        <NavLink to="/environment" className="nav-link">Environment</NavLink>
+        <NavLink to="/" end className="nav-link">{t("Apps")}</NavLink>
+        <NavLink to="/services" className="nav-link">{t("Services")}</NavLink>
+        <NavLink to="/addons" className="nav-link">{t("Add-ons")}</NavLink>
+        <NavLink to="/environment" className="nav-link">{t("Environment")}</NavLink>
         <ProblemsNavLink />
         <span className="spacer" />
-        <Link to="/new" className="btn primary">New app</Link>
+        <Link to="/new" className="btn primary">{t("New app")}</Link>
         <span className="muted small hide-sm">{state.login}</span>
-        <button onClick={() => api.logout().then(() => location.assign("/"))}>Sign out</button>
+        <LangSwitch />
+        <button onClick={() => api.logout().then(() => location.assign("/"))}>{t("Sign out")}</button>
       </header>
       <main>
         <Routes>
@@ -93,7 +107,7 @@ function Shell() {
           <Route path="/apps/:name/:tab" element={<AppPage />} />
           <Route path="/apps/:name/runs/:id" element={<RunPage />} />
           <Route path="/setup" element={<Navigate to="/" />} />
-          <Route path="*" element={<div className="empty">Page not found. <Link to="/">Go home</Link></div>} />
+          <Route path="*" element={<div className="empty">{t("Page not found.")} <Link to="/">{t("Go home")}</Link></div>} />
         </Routes>
       </main>
     </>

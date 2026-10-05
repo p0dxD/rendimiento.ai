@@ -271,6 +271,14 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	if key := os.Getenv("RESEND_API_KEY"); key != "" {
 		notifier.Sender = &notify.Resend{APIKey: key, From: env("NOTIFY_EMAIL_FROM", "rendimiento <alerts@joserod.space>")}
 	}
+	notifier.OnSent = func() {
+		// A sent email shows earlier send failures are over.
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if _, err := st.ResolveProblems(ctx, store.ProblemMatch{Message: notify.MsgSendFailed}, "an email was sent since"); err != nil {
+			plain.Warn("could not resolve problems", "err", err)
+		}
+	}
 	p.Notify = notifier
 	if prober != nil {
 		prober.Notify, prober.BaseURL = notifier, baseURL

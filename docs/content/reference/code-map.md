@@ -11,7 +11,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 408 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 416 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
@@ -25,14 +25,14 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/generate`](#internal-generate) | 2 | 278 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1164 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 308 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
-| [`internal/notify`](#internal-notify) | 2 | 386 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
+| [`internal/notify`](#internal-notify) | 2 | 418 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
 | [`internal/pipeline`](#internal-pipeline) | 7 | 1605 | Package pipeline plans and executes CI runs. |
-| [`internal/platform`](#internal-platform) | 7 | 3140 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
+| [`internal/platform`](#internal-platform) | 7 | 3167 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/problems`](#internal-problems) | 2 | 278 | Package problems keeps the platform's own warnings and errors for the Problems page: a slog handler passes every record on to the real log and also queues warnings and errors; a Recorder stores them, folding repeats of the same problem into one row with a count. |
 | [`internal/render`](#internal-render) | 3 | 1160 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
 | [`internal/spec`](#internal-spec) | 2 | 1661 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 10 | 2159 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/store`](#internal-store) | 10 | 2217 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/uptime`](#internal-uptime) | 2 | 634 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
@@ -94,7 +94,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>399 lines</small>
+<small>407 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -988,7 +988,7 @@ Package notify emails the platform's owner about what needs attention: releases 
 
 ### `internal/notify/notify.go`
 
-<small>277 lines</small>
+<small>289 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1007,13 +1007,14 @@ Package notify emails the platform's owner about what needs attention: releases 
 
 ### `internal/notify/notify_test.go`
 
-<small>109 lines · tests</small>
+<small>129 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `TestRender` | func |  |
 | `TestNotifierDedupAndCap` | func |  |
 | `TestResend` | func |  |
+| `TestOnSent` | func |  |
 
 ## `internal/pipeline` {#internal-pipeline}
 
@@ -1128,7 +1129,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/platform.go`
 
-<small>1003 lines</small>
+<small>1013 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1243,7 +1244,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/platform_test.go`
 
-<small>686 lines · tests</small>
+<small>703 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1545,16 +1546,18 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/problems.go`
 
-<small>88 lines</small>
+<small>110 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Problem` | struct | Problem is one of the platform's own warnings or errors, with its repeats folded in. |
-| `(*Store) RecordProblem` | method | RecordProblem adds an occurrence: a new row, or one more on the row with the same fingerprint, which also undoes a dismissal. |
+| `(*Store) RecordProblem` | method | RecordProblem adds an occurrence: a new row, or one more on the row with the same fingerprint, which also undoes a dismissal or resolution. |
 | `(*Store) ListProblems` | method | ListProblems returns problems that happened since `since`, newest first; app filters to one app ("" for all), and dismissed ones are left out unless asked for. |
-| `(*Store) OpenProblems` | method | OpenProblems counts problems that happened within ProblemOpenFor and are not dismissed. |
+| `(*Store) OpenProblems` | method | OpenProblems counts problems that happened within ProblemOpenFor and are neither dismissed nor resolved. |
 | `(*Store) DismissProblem` | method | DismissProblem hides a problem until it happens again. |
 | `(*Store) PruneProblems` | method | PruneProblems deletes problems that last happened before `before`. |
+| `ProblemMatch` | struct | ProblemMatch picks the problems a fix resolves: same message, and the same app (when set) and attribute (when set, e.g. |
+| `(*Store) ResolveProblems` | method | ResolveProblems marks the unresolved problems matching m as resolved, saying what fixed them; it returns how many it resolved. |
 
 ### `internal/store/release_tasks.go`
 
@@ -1673,12 +1676,13 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/stats_test.go`
 
-<small>145 lines · tests</small>
+<small>181 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `TestDeliveryAndPublicStats` | func |  |
 | `TestProblems` | func | Repeats fold into one problem with a count; dismissing hides it until it happens again; old ones are pruned. |
+| `TestResolveProblems` | func | A fix resolves matching problems (by message, app and attribute); a resolved problem is not open, and reopens if it happens again. |
 
 ### `internal/store/store_test.go`
 
@@ -1767,7 +1771,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>673 lines</small>
+<small>675 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1999,7 +2003,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Problems.tsx`
 
-<small>121 lines</small>
+<small>124 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|

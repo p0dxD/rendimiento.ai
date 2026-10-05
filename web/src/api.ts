@@ -1,3 +1,5 @@
+import { lang, t } from "./i18n";
+
 // Typed client for the rendimiento API. Types mirror the Go JSON structs.
 
 export type Size = "small" | "medium" | "large";
@@ -182,6 +184,8 @@ export interface Problem {
   firstAt: string;
   lastAt: string;
   dismissedAt?: string;
+  resolvedAt?: string;
+  resolution?: string;
 }
 
 export interface ProblemList {
@@ -315,7 +319,7 @@ export class ApiError extends Error {
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
-    headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+    headers: { "Accept-Language": lang, ...(body !== undefined ? { "Content-Type": "application/json" } : {}) },
     body: body !== undefined ? JSON.stringify(body) : undefined,
     credentials: "same-origin",
   });
@@ -390,16 +394,16 @@ export function subscribe(path: string, handlers: Record<string, (data: any) => 
 export function timeAgo(iso?: string): string {
   if (!iso) return "";
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return `${Math.floor(s)}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+  if (s < 60) return t("{n}s ago", { n: Math.floor(s) });
+  if (s < 3600) return t("{n}m ago", { n: Math.floor(s / 60) });
+  if (s < 86400) return t("{n}h ago", { n: Math.floor(s / 3600) });
+  return t("{n}d ago", { n: Math.floor(s / 86400) });
 }
 
 export function duration(start?: string, end?: string): string {
   if (!start) return "";
   const s = Math.round(((end ? new Date(end) : new Date()).getTime() - new Date(start).getTime()) / 1000);
-  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
+  return s < 60 ? t("{s}s", { s }) : t("{m}m {s}s", { m: Math.floor(s / 60), s: s % 60 });
 }
 
 // ---- environment ----

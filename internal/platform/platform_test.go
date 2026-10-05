@@ -3,6 +3,7 @@ package platform
 import (
 	"context"
 
+	"fmt"
 	"github.com/go-logr/logr"
 	"io"
 	"io/fs"
@@ -682,5 +683,21 @@ func TestInvalidSpecIsAFailedRun(t *testing.T) {
 	app, _ := p.Store.GetApp(ctx, "shop")
 	if len(app.Spec.Services[0].Aliases) != 0 {
 		t.Fatalf("the invalid spec was saved: %+v", app.Spec.Services[0])
+	}
+
+	// The problem the rejection recorded is resolved by the next good push
+	// on the same branch.
+	_ = p.Store.RecordProblem(ctx, store.Problem{Fingerprint: "rej", Level: "WARN", App: "shop", Message: msgSpecRejected,
+		Attrs: fmt.Sprintf("run=%d branch=main", run.ID), LastAt: time.Now()})
+	fake.files[strings.Repeat("c", 40)] = fstest.MapFS{"rendimiento.yaml": {Data: []byte(good)}}
+	if runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/shop", Branch: "main", SHA: strings.Repeat("c", 40)}); err != nil || len(runs) != 1 {
+		t.Fatalf("good push: %v %v", runs, err)
+	}
+	if n, _ := p.Store.OpenProblems(ctx); n != 0 {
+		t.Fatalf("open problems after the fix = %d", n)
+	}
+	list, _ := p.Store.ListProblems(ctx, "shop", time.Now().Add(-time.Hour), false, 10)
+	if len(list) != 1 || list[0].Resolution != "fixed by ccccccc" {
+		t.Fatalf("problems = %+v", list)
 	}
 }

@@ -307,3 +307,4 @@ textarea.code { width: 100%; min-height: 280px; font-family: var(--mono); font-s
 .rel-filters label { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
 .rel-filters label select { width: auto; }
 .rel-filters input[type="checkbox"] { width: auto; margin: 0; }
+.problem-resolved { color: var(--ok); white-space: nowrap; }

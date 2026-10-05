@@ -554,6 +554,12 @@ func (p *Platform) QueueRun(ctx context.Context, app *store.App, branch, sha, ev
 	}
 	if sha == "" {
 		sha = branch
+	} else {
+		// A good rendimiento.yaml on this branch fixes any earlier rejection.
+		if _, err := p.Store.ResolveProblems(ctx, store.ProblemMatch{Message: msgSpecRejected, App: app.Name, Attr: "branch=" + branch},
+			"fixed by "+shortSHA(sha)); err != nil {
+			p.Log.Warn("could not resolve problems", "app", app.Name, "err", err)
+		}
 	}
 	if err := p.Store.CancelQueued(ctx, app.ID, branch); err != nil {
 		return nil, err
@@ -573,6 +579,10 @@ func (p *Platform) QueueRun(ctx context.Context, app *store.App, branch, sha, ev
 	return run, nil
 }
 
+// msgSpecRejected is the problem a rejected rendimiento.yaml records; the
+// next push accepted on the same branch resolves it.
+const msgSpecRejected = "rendimiento.yaml rejected; the push was not built"
+
 // rejectRun records a push whose rendimiento.yaml is invalid as a failed
 // run, so it shows where pushes are looked for: on the app page, as a red
 // check on the commit in GitHub and, for the default branch, in an email.
@@ -582,7 +592,7 @@ func (p *Platform) rejectRun(ctx context.Context, app *store.App, branch, sha, e
 	if err := p.Store.CreateRejectedRun(ctx, run, cause.Error()); err != nil {
 		return nil, err
 	}
-	p.Log.Warn("rendimiento.yaml rejected; the push was not built", "app", app.Name, "run", run.ID, "branch", branch, "err", cause)
+	p.Log.Warn(msgSpecRejected, "app", app.Name, "run", run.ID, "branch", branch, "err", cause)
 	p.Hub.Publish(appTopic(app.Name), events.Event{Type: "run", Data: run})
 	p.finishCheck(ctx, app, run, p.startCheck(ctx, app, run), store.RunFailed, cause.Error())
 	if run.Deploy {

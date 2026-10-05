@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && touch dist/.gitkeep",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b && node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "react": "^19.3.0",
