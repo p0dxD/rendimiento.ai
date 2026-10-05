@@ -304,3 +304,6 @@ textarea.code { width: 100%; min-height: 280px; font-family: var(--mono); font-s
 .problem-detail { margin: 0; padding: 8px 10px; border-radius: 6px; background: var(--idle-bg); font-size: 12px; white-space: pre-wrap; word-break: break-word; }
 .problem-list { margin: 6px 0; padding-left: 18px; }
 .problem-list li { word-break: break-word; }
+.rel-filters label { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.rel-filters label select { width: auto; }
+.rel-filters input[type="checkbox"] { width: auto; margin: 0; }
