@@ -117,6 +117,7 @@ func (s *Server) Handler() http.Handler {
 	auth("GET /api/zones", s.zones)
 	auth("GET /api/environment", s.environment)
 	auth("GET /api/services", s.services)
+	auth("GET /api/stats/delivery", s.delivery)
 	auth("GET /api/addon-catalog", s.addonCatalog)
 	auth("GET /api/installed", s.listInstalled)
 	auth("GET /api/installed/{name}", s.getInstalled)

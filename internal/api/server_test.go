@@ -316,3 +316,21 @@ func TestPublicStats(t *testing.T) {
 		t.Fatalf("internal listener: %v %v", resp.StatusCode, err)
 	}
 }
+
+// The dashboard's delivery report needs a login and has both periods and
+// twelve weeks.
+func TestDeliveryReport(t *testing.T) {
+	e := newEnv(t, true)
+	if r, _ := e.do(t, "GET", "/api/stats/delivery", "", nil, nil); r.StatusCode != 401 {
+		t.Fatalf("without a session: %d", r.StatusCode)
+	}
+	e.s.PublicTimeZone = "America/New_York"
+	r, body := e.do(t, "GET", "/api/stats/delivery", "", e.session(t, "p0dxD"), nil)
+	var rep DeliveryReport
+	if r.StatusCode != 200 || json.Unmarshal([]byte(body), &rep) != nil {
+		t.Fatalf("%d %s", r.StatusCode, body)
+	}
+	if rep.Days != 30 || rep.TimeZone != "America/New_York" || rep.Current == nil || rep.Previous == nil || len(rep.Weekly) != 12 || len(rep.Current.DeploysPerDay) != 30 {
+		t.Fatalf("report = %s", body)
+	}
+}

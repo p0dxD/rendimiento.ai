@@ -15,7 +15,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/api`](#internal-api) | 9 | 2399 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 10 | 2467 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 885 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2733 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 428 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
@@ -31,7 +31,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/render`](#internal-render) | 3 | 1160 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
 | [`internal/spec`](#internal-spec) | 2 | 1661 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 9 | 1955 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/store`](#internal-store) | 9 | 2014 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/uptime`](#internal-uptime) | 2 | 634 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
@@ -244,6 +244,15 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `(*SecretCredentials) Load` | method | Load returns the GitHub App's credentials, or nil before setup has run. |
 | `(*SecretCredentials) Save` | method | Save stores the GitHub App's credentials (created or replaced). |
 
+### `internal/api/delivery.go`
+
+<small>49 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `DeliveryReport` | struct | DeliveryReport is the dashboard's delivery health: the last 30 days, the 30 before them, and twelve weeks of history. |
+| `(*Server) delivery` | method |  |
+
 ### `internal/api/installed.go`
 
 <small>343 lines</small>
@@ -308,7 +317,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1115 lines</small>
+<small>1116 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -372,7 +381,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server_test.go`
 
-<small>318 lines · tests</small>
+<small>336 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -384,6 +393,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `TestJSONStatusKeepsContentType` | func | Regression: 201 responses were sent without Content-Type because the header was set after WriteHeader, and the UI then read them as text. |
 | `TestMigrationCheckByName` | func |  |
 | `TestPublicStats` | func | Public stats are off unless turned on, need no login when on, allow only the configured origins, and say nothing private. |
+| `TestDeliveryReport` | func | The dashboard's delivery report needs a login and has both periods and twelve weeks. |
 
 ## `internal/catalog` {#internal-catalog}
 
@@ -1494,13 +1504,16 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/stats.go`
 
-<small>201 lines</small>
+<small>243 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `DeliveryStats` | struct | DeliveryStats summarize how the platform shipped over a period: the public stats page's headline numbers. |
 | `Count` | struct | Count is a number for a day. |
 | `(*Store) Delivery` | method | Delivery computes DeliveryStats for the days since `days` ago, with days counted in time zone tz (an IANA name). |
+| `(*Store) DeliveryBetween` | method | DeliveryBetween computes the summary numbers of DeliveryStats for what happened in [from, to); DeploysPerDay is left empty. |
+| `DeliveryWeek` | struct | DeliveryWeek is one week of DeliveryStats' headline numbers, for trends. |
+| `(*Store) DeliveryWeeks` | method | DeliveryWeeks returns `weeks` seven-day windows ending at now, oldest first. |
 | `SiteStats` | struct | SiteStats is the public view of one app's public URL check. |
 | `DayRatio` | struct | DayRatio is a day's share of successful checks (nil: no checks that day). |
 | `(*Store) PublicSites` | method | PublicSites returns every public URL check with its uptime over 24 hours and 30 days, its typical response time and its daily uptime for `days` days (days counted in time zone tz). |
@@ -1594,7 +1607,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/stats_test.go`
 
-<small>82 lines · tests</small>
+<small>99 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1687,7 +1700,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>611 lines</small>
+<small>647 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1706,6 +1719,9 @@ Package web embeds the built UI (npm run build → web/dist).
 | `ServiceStatus` | interface |  |
 | `AppStatus` | interface |  |
 | `App` | interface |  |
+| `DeliveryStats` | interface | ---- delivery (the dashboard's DORA numbers) ---- |
+| `DeliveryWeek` | interface |  |
+| `DeliveryReport` | interface |  |
 | `ReliabilityRange` | type | ---- reliability (uptime checks) ---- |
 | `CheckKind` | type |  |
 | `UptimeBucket` | interface |  |
@@ -1750,6 +1766,20 @@ Package web embeds the built UI (npm run build → web/dist).
 | `AddonCatalogEntry` | interface |  |
 | `AddonDefinition` | interface |  |
 | `installedApi` | const |  |
+
+### `web/src/components/delivery.tsx`
+
+<small>184 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `fmtSec` | function | Seconds as the largest sensible unit. |
+| `fmtWeek` | function |  |
+| `Tile` | type |  |
+| `trend` | function | "↓ 40% vs the previous 30 days, better": direction in words, never color alone. |
+| `tiles` | function |  |
+| `Spark` | component | Twelve weeks as a line; gaps where a week has no data; a dot on the last. |
+| `DeliveryPanel` | component |  |
 
 ### `web/src/components/reliability.tsx`
 
@@ -1843,7 +1873,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Dashboard.tsx`
 
-<small>67 lines</small>
+<small>69 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|

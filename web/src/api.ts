@@ -168,6 +168,41 @@ export interface App {
   uptime24h?: number;
 }
 
+// ---- delivery (the dashboard's DORA numbers) ----
+
+export interface DeliveryStats {
+  deploys: number;
+  builds: number;
+  buildsSucceeded: number;
+  medianBuildSec: number;
+  medianLeadSec: number;
+  verified: number;
+  failedVerify: number;
+  autoRollbacks: number;
+  incidents: number;
+  meanRecoverySec: number;
+  deploysPerDay: { day: string; n: number }[];
+  activeApps: number;
+  changeFailurePct: number;
+}
+
+export interface DeliveryWeek {
+  start: string;
+  deploys: number;
+  medianLeadSec: number;
+  changeFailurePct?: number;
+  incidents: number;
+  meanRecoverySec?: number;
+}
+
+export interface DeliveryReport {
+  days: number;
+  timeZone: string;
+  current: DeliveryStats;
+  previous: DeliveryStats;
+  weekly: DeliveryWeek[];
+}
+
 // ---- reliability (uptime checks) ----
 
 export type ReliabilityRange = "24h" | "7d" | "30d";
@@ -306,6 +341,7 @@ export const api = {
   triggerRun: (app: string, branch?: string) => request<Run>("POST", `/api/apps/${app}/runs`, { branch }),
   releases: (app: string) => request<Release[]>("GET", `/api/apps/${app}/releases`),
   releaseTaskLog: (app: string, release: number, task: string) => request<string>("GET", `/api/apps/${app}/releases/${release}/tasks/${encodeURIComponent(task)}/log`),
+  delivery: () => request<DeliveryReport>("GET", "/api/stats/delivery"),
   reliability: (app: string, range: ReliabilityRange) => request<Reliability>("GET", `/api/apps/${app}/reliability?range=${range}`),
   rollback: (app: string, release: number) => request<Release>("POST", `/api/apps/${app}/rollback`, { release }),
   resources: (app: string) => request<ResourceNode>("GET", `/api/apps/${app}/resources`),

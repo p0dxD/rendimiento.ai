@@ -32,30 +32,10 @@ type Count struct {
 // Delivery computes DeliveryStats for the days since `days` ago, with days
 // counted in time zone tz (an IANA name).
 func (s *Store) Delivery(ctx context.Context, days int, tz string) (*DeliveryStats, error) {
-	since := time.Now().AddDate(0, 0, -days)
-	st := &DeliveryStats{DeploysPerDay: []Count{}}
-	err := s.pool.QueryRow(ctx, `
-		SELECT
-		  (SELECT count(*) FROM releases WHERE created_at >= $1 AND rollback_of IS NULL AND verify_status <> 'blocked'),
-		  (SELECT count(DISTINCT app_id) FROM releases WHERE created_at >= $1 AND rollback_of IS NULL AND verify_status <> 'blocked'),
-		  (SELECT count(*) FROM runs WHERE deploy AND created_at >= $1 AND status IN ('succeeded', 'failed')),
-		  (SELECT count(*) FROM runs WHERE deploy AND created_at >= $1 AND status = 'succeeded'),
-		  (SELECT COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM finished_at - started_at)), 0)
-		     FROM runs WHERE deploy AND status = 'succeeded' AND created_at >= $1 AND started_at IS NOT NULL),
-		  (SELECT COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM r.created_at - u.created_at)), 0)
-		     FROM releases r JOIN runs u ON u.id = r.run_id WHERE r.created_at >= $1),
-		  (SELECT count(*) FROM releases WHERE created_at >= $1 AND verify_status = 'passed'),
-		  (SELECT count(*) FROM releases WHERE created_at >= $1 AND verify_status IN ('failed', 'failed-kept')),
-		  (SELECT count(*) FROM releases WHERE created_at >= $1 AND verify_message LIKE 'automatic rollback%'),
-		  (SELECT count(*) FROM incidents WHERE started_at >= $1),
-		  (SELECT COALESCE(avg(extract(epoch FROM ended_at - started_at)), 0) FROM incidents WHERE started_at >= $1 AND ended_at IS NOT NULL)`,
-		since).Scan(&st.Deploys, &st.ActiveApps, &st.Builds, &st.BuildsSucceeded, &st.MedianBuildSec, &st.MedianLeadSec,
-		&st.Verified, &st.FailedVerify, &st.AutoRollbacks, &st.Incidents, &st.MeanRecoverySec)
+	now := time.Now()
+	st, err := s.DeliveryBetween(ctx, now.AddDate(0, 0, -days), now)
 	if err != nil {
 		return nil, err
-	}
-	if n := st.Verified + st.FailedVerify; n > 0 {
-		st.ChangeFailurePct = 100 * float64(st.FailedVerify) / float64(n)
 	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT to_char(d, 'YYYY-MM-DD'), COALESCE(n, 0)
@@ -75,6 +55,68 @@ func (s *Store) Delivery(ctx context.Context, days int, tz string) (*DeliverySta
 		st.DeploysPerDay = append(st.DeploysPerDay, c)
 	}
 	return st, rows.Err()
+}
+
+// DeliveryBetween computes the summary numbers of DeliveryStats for what
+// happened in [from, to); DeploysPerDay is left empty.
+func (s *Store) DeliveryBetween(ctx context.Context, from, to time.Time) (*DeliveryStats, error) {
+	st := &DeliveryStats{DeploysPerDay: []Count{}}
+	err := s.pool.QueryRow(ctx, `
+		SELECT
+		  (SELECT count(*) FROM releases WHERE created_at >= $1 AND created_at < $2 AND rollback_of IS NULL AND verify_status <> 'blocked'),
+		  (SELECT count(DISTINCT app_id) FROM releases WHERE created_at >= $1 AND created_at < $2 AND rollback_of IS NULL AND verify_status <> 'blocked'),
+		  (SELECT count(*) FROM runs WHERE deploy AND created_at >= $1 AND created_at < $2 AND status IN ('succeeded', 'failed')),
+		  (SELECT count(*) FROM runs WHERE deploy AND created_at >= $1 AND created_at < $2 AND status = 'succeeded'),
+		  (SELECT COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM finished_at - started_at)), 0)
+		     FROM runs WHERE deploy AND status = 'succeeded' AND created_at >= $1 AND created_at < $2 AND started_at IS NOT NULL),
+		  (SELECT COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM r.created_at - u.created_at)), 0)
+		     FROM releases r JOIN runs u ON u.id = r.run_id WHERE r.created_at >= $1 AND r.created_at < $2),
+		  (SELECT count(*) FROM releases WHERE created_at >= $1 AND created_at < $2 AND verify_status = 'passed'),
+		  (SELECT count(*) FROM releases WHERE created_at >= $1 AND created_at < $2 AND verify_status IN ('failed', 'failed-kept')),
+		  (SELECT count(*) FROM releases WHERE created_at >= $1 AND created_at < $2 AND verify_message LIKE 'automatic rollback%'),
+		  (SELECT count(*) FROM incidents WHERE started_at >= $1 AND started_at < $2),
+		  (SELECT COALESCE(avg(extract(epoch FROM ended_at - started_at)), 0) FROM incidents WHERE started_at >= $1 AND started_at < $2 AND ended_at IS NOT NULL)`,
+		from, to).Scan(&st.Deploys, &st.ActiveApps, &st.Builds, &st.BuildsSucceeded, &st.MedianBuildSec, &st.MedianLeadSec,
+		&st.Verified, &st.FailedVerify, &st.AutoRollbacks, &st.Incidents, &st.MeanRecoverySec)
+	if err != nil {
+		return nil, err
+	}
+	if n := st.Verified + st.FailedVerify; n > 0 {
+		st.ChangeFailurePct = 100 * float64(st.FailedVerify) / float64(n)
+	}
+	return st, nil
+}
+
+// DeliveryWeek is one week of DeliveryStats' headline numbers, for trends.
+type DeliveryWeek struct {
+	Start            string   `json:"start"` // YYYY-MM-DD, the week's first day in the requested time zone
+	Deploys          int      `json:"deploys"`
+	MedianLeadSec    float64  `json:"medianLeadSec"`              // 0 without deploys
+	ChangeFailurePct *float64 `json:"changeFailurePct,omitempty"` // nil when no release was verified
+	Incidents        int      `json:"incidents"`
+	MeanRecoverySec  *float64 `json:"meanRecoverySec,omitempty"` // nil when no outage ended
+}
+
+// DeliveryWeeks returns `weeks` seven-day windows ending at now, oldest first.
+func (s *Store) DeliveryWeeks(ctx context.Context, weeks int, now time.Time, tz *time.Location) ([]DeliveryWeek, error) {
+	out := make([]DeliveryWeek, 0, weeks)
+	for i := weeks - 1; i >= 0; i-- {
+		to := now.AddDate(0, 0, -7*i)
+		from := to.AddDate(0, 0, -7)
+		st, err := s.DeliveryBetween(ctx, from, to)
+		if err != nil {
+			return nil, err
+		}
+		w := DeliveryWeek{Start: from.In(tz).Format("2006-01-02"), Deploys: st.Deploys, MedianLeadSec: st.MedianLeadSec, Incidents: st.Incidents}
+		if st.Verified+st.FailedVerify > 0 {
+			w.ChangeFailurePct = &st.ChangeFailurePct
+		}
+		if st.Incidents > 0 && st.MeanRecoverySec > 0 {
+			w.MeanRecoverySec = &st.MeanRecoverySec
+		}
+		out = append(out, w)
+	}
+	return out, nil
 }
 
 // SiteStats is the public view of one app's public URL check.

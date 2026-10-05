@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api, envApi, timeAgo } from "../api";
 import { ErrorBox, PhaseBadge, RunBadge, usePoll } from "../components/ui";
 import { fmtPct } from "../components/reliability";
+import { DeliveryPanel } from "../components/delivery";
 
 export function Dashboard() {
   const { data: apps, error } = usePoll(api.apps, [], 10000);
@@ -24,6 +25,7 @@ export function Dashboard() {
           <span className="small" style={{ color: "var(--accent)" }}>View details →</span>
         </Link>
       )}
+      {apps && apps.length > 0 && <DeliveryPanel />}
       {apps && apps.length === 0 && (
         <div className="card empty">
           <p>No apps yet.</p>

@@ -50,6 +50,23 @@ func TestDeliveryAndPublicStats(t *testing.T) {
 		t.Fatalf("today = %+v (rollbacks are not deploys; days are New York days)", last)
 	}
 
+	// Windows: nothing happened a month ago; the last week holds it all.
+	prev, err := s.DeliveryBetween(ctx, time.Now().AddDate(0, 0, -60), time.Now().AddDate(0, 0, -30))
+	if err != nil || prev.Deploys != 0 || prev.Builds != 0 {
+		t.Fatalf("previous month = %+v, %v", prev, err)
+	}
+	weeks, err := s.DeliveryWeeks(ctx, 12, time.Now().Add(time.Minute), mustTZ(t, "America/New_York"))
+	if err != nil || len(weeks) != 12 {
+		t.Fatalf("weeks = %+v, %v", weeks, err)
+	}
+	last := weeks[11]
+	if last.Deploys != 1 || last.ChangeFailurePct == nil || *last.ChangeFailurePct != 0 || last.MeanRecoverySec != nil {
+		t.Fatalf("this week = %+v", last)
+	}
+	if weeks[0].Deploys != 0 || weeks[0].ChangeFailurePct != nil || weeks[0].Start >= last.Start {
+		t.Fatalf("oldest week = %+v", weeks[0])
+	}
+
 	// Public checks: an hour of them, one failure.
 	var probes []Probe
 	for m := 0; m < 60; m++ {
