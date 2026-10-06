@@ -9,19 +9,23 @@ strict: true
 theme:
   name: material
   language: en
-  icon:
-    logo: material/rocket-launch
+  # Cotija, pueblo mágico: the colors live in assets/cotija.css.
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  font:
+    text: Nunito Sans
+    code: JetBrains Mono
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
-      accent: indigo
-      toggle: { icon: material/weather-night, name: Dark mode }
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-night, name: Night }
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: indigo
-      toggle: { icon: material/weather-sunny, name: Light mode }
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-sunny, name: Day }
   features:
     - navigation.tabs
     - navigation.sections
@@ -34,6 +38,9 @@ theme:
     - content.code.copy
     - content.code.annotate
     - content.tabs.link
+
+extra_css:
+  - assets/cotija.css
 
 plugins:
   - search
