@@ -28,13 +28,81 @@ theme:
     - navigation.top
     - navigation.indexes
     - navigation.footer
-    - navigation.instant
     - search.highlight
     - search.suggest
     - toc.follow
     - content.code.copy
     - content.code.annotate
     - content.tabs.link
+
+plugins:
+  - search
+  # The book in English and Mexican Spanish: a page's translation sits next
+  # to it (page.es.md beside page.md); a page not translated yet shows in
+  # English in the Spanish book.
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: es
+          name: Español
+          build: true
+          site_name: El libro de rendimiento
+          site_description: Cómo funciona rendimiento, cómo se construye y se despliega, y cómo hacerlo crecer.
+          nav_translations:
+            Home: Inicio
+            Start here: Empiece aquí
+            Why rendimiento exists: Por qué existe rendimiento
+            Concepts and vocabulary: Conceptos y vocabulario
+            A tour of the UI: Un recorrido por la interfaz
+            Your environment: Su entorno
+            How the platform is deployed: Cómo se despliega la plataforma
+            Architecture: Arquitectura
+            Big picture: Panorama general
+            Flows, step by step: Flujos, paso a paso
+            The CI engine: El motor de integración continua
+            Building images with BuildKit: Construir imágenes con BuildKit
+            The app controller: El controlador de aplicaciones
+            The add-on engine: El motor de complementos
+            Data and state: Datos y estado
+            API, auth and the UI: API, autenticación e interfaz
+            Security model: Modelo de seguridad
+            Using it: Uso
+            rendimiento.yaml reference: Referencia de rendimiento.yaml
+            Apps day to day: Las aplicaciones en el día a día
+            Builds and tests: Construcciones y pruebas
+            Tasks (commands in CI): Tareas (comandos en la integración continua)
+            Reliability (uptime and charts): Confiabilidad (disponibilidad y gráficas)
+            Notifications (email): Notificaciones (correo)
+            Problems (what went wrong in the platform): Problemas (lo que salió mal en la plataforma)
+            Languages (English, Spanish): Idiomas (inglés y español)
+            Needs and the services catalog: Necesidades y catálogo de servicios
+            Add-ons: Complementos
+            Renovate: Renovate
+            Developing it: Desarrollo
+            Setting up and building: Preparación y construcción
+            Go for this codebase: Go para este código
+            Testing: Pruebas
+            Recipes for common changes: Recetas para cambios comunes
+            Design patterns: Patrones de diseño
+            Refactoring and code health: Reestructuración y salud del código
+            Growing it: Crecimiento
+            Scaling: Escalar
+            Roadmap: Hoja de ruta
+            Becoming an open-source project: Convertirse en un proyecto de código abierto
+            Reference: Referencia
+            Configuration: Configuración
+            HTTP API: API HTTP
+            Custom resources: Recursos personalizados
+            Make targets and scripts: Objetivos de make y guiones
+            Code map: Mapa del código
+            Glossary: Glosario
 
 markdown_extensions:
   - admonition
