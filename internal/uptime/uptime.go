@@ -25,6 +25,8 @@ import (
 
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
+
+	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // Kinds of checks.
@@ -310,9 +312,21 @@ func (p *Prober) notifyChanges() {
 
 func checkName(t Target) string {
 	if t.Kind == KindPublic {
-		return t.Service + " (public URL)"
+		return M("%s (public URL)", t.Service)
 	}
-	return t.Service + " (inside the cluster)"
+	return M("%s (inside the cluster)", t.Service)
+}
+
+// joinAnd lists names as "a and b and c", one translatable pair at a time.
+func joinAnd(names []string) string {
+	if len(names) == 0 {
+		return ""
+	}
+	out := names[len(names)-1]
+	for i := len(names) - 2; i >= 0; i-- {
+		out = M("%s and %s", names[i], out)
+	}
+	return out
 }
 
 func outageMessage(app string, down []change, baseURL string) notify.Message {
@@ -320,23 +334,23 @@ func outageMessage(app string, down []change, baseURL string) notify.Message {
 	var names, details []string
 	for _, c := range down {
 		names = append(names, checkName(c.target))
-		facts = append(facts, notify.Fact{Label: checkName(c.target), Value: "down since " + c.since.Local().Format("15:04 MST")})
+		facts = append(facts, notify.Fact{Label: checkName(c.target), Value: M("down since %s", c.since.Local().Format("15:04 MST"))})
 		where := c.target.URL
 		if where == "" {
 			where = c.target.Addr
 		}
 		details = append(details, fmt.Sprintf("%s → %s", where, c.err))
 	}
-	subject := fmt.Sprintf("🔴 %s is down", app)
+	subject := M("🔴 %s is down", app)
 	if len(down) == 1 {
-		subject = fmt.Sprintf("🔴 %s: %s is down", app, names[0])
+		subject = M("🔴 %s: %s is down", app, names[0])
 	}
 	return notify.Message{
 		Tone: notify.Critical, Subject: subject, Key: "down:" + app,
-		Title:   fmt.Sprintf("%s is down", app),
-		Summary: fmt.Sprintf("%s failed two checks in a row. rendimiento keeps checking every minute and will email you when it recovers.", strings.Join(names, " and ")),
+		Title:   M("%s is down", app),
+		Summary: M("%s failed two checks in a row. rendimiento keeps checking every minute and will email you when it recovers.", joinAnd(names)),
 		Facts:   facts, Details: strings.Join(details, "\n"),
-		ActionURL: baseURL + "/apps/" + app + "/reliability", ActionLabel: "See reliability",
+		ActionURL: baseURL + "/apps/" + app + "/reliability", ActionLabel: M("See reliability"),
 	}
 }
 
@@ -345,18 +359,18 @@ func recoveryMessage(app string, up []change, baseURL string) notify.Message {
 	var names []string
 	for _, c := range up {
 		names = append(names, checkName(c.target))
-		value := "back up"
+		value := M("back up")
 		if !c.since.IsZero() {
-			value = "back up after " + humanDuration(time.Since(c.since))
+			value = M("back up after %s", humanDuration(time.Since(c.since)))
 		}
 		facts = append(facts, notify.Fact{Label: checkName(c.target), Value: value})
 	}
 	return notify.Message{
-		Tone: notify.Good, Subject: fmt.Sprintf("✅ %s recovered", app), Key: "up:" + app,
-		Title:     fmt.Sprintf("%s recovered", app),
-		Summary:   fmt.Sprintf("%s answered normally again.", strings.Join(names, " and ")),
+		Tone: notify.Good, Subject: M("✅ %s recovered", app), Key: "up:" + app,
+		Title:     M("%s recovered", app),
+		Summary:   M("%s answered normally again.", joinAnd(names)),
 		Facts:     facts,
-		ActionURL: baseURL + "/apps/" + app + "/reliability", ActionLabel: "See the outage",
+		ActionURL: baseURL + "/apps/" + app + "/reliability", ActionLabel: M("See the outage"),
 	}
 }
 
@@ -364,11 +378,11 @@ func humanDuration(d time.Duration) string {
 	m := int(d.Round(time.Minute).Minutes())
 	switch {
 	case m < 1:
-		return "under a minute"
+		return M("under a minute")
 	case m < 60:
-		return fmt.Sprintf("%d min", m)
+		return M("%d min", m)
 	}
-	return fmt.Sprintf("%d h %d min", m/60, m%60)
+	return M("%d h %d min", m/60, m%60)
 }
 
 // observe updates a target's streak, its metrics, and opens or closes its outage.

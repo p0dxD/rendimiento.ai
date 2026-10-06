@@ -75,6 +75,7 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 | Variable | Default | Example | Meaning |
 |---|---|---|---|
 | `NOTIFY_EMAIL_TO` | *(empty: off)* | `you@example.com` | who gets [notification emails](../guide/notifications.md), comma-separated |
+| `NOTIFY_LANG` | `en` | `es` | the language of the emails: `en`, or `es` for Mexican Spanish |
 | `NOTIFY_EMAIL_FROM` | `rendimiento <alerts@joserod.space>` | | the sender; must be on a Resend-verified domain |
 | `RESEND_API_KEY` | — | from Secret `rendimiento-notify` | the Resend API key |
 

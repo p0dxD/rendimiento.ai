@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // Language is a detected language or runtime family.
@@ -93,14 +95,14 @@ func detectDir(fsys fs.FS, dir string) (Result, bool) {
 		detectJava(fsys, dir, &r)
 	case exists(fsys, dir, "index.html"):
 		r.Language, r.Port = Static, 8080
-		r.Reasons = append(r.Reasons, "index.html at the root: static site")
+		r.Reasons = append(r.Reasons, M("index.html at the root: static site"))
 	}
 	if exists(fsys, dir, "Dockerfile") {
 		r.Dockerfile = true
-		r.Reasons = append(r.Reasons, "existing Dockerfile will be used as-is")
+		r.Reasons = append(r.Reasons, M("existing Dockerfile will be used as-is"))
 		if p := exposedPort(read(fsys, dir, "Dockerfile")); p > 0 {
 			r.Port = p
-			r.Reasons = append(r.Reasons, "port "+strconv.Itoa(p)+" from Dockerfile EXPOSE")
+			r.Reasons = append(r.Reasons, M("port %d from Dockerfile EXPOSE", p))
 		}
 		if r.Language == "" {
 			r.Language = Docker
@@ -126,7 +128,7 @@ func detectGo(fsys fs.FS, dir string, r *Result) {
 	}
 	r.TestImage = "golang:" + r.Version
 	r.TestCommand = "go test ./..."
-	r.Reasons = append(r.Reasons, "go.mod found (go "+r.Version+")")
+	r.Reasons = append(r.Reasons, M("go.mod found (go %s)", r.Version))
 }
 
 type packageJSON struct {
@@ -174,7 +176,7 @@ func detectNode(fsys fs.FS, dir string, r *Result) bool {
 		}
 		r.Port = 3000
 	}
-	r.Reasons = append(r.Reasons, "package.json found (framework: "+orNone(r.Framework)+", node "+r.Version+")")
+	r.Reasons = append(r.Reasons, M("package.json found (framework: %s, node %s)", orNone(r.Framework), r.Version))
 	if t := pkg.Scripts["test"]; t != "" && !strings.Contains(t, noTestScript) {
 		r.TestImage = "node:" + r.Version + "-bookworm"
 		r.TestCommand = installCmd(fsys, dir) + " && npm test"
@@ -217,7 +219,7 @@ func detectPython(fsys fs.FS, dir string, r *Result) {
 		r.Framework, r.Port = "flask", 5000
 	}
 	r.Entrypoint = pythonEntrypoint(fsys, dir, r.Framework)
-	r.Reasons = append(r.Reasons, "Python project (framework: "+orNone(r.Framework)+")")
+	r.Reasons = append(r.Reasons, M("Python project (framework: %s)", orNone(r.Framework)))
 	if strings.Contains(deps, "pytest") || exists(fsys, dir, "tests") {
 		r.TestImage = "python:" + r.Version + "-slim"
 		install := "pip install -r requirements.txt"
@@ -253,7 +255,7 @@ func detectJava(fsys fs.FS, dir string, r *Result) {
 		r.Framework = "gradle"
 		r.TestImage, r.TestCommand = "gradle:8-jdk21", "gradle test --no-daemon"
 	}
-	r.Reasons = append(r.Reasons, "Java project built with "+r.Framework+" (JDK 21)")
+	r.Reasons = append(r.Reasons, M("Java project built with %s (JDK 21)", r.Framework))
 }
 
 var expose = regexp.MustCompile(`(?i)^\s*EXPOSE\s+(\d+)`)
@@ -301,7 +303,7 @@ func detectNeeds(fsys fs.FS, dir string, r *Result) {
 		if b := read(fsys, dir, d.file); len(b) > 0 && d.pattern.Match(b) {
 			seen[d.need] = true
 			r.Needs = append(r.Needs, d.need)
-			r.Reasons = append(r.Reasons, "uses "+d.need+" (a client library in "+d.file+")")
+			r.Reasons = append(r.Reasons, M("uses %s (a client library in %s)", d.need, d.file))
 		}
 	}
 }
@@ -313,7 +315,7 @@ func read(fsys fs.FS, dir, name string) []byte {
 
 func orNone(s string) string {
 	if s == "" {
-		return "none"
+		return M("none")
 	}
 	return s
 }

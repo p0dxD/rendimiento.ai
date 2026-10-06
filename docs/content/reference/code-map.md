@@ -11,29 +11,30 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 416 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 417 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/api`](#internal-api) | 11 | 2561 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
-| [`internal/catalog`](#internal-catalog) | 2 | 885 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
-| [`internal/controller`](#internal-controller) | 7 | 2733 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
-| [`internal/detect`](#internal-detect) | 2 | 428 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
-| [`internal/dns`](#internal-dns) | 4 | 768 | Package dns manages the public DNS record for each app domain. |
-| [`internal/environment`](#internal-environment) | 4 | 1341 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
+| [`internal/api`](#internal-api) | 12 | 2668 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/catalog`](#internal-catalog) | 2 | 887 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
+| [`internal/controller`](#internal-controller) | 7 | 2738 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
+| [`internal/detect`](#internal-detect) | 2 | 430 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
+| [`internal/dns`](#internal-dns) | 4 | 770 | Package dns manages the public DNS record for each app domain. |
+| [`internal/environment`](#internal-environment) | 4 | 1351 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
 | [`internal/events`](#internal-events) | 2 | 80 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 278 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1164 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
+| [`internal/i18n`](#internal-i18n) | 3 | 659 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 308 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
-| [`internal/notify`](#internal-notify) | 2 | 418 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
+| [`internal/notify`](#internal-notify) | 2 | 447 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
 | [`internal/pipeline`](#internal-pipeline) | 7 | 1605 | Package pipeline plans and executes CI runs. |
-| [`internal/platform`](#internal-platform) | 7 | 3167 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
+| [`internal/platform`](#internal-platform) | 7 | 3173 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/problems`](#internal-problems) | 2 | 278 | Package problems keeps the platform's own warnings and errors for the Problems page: a slog handler passes every record on to the real log and also queues warnings and errors; a Recorder stores them, folding repeats of the same problem into one row with a count. |
 | [`internal/render`](#internal-render) | 3 | 1160 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
 | [`internal/spec`](#internal-spec) | 2 | 1661 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
 | [`internal/store`](#internal-store) | 10 | 2217 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
-| [`internal/uptime`](#internal-uptime) | 2 | 634 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
+| [`internal/uptime`](#internal-uptime) | 2 | 648 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
 
@@ -94,7 +95,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>407 lines</small>
+<small>408 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -254,6 +255,19 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `DeliveryReport` | struct | DeliveryReport is the dashboard's delivery health: the last 30 days, the 30 before them, and twelve weeks of history. |
 | `(*Server) delivery` | method |  |
 
+### `internal/api/i18n.go`
+
+<small>87 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `localized` | func | localized translates the JSON answers of /api/ for a browser that asks for Spanish (Accept-Language). |
+| `translateJSON` | func | translateJSON walks a decoded JSON value; key is the object key the value sits under (array elements inherit it, so "details": [...] translates). |
+| `bufferedWriter` | struct | bufferedWriter holds a handler's answer so it can be translated. |
+| `(*bufferedWriter) Header` | method |  |
+| `(*bufferedWriter) WriteHeader` | method |  |
+| `(*bufferedWriter) Write` | method |  |
+
 ### `internal/api/installed.go`
 
 <small>343 lines</small>
@@ -285,7 +299,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/notifications.go`
 
-<small>28 lines</small>
+<small>30 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -393,7 +407,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server_test.go`
 
-<small>366 lines · tests</small>
+<small>384 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -407,6 +421,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `TestPublicStats` | func | Public stats are off unless turned on, need no login when on, allow only the configured origins, and say nothing private. |
 | `TestDeliveryReport` | func | The dashboard's delivery report needs a login and has both periods and twelve weeks. |
 | `TestProblemsAPI` | func | The Problems page needs a login; problems can be listed, counted and dismissed. |
+| `TestSpanishAnswers` | func | A browser that asks for Spanish gets the platform's messages in Spanish; names and English requests are left alone. |
 
 ## `internal/catalog` {#internal-catalog}
 
@@ -414,7 +429,7 @@ Package catalog lists the services apps can integrate with: what each one is, wh
 
 ### `internal/catalog/catalog.go`
 
-<small>696 lines</small>
+<small>698 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -470,7 +485,7 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 
 ### `internal/controller/addon_controller.go`
 
-<small>503 lines</small>
+<small>506 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -511,7 +526,7 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 
 ### `internal/controller/app_controller.go`
 
-<small>646 lines</small>
+<small>648 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -587,7 +602,7 @@ Package detect inspects a repository tree and guesses how each deployable servic
 
 ### `internal/detect/detect.go`
 
-<small>319 lines</small>
+<small>321 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -643,7 +658,7 @@ Package dns manages the public DNS record for each app domain.
 
 ### `internal/dns/dns.go`
 
-<small>295 lines</small>
+<small>297 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -692,7 +707,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 
 ### `internal/environment/checks.go`
 
-<small>555 lines</small>
+<small>557 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -723,7 +738,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 
 ### `internal/environment/cluster.go`
 
-<small>257 lines</small>
+<small>252 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -732,11 +747,10 @@ Package environment inspects the cluster and integrations rendimiento depends on
 | `(*Checker) snapshot` | method |  |
 | `podProblems` | func | podProblems lists pods that are failing or stuck. |
 | `(*Checker) certificateProblems` | method |  |
-| `plural` | func |  |
 
 ### `internal/environment/environment.go`
 
-<small>278 lines</small>
+<small>291 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -949,6 +963,42 @@ Package github talks to GitHub as a GitHub App: short-lived installation tokens 
 | `TestOpenPRSingleCommit` | func |  |
 | `TestVerifyWebhook` | func |  |
 
+## `internal/i18n` {#internal-i18n}
+
+Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails.
+
+### `internal/i18n/es.go`
+
+<small>373 lines</small>
+
+### `internal/i18n/i18n.go`
+
+<small>192 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Lang` | type | Lang is a language the platform speaks. |
+| `M` | func | M formats a message for people. |
+| `Parse` | func | Parse reads a language setting or an Accept-Language header: Spanish if it starts with "es", else English. |
+| `FromRequest` | func | FromRequest is the language the browser asked for. |
+| `pattern` | struct | pattern is one catalog entry, compiled to match finished messages. |
+| `verbs` | func | verbs finds the verbs of a format, skipping literal percent signs (%%). |
+| `compile` | func |  |
+| `Translate` | func | Translate returns msg in lang. |
+| `sprintfStrings` | func | sprintfStrings formats the Spanish format with values captured as text: every verb becomes %s, so numbers keep the form they had. |
+| `TranslateExact` | func | TranslateExact translates only a message the catalog has word for word (labels and names), never through a pattern. |
+| `(Lang) T` | method | T translates when the language is Spanish; a shorthand for handlers. |
+
+### `internal/i18n/i18n_test.go`
+
+<small>94 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestCatalog` | func | Every format the platform passes to M has its Spanish, with as many values; a new message without a translation fails here. |
+| `TestTranslate` | func |  |
+| `TestParse` | func |  |
+
 ## `internal/logarchive` {#internal-logarchive}
 
 Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI.
@@ -988,7 +1038,7 @@ Package notify emails the platform's owner about what needs attention: releases 
 
 ### `internal/notify/notify.go`
 
-<small>289 lines</small>
+<small>318 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1001,7 +1051,9 @@ Package notify emails the platform's owner about what needs attention: releases 
 | `(*Notifier) Notify` | method | Notify sends m in the background (a slow mail API never delays the caller). |
 | `(*Notifier) allow` | method |  |
 | `(*Notifier) Send` | method | Send renders and sends m now, without de-duplication (the test email). |
-| `Render` | func | Render returns m as an email-safe HTML page and as plain text. |
+| `Localize` | func | Localize translates a message's text for people into lang: subject, title, summary, facts, details (line by line) and the action. |
+| `Render` | func | Render returns m as an email-safe HTML page and as plain text, in English. |
+| `render` | func |  |
 | `Resend` | struct | Resend sends email through Resend's HTTP API (https://resend.com). |
 | `(*Resend) Send` | method | Send posts one email to Resend. |
 
@@ -1129,7 +1181,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/platform.go`
 
-<small>1013 lines</small>
+<small>1015 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1181,7 +1233,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/posttask.go`
 
-<small>406 lines</small>
+<small>408 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1216,7 +1268,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/verify.go`
 
-<small>538 lines</small>
+<small>540 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1711,7 +1763,7 @@ Package uptime checks every app's services once a minute and keeps the results: 
 
 ### `internal/uptime/uptime.go`
 
-<small>439 lines</small>
+<small>453 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1730,6 +1782,7 @@ Package uptime checks every app's services once a minute and keeps the results: 
 | `(*Prober) Round` | method | Round checks every target once, records the results and updates outages. |
 | `(*Prober) notifyChanges` | method | notifyChanges sends one email per app for the outages that started, and one for those that ended, this round. |
 | `checkName` | func |  |
+| `joinAnd` | func | joinAnd lists names as "a and b and c", one translatable pair at a time. |
 | `outageMessage` | func |  |
 | `recoveryMessage` | func |  |
 | `humanDuration` | func |  |
@@ -1771,7 +1824,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>675 lines</small>
+<small>677 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1842,7 +1895,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/components/delivery.tsx`
 
-<small>184 lines</small>
+<small>187 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1856,7 +1909,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/components/reliability.tsx`
 
-<small>391 lines</small>
+<small>392 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1884,13 +1937,14 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/components/ui.tsx`
 
-<small>200 lines</small>
+<small>206 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Tone` | type |  |
 | `phaseTone` | const |  |
 | `phaseLabel` | const |  |
+| `statusText` | function | A status word from the API (a phase, a run or step status, a health), in the UI's language. |
 | `PhaseBadge` | component |  |
 | `runTone` | const |  |
 | `RunBadge` | component |  |
@@ -1903,13 +1957,34 @@ Package web embeds the built UI (npm run build → web/dist).
 | `PipelineGraph` | component |  |
 | `Switch` | component | An on/off switch (a button with role="switch"). |
 
+### `web/src/i18n.ts`
+
+<small>50 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Lang` | type |  |
+| `initial` | function |  |
+| `setLang` | function | Switches the language and reloads, so every page renders in it. |
+| `t` | function | The phrase in the current language, with {name} placeholders filled in. |
+| `tn` | function | t() for a count: `one` when n is 1, else `other`; {n} is filled in. |
+
+### `web/src/i18n/es.ts`
+
+<small>582 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `es` | const | Spanish for every phrase in the UI, keyed by its English text (see ../i18n.ts). |
+
 ### `web/src/main.tsx`
 
-<small>109 lines</small>
+<small>123 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Logo` | component |  |
+| `LangSwitch` | component | EN/ES: shows the other language, in that language. |
 | `Shell` | component |  |
 
 ### `web/src/pages/Addons.tsx`
@@ -1946,7 +2021,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Dashboard.tsx`
 
-<small>69 lines</small>
+<small>70 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1954,7 +2029,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Environment.tsx`
 
-<small>255 lines</small>
+<small>257 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1973,12 +2048,12 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Installed.tsx`
 
-<small>405 lines</small>
+<small>407 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `phaseTone` | const |  |
-| `phaseLabel` | const |  |
+| `phaseLabel` | const | Translated where shown. |
 | `AddonPhaseBadge` | component |  |
 | `sourceLabel` | function |  |
 | `useLANByAddon` | function | The add-ons' services reachable on the local network, by add-on name. |
@@ -1991,7 +2066,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/NewApp.tsx`
 
-<small>398 lines</small>
+<small>399 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2003,12 +2078,13 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Problems.tsx`
 
-<small>124 lines</small>
+<small>128 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `isOpen` | function |  |
 | `headline` | function | "rendimiento.yaml rejected; the push was not built: services[0]: …" |
+| `resolutionText` | function | The server's note on what fixed a problem, e.g. |
 | `ProblemCard` | component |  |
 | `Problems` | component |  |
 | `AppProblems` | component | Open problems about one app, as a banner on its page. |
@@ -2016,7 +2092,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/RunPage.tsx`
 
-<small>105 lines</small>
+<small>106 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2025,7 +2101,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Services.tsx`
 
-<small>304 lines</small>
+<small>306 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2038,7 +2114,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Setup.tsx`
 
-<small>29 lines</small>
+<small>30 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|

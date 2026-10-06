@@ -17,6 +17,8 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 	"github.com/p0dxD/rendimiento.ai/internal/uptime"
+
+	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // VerifySettings configure release verification: after a release is
@@ -84,7 +86,7 @@ func (p *Platform) startVerification(ctx context.Context, app *store.App, rel *s
 	}
 	p.verifying[app.ID] = cancel
 	p.mu.Unlock()
-	p.setVerification(app, rel, store.VerifyRunning, fmt.Sprintf("watching the new release for %s", fmtDur(window)))
+	p.setVerification(app, rel, store.VerifyRunning, M("watching the new release for %s", fmtDur(window)))
 	go func() {
 		defer func() {
 			p.mu.Lock()
@@ -195,12 +197,12 @@ func (p *Platform) verify(ctx context.Context, app *store.App, rel *store.Releas
 		}
 	}
 	if ok {
-		msg := fmt.Sprintf("all %d checks stayed healthy for %s", len(targets), fmtDur(window))
-		if len(targets) == 0 {
-			msg = "rolled out healthy (no services to check)"
-		}
+		msg := M("all %d checks stayed healthy for %s", len(targets), fmtDur(window))
 		if taskCount > 0 {
-			msg += fmt.Sprintf(", and %d post-deploy task(s) passed", taskCount)
+			msg = M("all %d checks stayed healthy for %s, and %d post-deploy task(s) passed", len(targets), fmtDur(window), taskCount)
+		}
+		if len(targets) == 0 {
+			msg = M("rolled out healthy (no services to check)")
 		}
 		if len(warnings) > 0 {
 			msg += "; " + strings.Join(warnings, "; ")
@@ -220,26 +222,26 @@ func (p *Platform) verify(ctx context.Context, app *store.App, rel *store.Releas
 func (p *Platform) verificationFailed(ctx context.Context, app *store.App, rel *store.Release, reason string) {
 	log := p.Log.With("app", app.Name, "release", rel.Number)
 	kept := func(why string) {
-		p.setVerification(app, rel, store.VerifyFailedKept, reason+" ("+why+")")
+		p.setVerification(app, rel, store.VerifyFailedKept, M("%s (%s)", reason, why))
 		log.Warn("release failed verification; kept", "reason", reason, "why", why)
 		p.Notify.Notify(p.verifyMessage(app, rel, reason, nil, why))
 	}
 	if !rel.Spec.Verify.AutoRollback() {
-		kept("automatic rollback is off: verify.rollback")
+		kept(M("automatic rollback is off: verify.rollback"))
 		return
 	}
 	good, err := p.lastGoodRelease(ctx, app.ID, rel.Number)
 	if err != nil {
-		kept("no earlier good release to roll back to")
+		kept(M("no earlier good release to roll back to"))
 		return
 	}
-	back, err := p.rollbackTo(ctx, app, good, fmt.Sprintf("automatic rollback: release #%d failed verification", rel.Number))
+	back, err := p.rollbackTo(ctx, app, good, M("automatic rollback: release #%d failed verification", rel.Number))
 	if err != nil {
-		kept("the automatic rollback failed: " + err.Error())
+		kept(M("the automatic rollback failed: %s", err.Error()))
 		log.Error("automatic rollback failed", "err", err)
 		return
 	}
-	p.setVerification(app, rel, store.VerifyFailed, fmt.Sprintf("%s; rolled back to release #%d (as #%d)", reason, good.Number, back.Number))
+	p.setVerification(app, rel, store.VerifyFailed, M("%s; rolled back to release #%d (as #%d)", reason, good.Number, back.Number))
 	log.Warn("release failed verification; rolled back", "reason", reason, "to", good.Number, "as", back.Number)
 	p.Notify.Notify(p.verifyMessage(app, rel, reason, &[2]int64{good.Number, back.Number}, ""))
 }
@@ -248,23 +250,23 @@ func (p *Platform) verificationFailed(ctx context.Context, app *store.App, rel *
 // rolled back (to = {good release, new release number}) or kept (why).
 func (p *Platform) verifyMessage(app *store.App, rel *store.Release, reason string, to *[2]int64, why string) notify.Message {
 	facts := []notify.Fact{
-		{Label: "App", Value: app.Name},
-		{Label: "Failed release", Value: fmt.Sprintf("#%d (%s)", rel.Number, shortSHA(rel.SHA))},
+		{Label: M("App"), Value: app.Name},
+		{Label: M("Failed release"), Value: fmt.Sprintf("#%d (%s)", rel.Number, shortSHA(rel.SHA))},
 	}
 	m := notify.Message{
 		Key: fmt.Sprintf("verify:%s:%d", app.Name, rel.Number), Details: strings.ReplaceAll(reason, "; ", "\n"),
-		ActionURL: p.Config.BaseURL + "/apps/" + app.Name + "/releases", ActionLabel: "See releases",
+		ActionURL: p.Config.BaseURL + "/apps/" + app.Name + "/releases", ActionLabel: M("See releases"),
 	}
 	if to != nil {
-		facts = append(facts, notify.Fact{Label: "Now running", Value: fmt.Sprintf("release #%d (the images of #%d)", to[1], to[0])})
-		m.Tone, m.Subject = notify.Critical, fmt.Sprintf("↩ %s: release #%d rolled back", app.Name, rel.Number)
-		m.Title = fmt.Sprintf("Release #%d was rolled back", rel.Number)
-		m.Summary = fmt.Sprintf("It broke a service that worked before it went live, so rendimiento put release #%d back. Nothing needs doing to recover; fix the cause and push again.", to[0])
+		facts = append(facts, notify.Fact{Label: M("Now running"), Value: M("release #%d (the images of #%d)", to[1], to[0])})
+		m.Tone, m.Subject = notify.Critical, M("↩ %s: release #%d rolled back", app.Name, rel.Number)
+		m.Title = M("Release #%d was rolled back", rel.Number)
+		m.Summary = M("It broke a service that worked before it went live, so rendimiento put release #%d back. Nothing needs doing to recover; fix the cause and push again.", to[0])
 	} else {
-		facts = append(facts, notify.Fact{Label: "Kept because", Value: why})
-		m.Tone, m.Subject = notify.Warning, fmt.Sprintf("⚠ %s: release #%d failed verification", app.Name, rel.Number)
-		m.Title = fmt.Sprintf("Release #%d failed verification", rel.Number)
-		m.Summary = "It broke a service that worked before it went live, and it is still running."
+		facts = append(facts, notify.Fact{Label: M("Kept because"), Value: why})
+		m.Tone, m.Subject = notify.Warning, M("⚠ %s: release #%d failed verification", app.Name, rel.Number)
+		m.Title = M("Release #%d failed verification", rel.Number)
+		m.Summary = M("It broke a service that worked before it went live, and it is still running.")
 	}
 	m.Facts = facts
 	return m
@@ -321,7 +323,7 @@ func (p *Platform) waitRollout(ctx context.Context, app string, number int64) (b
 			return false, errSuperseded.Error()
 		}
 		if time.Now().After(deadline) {
-			return false, fmt.Sprintf("it did not become healthy within %s (%s)", fmtDur(timeout), msg)
+			return false, M("it did not become healthy within %s (%s)", fmtDur(timeout), msg)
 		}
 		select {
 		case <-ctx.Done():
@@ -405,18 +407,18 @@ func judge(baseline map[[2]string]store.CheckStats, got map[[2]string]*windowSta
 		fails := w.total - w.ok
 		if fails >= 3 && fails*5 >= w.total {
 			if had && b.Total > 0 && float64(b.OK)/float64(b.Total) < 0.9 {
-				warnings = append(warnings, fmt.Sprintf("%s is failing, but it was already failing before this release", name))
+				warnings = append(warnings, M("%s is failing, but it was already failing before this release", name))
 				continue
 			}
-			before := "it had no checks before (a new service)"
+			before := M("it had no checks before (a new service)")
 			if had && b.Total > 0 {
-				before = fmt.Sprintf("it was %.0f%% up in the hour before", 100*float64(b.OK)/float64(b.Total))
+				before = M("it was %.0f%% up in the hour before", 100*float64(b.OK)/float64(b.Total))
 			}
-			failures = append(failures, fmt.Sprintf("%s: %d of %d checks failed (%s); %s", name, fails, w.total, w.lastError, before))
+			failures = append(failures, M("%s: %d of %d checks failed (%s); %s", name, fails, w.total, w.lastError, before))
 			continue
 		}
 		if p95 := w.p95(); had && b.P95MS > 0 && p95 > 3*b.P95MS && p95-b.P95MS > 1000 {
-			warnings = append(warnings, fmt.Sprintf("%s is slower: p95 %s, was %s", name, fmtMS(p95), fmtMS(b.P95MS)))
+			warnings = append(warnings, M("%s is slower: p95 %s, was %s", name, fmtMS(p95), fmtMS(b.P95MS)))
 		}
 	}
 	if len(failures) > 0 {
@@ -493,31 +495,31 @@ func (p *Platform) notifyRunFailed(app *store.App, run *store.Run, msg string, s
 		// The build passed; a pre-deploy task stopped the release.
 		p.Notify.Notify(notify.Message{
 			Tone: notify.Critical, Key: fmt.Sprintf("predeploy:%s:%s", app.Name, run.SHA),
-			Subject: fmt.Sprintf("⛔ %s: release not deployed", app.Name),
-			Title:   "A pre-deploy task stopped the release",
-			Summary: "The build passed, but a pre-deploy task (a migration, a check) failed, so the release was not rolled out. The app keeps running its current release; nothing needs undoing.",
+			Subject: M("⛔ %s: release not deployed", app.Name),
+			Title:   M("A pre-deploy task stopped the release"),
+			Summary: M("The build passed, but a pre-deploy task (a migration, a check) failed, so the release was not rolled out. The app keeps running its current release; nothing needs undoing."),
 			Facts: []notify.Fact{
-				{Label: "App", Value: app.Name},
-				{Label: "Commit", Value: fmt.Sprintf("%s on %s", shortSHA(run.SHA), run.Branch)},
-				{Label: "Run", Value: fmt.Sprintf("#%d", run.ID)},
+				{Label: M("App"), Value: app.Name},
+				{Label: M("Commit"), Value: M("%s on %s", shortSHA(run.SHA), run.Branch)},
+				{Label: M("Run"), Value: fmt.Sprintf("#%d", run.ID)},
 			},
 			Details:   msg,
-			ActionURL: fmt.Sprintf("%s/apps/%s/releases", p.Config.BaseURL, app.Name), ActionLabel: "See releases",
+			ActionURL: fmt.Sprintf("%s/apps/%s/releases", p.Config.BaseURL, app.Name), ActionLabel: M("See releases"),
 		})
 		return
 	}
 	p.Notify.Notify(notify.Message{
 		Tone: notify.Critical, Key: fmt.Sprintf("run:%s:%s", app.Name, run.SHA),
-		Subject: fmt.Sprintf("✗ %s: build failed on %s", app.Name, run.Branch),
-		Title:   fmt.Sprintf("The %s build failed", app.Name),
-		Summary: fmt.Sprintf("A push to %s did not build, so nothing was released; the app keeps running its current release.", run.Branch),
+		Subject: M("✗ %s: build failed on %s", app.Name, run.Branch),
+		Title:   M("The %s build failed", app.Name),
+		Summary: M("A push to %s did not build, so nothing was released; the app keeps running its current release.", run.Branch),
 		Facts: []notify.Fact{
-			{Label: "App", Value: app.Name},
-			{Label: "Commit", Value: fmt.Sprintf("%s on %s", shortSHA(run.SHA), run.Branch)},
-			{Label: "Run", Value: fmt.Sprintf("#%d", run.ID)},
+			{Label: M("App"), Value: app.Name},
+			{Label: M("Commit"), Value: M("%s on %s", shortSHA(run.SHA), run.Branch)},
+			{Label: M("Run"), Value: fmt.Sprintf("#%d", run.ID)},
 		},
 		Details:   details,
-		ActionURL: fmt.Sprintf("%s/apps/%s/runs/%d", p.Config.BaseURL, app.Name, run.ID), ActionLabel: "Open the run",
+		ActionURL: fmt.Sprintf("%s/apps/%s/runs/%d", p.Config.BaseURL, app.Name, run.ID), ActionLabel: M("Open the run"),
 	})
 }
 

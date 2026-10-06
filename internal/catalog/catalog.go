@@ -22,6 +22,8 @@ import (
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
+
+	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // Group is which tab a service appears under on the Services page.
@@ -257,12 +259,12 @@ func assemble(s snapshot, infra []string) *Catalog {
 			e.Group = GroupApps
 			app, kind := svc.Labels[render.LabelApp], svc.Labels["rendimiento.ai/need"]
 			e.Title = fmt.Sprintf("%s for %s", map[string]string{"postgres": "PostgreSQL", "redis": "Redis"}[kind], app)
-			e.Origin = Origin{Kind: "rendimiento", App: app, Summary: fmt.Sprintf("Run by rendimiento because %s's services need %s; credentials are in the %s-credentials secret", app, kind, kind)}
-			e.Description = fmt.Sprintf("Private to %s: its services get the address and password injected. Other apps should declare their own `needs: [%s]`.", app, kind)
+			e.Origin = Origin{Kind: "rendimiento", App: app, Summary: M("Run by rendimiento because %s's services need %s; credentials are in the %s-credentials secret", app, kind, kind)}
+			e.Description = M("Private to %s: its services get the address and password injected. Other apps should declare their own `needs: [%s]`.", app, kind)
 		case svc.Labels["rendimiento.ai/addon"] != "":
 			e.Group = GroupApps
 			name := svc.Labels["rendimiento.ai/addon"]
-			e.Origin = Origin{Kind: "addon", App: name, Summary: fmt.Sprintf("Installed by the %s add-on, kept in sync by rendimiento", name)}
+			e.Origin = Origin{Kind: "addon", App: name, Summary: M("Installed by the %s add-on, kept in sync by rendimiento", name)}
 		case isInfra[svc.Namespace]:
 			e.Group = GroupInfra
 			e.Origin = foreignOrigin(&svc.ObjectMeta)
@@ -345,7 +347,7 @@ func appOrigin(as appService) Origin {
 			ref = as.svc.Image
 		}
 		o.Images = []Image{{Ref: ref, Link: imageLink(as.svc.Image)}}
-		o.Summary = fmt.Sprintf("Ready-made image %s, run by the %s app", as.svc.Image, as.app.Name)
+		o.Summary = M("Ready-made image %s, run by the %s app", as.svc.Image, as.app.Name)
 		return o
 	}
 	if as.app.Spec.Repo != "" {
@@ -361,25 +363,25 @@ func appOrigin(as appService) Origin {
 	if p := strings.Trim(as.svc.Path, "./"); p != "" {
 		where += " (" + p + ")"
 	}
-	o.Summary = fmt.Sprintf("Built by rendimiento from %s, part of the %s app", where, as.app.Name)
+	o.Summary = M("Built by rendimiento from %s, part of the %s app", where, as.app.Name)
 	return o
 }
 
 // foreignOrigin works out who deployed something rendimiento does not manage.
 func foreignOrigin(m metav1Object) Origin {
-	o := Origin{Kind: "manual", Summary: "Deployed by hand (kubectl or a script); nothing reconciles it"}
+	o := Origin{Kind: "manual", Summary: M("Deployed by hand (kubectl or a script); nothing reconciles it")}
 	helm := m.GetAnnotations()["meta.helm.sh/release-name"]
 	if helm == "" && m.GetLabels()["app.kubernetes.io/managed-by"] == "Helm" {
 		helm = m.GetLabels()["app.kubernetes.io/instance"]
 	}
 	if helm != "" {
 		o.Kind, o.HelmRelease = "helm", helm
-		o.Summary = fmt.Sprintf("Helm release %s", helm)
+		o.Summary = M("Helm release %s", helm)
 	}
 	if id := m.GetAnnotations()["argocd.argoproj.io/tracking-id"]; id != "" {
 		app, _, _ := strings.Cut(id, ":")
 		o.Kind, o.ArgoApp = "argocd", app
-		o.Summary = fmt.Sprintf("ArgoCD application %s", app)
+		o.Summary = M("ArgoCD application %s", app)
 		if helm != "" {
 			o.Summary += " (Helm chart)"
 		}

@@ -38,6 +38,8 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
+
+	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // GitHub is the subset of the GitHub App the platform needs; faked in tests.
@@ -598,16 +600,16 @@ func (p *Platform) rejectRun(ctx context.Context, app *store.App, branch, sha, e
 	if run.Deploy {
 		p.Notify.Notify(notify.Message{
 			Tone: notify.Critical, Key: fmt.Sprintf("spec:%s:%s", app.Name, sha),
-			Subject: fmt.Sprintf("✗ %s: rendimiento.yaml has an error", app.Name),
-			Title:   "The push was not deployed",
-			Summary: fmt.Sprintf("rendimiento.yaml on %s has an error, so nothing was built or released; the app keeps running its current release. Fix the file and push again.", branch),
+			Subject: M("✗ %s: rendimiento.yaml has an error", app.Name),
+			Title:   M("The push was not deployed"),
+			Summary: M("rendimiento.yaml on %s has an error, so nothing was built or released; the app keeps running its current release. Fix the file and push again.", branch),
 			Facts: []notify.Fact{
-				{Label: "App", Value: app.Name},
-				{Label: "Commit", Value: fmt.Sprintf("%s on %s", shortSHA(sha), branch)},
-				{Label: "Run", Value: fmt.Sprintf("#%d", run.ID)},
+				{Label: M("App"), Value: app.Name},
+				{Label: M("Commit"), Value: M("%s on %s", shortSHA(sha), branch)},
+				{Label: M("Run"), Value: fmt.Sprintf("#%d", run.ID)},
 			},
 			Details:   cause.Error(),
-			ActionURL: fmt.Sprintf("%s/apps/%s/runs/%d", p.Config.BaseURL, app.Name, run.ID), ActionLabel: "Open the run",
+			ActionURL: fmt.Sprintf("%s/apps/%s/runs/%d", p.Config.BaseURL, app.Name, run.ID), ActionLabel: M("Open the run"),
 		})
 	}
 	return run, nil
@@ -651,7 +653,7 @@ func (p *Platform) execute(ctx context.Context, run *store.Run) {
 	log := p.Log.With("run", run.ID)
 	app, err := p.Store.GetAppByID(ctx, run.AppID)
 	if err != nil {
-		_ = p.Store.FinishRun(ctx, run.ID, store.RunFailed, "app no longer exists")
+		_ = p.Store.FinishRun(ctx, run.ID, store.RunFailed, M("app no longer exists"))
 		return
 	}
 	runCtx, cancel := context.WithCancel(ctx)
@@ -721,11 +723,11 @@ func (p *Platform) execute(ctx context.Context, run *store.Run) {
 	case err != nil:
 		status, msg = store.RunFailed, err.Error()
 	case runCtx.Err() != nil && ctx.Err() == nil:
-		status, msg = store.RunCancelled, "cancelled"
+		status, msg = store.RunCancelled, M("cancelled")
 	default:
 		for _, s := range toRun {
 			if r := results[s.ID]; r.Status != pipeline.StatusSucceeded && !s.Optional {
-				status, msg = store.RunFailed, fmt.Sprintf("%s %s", s.ID, r.Status)
+				status, msg = store.RunFailed, M("%s %s", s.ID, r.Status)
 				break
 			}
 		}
@@ -735,11 +737,11 @@ func (p *Platform) execute(ctx context.Context, run *store.Run) {
 		var blocked errPreDeploy
 		switch {
 		case errors.As(err, &blocked):
-			status, msg = store.RunFailed, fmt.Sprintf("release #%d not deployed: %s", rel.Number, blocked.reason)
+			status, msg = store.RunFailed, M("release #%d not deployed: %s", rel.Number, blocked.reason)
 		case err != nil:
-			status, msg = store.RunFailed, "release failed: "+err.Error()
+			status, msg = store.RunFailed, M("release failed: %s", err.Error())
 		default:
-			msg = fmt.Sprintf("released #%d", rel.Number)
+			msg = M("released #%d", rel.Number)
 			p.startVerification(ctx, app, rel)
 		}
 	}
@@ -809,7 +811,7 @@ func (p *Platform) preDeploy(ctx context.Context, app *store.App, rel *store.Rel
 		return nil
 	}
 	reason := strings.Join(failures, "; ")
-	p.setVerification(app, rel, store.VerifyBlocked, "not deployed: "+reason)
+	p.setVerification(app, rel, store.VerifyBlocked, M("not deployed: %s", reason))
 	return errPreDeploy{reason: reason}
 }
 
@@ -871,7 +873,7 @@ func reusable(sp spec.Spec, files []string, prev *store.Release) (map[string]str
 			reuse[j.ImageKey()] = prev.Images[j.ImageKey()]
 		}
 	}
-	return reuse, fmt.Sprintf("unchanged since release #%d; its image is reused", prev.Number)
+	return reuse, M("unchanged since release #%d; its image is reused", prev.Number)
 }
 
 // skippedTasks returns the task steps that do not run this time, with why:
@@ -887,7 +889,7 @@ func skippedTasks(sp spec.Spec, deploy bool, files []string, prev *store.Release
 		case t.When == spec.TaskOnDeploy && !deploy:
 			skip[pipeline.TaskStepID(t.Name)] = "runs only for pushes to the default branch (when: deploy)"
 		case prev != nil && !touched(files, t.Path, t.Watch):
-			skip[pipeline.TaskStepID(t.Name)] = fmt.Sprintf("nothing under %s changed since release #%d", strings.Join(append([]string{t.Path}, t.Watch...), ", "), prev.Number)
+			skip[pipeline.TaskStepID(t.Name)] = M("nothing under %s changed since release #%d", strings.Join(append([]string{t.Path}, t.Watch...), ", "), prev.Number)
 		}
 	}
 	return skip

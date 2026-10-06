@@ -95,6 +95,7 @@ nav:
       - Reliability (uptime and charts): guide/reliability.md
       - Notifications (email): guide/notifications.md
       - Problems (what went wrong in the platform): guide/problems.md
+      - Languages (English, Spanish): guide/languages.md
       - Needs and the services catalog: guide/needs.md
       - Add-ons: guide/addons.md
       - Renovate: guide/renovate.md

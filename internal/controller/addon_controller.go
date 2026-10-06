@@ -24,6 +24,8 @@ import (
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/addon"
+
+	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 const (
@@ -78,11 +80,11 @@ func (r *AddonReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	st := a.Status.DeepCopy()
 	st.ObservedGeneration = a.Generation
 	if a.Spec.Suspend {
-		st.Phase, st.Message = v1alpha1.AddonSuspended, "suspended: objects are left as they are"
+		st.Phase, st.Message = v1alpha1.AddonSuspended, M("suspended: objects are left as they are")
 		return ctrl.Result{}, r.saveStatus(ctx, &a, st)
 	}
 	if a.Annotations[AnnotationPaused] == "true" {
-		st.Phase, st.Message = v1alpha1.AddonSuspended, "paused (rendimiento.ai/paused annotation): objects are left as they are"
+		st.Phase, st.Message = v1alpha1.AddonSuspended, M("paused (rendimiento.ai/paused annotation): objects are left as they are")
 		return ctrl.Result{}, r.saveStatus(ctx, &a, st)
 	}
 	res, err := r.Renderer.Render(ctx, &a)
@@ -102,28 +104,29 @@ func (r *AddonReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	preview, err := r.preview(ctx, &a, objs)
 	if err != nil {
-		st.Phase, st.Message = v1alpha1.AddonError, "preview: "+err.Error()
+		st.Phase, st.Message = v1alpha1.AddonError, M("preview: %s", err.Error())
 		_ = r.saveStatus(ctx, &a, st)
 		return ctrl.Result{RequeueAfter: addonResync}, nil
 	}
 	st.Preview = preview
 	pending := preview.Create + preview.Update + preview.Prune
-	hookNote := ""
+	waiting := M("%d to create, %d to update, %d to prune: waiting for a manual sync", preview.Create, preview.Update, preview.Prune)
 	if event != "" {
 		pending++ // an install or upgrade runs its hooks even if no object changes
 		if n := countHooks(res.Hooks, "pre-"+event) + countHooks(res.Hooks, "post-"+event); n > 0 {
-			hookNote = fmt.Sprintf("; the %s runs %d Helm hook(s)", event, n)
+			waiting = M("%d to create, %d to update, %d to prune; the %s runs %d Helm hook(s): waiting for a manual sync",
+				preview.Create, preview.Update, preview.Prune, event, n)
 		}
 	}
 
 	switch {
 	case a.Spec.Adopt && !st.Adopted && preview.Update > 0 && !a.Spec.AllowAdoptChanges:
 		st.Phase = v1alpha1.AddonBlocked
-		st.Message = fmt.Sprintf("taking over would change %d existing object(s); review the preview, then allow it or fix the values", preview.Update)
+		st.Message = M("taking over would change %d existing object(s); review the preview, then allow it or fix the values", preview.Update)
 		return ctrl.Result{RequeueAfter: addonResync}, r.saveStatus(ctx, &a, st)
 	case a.Spec.ManualSync && pending > 0 && a.Spec.SyncRequest <= st.AppliedSyncRequest:
 		st.Phase = v1alpha1.AddonOutOfSync
-		st.Message = fmt.Sprintf("%d to create, %d to update, %d to prune%s: waiting for a manual sync", preview.Create, preview.Update, preview.Prune, hookNote)
+		st.Message = waiting
 		return ctrl.Result{RequeueAfter: addonResync}, r.saveStatus(ctx, &a, st)
 	}
 
@@ -141,7 +144,7 @@ func (r *AddonReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			return ctrl.Result{RequeueAfter: time.Minute}, nil
 		}
 		if err := r.runHooks(ctx, &a, st, res.Hooks, "pre-"+event); err != nil {
-			st.Phase, st.Message = v1alpha1.AddonError, err.Error()+"; nothing was applied"
+			st.Phase, st.Message = v1alpha1.AddonError, M("%s; nothing was applied", err.Error())
 			_ = r.saveStatus(ctx, &a, st)
 			return ctrl.Result{RequeueAfter: addonResync}, nil
 		}
@@ -154,7 +157,7 @@ func (r *AddonReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	inventory := refs(objs)
 	if a.Spec.Prune {
 		if err := r.prune(ctx, st.Objects, inventory); err != nil {
-			st.Phase, st.Message = v1alpha1.AddonError, "prune: "+err.Error()
+			st.Phase, st.Message = v1alpha1.AddonError, M("prune: %s", err.Error())
 			_ = r.saveStatus(ctx, &a, st)
 			return ctrl.Result{RequeueAfter: time.Minute}, nil
 		}
@@ -163,7 +166,7 @@ func (r *AddonReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		if err := r.runHooks(ctx, &a, st, res.Hooks, "post-"+event); err != nil {
 			// The objects are applied; the hook is retried on the next sync.
 			st.Objects, st.Adopted = inventory, true
-			st.Phase, st.Message = v1alpha1.AddonError, err.Error()+"; the objects were applied, the hook is retried"
+			st.Phase, st.Message = v1alpha1.AddonError, M("%s; the objects were applied, the hook is retried", err.Error())
 			_ = r.saveStatus(ctx, &a, st)
 			return ctrl.Result{RequeueAfter: addonResync}, nil
 		}
@@ -173,9 +176,9 @@ func (r *AddonReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	st.Objects, st.LastSynced, st.Adopted = inventory, &now, true
 	st.AppliedSyncRequest = a.Spec.SyncRequest
 	st.Phase = v1alpha1.AddonSynced
-	st.Message = fmt.Sprintf("%d objects in sync", len(inventory))
+	st.Message = M("%d objects in sync", len(inventory))
 	if pending > 0 {
-		st.Message = fmt.Sprintf("applied: %d created, %d updated, %d pruned; %d objects in sync", preview.Create, preview.Update, preview.Prune, len(inventory))
+		st.Message = M("applied: %d created, %d updated, %d pruned; %d objects in sync", preview.Create, preview.Update, preview.Prune, len(inventory))
 	}
 	// What is live now matches; keep only the counts of what was done.
 	st.Preview = &v1alpha1.Preview{Unchanged: len(inventory)}
@@ -440,7 +443,7 @@ func (r *AddonReconciler) finalize(ctx context.Context, a *v1alpha1.Addon) error
 		st := a.Status.DeepCopy()
 		if err := r.runHooks(ctx, a, st, hooks, "pre-delete"); err != nil {
 			st.Phase = v1alpha1.AddonError
-			st.Message = "uninstall stopped: " + err.Error() + ". Remove the rendimiento.ai/uninstall annotation to stop managing it without uninstalling."
+			st.Message = M("uninstall stopped: %s. Remove the rendimiento.ai/uninstall annotation to stop managing it without uninstalling.", err.Error())
 			_ = r.saveStatus(ctx, a, st)
 			return err
 		}

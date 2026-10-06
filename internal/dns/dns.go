@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // --8<-- [start:provider]
@@ -59,8 +61,8 @@ func (Noop) Zones(context.Context) ([]string, error) { return nil, nil }
 
 // Describe reports that no DNS provider is configured.
 func (Noop) Describe(context.Context) Description {
-	return Description{ID: "manual", Name: "Manual DNS", Healthy: false,
-		Detail: "No DNS provider configured: create a DNS record by hand for each app domain."}
+	return Description{ID: "manual", Name: M("Manual DNS"), Healthy: false,
+		Detail: M("No DNS provider configured: create a DNS record by hand for each app domain.")}
 }
 
 // Cloudflare implements Provider with the Cloudflare v4 API and a scoped API token
@@ -142,16 +144,16 @@ func (c *Cloudflare) Describe(ctx context.Context) Description {
 		Status string `json:"status"`
 	}
 	if err := c.do(ctx, http.MethodGet, "/user/tokens/verify", nil, &tok); err != nil {
-		d.Detail = "API token rejected: " + err.Error()
+		d.Detail = M("API token rejected: %s", err.Error())
 		return d
 	}
 	if tok.Status != "active" {
-		d.Detail = "API token is " + tok.Status
+		d.Detail = M("API token is %s", tok.Status)
 		return d
 	}
 	zones, err := c.Zones(ctx)
 	if err != nil {
-		d.Detail = "token is valid but zones could not be listed: " + err.Error()
+		d.Detail = M("token is valid but zones could not be listed: %s", err.Error())
 		return d
 	}
 	d.Healthy, d.Zones = true, zones
@@ -162,17 +164,17 @@ func (c *Cloudflare) Describe(ctx context.Context) Description {
 	target := c.Target
 	if c.auto() {
 		st := c.DDNSStatus()
-		target = "public IP " + st.IP + " (auto-detected)"
+		target = M("public IP %s (auto-detected)", st.IP)
 		if st.IP == "" {
-			target = "public IP (not detected yet)"
+			target = M("public IP (not detected yet)")
 		}
 		if st.Error != "" {
 			d.Healthy = false
-			d.Detail = fmt.Sprintf("token active; %d zone(s); public IP detection failing: %s", len(zones), st.Error)
+			d.Detail = M("token active; %d zone(s); public IP detection failing: %s", len(zones), st.Error)
 			return d
 		}
 	}
-	d.Detail = fmt.Sprintf("token active; %d zone(s); new apps get %s records → %s", len(zones), kind, target)
+	d.Detail = M("token active; %d zone(s); new apps get %s records → %s", len(zones), kind, target)
 	if c.Proxied {
 		d.Detail += " (proxied)"
 	}

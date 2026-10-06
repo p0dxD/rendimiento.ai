@@ -345,7 +345,7 @@ function VerificationBanner({ name }: { name: string }) {
     return <div className="alert" style={{ marginTop: 12 }}>{t("Release #{n} failed verification: {msg}", { n: newest.number, msg: newest.verifyMessage ?? "" })}</div>;
   }
   if (recent && newest.verifyStatus === "blocked") {
-    return <div className="alert" style={{ marginTop: 12 }}>{t("Release #{n} was not deployed: a pre-deploy task failed ({msg}). The app keeps running its current release.", { n: newest.number, msg: newest.verifyMessage?.replace(/^not deployed: /, "") ?? "" })}</div>;
+    return <div className="alert" style={{ marginTop: 12 }}>{t("Release #{n} was not deployed: a pre-deploy task failed ({msg}). The app keeps running its current release.", { n: newest.number, msg: newest.verifyMessage?.replace(/^(not deployed|sin desplegar): /, "") ?? "" })}</div>;
   }
   return null;
 }

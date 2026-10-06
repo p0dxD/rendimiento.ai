@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/p0dxD/rendimiento.ai/internal/i18n"
 )
 
 // Tone is a message's severity: it sets its color and label.
@@ -70,6 +72,8 @@ type Notifier struct {
 	// OnSent, if set, is called after each email that was sent; the
 	// platform uses it to resolve earlier send failures (MsgSendFailed).
 	OnSent func()
+	// Lang is the language of the emails (NOTIFY_LANG); English by default.
+	Lang i18n.Lang
 
 	mu   sync.Mutex
 	sent map[string]time.Time
@@ -144,11 +148,11 @@ func (n *Notifier) Send(ctx context.Context, m Message) error {
 	if !n.Enabled() {
 		return errors.New("email notifications are not configured (NOTIFY_EMAIL_TO and RESEND_API_KEY)")
 	}
-	html, text, err := Render(m)
+	html, text, err := render(Localize(m, n.Lang), n.Lang)
 	if err != nil {
 		return err
 	}
-	if err := n.Sender.Send(ctx, n.To, m.Subject, html, text); err != nil {
+	if err := n.Sender.Send(ctx, n.To, i18n.Translate(n.Lang, m.Subject), html, text); err != nil {
 		return err
 	}
 	if n.OnSent != nil {
@@ -163,28 +167,53 @@ const MsgSendFailed = "notification email failed"
 // ---- rendering ----
 
 var tones = map[Tone]struct{ Color, Soft, Label string }{
-	Critical: {"#d03b3b", "#fdecec", "Needs attention"},
-	Warning:  {"#b7791f", "#fdf4e3", "Warning"},
-	Good:     {"#0f8a0f", "#e8f6e8", "Resolved"},
-	Info:     {"#2a78d6", "#e9f1fb", "Info"},
+	Critical: {"#d03b3b", "#fdecec", i18n.M("Needs attention")},
+	Warning:  {"#b7791f", "#fdf4e3", i18n.M("Warning")},
+	Good:     {"#0f8a0f", "#e8f6e8", i18n.M("Resolved")},
+	Info:     {"#2a78d6", "#e9f1fb", i18n.M("Info")},
 }
 
-// Render returns m as an email-safe HTML page and as plain text.
-func Render(m Message) (string, string, error) {
+// Localize translates a message's text for people into lang: subject,
+// title, summary, facts, details (line by line) and the action.
+func Localize(m Message, lang i18n.Lang) Message {
+	if lang != i18n.Spanish {
+		return m
+	}
+	tr := func(s string) string { return i18n.Translate(lang, s) }
+	m.Subject, m.Title, m.Summary, m.ActionLabel = tr(m.Subject), tr(m.Title), tr(m.Summary), tr(m.ActionLabel)
+	facts := make([]Fact, len(m.Facts))
+	for i, f := range m.Facts {
+		facts[i] = Fact{Label: tr(f.Label), Value: tr(f.Value)}
+	}
+	m.Facts = facts
+	lines := strings.Split(m.Details, "\n")
+	for i, l := range lines {
+		lines[i] = tr(l)
+	}
+	m.Details = strings.Join(lines, "\n")
+	return m
+}
+
+// Render returns m as an email-safe HTML page and as plain text, in English.
+func Render(m Message) (string, string, error) { return render(m, i18n.English) }
+
+func render(m Message, lang i18n.Lang) (string, string, error) {
 	t, ok := tones[m.Tone]
 	if !ok {
 		t = tones[Info]
 	}
+	label := i18n.Translate(lang, t.Label)
+	footer := i18n.Translate(lang, i18n.M("Sent by rendimiento.ai, your CI/CD platform. You get these because you are set as NOTIFY_EMAIL_TO."))
 	var html bytes.Buffer
 	err := page.Execute(&html, struct {
 		Message
-		Color, Soft, Label string
-	}{m, t.Color, t.Soft, t.Label})
+		Color, Soft, Label, Lang, Footer string
+	}{m, t.Color, t.Soft, label, string(lang), footer})
 	if err != nil {
 		return "", "", err
 	}
 	var text strings.Builder
-	fmt.Fprintf(&text, "%s\n%s\n\n%s\n", strings.ToUpper(t.Label), m.Title, m.Summary)
+	fmt.Fprintf(&text, "%s\n%s\n\n%s\n", strings.ToUpper(label), m.Title, m.Summary)
 	if len(m.Facts) > 0 {
 		text.WriteString("\n")
 		for _, f := range m.Facts {
@@ -197,14 +226,14 @@ func Render(m Message) (string, string, error) {
 	if m.ActionURL != "" {
 		fmt.Fprintf(&text, "\n%s: %s\n", m.ActionLabel, m.ActionURL)
 	}
-	text.WriteString("\n-- \nrendimiento.ai · sent by your CI/CD platform\n")
+	text.WriteString("\n-- \n" + i18n.Translate(lang, i18n.M("rendimiento.ai · sent by your CI/CD platform")) + "\n")
 	return html.String(), text.String(), nil
 }
 
 // The layout uses tables and inline styles only: what Gmail, Outlook and
 // Apple Mail render the same way. 560px wide, fluid on phones.
 var page = template.Must(template.New("email").Parse(`<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="{{.Lang}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">
 <title>{{.Subject}}</title></head>
 <body style="margin:0;padding:0;background:#f4f4f6;">
@@ -239,7 +268,7 @@ var page = template.Must(template.New("email").Parse(`<!doctype html>
       <a href="{{.ActionURL}}" style="display:inline-block;background:#16161d;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:11px 18px;border-radius:8px;">{{.ActionLabel}} &rarr;</a>
     </td></tr>{{end}}
     <tr><td style="padding:26px 28px 24px;">
-      <p style="margin:0;font-size:12px;line-height:1.5;color:#8a8a99;border-top:1px solid #ececf1;padding-top:14px;">Sent by rendimiento.ai, your CI/CD platform. You get these because you are set as NOTIFY_EMAIL_TO.</p>
+      <p style="margin:0;font-size:12px;line-height:1.5;color:#8a8a99;border-top:1px solid #ececf1;padding-top:14px;">{{.Footer}}</p>
     </td></tr>
   </table>
 </td></tr></table>

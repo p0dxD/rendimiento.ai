@@ -161,7 +161,7 @@ func (s *Server) Handler() http.Handler {
 	auth("GET /api/runs/{id}/events", s.runEvents)
 
 	mux.Handle("/", s.ui())
-	return s.guard(mux)
+	return s.guard(localized(mux))
 }
 
 // guard adds security headers and rejects cross-site state changes. The

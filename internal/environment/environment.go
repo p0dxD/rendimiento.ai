@@ -15,6 +15,8 @@ import (
 
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+
+	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // Status is the state of one check or provider.
@@ -260,19 +262,30 @@ func (c *Checker) build(ctx context.Context) *Report {
 		}
 	}
 	switch {
-	case blocking > 0:
-		r.Summary = plural(blocking, "required component needs", "required components need") + " attention before apps can deploy reliably"
+	case blocking == 1:
+		r.Summary = M("1 required component needs attention before apps can deploy reliably")
+	case blocking > 1:
+		r.Summary = M("%d required components need attention before apps can deploy reliably", blocking)
 	case warnings > 0 || len(r.Problems) > 0:
 		r.Overall = worst(r.Overall, Warning)
-		r.Summary = "Ready to deploy"
-		if warnings > 0 {
-			r.Summary += "; " + plural(warnings, "optional item", "optional items") + " to review"
+		items := M("%d optional items", warnings)
+		if warnings == 1 {
+			items = M("1 optional item")
 		}
-		if len(r.Problems) > 0 {
-			r.Summary += "; " + plural(len(r.Problems), "unhealthy workload or certificate", "unhealthy workloads or certificates") + " in the cluster"
+		unhealthy := M("%d unhealthy workloads or certificates", len(r.Problems))
+		if len(r.Problems) == 1 {
+			unhealthy = M("1 unhealthy workload or certificate")
+		}
+		switch {
+		case warnings > 0 && len(r.Problems) > 0:
+			r.Summary = M("Ready to deploy; %s to review; %s in the cluster", items, unhealthy)
+		case warnings > 0:
+			r.Summary = M("Ready to deploy; %s to review", items)
+		default:
+			r.Summary = M("Ready to deploy; %s in the cluster", unhealthy)
 		}
 	default:
-		r.Summary = "Everything rendimiento needs is installed and healthy"
+		r.Summary = M("Everything rendimiento needs is installed and healthy")
 	}
 	return r
 }

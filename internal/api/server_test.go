@@ -364,3 +364,21 @@ func TestProblemsAPI(t *testing.T) {
 		t.Fatalf("after dismissing: %s", body)
 	}
 }
+
+// A browser that asks for Spanish gets the platform's messages in Spanish;
+// names and English requests are left alone.
+func TestSpanishAnswers(t *testing.T) {
+	e := newEnv(t, true)
+	ctx := context.Background()
+	_ = e.s.Store.RecordProblem(ctx, store.Problem{Fingerprint: "n", Level: "WARN", Component: "notify", App: "Nodes",
+		Message: "notification email failed", Resolution: "", LastAt: time.Now()})
+	me := e.session(t, "p0dxD")
+	_, es := e.do(t, "GET", "/api/problems", "", me, map[string]string{"Accept-Language": "es-MX,es;q=0.9"})
+	if !strings.Contains(es, `"message":"falló el correo de notificación"`) || !strings.Contains(es, `"app":"Nodes"`) {
+		t.Fatalf("Spanish answer: %s", es)
+	}
+	_, en := e.do(t, "GET", "/api/problems", "", me, map[string]string{"Accept-Language": "en-US"})
+	if !strings.Contains(en, `"message":"notification email failed"`) {
+		t.Fatalf("English answer: %s", en)
+	}
+}

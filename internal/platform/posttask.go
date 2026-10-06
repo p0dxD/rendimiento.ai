@@ -21,6 +21,8 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
+
+	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // Post-deploy tasks run against a release once it is live: a Kubernetes
@@ -90,7 +92,7 @@ func (p *Platform) runStage(ctx context.Context, app *store.App, rel *store.Rele
 				}
 			}
 			if blocked != "" {
-				r := store.ReleaseTask{ReleaseID: rel.ID, Name: t.Name, Stage: stage, Optional: t.Optional, Status: store.TaskSkipped, Message: blocked + " did not succeed"}
+				r := store.ReleaseTask{ReleaseID: rel.ID, Name: t.Name, Stage: stage, Optional: t.Optional, Status: store.TaskSkipped, Message: M("%s did not succeed", blocked)}
 				p.saveTask(r)
 				results[t.Name], done[t.Name] = r, true
 				continue
@@ -143,12 +145,12 @@ func judgeTasks(results []store.ReleaseTask) (failures, warnings []string) {
 		if stage == "" {
 			stage = spec.StagePostDeploy
 		}
-		line := fmt.Sprintf("%s task %s %s", stage, r.Name, r.Status)
+		line := M("%s task %s %s", stage, r.Name, r.Status)
 		if r.Message != "" {
-			line += ": " + r.Message
+			line = M("%s task %s %s: %s", stage, r.Name, r.Status, r.Message)
 		}
 		if r.Optional {
-			warnings = append(warnings, line+" (optional)")
+			warnings = append(warnings, M("%s (optional)", line))
 		} else {
 			failures = append(failures, line)
 		}
@@ -265,7 +267,7 @@ func taskJob(app string, rel *store.Release, t spec.Task, base *corev1.Container
 // its log.
 func (p *Platform) runTaskJob(ctx context.Context, app *store.App, rel *store.Release, t spec.Task) store.ReleaseTask {
 	fail := func(format string, a ...any) store.ReleaseTask {
-		return store.ReleaseTask{Status: store.TaskFailed, Message: fmt.Sprintf(format, a...)}
+		return store.ReleaseTask{Status: store.TaskFailed, Message: M(format, a...)}
 	}
 	if p.Clientset == nil {
 		return fail("post-deploy tasks need the platform's Kubernetes clientset")
@@ -307,7 +309,7 @@ func (p *Platform) runTaskJob(ctx context.Context, app *store.App, rel *store.Re
 		_, _ = io.Copy(&lockedWriter{w: &logBuf, mu: &logMu}, rc)
 	}()
 
-	result := store.ReleaseTask{Status: store.TaskFailed, Message: "timed out"}
+	result := store.ReleaseTask{Status: store.TaskFailed, Message: M("timed out")}
 	for wctx.Err() == nil {
 		j, err := jobs.Get(wctx, job.Name, metav1.GetOptions{})
 		if err == nil {
@@ -377,12 +379,12 @@ func jobFailure(j *batchv1.Job) string {
 	for _, c := range j.Status.Conditions {
 		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue {
 			if c.Reason == "DeadlineExceeded" {
-				return "timed out"
+				return M("timed out")
 			}
 			return strings.TrimSpace(c.Reason + " " + c.Message)
 		}
 	}
-	return "the task failed"
+	return M("the task failed")
 }
 
 func lastLines(s string, n int) string {

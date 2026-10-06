@@ -37,6 +37,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/events"
 	"github.com/p0dxD/rendimiento.ai/internal/generate"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/p0dxD/rendimiento.ai/internal/i18n"
 	"github.com/p0dxD/rendimiento.ai/internal/logarchive"
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
@@ -267,7 +268,7 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		uptime.Register(ctrlmetrics.Registry)
 	}
 	// Email notifications: failed runs, rollbacks, outages, recoveries.
-	notifier := &notify.Notifier{To: splitList(os.Getenv("NOTIFY_EMAIL_TO")), Log: log.With("component", "notify")}
+	notifier := &notify.Notifier{To: splitList(os.Getenv("NOTIFY_EMAIL_TO")), Log: log.With("component", "notify"), Lang: i18n.Parse(env("NOTIFY_LANG", "en"))}
 	if key := os.Getenv("RESEND_API_KEY"); key != "" {
 		notifier.Sender = &notify.Resend{APIKey: key, From: env("NOTIFY_EMAIL_FROM", "rendimiento <alerts@joserod.space>")}
 	}
@@ -315,13 +316,13 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 				if err == nil {
 					err = fmt.Errorf("bucket %q does not exist", logBucket.Bucket)
 				}
-				return false, "cannot reach the archive: " + err.Error()
+				return false, i18n.M("cannot reach the archive: %s", err.Error())
 			}
 			n, size, pending, err := st.ArchiveStats(ctx)
 			if err != nil {
 				return false, err.Error()
 			}
-			return true, fmt.Sprintf("%d step logs archived (%.1f MB of text) in %s/%s, %d waiting; kept %d days", n, float64(size)/1e6, endpoint, logBucket.Bucket, pending, days)
+			return true, i18n.M("%d step logs archived (%.1f MB of text) in %s/%s, %d waiting; kept %d days", n, float64(size)/1e6, endpoint, logBucket.Bucket, pending, days)
 		}
 	}
 

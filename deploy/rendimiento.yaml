@@ -44,6 +44,7 @@ data:
   # Failed builds, rolled-back releases, outages and recoveries are emailed
   # here, through Resend (RESEND_API_KEY in the rendimiento-notify secret).
   NOTIFY_EMAIL_TO: you@example.com
+  NOTIFY_LANG: en                # en | es (Mexican Spanish)
   NOTIFY_EMAIL_FROM: rendimiento <alerts@example.com>
   # GET /api/public/stats: aggregate numbers for a public page (a portfolio,
   # a status page), served only on the internal port 8081 (the Service's

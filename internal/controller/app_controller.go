@@ -28,6 +28,8 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
+
+	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 const (
@@ -95,10 +97,10 @@ var errBlocked = errors.New("blocked")
 func (r *AppReconciler) sync(ctx context.Context, app *v1alpha1.App, st *v1alpha1.AppStatus) (ctrl.Result, error) {
 	switch {
 	case app.Spec.Suspend:
-		st.Phase, st.Message = v1alpha1.PhaseSuspended, "reconciliation suspended"
+		st.Phase, st.Message = v1alpha1.PhaseSuspended, M("reconciliation suspended")
 		return ctrl.Result{}, nil
 	case len(app.Spec.Images) == 0:
-		st.Phase, st.Message = v1alpha1.PhaseWaiting, "waiting for the first successful build"
+		st.Phase, st.Message = v1alpha1.PhaseWaiting, M("waiting for the first successful build")
 		return ctrl.Result{}, nil
 	}
 
@@ -162,7 +164,7 @@ func (r *AppReconciler) sync(ctx context.Context, app *v1alpha1.App, st *v1alpha
 		}
 		if !done {
 			st.Phase = v1alpha1.PhaseProgressing
-			st.Message = "migrating: new pods are starting; traffic still goes to the existing deployment"
+			st.Message = M("migrating: new pods are starting; traffic still goes to the existing deployment")
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 		}
 	}
@@ -192,7 +194,7 @@ func (r *AppReconciler) sync(ctx context.Context, app *v1alpha1.App, st *v1alpha
 				dep.Status.Replicas > dep.Status.UpdatedReplicas || dep.Status.AvailableReplicas < ss.Replicas {
 				healthy = false
 				if dep.Status.Replicas > dep.Status.UpdatedReplicas && ss.Message == "" {
-					ss.Message = fmt.Sprintf("rolling out: %d old pod(s) still serving", dep.Status.Replicas-dep.Status.UpdatedReplicas)
+					ss.Message = M("rolling out: %d old pod(s) still serving", dep.Status.Replicas-dep.Status.UpdatedReplicas)
 				}
 			}
 			if msg := r.crashLooping(ctx, &dep); msg != "" {
@@ -224,13 +226,13 @@ func (r *AppReconciler) sync(ctx context.Context, app *v1alpha1.App, st *v1alpha
 	}
 	switch {
 	case st.Phase == v1alpha1.PhaseDegraded:
-		st.Message = "a rollout failed; see service messages"
+		st.Message = M("a rollout failed; see service messages")
 		return ctrl.Result{RequeueAfter: time.Minute}, nil
 	case healthy:
 		st.Phase, st.Message = v1alpha1.PhaseHealthy, ""
 		return ctrl.Result{RequeueAfter: 5 * time.Minute}, nil
 	default:
-		st.Phase, st.Message = v1alpha1.PhaseProgressing, "rolling out"
+		st.Phase, st.Message = v1alpha1.PhaseProgressing, M("rolling out")
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 	}
 }

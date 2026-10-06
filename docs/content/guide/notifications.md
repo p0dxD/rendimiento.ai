@@ -44,6 +44,7 @@ kubectl -n rendimiento-system create secret generic rendimiento-notify --from-li
 | Setting | Where | Meaning |
 |---|---|---|
 | `NOTIFY_EMAIL_TO` | ConfigMap `rendimiento` | Recipients, comma-separated. Empty turns email off. |
+| `NOTIFY_LANG` | ConfigMap `rendimiento` | `en` (default) or `es`: the [language](languages.md) of the emails. |
 | `NOTIFY_EMAIL_FROM` | ConfigMap | Sender (default `rendimiento <alerts@joserod.space>`); must be on a verified domain. |
 | `RESEND_API_KEY` | Secret `rendimiento-notify` | The Resend API key. |
 

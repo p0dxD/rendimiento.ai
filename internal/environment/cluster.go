@@ -12,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // snapshot is read once per report and shared by the checks.
@@ -181,24 +183,24 @@ func podProblems(pods []corev1.Pod, now time.Time) []Problem {
 		switch {
 		case reason != "":
 		case p.Status.Phase == corev1.PodFailed:
-			reason = "Failed"
+			reason = M("Failed")
 			if p.Status.Reason != "" {
-				reason += ": " + p.Status.Reason
+				reason = M("Failed: %s", p.Status.Reason)
 			}
 			for _, cs := range p.Status.ContainerStatuses {
 				if t := cs.State.Terminated; t != nil && t.ExitCode != 0 {
-					reason = fmt.Sprintf("Failed: %s exited with code %d", cs.Name, t.ExitCode)
+					reason = M("Failed: %s exited with code %d", cs.Name, t.ExitCode)
 				}
 			}
 		case p.Status.Phase == corev1.PodPending && age > 5*time.Minute:
-			reason = "Pending for " + age.Round(time.Minute).String()
+			reason = M("Pending for %s", age.Round(time.Minute).String())
 			for _, cond := range p.Status.Conditions {
 				if cond.Type == corev1.PodScheduled && cond.Status == corev1.ConditionFalse && cond.Message != "" {
-					reason = "Unschedulable: " + cond.Message
+					reason = M("Unschedulable: %s", cond.Message)
 				}
 			}
 		case p.Status.Phase == corev1.PodUnknown:
-			reason = "Unknown (node unreachable?)"
+			reason = M("Unknown (node unreachable?)")
 		}
 		if reason == "" {
 			continue
@@ -206,7 +208,7 @@ func podProblems(pods []corev1.Pod, now time.Time) []Problem {
 		kind := "Pod"
 		for _, o := range p.OwnerReferences {
 			if o.Kind == "Job" {
-				kind = "Job pod"
+				kind = M("Job pod")
 			}
 		}
 		out = append(out, Problem{Kind: kind, Namespace: p.Namespace, Name: p.Name, Reason: reason, Since: p.CreationTimestamp.Time})
@@ -238,20 +240,13 @@ func (c *Checker) certificateProblems(ctx context.Context) (int, []Problem) {
 		switch {
 		case !ready:
 			if msg == "" {
-				msg = "not ready"
+				msg = M("not ready")
 			}
 			out = append(out, Problem{Kind: "Certificate", Namespace: item.GetNamespace(), Name: item.GetName(), Reason: msg})
 		case !expiry.IsZero() && time.Until(expiry) < 14*24*time.Hour:
 			out = append(out, Problem{Kind: "Certificate", Namespace: item.GetNamespace(), Name: item.GetName(),
-				Reason: fmt.Sprintf("expires in %s and has not renewed", time.Until(expiry).Round(time.Hour))})
+				Reason: M("expires in %s and has not renewed", time.Until(expiry).Round(time.Hour).String())})
 		}
 	}
 	return len(list.Items), out
-}
-
-func plural(n int, one, many string) string {
-	if n == 1 {
-		return "1 " + one
-	}
-	return fmt.Sprintf("%d %s", n, many)
 }
