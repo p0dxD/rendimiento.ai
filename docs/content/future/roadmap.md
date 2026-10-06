@@ -39,6 +39,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 - An add-on engine (Helm and kustomize from git), with previews, safety gates and Helm hooks, which replaced ArgoCD
 - Renovate as an add-on, which replaced the CronJob
 - ArgoCD and Jenkins uninstalled (2026-09-28)
+- A new look: Cotija, pueblo mágico. By day whitewashed walls, roof tiles, papel picado and the grana guardapolvo; by night an añil sky, faroles and alebrije colors. Every app is a cempasúchil that withers in an outage and revives when it comes back; petals fall when a release goes live. Movement can be switched off and follows the device's reduce-motion setting (2026-10-06)
 - Mexican Spanish: the UI with an EN/ES switch, the platform's messages translated when shown (stored ones too), and emails in the language of `NOTIFY_LANG` (2026-10-05)
 - Problems resolve themselves when rendimiento sees the fix: a later push accepted, a later email sent (2026-10-05)
 - The Problems page: the platform's own warnings and errors, grouped, with a count in the top bar and a banner on the app concerned; an invalid `rendimiento.yaml` is a failed run, a red check on GitHub and an email (2026-10-05)

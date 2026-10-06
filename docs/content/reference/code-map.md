@@ -15,7 +15,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/api`](#internal-api) | 12 | 2668 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 12 | 2690 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 887 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2738 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 430 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
@@ -24,7 +24,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/events`](#internal-events) | 2 | 80 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 278 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1164 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/i18n`](#internal-i18n) | 3 | 659 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
+| [`internal/i18n`](#internal-i18n) | 3 | 696 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 308 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
 | [`internal/notify`](#internal-notify) | 2 | 447 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
 | [`internal/pipeline`](#internal-pipeline) | 7 | 1605 | Package pipeline plans and executes CI runs. |
@@ -257,7 +257,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/i18n.go`
 
-<small>87 lines</small>
+<small>88 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -343,7 +343,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1119 lines</small>
+<small>1140 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -374,6 +374,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `(*Server) dnsSync` | method | dnsSync re-detects the public IP now and repoints records that follow it. |
 | `(*Server) migration` | method | migration tells the wizard whether an app name matches a namespace that already runs something (so it can be migrated instead of duplicated). |
 | `appView` | struct |  |
+| `(*Server) downChecks` | method | downChecks maps each app to its checks with an open outage. |
 | `(*Server) view` | method |  |
 | `(*Server) listApps` | method |  |
 | `(*Server) createApp` | method |  |
@@ -969,11 +970,11 @@ Package i18n translates the platform's messages for people: the API's answers to
 
 ### `internal/i18n/es.go`
 
-<small>373 lines</small>
+<small>374 lines</small>
 
 ### `internal/i18n/i18n.go`
 
-<small>192 lines</small>
+<small>223 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -986,12 +987,13 @@ Package i18n translates the platform's messages for people: the API's answers to
 | `compile` | func |  |
 | `Translate` | func | Translate returns msg in lang. |
 | `sprintfStrings` | func | sprintfStrings formats the Spanish format with values captured as text: every verb becomes %s, so numbers keep the form they had. |
-| `TranslateExact` | func | TranslateExact translates only a message the catalog has word for word (labels and names), never through a pattern. |
+| `TranslateExact` | func | TranslateExact translates only a message the catalog has word for word, never through a pattern. |
+| `TranslateLabel` | func | TranslateLabel translates a short label (a name, a title): word for word, or through a pattern with enough fixed text of its own. |
 | `(Lang) T` | method | T translates when the language is Spanish; a shorthand for handlers. |
 
 ### `internal/i18n/i18n_test.go`
 
-<small>94 lines · tests</small>
+<small>99 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1824,7 +1826,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>677 lines</small>
+<small>678 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1892,6 +1894,24 @@ Package web embeds the built UI (npm run build → web/dist).
 | `AddonCatalogEntry` | interface |  |
 | `AddonDefinition` | interface |  |
 | `installedApi` | const |  |
+
+### `web/src/components/ambiente.tsx`
+
+<small>176 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Tema` | type | ---- day / night and movement ---- |
+| `guardar` | function |  |
+| `temaActual` | function | The theme in effect: the one picked, else the device's. |
+| `TemaSwitch` | component | Día / Noche: switches the theme and remembers it in this browser. |
+| `MovimientoSwitch` | component | Movement on / off (the papel picado, the flowers, the candles). |
+| `Techo` | component | Roof tiles and papel picado; at night every fourth flag is a farol. |
+| `Cielo` | component | Stars and the moon behind everything; shown only at night. |
+| `Guardapolvo` | component | The guardapolvo band at the foot of every page. |
+| `FlorEstado` | type | ---- the cempasúchil ---- |
+| `Flor` | component | A cempasúchil: alive (it breathes), withered (it droops and drops |
+| `LluviaDePetalos` | component | A burst of petals over the page, for a release that just went live. |
 
 ### `web/src/components/delivery.tsx`
 
@@ -1971,7 +1991,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>582 lines</small>
+<small>600 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1979,7 +1999,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/main.tsx`
 
-<small>123 lines</small>
+<small>129 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1999,7 +2019,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/AppPage.tsx`
 
-<small>448 lines</small>
+<small>451 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2021,10 +2041,11 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Dashboard.tsx`
 
-<small>70 lines</small>
+<small>110 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
+| `marchita` | function | An app is withered while one of its checks is in an outage, or its |
 | `Dashboard` | component |  |
 
 ### `web/src/pages/Environment.tsx`

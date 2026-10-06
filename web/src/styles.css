@@ -1,47 +1,115 @@
+/* Cotija, pueblo mágico. De día: muros encalados, teja de barro, guardapolvo
+   grana, papel picado. De noche: cielo añil, faroles, adobe y alebrijes.
+   The theme follows the device (prefers-color-scheme) unless the person
+   picks one in the top bar: <html data-theme="day|night">. Movement can be
+   switched off (<html data-motion="off">) and respects prefers-reduced-motion. */
 :root {
-  --bg: #f7f7f9;
-  --surface: #ffffff;
-  --surface-2: #f0f0f4;
-  --border: #e3e3ea;
-  --text: #16161d;
-  --muted: #6b6b7b;
-  --accent: #4f46e5;
+  /* Palette: grana cochinilla, teja, añil, cempasúchil, maíz, nopal, rosa mexicano. */
+  --grana: #8E1B2C;
+  --teja: #B5532A;
+  --anil: #23408E;
+  --cempasuchil: #E8890C;
+  --cempasuchil-2: #F2A93B;
+  --maiz: #E9B824;
+  --nopal: #3E7B3A;
+  --rosa: #D6246E;
+  --terciopelo: #6B1E4A;
+
+  --bg: #FBF5EA;
+  --surface: #FFFDF8;
+  --surface-2: #F4EADA;
+  --border: #E9DCC8;
+  --text: #2B1B12;
+  --muted: #6B5444;
+  --accent: #8E1B2C;
   --accent-text: #ffffff;
-  --ok: #15803d;
-  --ok-bg: #dcfce7;
-  --warn: #a16207;
-  --warn-bg: #fef9c3;
-  --bad: #b91c1c;
-  --bad-bg: #fee2e2;
-  --idle: #6b7280;
-  --idle-bg: #eef0f3;
-  --code-bg: #0f1117;
-  --code-text: #d7dae0;
-  --radius: 10px;
+  --link: #8E1B2C;
+  --ok: #2F6B2C;
+  --ok-bg: #E2F0DC;
+  --warn: #8A5300;
+  --warn-bg: #FBEBC7;
+  --bad: #B3261E;
+  --bad-bg: #FBE3DF;
+  --idle: #6B5444;
+  --idle-bg: #F1E7D8;
+  --code-bg: #1E1430;
+  --code-text: #EDE3D6;
+  --radius: 14px;
+  --flor-1: #E8890C;
+  --flor-2: #F2A93B;
+  --flor-centro: #7A3E0B;
+  --flor-glow: none;
+  --wall-band: var(--grana);
+  --display: "Fraunces", Georgia, serif;
+  --body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   color-scheme: light;
 }
 
+/* De noche. The same block twice: chosen, or following a dark device. */
+:root[data-theme="night"] {
+  --bg: #120F2A;
+  --surface: #211531;
+  --surface-2: #2A1C3D;
+  --border: #3A2A52;
+  --text: #F6EBDD;
+  --muted: #B8A9C9;
+  --accent: #F2A93B;
+  --accent-text: #2A0A12;
+  --link: #F2C14E;
+  --ok: #9EDB8A;
+  --ok-bg: #1E3320;
+  --warn: #F2C14E;
+  --warn-bg: #3A2E10;
+  --bad: #FF8A9A;
+  --bad-bg: #45121E;
+  --idle: #B8A9C9;
+  --idle-bg: #2A1C3D;
+  --code-bg: #0B0920;
+  --code-text: #E9E1F2;
+  --flor-1: #F2A93B;
+  --flor-2: #FFC35C;
+  --flor-centro: #8E1B2C;
+  --flor-glow: drop-shadow(0 0 8px rgba(242, 169, 59, .65));
+  --wall-band: #4A0E18;
+  color-scheme: dark;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0d0e12;
-    --surface: #15161c;
-    --surface-2: #1c1d25;
-    --border: #2a2b36;
-    --text: #ececf1;
-    --muted: #9a9aab;
-    --accent: #818cf8;
-    --accent-text: #0d0e12;
-    --ok: #4ade80;
-    --ok-bg: #12301f;
-    --warn: #facc15;
-    --warn-bg: #332b0c;
-    --bad: #f87171;
-    --bad-bg: #3a1515;
-    --idle: #9ca3af;
-    --idle-bg: #23252e;
+  :root:not([data-theme="day"]) {
+    --bg: #120F2A;
+    --surface: #211531;
+    --surface-2: #2A1C3D;
+    --border: #3A2A52;
+    --text: #F6EBDD;
+    --muted: #B8A9C9;
+    --accent: #F2A93B;
+    --accent-text: #2A0A12;
+    --link: #F2C14E;
+    --ok: #9EDB8A;
+    --ok-bg: #1E3320;
+    --warn: #F2C14E;
+    --warn-bg: #3A2E10;
+    --bad: #FF8A9A;
+    --bad-bg: #45121E;
+    --idle: #B8A9C9;
+    --idle-bg: #2A1C3D;
+    --code-bg: #0B0920;
+    --code-text: #E9E1F2;
+    --flor-1: #F2A93B;
+    --flor-2: #FFC35C;
+    --flor-centro: #8E1B2C;
+    --flor-glow: drop-shadow(0 0 8px rgba(242, 169, 59, .65));
+    --wall-band: #4A0E18;
     color-scheme: dark;
   }
+}
+
+/* Movement off: chosen in the top bar, or asked for by the device. */
+:root[data-motion="off"] *, :root[data-motion="off"] *::before, :root[data-motion="off"] *::after {
+  animation: none !important; transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
 * { box-sizing: border-box; }
@@ -49,9 +117,10 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 15px/1.55 var(--body);
 }
-a { color: var(--accent); text-decoration: none; }
+a { color: var(--link); text-decoration: none; }
+h1, h2, .brand-name { font-family: var(--display); letter-spacing: -0.01em; }
 a:hover { text-decoration: underline; }
 code, pre, .mono { font-family: var(--mono); font-size: 0.9em; }
 
@@ -65,8 +134,8 @@ code, pre, .mono { font-family: var(--mono); font-size: 0.9em; }
 .brand .logo { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; }
 .topbar .spacer { flex: 1; }
 
-main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 64px; }
-h1 { font-size: 24px; margin: 0 0 4px; }
+main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 64px; position: relative; }
+h1 { font-size: 34px; font-weight: 800; margin: 0 0 4px; line-height: 1.1; }
 h2 { font-size: 17px; margin: 28px 0 12px; }
 .sub { color: var(--muted); margin: 0 0 20px; }
 
@@ -309,3 +378,120 @@ textarea.code { width: 100%; min-height: 280px; font-family: var(--mono); font-s
 .rel-filters input[type="checkbox"] { width: auto; margin: 0; }
 .problem-resolved { color: var(--ok); white-space: nowrap; }
 .lang-switch { font-weight: 600; font-size: 12px; letter-spacing: .04em; min-width: 40px; }
+
+/* ---- Cotija: roof, papel picado, night sky, guardapolvo ---- */
+:root { --cede-display: block; --farol-display: none; --cielo-display: none; --bg-image: none; }
+:root[data-theme="night"] { --cede-display: none; --farol-display: block; --cielo-display: block;
+  --bg-image: linear-gradient(180deg, #0A1230 0%, #171238 45%, #22112E 100%); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="day"]) { --cede-display: none; --farol-display: block; --cielo-display: block;
+    --bg-image: linear-gradient(180deg, #0A1230 0%, #171238 45%, #22112E 100%); }
+}
+body { background-image: var(--bg-image); background-attachment: fixed; min-height: 100vh; display: flex; flex-direction: column; }
+#root { flex: 1; display: flex; flex-direction: column; }
+#root > main { flex: 1; width: 100%; }
+
+.techo { position: relative; z-index: 6; }
+.techo-viga { height: 10px; background: #6E2E14; }
+:root[data-theme="night"] .techo-viga { background: #1A0D0A; }
+.techo-tejas { height: 22px; background: radial-gradient(circle at 50% 0, var(--teja) 0 13px, #8A3A1A 13px 15px, transparent 16px) 0 0 / 30px 22px; }
+:root[data-theme="night"] .techo-tejas { background: radial-gradient(circle at 50% 0, #4A2216 0 13px, #2A140D 13px 15px, transparent 16px) 0 0 / 30px 22px; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="day"]) .techo-viga { background: #1A0D0A; }
+  :root:not([data-theme="day"]) .techo-tejas { background: radial-gradient(circle at 50% 0, #4A2216 0 13px, #2A140D 13px 15px, transparent 16px) 0 0 / 30px 22px; }
+}
+.papel-picado { display: flex; gap: 6px; padding: 0 12px; height: 56px; position: relative; }
+.papel-picado::before { content: ""; position: absolute; left: 0; right: 0; top: 2px; height: 2px; background: currentColor; opacity: .25; }
+.hueco { flex: 1; display: flex; justify-content: center; min-width: 0; }
+.bandera {
+  display: block; width: 100%; height: 46px; margin-top: 3px; position: relative;
+  clip-path: polygon(0 0, 100% 0, 100% 76%, 87.5% 100%, 75% 76%, 62.5% 100%, 50% 76%, 37.5% 100%, 25% 76%, 12.5% 100%, 0 76%);
+  transform-origin: 50% 0; animation: mecer 3.4s ease-in-out infinite;
+}
+.bandera.cede { display: var(--cede-display); }
+.corte { position: absolute; background: var(--bg); }
+.corte.c1 { left: 50%; top: 11px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; }
+.corte.c2 { left: 16%; top: 8px; width: 6px; height: 6px; transform: rotate(45deg); }
+.corte.c3 { right: 16%; top: 8px; width: 6px; height: 6px; transform: rotate(45deg); }
+:root[data-theme="night"] .corte { background: #FFE2A0; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="day"]) .corte { background: #FFE2A0; } }
+:root[data-theme="night"] .bandera { opacity: .88; }
+.farol { display: var(--farol-display); position: relative; width: 22px; height: 44px; margin-top: 2px; }
+.farol::before { content: ""; position: absolute; left: 10px; top: 0; width: 2px; height: 9px; background: #8C7A66; }
+.farol i { position: absolute; left: 2px; top: 9px; width: 18px; height: 26px; border-radius: 8px 8px 10px 10px; background: #F2A93B; border: 2px solid var(--terciopelo); box-shadow: inset 0 0 6px #FFE2A0, 0 0 22px 8px rgba(255, 170, 70, .35); animation: farol 2.3s ease-in-out infinite; }
+@keyframes mecer { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+@keyframes farol { 0%, 100% { opacity: .78; } 45% { opacity: 1; } 70% { opacity: .86; } }
+
+.cielo { display: var(--cielo-display); position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(1.5px 1.5px at 12% 22%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(1px 1px at 28% 64%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(2px 2px at 44% 30%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(1px 1px at 58% 78%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 71% 18%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(1px 1px at 83% 52%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(2px 2px at 92% 36%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(1px 1px at 6% 86%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 36% 90%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(1px 1px at 64% 8%, #FFF6DC 50%, transparent 51%);
+  animation: titilar 4s ease-in-out infinite; }
+/* The moon sits in the right margin, clear of the content; narrow screens have no room for it. */
+.luna { position: absolute; right: 22px; top: 190px; width: 40px; height: 40px; border-radius: 50%; box-shadow: -9px 6px 0 0 #F6E7C1; filter: drop-shadow(0 0 14px rgba(246, 231, 193, .35)); }
+@media (max-width: 1300px) { .luna { display: none; } }
+@keyframes titilar { 0%, 100% { opacity: .65; } 50% { opacity: 1; } }
+
+.topbar { background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(8px); }
+.brand .logo { width: 30px; height: 30px; border-radius: 9px; background: var(--accent); }
+.brand-name { font-size: 20px; font-weight: 800; }
+.icon-btn { padding: 0; width: 38px; height: 38px; justify-content: center; border-radius: 999px; color: var(--muted); }
+.icon-btn:hover { color: var(--text); }
+.nav-link.active { box-shadow: inset 0 -3px 0 var(--cempasuchil); }
+
+.guardapolvo { margin-top: 32px; background: var(--wall-band); border-top: 4px solid var(--bg); box-shadow: 0 -3px 0 var(--wall-band); color: #FBE9D6; text-align: center; padding: 14px 16px; font-family: var(--display); font-weight: 600; font-size: 15px; letter-spacing: .02em; }
+
+/* ---- the cempasúchil ---- */
+.flor { position: relative; display: inline-block; flex: none; }
+.flor svg { display: block; overflow: visible; filter: var(--flor-glow); }
+.flor .p1, .flor .p2, .flor .centro { transition: fill 1.4s ease; }
+.flor .p1 { fill: var(--flor-1); } .flor .p2 { fill: var(--flor-2); } .flor .centro { fill: var(--flor-centro); }
+.flor-cabeza { transform-origin: 50% 50%; transform-box: fill-box; transition: transform 1.6s cubic-bezier(.5, 0, .3, 1); }
+.flor.viva .flor-cabeza { animation: respirar 3.2s ease-in-out infinite; }
+.flor.marchita svg { filter: none; }
+.flor.marchita .p1 { fill: #A88B6A; } .flor.marchita .p2 { fill: #BCA286; } .flor.marchita .centro { fill: #5E4A38; }
+.flor.marchita .flor-cabeza { transform: translate(6px, 10px) rotate(32deg) scale(.82); }
+.flor.reviviendo .flor-cabeza { animation: renacer 1.4s cubic-bezier(.3, 1.4, .5, 1); }
+.petalo-cae, .petalo-chispa { position: absolute; left: 45%; top: 55%; width: 9px; height: 6px; border-radius: 60% 40%; }
+.petalo-cae { background: #BCA286; animation: caer 2.6s ease-in infinite; }
+.petalo-chispa { background: var(--flor-1); animation: estallar 1.2s ease-out forwards; }
+@keyframes respirar { 0%, 100% { transform: scale(1) rotate(0); } 50% { transform: scale(1.06) rotate(5deg); } }
+@keyframes renacer { 0% { transform: scale(.7) rotate(-20deg); } 55% { transform: scale(1.16) rotate(8deg); } 100% { transform: scale(1) rotate(0); } }
+@keyframes caer { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 100% { transform: translate(var(--dx), 34px) rotate(140deg); opacity: 0; } }
+@keyframes estallar { 0% { transform: translate(0, 0) scale(.4); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 0; } }
+
+.lluvia { position: fixed; inset: 0; pointer-events: none; z-index: 30; overflow: hidden; }
+.lluvia i { position: absolute; top: -20px; width: 12px; height: 8px; border-radius: 60% 40%; animation: llover 2.4s ease-in forwards; }
+@keyframes llover { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 100% { transform: translate(var(--dx), 105vh) rotate(540deg); opacity: .2; } }
+
+/* ---- the apps, under the arches of the portales ---- */
+.portales { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.portal { position: relative; background: var(--surface); border: 2px solid var(--border); border-radius: 120px 120px 14px 14px; overflow: hidden; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 18px 18px 0; cursor: pointer; transition: transform .25s ease, box-shadow .25s ease; }
+.portal:hover { transform: translateY(-4px); box-shadow: 0 12px 26px -12px rgba(43, 27, 18, .35); }
+.portal:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.portal h3 { font-family: var(--display); font-size: 21px; font-weight: 800; margin: 6px 0 2px; }
+.portal .portal-body { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; padding-bottom: 14px; flex: 1; }
+.portal .portal-band { align-self: stretch; height: 18px; margin: 0 -18px; border-top: 3px solid var(--surface); }
+:root[data-theme="night"] .portal { box-shadow: 0 0 30px -14px var(--glow, transparent); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="day"]) .portal { box-shadow: 0 0 30px -14px var(--glow, transparent); } }
+.portal.caida { border-color: var(--bad); }
+.hero-vida { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 18px; }
+.hero-vida h1 { font-size: 46px; }
+.hero-vida h1 em { font-style: normal; color: var(--accent); }
+.latido { flex: none; }
+.latido path { stroke: var(--anil); stroke-dasharray: 700; animation: latido 2.8s ease-out infinite; }
+:root[data-theme="night"] .latido path { stroke: var(--cempasuchil-2); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="day"]) .latido path { stroke: var(--cempasuchil-2); } }
+@keyframes latido { 0% { stroke-dashoffset: 700; } 60%, 100% { stroke-dashoffset: 0; } }
+@media (max-width: 640px) {
+  .hero-vida h1 { font-size: 34px; } .latido { display: none; } .papel-picado { height: 44px; } .bandera { height: 36px; }
+  .topbar { gap: 8px 12px; } .topbar .nav-link { font-size: 14px; }
+}

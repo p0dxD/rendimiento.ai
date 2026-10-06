@@ -13,13 +13,14 @@ import { Services } from "./pages/Services";
 import { Addons } from "./pages/Addons";
 import { AddonDetail } from "./pages/Installed";
 import { Problems, ProblemsNavLink } from "./pages/Problems";
+import { Cielo, Guardapolvo, MovimientoSwitch, TemaSwitch, Techo } from "./components/ambiente";
 import "./styles.css";
 
 function Logo() {
   return (
     <span className="logo" aria-hidden>
-      <svg width="16" height="16" viewBox="0 0 32 32">
-        <path d="M5 24 L13 9 L19 18 L27 11" stroke="white" strokeWidth="4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <svg width="20" height="20" viewBox="0 0 32 32">
+        <path d="M3 17 L10 17 L13 9 L18 25 L21 17 L29 17" stroke="var(--accent-text)" strokeWidth="3.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>
   );
@@ -68,11 +69,11 @@ function Shell() {
       <div className="center">
         <div className="stack">
           <div className="row" style={{ justifyContent: "center" }}>
-            <span className="brand" style={{ fontSize: 22 }}><Logo /> rendimiento.ai</span>
+            <span className="brand" style={{ fontSize: 22 }}><Logo /> <span className="brand-name">rendimiento</span></span>
           </div>
           <p className="muted">{t("Connect a repo, press deploy, get a live HTTPS URL.")}</p>
           <a className="btn primary big" href="/api/auth/login">{t("Sign in with GitHub")}</a>
-          <div className="row" style={{ justifyContent: "center" }}><LangSwitch /></div>
+          <div className="row" style={{ justifyContent: "center" }}><LangSwitch /><TemaSwitch /><MovimientoSwitch /></div>
         </div>
       </div>
     );
@@ -80,8 +81,10 @@ function Shell() {
 
   return (
     <>
+      <Cielo />
+      <Techo />
       <header className="topbar">
-        <Link to="/" className="brand"><Logo /> rendimiento.ai</Link>
+        <Link to="/" className="brand"><Logo /> <span className="brand-name">rendimiento</span></Link>
         <NavLink to="/" end className="nav-link">{t("Apps")}</NavLink>
         <NavLink to="/services" className="nav-link">{t("Services")}</NavLink>
         <NavLink to="/addons" className="nav-link">{t("Add-ons")}</NavLink>
@@ -90,6 +93,8 @@ function Shell() {
         <span className="spacer" />
         <Link to="/new" className="btn primary">{t("New app")}</Link>
         <span className="muted small hide-sm">{state.login}</span>
+        <TemaSwitch />
+        <MovimientoSwitch />
         <LangSwitch />
         <button onClick={() => api.logout().then(() => location.assign("/"))}>{t("Sign out")}</button>
       </header>
@@ -110,6 +115,7 @@ function Shell() {
           <Route path="*" element={<div className="empty">{t("Page not found.")} <Link to="/">{t("Go home")}</Link></div>} />
         </Routes>
       </main>
+      <Guardapolvo />
     </>
   );
 }

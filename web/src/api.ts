@@ -168,6 +168,7 @@ export interface App {
   lastRun?: Run;
   /** Share of successful uptime checks in the last 24 hours (absent before the first check). */
   uptime24h?: number;
+  down?: string[];
 }
 
 // ---- problems (the platform's own warnings and errors) ----

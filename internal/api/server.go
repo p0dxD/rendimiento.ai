@@ -554,6 +554,23 @@ type appView struct {
 	// Uptime24h is the share of successful uptime checks in the last 24
 	// hours (absent before the first check).
 	Uptime24h *float64 `json:"uptime24h,omitempty"`
+	// Down lists the checks of this app in an outage right now, like
+	// "web (public)"; empty when everything answers.
+	Down []string `json:"down,omitempty"`
+}
+
+// downChecks maps each app to its checks with an open outage.
+func (s *Server) downChecks(ctx context.Context) map[int64][]string {
+	open, err := s.Store.OpenIncidents(ctx)
+	if err != nil {
+		s.Log.Warn("open incidents", "err", err)
+		return nil
+	}
+	out := map[int64][]string{}
+	for _, i := range open {
+		out[i.AppID] = append(out[i.AppID], i.Service+" ("+i.Kind+")")
+	}
+	return out
 }
 
 func (s *Server) view(ctx context.Context, a *store.App) appView {
@@ -578,9 +595,11 @@ func (s *Server) listApps(w http.ResponseWriter, r *http.Request, _ string) {
 	if err != nil {
 		s.Log.Warn("uptime summary", "err", err) // the list is still useful without it
 	}
+	down := s.downChecks(r.Context())
 	out := make([]appView, 0, len(apps))
 	for _, a := range apps {
 		v := s.view(r.Context(), a)
+		v.Down = down[a.ID]
 		if u := uptime[a.ID]; u.Total > 0 {
 			ratio := float64(u.OK) / float64(u.Total)
 			v.Uptime24h = &ratio
@@ -622,7 +641,9 @@ func (s *Server) app(w http.ResponseWriter, r *http.Request) *store.App {
 
 func (s *Server) getApp(w http.ResponseWriter, r *http.Request, _ string) {
 	if a := s.app(w, r); a != nil {
-		writeJSON(w, s.view(r.Context(), a))
+		v := s.view(r.Context(), a)
+		v.Down = s.downChecks(r.Context())[a.ID]
+		writeJSON(w, v)
 	}
 }
 

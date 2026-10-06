@@ -4,6 +4,7 @@ import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo, type Rele
 import { ErrorBox, PhaseBadge, ResourceTree, RunBadge, Switch, usePoll } from "../components/ui";
 import { ReliabilityTab } from "../components/reliability";
 import { AppProblems } from "./Problems";
+import { Flor } from "../components/ambiente";
 import { t, tn } from "../i18n";
 
 const tabs = [
@@ -28,6 +29,8 @@ export function AppPage() {
       <div className="row between">
         <div>
           <div className="row">
+            <Flor estado={(app.down?.length ?? 0) > 0 || app.status.phase === "Error" || app.status.phase === "Degraded" ? "marchita" : "viva"}
+              size={44} label={(app.down?.length ?? 0) > 0 ? t("Withered: {checks}", { checks: app.down!.join(", ") }) : t("Blooming flower")} />
             <h1>{app.name}</h1>
             <PhaseBadge status={app.status} />
           </div>
