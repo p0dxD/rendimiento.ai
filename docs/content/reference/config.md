@@ -45,6 +45,7 @@ rendimiento is configured only through **environment variables**, read once at s
 | `INGRESS_CLASS` | `nginx` | `ingressClassName` of app Ingresses |
 | `CLUSTER_ISSUER` | `letsencrypt-prod` | cert-manager issuer for app certificates |
 | `STORAGE_CLASS` | `longhorn` | storage class of `volume:` claims and `needs:` databases |
+| `VOLUME_LABELS` | *(empty)* | `KEY=value` pairs (comma-separated) added to every app volume claim, e.g. `recurring-job.longhorn.io/source=enabled,recurring-job-group.longhorn.io/backup-nightly=enabled` to back them up nightly |
 | `GPU_RESOURCE` | *(empty)* | resource name requested by `gpu:` services (`nvidia.com/gpu`) |
 | `GPU_RUNTIME_CLASS` | *(empty)* | runtime class for GPU pods (`nvidia`) |
 | `GPU_HOST_PATHS` | *(empty)* | host folders mounted read-only into GPU pods (driver libraries) |

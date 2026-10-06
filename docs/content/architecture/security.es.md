@@ -52,5 +52,5 @@ Estos son los puntos débiles, dichos con honestidad, más o menos en orden de i
 2. **Permisos en todo el clúster** para la plataforma (para crear espacios de nombres para cualquier aplicación). Un modo más restringido le daría a cada aplicación un espacio de nombres creado de antemano por un administrador.
 3. Demonios de BuildKit **privilegiados**.
 4. **Registro en HTTP simple** en la red local.
-5. **La base de datos de la plataforma** todavía no tiene respaldos.
+5. **Los respaldos se quedan en el clúster.** Los volúmenes se respaldan cada noche en Garage, que corre en las mismas máquinas, así que los respaldos no sobrevivirían a perder todo el clúster. Una copia fuera de casa está en la hoja de ruta.
 6. **Sin bitácora de auditoría en la aplicación** de quién cambió qué (la bitácora de auditoría de Kubernetes y el historial de git cubren una parte).

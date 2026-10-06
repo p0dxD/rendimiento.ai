@@ -153,6 +153,16 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	renderOpts.ClusterIssuer = env("CLUSTER_ISSUER", renderOpts.ClusterIssuer)
 	renderOpts.IngressClass = env("INGRESS_CLASS", renderOpts.IngressClass)
 	renderOpts.StorageClass = env("STORAGE_CLASS", renderOpts.StorageClass)
+	// VOLUME_LABELS is KEY=VALUE pairs added to every app volume claim, e.g.
+	// the Longhorn labels that put it in the nightly backup job.
+	renderOpts.VolumeLabels = map[string]string{}
+	for _, kv := range splitList(env("VOLUME_LABELS", "")) {
+		k, v, ok := strings.Cut(kv, "=")
+		if !ok || k == "" {
+			return fmt.Errorf("VOLUME_LABELS must be KEY=VALUE pairs, got %q", kv)
+		}
+		renderOpts.VolumeLabels[k] = v
+	}
 	renderOpts.GPU = render.GPUProfile{
 		Resource:     env("GPU_RESOURCE", ""),
 		RuntimeClass: env("GPU_RUNTIME_CLASS", ""),

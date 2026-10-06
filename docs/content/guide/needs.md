@@ -26,6 +26,9 @@ rendimiento runs **one Postgres per app** (shared by all its services that need 
 postgres: { version: "16", size: 20Gi, resources: { memory: 512Mi, memoryLimit: 1Gi } }
 ```
 
+!!! tip "Backed up every night"
+    Every volume rendimiento creates (the database's, and any `volume:`) gets the labels in `VOLUME_LABELS`. Here they put it in Longhorn's nightly backup job (`backup-nightly`, kept 7 days, stored in Garage). The Environment page's *Volume backups* check lists any volume in use without a backup, and any backup older than two days.
+
 ### `redis`
 
 One Redis per app, as a **cache**: no persistence, least-recently-used keys evicted past `maxMemory` (64 MB by default), password in `redis-credentials`, `REDIS_URL` injected.

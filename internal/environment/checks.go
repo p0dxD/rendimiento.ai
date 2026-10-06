@@ -35,6 +35,7 @@ func (c *Checker) checks(s *snapshot) []checkFunc {
 		c.checkIssuer,
 		func(context.Context) Check { return checkCertificates(s) },
 		c.checkStorage,
+		c.checkBackups,
 		func(ctx context.Context) Check { return c.checkBuildkit(ctx, s) },
 		c.checkRegistry,
 		c.checkBuildNamespace,

@@ -13,6 +13,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 
 | Item | Why |
 |---|---|
+| **Off-site backups**: copy Garage's backup bucket to a cloud bucket (Cloudflare R2, Backblaze B2) | the backups survive losing the whole cluster |
 | **Canary and A/B releases** with ingress-nginx canary weights | ship to 10% first; automatic rollback on errors |
 | **Plugin contract**: a container that takes JSON in and returns a JSON verdict, at hooks *pre-deploy*, *post-deploy* and *analysis* | k6 performance gates, chaos experiments (Chaos Mesh), AI checks, all without changing the core |
 | **AI generator** behind `generate.Generator` | better `rendimiento.yaml` and Dockerfiles for unusual repos |
@@ -39,6 +40,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 - An add-on engine (Helm and kustomize from git), with previews, safety gates and Helm hooks, which replaced ArgoCD
 - Renovate as an add-on, which replaced the CronJob
 - ArgoCD and Jenkins uninstalled (2026-09-28)
+- Nightly backups for every volume worth keeping: rendimiento labels the volumes it creates, and the Environment page warns about any volume in use without a recent backup (2026-10-06)
 - The book in Spanish, page by page, in the same Cotija style (2026-10-06)
 - A new look: Cotija, pueblo mágico. By day whitewashed walls, roof tiles, papel picado and the grana guardapolvo; by night an añil sky, faroles and alebrije colors. Every app is a cempasúchil that withers in an outage and revives when it comes back; petals fall when a release goes live. Movement can be switched off and follows the device's reduce-motion setting (2026-10-06)
 - Mexican Spanish: the UI with an EN/ES switch, the platform's messages translated when shown (stored ones too), and emails in the language of `NOTIFY_LANG` (2026-10-05)

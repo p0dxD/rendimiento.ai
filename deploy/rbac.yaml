@@ -67,6 +67,9 @@ rules:
   - apiGroups: [cert-manager.io]
     resources: [clusterissuers]
     verbs: [get, list]
+  - apiGroups: [longhorn.io]
+    resources: [volumes, recurringjobs, backuptargets]
+    verbs: [get, list]
   # Read-only, for the services catalog (who calls what).
   - apiGroups: [apps]
     resources: [statefulsets]

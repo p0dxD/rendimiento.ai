@@ -75,4 +75,5 @@ La anotación **`rendimiento.ai/paused: "true"`** pausa un complemento sin cambi
 | `rendimiento.ai/addon` | los objetos de los complementos | de qué complemento |
 | `rendimiento.ai/lan` | los Services `<service>-lan` | un balanceador de carga de la red local hecho por `lan:` |
 | `rendimiento.ai/paused` | Addon | pausar la conciliación |
+| `rendimiento.ai/backup: skip` | PersistentVolumeClaim | no necesita respaldo, a propósito; la comprobación *Respaldos de volúmenes* lo deja en paz |
 | `metallb.io/loadBalancerIPs` | los Services de la red local | la IP fija que se le pide a MetalLB |

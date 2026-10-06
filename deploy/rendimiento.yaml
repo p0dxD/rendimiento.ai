@@ -30,6 +30,8 @@ data:
   CLUSTER_ISSUER: letsencrypt-prod
   INGRESS_CLASS: nginx
   STORAGE_CLASS: longhorn
+  # Labels added to every app volume claim; these put it in a Longhorn backup job.
+  # VOLUME_LABELS: recurring-job.longhorn.io/source=enabled,recurring-job-group.longhorn.io/backup-nightly=enabled
   # Services without a Dockerfile are built from source with Railpack. The
   # CLI image comes from `make railpack-image`; keep both versions in step.
   RAILPACK_IMAGE: registry.example.lan:5000/rendimiento-railpack:0.40.0

@@ -75,4 +75,5 @@ The annotation **`rendimiento.ai/paused: "true"`** pauses an add-on without chan
 | `rendimiento.ai/addon` | add-on objects | which add-on |
 | `rendimiento.ai/lan` | `<service>-lan` Services | a LAN LoadBalancer made by `lan:` |
 | `rendimiento.ai/paused` | Addon | pause reconciling |
+| `rendimiento.ai/backup: skip` | PersistentVolumeClaim | needs no backup on purpose; the *Volume backups* check leaves it alone |
 | `metallb.io/loadBalancerIPs` | LAN Services | the fixed IP requested from MetalLB |

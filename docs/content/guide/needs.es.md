@@ -26,6 +26,9 @@ rendimiento ejecuta **un Postgres por aplicación** (compartido por todos sus se
 postgres: { version: "16", size: 20Gi, resources: { memory: 512Mi, memoryLimit: 1Gi } }
 ```
 
+!!! tip "Con respaldo cada noche"
+    Cada volumen que crea rendimiento (el de la base de datos, y cualquier `volume:`) recibe las etiquetas de `VOLUME_LABELS`. Aquí lo meten al respaldo nocturno de Longhorn (`backup-nightly`, se guarda 7 días, en Garage). La comprobación *Respaldos de volúmenes* de la página Entorno enumera cualquier volumen en uso sin respaldo, y cualquier respaldo de hace más de dos días.
+
 ### `redis` {#redis}
 
 Un Redis por aplicación, como **caché**: sin persistencia, con las claves menos usadas recientemente desalojadas al pasar de `maxMemory` (64 MB de forma predeterminada), la contraseña en `redis-credentials` y `REDIS_URL` inyectada.

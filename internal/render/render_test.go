@@ -351,9 +351,14 @@ services:
 	}
 	in := Input{App: "shop", Spec: *s, Images: map[string]string{"api": "reg/api@sha256:1", "worker": "reg/w@sha256:2"},
 		ServiceURLs: map[string]string{"jobsentry/ollama-internal": "http://ollama-internal.jobsentry.svc.cluster.local:11434"}}
-	objs, err := Render(in, DefaultOptions())
+	opt := DefaultOptions()
+	opt.VolumeLabels = map[string]string{"recurring-job-group.longhorn.io/backup-nightly": "enabled", LabelApp: "not-this"}
+	objs, err := Render(in, opt)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if v := objs.Volumes[0].Labels; v["recurring-job-group.longhorn.io/backup-nightly"] != "enabled" || v[LabelApp] != "shop" {
+		t.Errorf("volume labels = %v; want the configured backup label, and our own labels to win", v)
 	}
 	names := []string{}
 	for _, d := range objs.Deployments {

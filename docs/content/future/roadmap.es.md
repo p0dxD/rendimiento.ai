@@ -13,6 +13,7 @@ Las tareas están ordenadas por valor según el esfuerzo, primero para este clú
 
 | Tarea | Por qué |
 |---|---|
+| **Respaldos fuera de casa**: copiar la cubeta de respaldos de Garage a una cubeta en la nube (Cloudflare R2, Backblaze B2) | los respaldos sobreviven a perder todo el clúster |
 | **Versiones canario y A/B** con los pesos canario de ingress-nginx | publicar primero al 10 %; reversión automática ante errores |
 | **Contrato de extensiones**: un contenedor que recibe JSON y devuelve un veredicto en JSON, en los ganchos *antes del despliegue*, *después del despliegue* y *análisis* | compuertas de rendimiento con k6, experimentos de caos (Chaos Mesh), revisiones con IA, todo sin cambiar el núcleo |
 | **Generador con IA** detrás de `generate.Generator` | mejores `rendimiento.yaml` y Dockerfiles para repositorios poco comunes |
@@ -39,6 +40,7 @@ Las tareas están ordenadas por valor según el esfuerzo, primero para este clú
 - Un motor de complementos (Helm y kustomize desde git), con vistas previas, compuertas de seguridad y ganchos de Helm, que reemplazó a ArgoCD
 - Renovate como complemento, que reemplazó al CronJob
 - ArgoCD y Jenkins desinstalados (2026-09-28)
+- Respaldos nocturnos de cada volumen que vale la pena conservar: rendimiento etiqueta los volúmenes que crea, y la página Entorno avisa de cualquier volumen en uso sin un respaldo reciente (2026-10-06)
 - El libro en español, página por página, con el mismo estilo de Cotija (2026-10-06)
 - Una cara nueva: Cotija, pueblo mágico. De día, paredes encaladas, tejas, papel picado y el guardapolvo color grana; de noche, un cielo añil, faroles y colores de alebrije. Cada aplicación es un cempasúchil que se marchita en una caída y revive cuando vuelve; caen pétalos cuando sale una versión. El movimiento se puede apagar y sigue el ajuste de reducir movimiento del dispositivo (2026-10-06)
 - Español de México: la interfaz con un interruptor EN/ES, los mensajes de la plataforma traducidos al mostrarse (también los guardados) y los correos en el idioma de `NOTIFY_LANG` (2026-10-05)

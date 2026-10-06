@@ -52,5 +52,5 @@ These are the honest weak points, in rough order of importance for a multi-user 
 2. **Cluster-wide permissions** for the platform (to create namespaces for any app). A more restricted mode would give each app a namespace that an administrator pre-creates.
 3. **Privileged BuildKit** daemons.
 4. **Plain-HTTP registry** on the LAN.
-5. **The platform database** is not backed up yet.
+5. **Backups stay in the cluster.** Volumes are backed up nightly to Garage, which runs on the same machines, so the backups would not survive losing the whole cluster. An off-site copy is on the roadmap.
 6. **No audit trail in the app** of who changed what (the Kubernetes audit log and git history cover part of it).

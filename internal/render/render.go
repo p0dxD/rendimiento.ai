@@ -37,7 +37,10 @@ type Options struct {
 	IngressClass  string // "nginx"
 	ClusterIssuer string // "letsencrypt-prod"
 	StorageClass  string // "longhorn"
-	GPU           GPUProfile
+	// VolumeLabels are added to every volume claim, e.g. the labels that put
+	// a Longhorn volume in a backup job's group.
+	VolumeLabels map[string]string
+	GPU          GPUProfile
 }
 
 // GPUProfile is how this cluster attaches a GPU to a pod. Apps only say how
@@ -534,6 +537,7 @@ func volume(meta metav1.ObjectMeta, svc spec.Service, opt Options) (*corev1.Pers
 	if err != nil {
 		return nil, fmt.Errorf("service %s volume size: %w", svc.Name, err)
 	}
+	meta.Labels = merge(opt.VolumeLabels, meta.Labels)
 	return &corev1.PersistentVolumeClaim{
 		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "PersistentVolumeClaim"},
 		ObjectMeta: meta,

@@ -45,6 +45,7 @@ rendimiento se configura solo con **variables de entorno**, que se leen una vez 
 | `INGRESS_CLASS` | `nginx` | el `ingressClassName` de las entradas de las aplicaciones |
 | `CLUSTER_ISSUER` | `letsencrypt-prod` | el emisor de cert-manager para los certificados de las aplicaciones |
 | `STORAGE_CLASS` | `longhorn` | la clase de almacenamiento de los volúmenes de `volume:` y de las bases de datos de `needs:` |
+| `VOLUME_LABELS` | *(vacío)* | pares `KEY=value` (separados por comas) que se agregan a cada volumen de las aplicaciones, p. ej. `recurring-job.longhorn.io/source=enabled,recurring-job-group.longhorn.io/backup-nightly=enabled` para respaldarlos cada noche |
 | `GPU_RESOURCE` | *(vacío)* | el nombre del recurso que piden los servicios con `gpu:` (`nvidia.com/gpu`) |
 | `GPU_RUNTIME_CLASS` | *(vacío)* | la clase de entorno de ejecución para los pods con GPU (`nvidia`) |
 | `GPU_HOST_PATHS` | *(vacío)* | carpetas del nodo montadas en solo lectura en los pods con GPU (las bibliotecas del controlador) |
