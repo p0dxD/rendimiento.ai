@@ -55,13 +55,12 @@ flowchart TB
 
 ## Database
 
-**Today:** one Postgres pod in `rendimiento-system` on Longhorn storage, with build logs stored as rows.
+**Today:** one Postgres pod in `rendimiento-system` on Longhorn storage. Build logs are rows while a run is going, then move to object storage ([the log archive](../architecture/data.md#the-log-archive)).
 
-**Signs:** the database grows mostly from logs.
+**Signs:** the database grows mostly from run history and uptime data.
 
 **Levers:**
 
-- Archive the logs of finished runs to object storage (MinIO or S3) and keep only a pointer in the database.
 - Add retention: delete runs older than N days, or keep only the last N runs per app.
 - Use a managed or operator-run Postgres (CloudNativePG) for backups, point-in-time recovery and replicas.
 
