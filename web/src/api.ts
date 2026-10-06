@@ -171,6 +171,71 @@ export interface App {
   down?: string[];
 }
 
+// ---- la Ruta (what people and agents know; agents reach it over /mcp) ----
+
+export type RutaKind = "decision" | "manual" | "pendiente" | "nota" | "vivido";
+
+export interface RutaEntry {
+  id: number;
+  kind: RutaKind;
+  title: string;
+  body: string;
+  tags: string[];
+  done: boolean;
+  author: string;
+  byAgent: boolean;
+  cargoId?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RutaInput {
+  kind: RutaKind;
+  title: string;
+  body: string;
+  tags: string[];
+  done: boolean;
+}
+
+export interface Cargo {
+  id: number;
+  keyId: number;
+  keyName: string;
+  purpose: string;
+  startedAt: string;
+  endedAt?: string;
+  entrega: string;
+  pendientes: string;
+}
+
+export interface AgentAction {
+  id: number;
+  keyName: string;
+  cargoId?: number;
+  tool: string;
+  args: string;
+  ok: boolean;
+  error?: string;
+  at: string;
+}
+
+export interface AgentKey {
+  id: number;
+  name: string;
+  canWrite: boolean;
+  createdBy: string;
+  createdAt: string;
+  expiresAt: string;
+  lastUsedAt?: string;
+  revokedAt?: string;
+}
+
+export interface CreatedAgentKey {
+  key: AgentKey;
+  token: string;
+  endpoint: string;
+}
+
 // ---- problems (the platform's own warnings and errors) ----
 
 export interface Problem {
@@ -373,6 +438,15 @@ export const api = {
     request<ProblemList>("GET", `/api/problems?app=${encodeURIComponent(opts.app ?? "")}${opts.dismissed ? "&dismissed=1" : ""}`),
   problemCount: () => request<{ open: number }>("GET", "/api/problems/count"),
   dismissProblem: (id: number) => request<void>("POST", `/api/problems/${id}/dismiss`),
+  ruta: (opts: { kind?: string; q?: string } = {}) =>
+    request<RutaEntry[]>("GET", `/api/ruta?kind=${encodeURIComponent(opts.kind ?? "")}&q=${encodeURIComponent(opts.q ?? "")}`),
+  addRuta: (e: RutaInput) => request<RutaEntry>("POST", "/api/ruta", e),
+  updateRuta: (id: number, e: RutaInput) => request<RutaEntry>("PUT", `/api/ruta/${id}`, e),
+  archiveRuta: (id: number) => request<void>("POST", `/api/ruta/${id}/archive`),
+  rutaActivity: () => request<{ cargos: Cargo[]; actions: AgentAction[] }>("GET", "/api/ruta/activity"),
+  agentKeys: () => request<AgentKey[]>("GET", "/api/agent-keys"),
+  createAgentKey: (k: { name: string; canWrite: boolean; days: number }) => request<CreatedAgentKey>("POST", "/api/agent-keys", k),
+  revokeAgentKey: (id: number) => request<void>("DELETE", `/api/agent-keys/${id}`),
   reliability: (app: string, range: ReliabilityRange) => request<Reliability>("GET", `/api/apps/${app}/reliability?range=${range}`),
   rollback: (app: string, release: number) => request<Release>("POST", `/api/apps/${app}/rollback`, { release }),
   resources: (app: string) => request<ResourceNode>("GET", `/api/apps/${app}/resources`),

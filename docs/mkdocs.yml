@@ -88,6 +88,7 @@ plugins:
             Reliability (uptime and charts): Confiabilidad (disponibilidad y gráficas)
             Notifications (email): Notificaciones (correo)
             Problems (what went wrong in the platform): Problemas (lo que salió mal en la plataforma)
+            La Ruta (memory for people and agents, over MCP): La Ruta (la memoria de personas y agentes, por MCP)
             Languages (English, Spanish): Idiomas (inglés y español)
             Needs and the services catalog: Necesidades y catálogo de servicios
             Add-ons: Complementos
@@ -170,6 +171,7 @@ nav:
       - Reliability (uptime and charts): guide/reliability.md
       - Notifications (email): guide/notifications.md
       - Problems (what went wrong in the platform): guide/problems.md
+      - La Ruta (memory for people and agents, over MCP): guide/ruta.md
       - Languages (English, Spanish): guide/languages.md
       - Needs and the services catalog: guide/needs.md
       - Add-ons: guide/addons.md

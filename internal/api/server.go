@@ -83,6 +83,8 @@ type Server struct {
 	Catalog      *catalog.Builder
 	Renovate     *renovate.Runner
 	Addons       *addon.Syncer
+	// MCP serves /mcp, the agents' door to the Ruta (nil: off).
+	MCP http.Handler
 }
 
 const sessionCookie = "rendimiento_session"
@@ -121,6 +123,14 @@ func (s *Server) Handler() http.Handler {
 	auth("GET /api/problems", s.listProblems)
 	auth("GET /api/problems/count", s.problemCount)
 	auth("POST /api/problems/{id}/dismiss", s.dismissProblem)
+	auth("GET /api/ruta", s.listRuta)
+	auth("POST /api/ruta", s.addRuta)
+	auth("PUT /api/ruta/{id}", s.updateRuta)
+	auth("POST /api/ruta/{id}/archive", s.archiveRuta)
+	auth("GET /api/ruta/activity", s.rutaActivity)
+	auth("GET /api/agent-keys", s.listAgentKeys)
+	auth("POST /api/agent-keys", s.createAgentKey)
+	auth("DELETE /api/agent-keys/{id}", s.revokeAgentKey)
 	auth("GET /api/addon-catalog", s.addonCatalog)
 	auth("GET /api/installed", s.listInstalled)
 	auth("GET /api/installed/{name}", s.getInstalled)
@@ -161,7 +171,15 @@ func (s *Server) Handler() http.Handler {
 	auth("GET /api/runs/{id}/events", s.runEvents)
 
 	mux.Handle("/", s.ui())
-	return s.guard(localized(mux))
+	if s.MCP == nil {
+		return s.guard(localized(mux))
+	}
+	// /mcp has its own auth (agent keys) and speaks JSON-RPC, which the
+	// translating middleware must not touch.
+	outer := http.NewServeMux()
+	outer.Handle("/mcp", s.MCP)
+	outer.Handle("/", localized(mux))
+	return s.guard(outer)
 }
 
 // guard adds security headers and rejects cross-site state changes. The

@@ -19,6 +19,7 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | POST | `/api/auth/logout` | termina la sesión |
 | GET | `/api/setup/status` | si la aplicación de GitHub está configurada |
 | GET | `/api/setup/github` | inicia el flujo de manifiesto de la aplicación (necesita `?token=SETUP_TOKEN`) |
+| POST | `/mcp` | la puerta MCP para agentes ([la Ruta](../guide/ruta.md)); necesita una llave de agente como token portador, no una sesión |
 | GET | `/api/setup/github/callback` | GitHub devuelve las credenciales de la aplicación nueva; se guardan en un Secret |
 
 ## Cuenta y entorno 🔒 {#account-and-environment}
@@ -35,6 +36,14 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | GET | `/api/problems` | las advertencias y errores de la propia plataforma, agrupados ([Problemas](../guide/problems.md)) |
 | GET | `/api/problems/count` | cuántos problemas están abiertos (la insignia de la barra superior) |
 | POST | `/api/problems/{id}/dismiss` | descartar un problema |
+| GET | `/api/ruta?kind=&q=` | las entradas de [la Ruta](../guide/ruta.md) |
+| POST | `/api/ruta` | agrega una entrada (la escribe la persona con la sesión) |
+| PUT | `/api/ruta/{id}` | cambia una entrada (se conserva la versión anterior) |
+| POST | `/api/ruta/{id}/archive` | esconde una entrada de las listas |
+| GET | `/api/ruta/activity` | los cargos de los agentes y sus últimas llamadas a herramientas |
+| GET | `/api/agent-keys` | las llaves de agente (nunca los tokens) |
+| POST | `/api/agent-keys` | crea una llave de agente; el token solo viene en esta respuesta |
+| DELETE | `/api/agent-keys/{id}` | revoca una llave de agente |
 | POST | `/api/notifications/test` | mandar ahora un correo de aviso de muestra (el botón de la página Entorno) |
 | POST | `/api/dns/sync` | volver a crear ahora los registros DNS de cada aplicación |
 | POST | `/api/propose` | detectar un repositorio y devolver un `rendimiento.yaml` + Dockerfile propuestos |

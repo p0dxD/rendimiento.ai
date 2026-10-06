@@ -21,6 +21,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,6 +35,7 @@ import (
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
+	"github.com/p0dxD/rendimiento.ai/internal/ruta"
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 )
@@ -381,4 +383,91 @@ func TestSpanishAnswers(t *testing.T) {
 	if !strings.Contains(en, `"message":"notification email failed"`) {
 		t.Fatalf("English answer: %s", en)
 	}
+}
+
+func TestRutaAPI(t *testing.T) {
+	e := newEnv(t, false)
+	e.s.MCP = (&ruta.Server{Store: e.store, Log: e.s.Log}).Handler()
+	srv := httptest.NewServer(e.s.Handler())
+	t.Cleanup(srv.Close)
+	e.srv = srv
+	me := e.session(t, "p0dxD")
+
+	if r, _ := e.do(t, "GET", "/api/ruta", "", nil, nil); r.StatusCode != 401 {
+		t.Fatalf("without a session: %d", r.StatusCode)
+	}
+	r, body := e.do(t, "POST", "/api/ruta", `{"kind":"vivido","title":"La escuela","body":"Uniformes, recreos en el centro de la escuela.","tags":[" Cotija "]}`, me, nil)
+	if r.StatusCode != 201 || !strings.Contains(body, `"author":"p0dxD"`) || !strings.Contains(body, `"tags":["cotija"]`) {
+		t.Fatalf("add: %d %s", r.StatusCode, body)
+	}
+	if r, body := e.do(t, "POST", "/api/ruta", `{"kind":"nota","title":"x","body":"ghp_abcdefghijklmnopqrstuvwxyz0123456789"}`, me, nil); r.StatusCode != 400 || !strings.Contains(body, "secret") {
+		t.Fatalf("secret: %d %s", r.StatusCode, body)
+	}
+	if r, body := e.do(t, "POST", "/api/ruta", `{"kind":"nota","title":"x","body":"ghp_abcdefghijklmnopqrstuvwxyz0123456789"}`, me, map[string]string{"Accept-Language": "es"}); !strings.Contains(body, "no guarda secretos") {
+		t.Fatalf("secret, in Spanish: %d %s", r.StatusCode, body)
+	}
+
+	r, body = e.do(t, "POST", "/api/agent-keys", `{"name":"claude en main","canWrite":true,"days":30}`, me, nil)
+	var created CreatedAgentKey
+	if r.StatusCode != 201 || json.Unmarshal([]byte(body), &created) != nil || !strings.HasPrefix(created.Token, "rnd_") || created.Endpoint != "https://rendimiento.example/mcp" {
+		t.Fatalf("create key: %d %s", r.StatusCode, body)
+	}
+	if r, _ := e.do(t, "POST", "/api/agent-keys", `{"name":"x","days":365}`, me, nil); r.StatusCode != 400 {
+		t.Fatalf("a year-long key: %d", r.StatusCode)
+	}
+	if _, body := e.do(t, "GET", "/api/agent-keys", "", me, nil); strings.Contains(body, created.Token) || strings.Contains(body, "token_hash") {
+		t.Fatalf("the key list leaks the token: %s", body)
+	}
+
+	// The agent uses the key over MCP: takes a cargo, writes, hands over.
+	c := mcp.NewClient(&mcp.Implementation{Name: "test"}, nil)
+	sess, err := c.Connect(context.Background(), &mcp.StreamableClientTransport{Endpoint: srv.URL + "/mcp",
+		HTTPClient: &http.Client{Transport: bearerRT{created.Token}}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+	for _, tc := range []struct {
+		tool string
+		args map[string]any
+	}{
+		{"cargo_tomar", map[string]any{"proposito": "probar"}},
+		{"ruta_anotar", map[string]any{"tipo": "pendiente", "titulo": "Copiar respaldos a R2", "cuerpo": "cuando haya token"}},
+		{"cargo_entregar", map[string]any{"entrega": "anoté el pendiente"}},
+	} {
+		res, err := sess.CallTool(context.Background(), &mcp.CallToolParams{Name: tc.tool, Arguments: tc.args})
+		if err != nil || res.IsError {
+			t.Fatalf("%s: %v %+v", tc.tool, err, res)
+		}
+	}
+	if _, body := e.do(t, "GET", "/api/ruta?kind=pendiente", "", me, nil); !strings.Contains(body, `"byAgent":true`) || !strings.Contains(body, "claude en main") {
+		t.Fatalf("the agent's entry: %s", body)
+	}
+	if _, body := e.do(t, "GET", "/api/ruta/activity", "", me, nil); !strings.Contains(body, "anoté el pendiente") || !strings.Contains(body, "ruta_anotar") {
+		t.Fatalf("activity: %s", body)
+	}
+
+	// A browser on another site cannot use /mcp, even with a token.
+	req, _ := http.NewRequest("POST", srv.URL+"/mcp", strings.NewReader(`{}`))
+	req.Header.Set("Origin", "https://evil.example")
+	req.Header.Set("Authorization", "Bearer "+created.Token)
+	if res, err := http.DefaultClient.Do(req); err != nil || res.StatusCode != 403 {
+		t.Fatalf("cross-origin /mcp: %v %v", res, err)
+	}
+
+	// Revoked: the token stops working.
+	if r, _ := e.do(t, "DELETE", fmt.Sprintf("/api/agent-keys/%d", created.Key.ID), "", me, nil); r.StatusCode != 204 {
+		t.Fatalf("revoke: %d", r.StatusCode)
+	}
+	if _, err := sess.CallTool(context.Background(), &mcp.CallToolParams{Name: "ruta_inicio"}); err == nil {
+		t.Fatal("a revoked key still works")
+	}
+}
+
+type bearerRT struct{ token string }
+
+func (b bearerRT) RoundTrip(r *http.Request) (*http.Response, error) {
+	r = r.Clone(r.Context())
+	r.Header.Set("Authorization", "Bearer "+b.token)
+	return http.DefaultTransport.RoundTrip(r)
 }

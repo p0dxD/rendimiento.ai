@@ -45,6 +45,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/problems"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/renovate"
+	"github.com/p0dxD/rendimiento.ai/internal/ruta"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 	"github.com/p0dxD/rendimiento.ai/internal/uptime"
 	"github.com/p0dxD/rendimiento.ai/web"
@@ -258,6 +259,7 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		Catalog:  &catalog.Builder{Kube: kube},
 		Renovate: renovateRunner,
 		Addons:   addonSyncer,
+		MCP:      (&ruta.Server{Store: st, Log: log.With("component", "ruta")}).Handler(),
 		Environment: &environment.Checker{
 			Kube: kube, Discovery: clientset.Discovery(), DNS: dnsProvider, GitHub: holder, DB: st,
 			Config: environment.Config{

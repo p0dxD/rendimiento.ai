@@ -13,6 +13,7 @@ import { Services } from "./pages/Services";
 import { Addons } from "./pages/Addons";
 import { AddonDetail } from "./pages/Installed";
 import { Problems, ProblemsNavLink } from "./pages/Problems";
+import { Ruta } from "./pages/Ruta";
 import { Cielo, Guardapolvo, MovimientoSwitch, TemaSwitch, Techo } from "./components/ambiente";
 import "./styles.css";
 
@@ -89,6 +90,7 @@ function Shell() {
         <NavLink to="/services" className="nav-link">{t("Services")}</NavLink>
         <NavLink to="/addons" className="nav-link">{t("Add-ons")}</NavLink>
         <NavLink to="/environment" className="nav-link">{t("Environment")}</NavLink>
+        <NavLink to="/ruta" className="nav-link">{t("Ruta")}</NavLink>
         <ProblemsNavLink />
         <span className="spacer" />
         <Link to="/new" className="btn primary">{t("New app")}</Link>
@@ -106,6 +108,7 @@ function Shell() {
           <Route path="/services" element={<Services />} />
           <Route path="/addons" element={<Addons />} />
           <Route path="/problems" element={<Problems />} />
+          <Route path="/ruta" element={<Ruta />} />
           <Route path="/addons/:name" element={<AddonDetail />} />
           <Route path="/services/:ns/:name" element={<Services />} />
           <Route path="/apps/:name" element={<AppPage />} />

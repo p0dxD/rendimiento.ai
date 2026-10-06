@@ -18,6 +18,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | POST | `/api/auth/logout` | ends the session |
 | GET | `/api/setup/status` | whether the GitHub App is configured |
 | GET | `/api/setup/github` | starts the App manifest flow (needs `?token=SETUP_TOKEN`) |
+| POST | `/mcp` | the MCP endpoint for agents ([la Ruta](../guide/ruta.md)); needs an agent key as a bearer token, not a session |
 | GET | `/api/setup/github/callback` | GitHub returns the new App's credentials; they are saved in a Secret |
 
 ## Account and environment 🔒
@@ -34,6 +35,14 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/problems` | the platform's own warnings and errors, grouped ([Problems](../guide/problems.md)) |
 | GET | `/api/problems/count` | how many problems are open (the top bar's badge) |
 | POST | `/api/problems/{id}/dismiss` | dismiss a problem |
+| GET | `/api/ruta?kind=&q=` | [la Ruta](../guide/ruta.md)'s entries |
+| POST | `/api/ruta` | add an entry (written by the signed-in person) |
+| PUT | `/api/ruta/{id}` | change an entry (the previous version is kept) |
+| POST | `/api/ruta/{id}/archive` | hide an entry from lists |
+| GET | `/api/ruta/activity` | agents' cargos and their latest tool calls |
+| GET | `/api/agent-keys` | agent keys (never the tokens) |
+| POST | `/api/agent-keys` | create an agent key; the token is in this answer only |
+| DELETE | `/api/agent-keys/{id}` | revoke an agent key |
 | POST | `/api/notifications/test` | send a sample notification email now (the Environment page's button) |
 | POST | `/api/dns/sync` | re-create every app's DNS records now |
 | POST | `/api/propose` | detect a repo and return a proposed `rendimiento.yaml` + Dockerfile |

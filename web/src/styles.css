@@ -495,3 +495,45 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
   .hero-vida h1 { font-size: 34px; } .latido { display: none; } .papel-picado { height: 44px; } .bandera { height: 36px; }
   .topbar { gap: 8px 12px; } .topbar .nav-link { font-size: 14px; }
 }
+
+/* ---- la Ruta ---- */
+.monarca { flex: none; }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="off"]) .monarca { animation: aleteo 3.2s ease-in-out infinite; transform-origin: 50% 55%; }
+}
+@keyframes aleteo { 0%, 100% { transform: scaleX(1); } 45% { transform: scaleX(0.82); } 55% { transform: scaleX(0.86); } }
+.ruta-filters { flex-wrap: wrap; margin-bottom: 12px; }
+.ruta-search { flex: 1; min-width: 180px; width: auto; }
+.ruta-entry.done strong { text-decoration: line-through; color: var(--muted); }
+.ruta-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+.ruta-tags { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.ruta-tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--idle-bg); color: var(--muted); }
+.badge.ruta-kind.decision { background: color-mix(in srgb, var(--anil) 16%, transparent); color: var(--anil); }
+.badge.ruta-kind.manual { background: color-mix(in srgb, var(--nopal) 16%, transparent); color: var(--nopal); }
+.badge.ruta-kind.pendiente { background: var(--warn-bg); color: var(--warn); }
+.badge.ruta-kind.nota { background: var(--idle-bg); color: var(--idle); }
+.badge.ruta-agent { background: color-mix(in srgb, var(--cempasuchil) 18%, transparent); color: var(--text); font-weight: 600; }
+:root[data-theme="night"] .badge.ruta-kind.decision { color: #9DB4F2; }
+:root[data-theme="night"] .badge.ruta-kind.manual { color: #8FCB8A; }
+/* lo vivido: a page of a notebook, in the writer's words */
+.vivido {
+  margin: 0; padding: 18px 20px; border-radius: var(--radius); border: 1px solid var(--border);
+  background: repeating-linear-gradient(var(--surface), var(--surface) 27px, color-mix(in srgb, var(--anil) 10%, transparent) 28px);
+  border-left: 5px solid var(--cempasuchil);
+}
+.vivido figcaption { font-family: var(--display); font-size: 18px; margin-bottom: 6px; }
+.vivido blockquote { margin: 0 0 10px; white-space: pre-wrap; font-family: var(--display); font-style: italic; font-size: 16.5px; line-height: 28px; }
+.vivido-form { border-left: 5px solid var(--cempasuchil); }
+/* cargos: the monarchs' flight, one generation after another */
+.ruta-vuelo { list-style: none; padding: 0 0 0 22px; margin: 0; border-left: 2px dashed color-mix(in srgb, var(--cempasuchil) 60%, transparent); }
+.ruta-vuelo li { position: relative; margin-bottom: 14px; }
+.ruta-vuelo li::before {
+  content: ""; position: absolute; left: -31px; top: 16px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--cempasuchil); border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--border);
+}
+.ruta-vuelo li.open::before { background: var(--maiz); }
+.ruta-actions { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.ruta-actions th, .ruta-actions td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.ruta-bad { color: var(--bad); }
+.ruta-token { padding: 6px 10px; background: var(--code-bg); color: var(--code-text); border-radius: 6px; overflow-wrap: anywhere; flex: 1; }
+.ruta-snippet { flex: 1; margin: 0; padding: 10px 12px; background: var(--code-bg); color: var(--code-text); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12.5px; }
