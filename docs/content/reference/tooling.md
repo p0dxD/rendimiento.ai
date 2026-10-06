@@ -38,6 +38,7 @@ mkdocs build --strict          # what the image build runs; fails on broken link
 - **Diagrams** are Mermaid code blocks (` ```mermaid `), drawn in the browser.
 - **Code excerpts** are included from the source, so they never go stale:
   `--8<-- "internal/dns/dns.go:provider"` includes the lines between `// --8<-- [start:provider]` and `// --8<-- [end:provider]`. A path with `:A:B` includes lines A to B.
+- **Spanish** pages sit next to the English ones (`spec.es.md` beside `spec.md`; mkdocs-static-i18n builds `/es/`). A page without a translation falls back to English. Translated headings keep the English anchor (`## Ejemplo {#example}`), so links work in both languages.
 - **The image** (`docs/Dockerfile`) has three stages: Go regenerates the code map, Python builds the site, and unprivileged nginx serves it on :8080. The repository's `rendimiento.yaml` deploys it, with a LAN address from MetalLB.
 
 ## Useful commands

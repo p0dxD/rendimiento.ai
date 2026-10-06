@@ -30,6 +30,10 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/zones` | DNS zones the token can edit |
 | GET | `/api/environment` | the Environment page's checks |
 | GET | `/api/services` | the Services catalog (apps, add-ons, cluster services, connection info) |
+| GET | `/api/stats/delivery` | the dashboard's delivery stats: the last 30 days, the 30 before, and twelve weekly points |
+| GET | `/api/problems` | the platform's own warnings and errors, grouped ([Problems](../guide/problems.md)) |
+| GET | `/api/problems/count` | how many problems are open (the top bar's badge) |
+| POST | `/api/problems/{id}/dismiss` | dismiss a problem |
 | POST | `/api/notifications/test` | send a sample notification email now (the Environment page's button) |
 | POST | `/api/dns/sync` | re-create every app's DNS records now |
 | POST | `/api/propose` | detect a repo and return a proposed `rendimiento.yaml` + Dockerfile |
@@ -49,6 +53,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | POST | `/api/apps/{app}/runs` | start a run of the default branch (the **Run** button) |
 | GET | `/api/apps/{app}/releases` | release history (digest per service) |
 | GET | `/api/apps/{app}/reliability?range=24h\|7d\|30d` | uptime checks: per check, uptime, p50/p95, chart buckets and the latest check; outages; releases in the range |
+| GET | `/api/apps/{app}/releases/{number}/tasks/{task}/log` | the log of a release's post-deploy task |
 | POST | `/api/apps/{app}/rollback` | roll back to an earlier release (`{"release": N}`) |
 | GET | `/api/apps/{app}/resources` | the live Kubernetes objects and their health (the resource tree) |
 | PUT | `/api/apps/{app}/secrets/{secret}` | set a secret's values (write-only; values are never returned) |
