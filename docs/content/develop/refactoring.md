@@ -67,7 +67,7 @@ The pages hold their own data-loading and form logic. As they grow, move shared 
 ## Known rough edges
 
 - **Single platform replica.** Leader election exists, but `LEADER_ELECTION=false` in the deploy, and live updates are in-memory (see [Scaling](../future/scaling.md#live-updates-across-replicas)).
-- **Logs in Postgres.** Build logs are stored as rows. This works at this scale, but they belong in object storage (MinIO or S3) over time.
+- **Logs in Postgres while a run is going.** Build logs are stored as rows and move to object storage once the run finishes ([the log archive](../architecture/data.md#the-log-archive)). Live logs still go through the database.
 - **Registry over plain HTTP.** `registry.example.lan:5000` is insecure. This is fine on a home LAN, but it needs TLS for anything else.
 - **arm64 only.** Images are built for the cluster's architecture. Multi-arch is covered in [Open source](../future/open-source.md#releases-and-multi-arch-images).
 - **Retries.** Transient build failures are retried once (`TestTransientRetry`). Other steps are not retried.
