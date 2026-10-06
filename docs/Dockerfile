@@ -22,4 +22,5 @@ RUN cd docs && mkdocs build --site-dir /site
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine
 COPY --from=site /site /usr/share/nginx/html
+COPY docs/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 8080
