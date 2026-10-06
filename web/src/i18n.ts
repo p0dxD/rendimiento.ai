@@ -3,6 +3,7 @@
 // the English text). The language follows the browser until the user picks
 // one with the switch in the top bar; the choice is kept in this browser.
 // The API is told the language too (Accept-Language), for server messages.
+// Spanish is Mexican Spanish (es-MX): usted, presione, computadora, falla.
 import { es } from "./i18n/es";
 
 export type Lang = "en" | "es";
@@ -22,7 +23,7 @@ function initial(): Lang {
 export const lang: Lang = initial();
 
 /** The locale for dates and numbers. */
-export const locale = lang === "es" ? "es-US" : "en-US";
+export const locale = lang === "es" ? "es-MX" : "en-US";
 
 document.documentElement.lang = lang;
 
