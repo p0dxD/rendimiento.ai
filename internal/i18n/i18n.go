@@ -53,9 +53,10 @@ func FromRequest(r *http.Request) Lang { return Parse(r.Header.Get("Accept-Langu
 
 // pattern is one catalog entry, compiled to match finished messages.
 type pattern struct {
-	re *regexp.Regexp
-	es string // the Spanish format
-	n  int    // number of verbs
+	re      *regexp.Regexp
+	es      string // the Spanish format
+	n       int    // number of verbs
+	literal int    // characters of the format besides its verbs
 }
 
 var (
@@ -96,7 +97,11 @@ func compile() {
 		}
 		b.WriteString(regexp.QuoteMeta(strings.ReplaceAll(en[last:], "%%", "%")))
 		b.WriteString("$")
-		patterns = append(patterns, pattern{re: regexp.MustCompile("(?s)" + b.String()), es: es, n: len(locs)})
+		lit := len(en)
+		for _, l := range locs {
+			lit -= l[1] - l[0]
+		}
+		patterns = append(patterns, pattern{re: regexp.MustCompile("(?s)" + b.String()), es: es, n: len(locs), literal: lit})
 	}
 	// Longer formats are more specific: try them first (ties alphabetically,
 	// so the order never depends on map iteration).
@@ -175,8 +180,8 @@ func sprintfStrings(format string, args []any) string {
 	return fmt.Sprintf(strings.ReplaceAll(masked, "\x00\x00", "%%"), args...)
 }
 
-// TranslateExact translates only a message the catalog has word for word
-// (labels and names), never through a pattern.
+// TranslateExact translates only a message the catalog has word for word,
+// never through a pattern.
 func TranslateExact(lang Lang, msg string) string {
 	if lang != Spanish || msg == "" {
 		return msg
@@ -184,6 +189,32 @@ func TranslateExact(lang Lang, msg string) string {
 	compileOnce.Do(compile)
 	if es, ok := exact[msg]; ok {
 		return es
+	}
+	return msg
+}
+
+// labelLiteral is how much fixed text a pattern needs before it may
+// translate a label: "%s (in-cluster)" may, "%s (%s)" may not, so names
+// people chose are not rewritten by a pattern that happens to fit them.
+const labelLiteral = 8
+
+// TranslateLabel translates a short label (a name, a title): word for word,
+// or through a pattern with enough fixed text of its own.
+func TranslateLabel(lang Lang, msg string) string {
+	if out := TranslateExact(lang, msg); out != msg || lang != Spanish || msg == "" {
+		return out
+	}
+	for _, p := range patterns {
+		if p.literal < labelLiteral {
+			continue
+		}
+		if m := p.re.FindStringSubmatch(msg); m != nil {
+			args := make([]any, p.n)
+			for i := range args {
+				args[i] = TranslateExact(lang, m[i+1])
+			}
+			return sprintfStrings(p.es, args)
+		}
 	}
 	return msg
 }

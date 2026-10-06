@@ -176,7 +176,7 @@ func (c *Cloudflare) Describe(ctx context.Context) Description {
 	}
 	d.Detail = M("token active; %d zone(s); new apps get %s records → %s", len(zones), kind, target)
 	if c.Proxied {
-		d.Detail += " (proxied)"
+		d.Detail = M("%s (proxied)", d.Detail)
 	}
 	return d
 }

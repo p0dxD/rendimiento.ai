@@ -83,6 +83,11 @@ func TestTranslate(t *testing.T) {
 	if TranslateExact(Spanish, "Nodes") != "Nodos" || TranslateExact(Spanish, "web (public URL)") != "web (public URL)" {
 		t.Error("TranslateExact must only translate whole catalog entries")
 	}
+	for in, want := range map[string]string{"k3s (in-cluster)": "k3s (en el clúster)", "shop (beta)": "shop (beta)", "web and api": "web and api"} {
+		if got := TranslateLabel(Spanish, in); got != want {
+			t.Errorf("TranslateLabel(%q) = %q, want %q", in, got, want)
+		}
+	}
 }
 
 func TestParse(t *testing.T) {

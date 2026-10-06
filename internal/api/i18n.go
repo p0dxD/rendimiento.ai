@@ -18,8 +18,9 @@ var translatedKeys = map[string]bool{
 	"description": true, "error": true, "result": true,
 }
 
-// Keys whose values are short labels: translated only on an exact match, so
-// an app called "Nodes" keeps its name unless it is the environment check.
+// Keys whose values are short labels: translated word for word or through a
+// pattern with enough fixed text (i18n.TranslateLabel), so names people
+// chose stay as they are.
 var labelKeys = map[string]bool{"name": true, "title": true, "label": true, "kind": true}
 
 // localized translates the JSON answers of /api/ for a browser that asks
@@ -69,7 +70,7 @@ func translateJSON(lang i18n.Lang, key string, v any) any {
 		case translatedKeys[key]:
 			return i18n.Translate(lang, x)
 		case labelKeys[key]:
-			return i18n.TranslateExact(lang, x)
+			return i18n.TranslateLabel(lang, x)
 		}
 	}
 	return v

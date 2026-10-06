@@ -27,6 +27,7 @@ var catalog = map[string]string{
 	"%s (inside the cluster)":                                                                         "%s (dentro del clúster)",
 	"%s (k3s ships it by default)":                                                                    "%s (k3s lo incluye de forma predeterminada)",
 	"%s (optional)":                                                                                   "%s (opcional)",
+	"%s (proxied)":                                                                                    "%s (a través del proxy de Cloudflare)",
 	"%s (public URL)":                                                                                 "%s (URL pública)",
 	"%s (this cluster)":                                                                               "%s (este clúster)",
 	"%s and %s":                                                                                       "%s y %s",

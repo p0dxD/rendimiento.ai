@@ -314,7 +314,7 @@ export function AddonDetail() {
           <strong>addons/{a.name}.yaml</strong>
           <textarea className="code" spellCheck={false} value={editing} onChange={(e) => setEditing(e.target.value)} />
           <div className="row">
-            <button className="primary" disabled={busy} onClick={() => act(async () => { await installedApi.save(a.name, { yaml: editing }); setEditing(undefined); })}>{t("Commit")}</button>
+            <button className="primary" disabled={busy} onClick={() => act(async () => { await installedApi.save(a.name, { yaml: editing }); setEditing(undefined); })}>{t("Commit changes")}</button>
             <button onClick={() => setEditing(undefined)}>{t("Cancel")}</button>
           </div>
         </div>
