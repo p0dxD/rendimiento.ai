@@ -5,6 +5,7 @@
 rendimiento keeps its memory in **la Ruta** (see [docs/content/guide/ruta.md](docs/content/guide/ruta.md)), not in any agent's session. If your MCP config has the `rendimiento` server (its `/mcp` endpoint, with an agent key):
 
 1. **Before anything else, call `ruta_inicio`**: the last handovers, open to-dos, recent decisions.
+   Then read the entries tagged `carácter` (`ruta_buscar` with `texto: "carácter"`): how agents have worked with the person here, in their words, and a letter from the agents before you.
 2. Search before assuming (`ruta_buscar`, `ruta_leer`).
 3. **Take a cargo** (`cargo_tomar`) before writing, with your purpose.
 4. Record decisions with their reasons, manuals and to-dos (`ruta_anotar`, `ruta_actualizar`).
