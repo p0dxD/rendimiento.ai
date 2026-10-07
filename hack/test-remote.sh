@@ -98,21 +98,9 @@ echo "test-remote: on $(kubectl get pod -n "$NS" "$POD" -o jsonpath='{.spec.node
 git ls-files -co --exclude-standard -z | tar --null -T - -czf - | kubectl exec -i -n "$NS" "$POD" -c go -- tar xzf - -C /src
 
 go_status=0
-kubectl exec -n "$NS" "$POD" -c go -- bash -euo pipefail -c "
-  export PATH=/cache/bin:\$PATH
-  git config --global --add safe.directory /src 2>/dev/null || true
-  [ -x /cache/bin/controller-gen ] && controller-gen --version | grep -q $CONTROLLER_GEN || go install sigs.k8s.io/controller-tools/cmd/controller-gen@$CONTROLLER_GEN
-  [ -x /cache/bin/setup-envtest ] || go install sigs.k8s.io/controller-runtime/tools/setup-envtest@$SETUP_ENVTEST
-  until pg_isready -h 127.0.0.1 >/dev/null 2>&1 || (echo > /dev/tcp/127.0.0.1/5432) 2>/dev/null; do sleep 1; done
-  # The built UI is not in git; vet and tests only need something to embed.
-  [ -n \"\$(ls -A web/dist 2>/dev/null)\" ] || { mkdir -p web/dist && echo placeholder > web/dist/index.html; }
-  echo '== generate'
-  controller-gen object paths=./api/... paths=./internal/spec/...
-  controller-gen crd paths=./api/... output:crd:dir=deploy/crds
-  echo '== vet'
-  go vet ./...
-  echo '== test'
-  KUBEBUILDER_ASSETS=\$(setup-envtest use $ENVTEST_K8S -p path --bin-dir /cache/envtest) go test -p 1 ./...
+kubectl exec -n "$NS" "$POD" -c go -- env CONTROLLER_GEN="$CONTROLLER_GEN" SETUP_ENVTEST="$SETUP_ENVTEST" ENVTEST_K8S="$ENVTEST_K8S" bash -euo pipefail -c "
+  until (echo > /dev/tcp/127.0.0.1/5432) 2>/dev/null; do sleep 1; done
+  hack/ci-test.sh
 " || go_status=$?
 
 # Bring back what generate produced, so the repo matches what was tested.

@@ -34,17 +34,26 @@ make itest                                       # real builds on the BuildKit p
 `make test-remote` (`hack/test-remote.sh`) runs the steps of `make test` in a pod on a worker, because compiling and running envtest on `main` (the control plane) slows the whole cluster:
 
 ```bash
---8<-- "hack/test-remote.sh:93:109"
+--8<-- "hack/test-remote.sh:95:115"
 ```
 
 1. A pod with three containers is created in `rendimiento-builds`, avoiding the control plane and any `TEST_EXCLUDE_NODES`: **go** (the toolchain), **node** (the typecheck) and **postgres** (a sidecar the store tests use on `localhost`).
 2. A **node-local cache** volume (`rendimiento-test-cache`, local-path) keeps Go modules, the build cache, envtest binaries and npm's cache between runs; the first run fills it (about 20 minutes), later runs reuse it.
 3. The working tree, **including uncommitted changes**, is streamed in as a tarball.
-4. `controller-gen`, `go vet`, `go test -p 1 ./...` and `npm run typecheck` run, their output streamed here.
+4. `hack/ci-test.sh` runs `controller-gen`, `go vet` and `go test -p 1 ./...`, then `npm run typecheck` runs, their output streamed here:
+
+    ```bash
+    --8<-- "hack/ci-test.sh:25:37"
+    ```
+
 5. Regenerated files are copied back, so the repository matches what was tested.
 6. The pod is deleted.
 
 `-p 1` runs packages one after another: the store, platform and API tests share one database.
+
+## On every push {#on-every-push}
+
+rendimiento's own repository is an app on rendimiento: its `rendimiento.yaml` lists the book (a service) and the platform's image (`builds: platform`). So every push and pull request also runs the same `hack/ci-test.sh`, as the `platform:test` step, with a throwaway Postgres (`postgres: true`) and a kept cache (`cache: true`); then `platform:build` builds the image, whose Dockerfile runs `npm run typecheck`. The result is the check on the commit in GitHub. In CI the script also fails when the generated files (deepcopy, CRDs) were not committed (`CHECK_GENERATED=1`). `make test-remote` is still the way to test **uncommitted** changes. See [How rendimiento builds itself](../environment/deploy.md#rendimiento-builds-itself).
 
 ## Writing tests
 

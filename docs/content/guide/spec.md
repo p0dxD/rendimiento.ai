@@ -63,6 +63,7 @@ tasks:
 |---|---|---|---|
 | `services` | list | **required** | The app's services (at least one). |
 | `jobs` | list | none | Scheduled jobs (CronJobs). |
+| `builds` | list | none | Images built and tested but not deployed ([Builds](#builds)). |
 | `tasks` | list | none | Commands run as CI steps ([Tasks](tasks.md)). |
 | `verify` | object | on, 5 min, rollback | How each release is verified after it goes live: `window` (seconds, 60–3600), `rollback` (`false` only reports), `disabled` ([Reliability](reliability.md#verifying-each-release)). |
 | `sharedNamespace` | bool | `false` | The app's namespace is owned by something else (e.g. ArgoCD): it must exist, and rendimiento never creates, labels, owns or deletes it. |
@@ -91,6 +92,11 @@ tasks:
 | `build.start` | string | detected | Railpack only: the start command. |
 | `test.image` | string | — | Image the test runs in. |
 | `test.command` | string | — | Shell command, run in the service's folder; a non-zero exit fails the run and skips the build. |
+| `test.size`, `test.resources` | as for the service | 250m / 256Mi, limit 2Gi | The test pod's requests and limits. |
+| `test.timeout` | seconds | `STEP_TIMEOUT` | Only shorter than the platform's limit. |
+| `test.env` | map | none | Environment variables for the tests. |
+| `test.postgres` | bool | `false` | A throwaway PostgreSQL next to the tests, in `DATABASE_URL` ([Tests](builds.md#tests)). |
+| `test.cache` | bool | `false` | Keep `/cache` between runs; Go, npm and pip use it ([Tests](builds.md#tests)). |
 
 ### Running
 
@@ -201,20 +207,31 @@ How the service is described on the Services page, for other apps:
 | `timeout` | seconds | none | Stop a run after this long. |
 | `env`, `secretEnv`, `secrets` | as for services | | |
 
+## Builds
+
+Images built on every run like a service's, but not deployed; their digests are kept with each release ([Images that are not services](builds.md#images-that-are-not-services)).
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `name` | string ≤ 40 | **required** | Unique among services, jobs, builds and tasks. The steps are `<name>:test` and `<name>:build`; the image is `<registry>/<app>-<name>`. |
+| `path`, `watch` | as for services | `.` | What is built, and what counts as a change. |
+| `build` | as for services | `Dockerfile` | |
+| `test` | as for services | none | Run before the build. |
+
 ## Tasks
 
 Commands run as CI steps; see [Tasks](tasks.md) for when they run and how secrets work.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `name` | string ≤ 40 | **required** | Unique among services, jobs and tasks. The step is `<name>:task`. |
+| `name` | string ≤ 40 | **required** | Unique among services, jobs, builds and tasks. The step is `<name>:task`. |
 | `stage` | `build` \| `pre-deploy` \| `post-deploy` | `build` | `build`: a CI step. `pre-deploy`: after the build, before the rollout; a failure stops the release ([pre-deploy](tasks.md#pre-deploy-tasks)). `post-deploy`: against the live release, as part of verification; a failure rolls it back ([post-deploy](tasks.md#post-deploy-tasks)). |
 | `service` | service name | — | Pre- and post-deploy: run in this service's new image with its environment (instead of `image`). |
 | `image` | image | **required** (build) | What the command runs in. Post-deploy tasks give `image` or `service`. |
 | `command` | string | **required** | Run with `sh -c`. |
 | `path` | string | `.` | Working directory, relative to the repo root; also what counts as a change. |
 | `watch` | list of paths | none | More paths whose changes run the task. |
-| `after` | list | none | Services (their build) and tasks to wait for. |
+| `after` | list | none | Services and builds (their build) and tasks to wait for. |
 | `when` | `deploy` \| `always` | `deploy` | `deploy`: pushes to the default branch only. `always`: every run, including branches and pull requests. (Not `on:`, which YAML reads as `true`.) |
 | `optional` | bool | `false` | A failure doesn't fail the run. |
 | `size`, `resources` | as for services | `medium` | |

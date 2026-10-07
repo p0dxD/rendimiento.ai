@@ -11,7 +11,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 450 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 454 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
@@ -25,18 +25,18 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/events`](#internal-events) | 2 | 80 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 278 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1164 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/i18n`](#internal-i18n) | 3 | 728 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
+| [`internal/i18n`](#internal-i18n) | 3 | 727 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 308 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
 | [`internal/notify`](#internal-notify) | 2 | 447 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
-| [`internal/pipeline`](#internal-pipeline) | 7 | 1605 | Package pipeline plans and executes CI runs. |
-| [`internal/platform`](#internal-platform) | 7 | 3173 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
+| [`internal/pipeline`](#internal-pipeline) | 7 | 1847 | Package pipeline plans and executes CI runs. |
+| [`internal/platform`](#internal-platform) | 8 | 3206 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/problems`](#internal-problems) | 2 | 278 | Package problems keeps the platform's own warnings and errors for the Problems page: a slog handler passes every record on to the real log and also queues warnings and errors; a Recorder stores them, folding repeats of the same problem into one row with a count. |
 | [`internal/render`](#internal-render) | 3 | 1169 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
 | [`internal/ruta`](#internal-ruta) | 2 | 910 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
-| [`internal/spec`](#internal-spec) | 2 | 1661 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 12 | 2671 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
-| [`internal/uptime`](#internal-uptime) | 2 | 648 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
+| [`internal/spec`](#internal-spec) | 2 | 1819 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
+| [`internal/store`](#internal-store) | 12 | 2684 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/uptime`](#internal-uptime) | 2 | 650 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
 
@@ -97,7 +97,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>441 lines</small>
+<small>445 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1078,7 +1078,7 @@ Package i18n translates the platform's messages for people: the API's answers to
 
 ### `internal/i18n/es.go`
 
-<small>406 lines</small>
+<small>405 lines</small>
 
 ### `internal/i18n/i18n.go`
 
@@ -1184,7 +1184,7 @@ Package pipeline plans and executes CI runs.
 
 ### `internal/pipeline/kube.go`
 
-<small>583 lines</small>
+<small>721 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1196,6 +1196,11 @@ Package pipeline plans and executes CI runs.
 | `(*KubeExecutor) Execute` | method | Execute runs one step as a pod: a clone secret with a short-lived token, the pod (clone, plan, then the step), its logs streamed to w, and the digest of a build read from the termination message. |
 | `(*KubeExecutor) buildkitFor` | method | buildkitFor picks the pool daemon for key by rendezvous hashing: each key has a stable favourite among the ready daemons, and only the keys of a daemon that goes away move elsewhere. |
 | `(*KubeExecutor) pod` | method |  |
+| `(*KubeExecutor) testPostgres` | method | testPostgres is the database of a test with postgres: true: a sidecar (an init container that keeps running) that the tests start after, once it accepts connections, and that stops when they end. |
+| `cacheName` | func | cacheName is the volume kept between runs of a test step: one per app and step, e.g. |
+| `(*KubeExecutor) ensureCache` | method | ensureCache creates the step's cache volume the first time it runs. |
+| `(*KubeExecutor) DeleteCaches` | method | DeleteCaches removes the cache volumes of an app's tests. |
+| `sortedEnv` | func |  |
 | `(*KubeExecutor) waitStarted` | method | waitStarted blocks until the container is running or has terminated, failing fast on image pull errors. |
 | `(*KubeExecutor) streamLogs` | method |  |
 | `(*KubeExecutor) waitDone` | method |  |
@@ -1207,7 +1212,7 @@ Package pipeline plans and executes CI runs.
 
 ### `internal/pipeline/plan.go`
 
-<small>145 lines</small>
+<small>172 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1218,7 +1223,8 @@ Package pipeline plans and executes CI runs.
 | `TaskStepID` | func | TaskStepID is the ID of a task's step. |
 | `TaskKey` | func | TaskKey is the Service field of a task's step: what change detection and the run page group it by. |
 | `Source` | struct | Source identifies the commit being built. |
-| `Plan` | func | Plan builds the DAG for a spec: per service, test (if configured) then build; job images; then tasks, after the builds and tasks they name. |
+| `Plan` | func | Plan builds the DAG for a spec: per service, test (if configured) then build; job images; the builds (test, then build); then tasks, after the builds and tasks they name. |
+| `testStep` | func | testStep is the test of a service or build named name, whose image key is key. |
 | `isTask` | func |  |
 
 ### `internal/pipeline/run.go`
@@ -1259,7 +1265,7 @@ Package pipeline plans and executes CI runs.
 
 ### `internal/pipeline/run_test.go`
 
-<small>306 lines · tests</small>
+<small>383 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1273,6 +1279,9 @@ Package pipeline plans and executes CI runs.
 | `TestBuildPodPicksBuilder` | func |  |
 | `TestPlanScript` | func | TestPlanScript runs the real plan script with a stub railpack CLI. |
 | `TestBuildkitPool` | func |  |
+| `TestPlanBuilds` | func |  |
+| `TestTestPod` | func |  |
+| `TestTestCaches` | func |  |
 
 ### `internal/pipeline/task_test.go`
 
@@ -1291,7 +1300,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/platform.go`
 
-<small>1015 lines</small>
+<small>1029 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1326,7 +1335,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `(*Platform) preDeploy` | method | preDeploy runs the release's pre-deploy tasks before it is rolled out. |
 | `(*Platform) changes` | method | changes lists the files changed since the latest release, for a push to the default branch. |
 | `touched` | func | touched reports whether any of files is under dir or a watched path. |
-| `reusable` | func | reusable decides which built services and jobs can keep the image from the latest release because nothing they are built from changed since. |
+| `reusable` | func | reusable decides which built services, jobs and builds can keep the image from the latest release because nothing they are built from changed since. |
 | `skippedTasks` | func | skippedTasks returns the task steps that do not run this time, with why: deploy-only tasks on branch and pull request runs (they may read secrets), and tasks whose path and watch paths are unchanged since the latest release. |
 | `(*Platform) Rollback` | method | Rollback creates a new release that restores an earlier one's images and spec (the Rollback button). |
 | `(*Platform) rollbackTo` | method | rollbackTo releases an earlier release's images and spec again, as a new release whose verification is recorded as skipped with note. |
@@ -1427,6 +1436,14 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `TestPostDeployVerification` | func | A required post-deploy task that fails fails verification and rolls the release back; an optional one is only reported; one waiting on a failed task is skipped. |
 | `TestPreDeployJobUsesTheNewImage` | func |  |
 | `TestPreDeploy` | func | Pre-deploy tasks are skipped on an app's first release, run before the rollout afterwards, and a failed one stops the release from deploying. |
+
+### `internal/platform/reuse_test.go`
+
+<small>19 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestReusableBuilds` | func |  |
 
 ### `internal/platform/verify_test.go`
 
@@ -1657,7 +1674,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 
 ### `internal/spec/spec.go`
 
-<small>1226 lines</small>
+<small>1341 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1680,12 +1697,15 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 | `Job` | struct | Job is a scheduled task. |
 | `Touches` | func | Touches reports whether a change to repo file f affects something built from dir or any of the watch paths ("." means the whole repo). |
 | `(Job) ImageKey` | method | ImageKey is the key of a built job's image in a release's image map. |
+| `ImageBuild` | struct | ImageBuild is an image built from a folder of the repo on every run, like a service's, but not deployed: its digest is kept in the release. |
+| `(ImageBuild) ImageKey` | method | ImageKey is the key of the image in a release's image map. |
 | `Service` | struct | Service is one deployable part of an app: built from a folder of the repo (or a ready-made image) and run as a Deployment with a Service. |
 | `LANOptions` | struct | LANOptions expose a service on the local network. |
 | `Catalog` | struct | Catalog is what the Services page shows about a service besides what it can work out itself (addresses, ports, origin, who uses it). |
 | `ResourceOverride` | struct | ResourceOverride replaces individual values of the size preset. |
 | `IngressOptions` | struct | IngressOptions fine-tune the ingress of a service with a domain. |
 | `ResourcesFor` | func | ResourcesFor resolves the service's requests and limits ("" = unset). |
+| `override` | func |  |
 | `Route` | struct | Route is one host + path prefix a service answers on. |
 | `ParseRoute` | func | ParseRoute splits "host/path" (path defaults to "/"). |
 | `(Service) AllRoutes` | method | AllRoutes is everything the service's ingress routes to it: "/" on its domain and aliases, then its extra routes. |
@@ -1700,6 +1720,8 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 | `Build` | struct | Build says how a service's image is built. |
 | `(Build) validate` | method |  |
 | `Test` | struct | Test is a command run in a container image before the build; a failure stops the build. |
+| `(Test) Requests` | method | Requests resolves the test's requests and limits ("" = unset). |
+| `(Test) validate` | method |  |
 | `Health` | struct | Health is the readiness and liveness check of a service. |
 | `Volume` | struct | Volume gives a service persistent storage (a Longhorn volume by default). |
 | `(Service) VolumeFSGroup` | method | VolumeFSGroup is the pod fsGroup for the service's volume, or nil. |
@@ -1712,6 +1734,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 | `(*Spec) Marshal` | method | Marshal writes the spec as YAML. |
 | `(*Spec) Default` | method | Default fills in defaults (path, port, size, replicas, Dockerfile) in place. |
 | `(*Spec) Validate` | method | Validate reports every problem in the spec at once, each with its path (services[1].port …). |
+| `(*Spec) validateBuilds` | method |  |
 | `(*Spec) validateTasks` | method |  |
 | `(*Spec) validateNeeds` | method |  |
 | `validateResources` | func |  |
@@ -1721,7 +1744,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 
 ### `internal/spec/spec_test.go`
 
-<small>435 lines · tests</small>
+<small>478 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1739,6 +1762,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 | `TestNeeds` | func |  |
 | `TestTasks` | func |  |
 | `TestPostDeployTasks` | func |  |
+| `TestBuilds` | func |  |
 
 ## `internal/store` {#internal-store}
 
@@ -1845,7 +1869,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/store.go`
 
-<small>633 lines</small>
+<small>639 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1861,6 +1885,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) GetAppByID` | method | GetAppByID returns an app by ID, or ErrNotFound. |
 | `(*Store) AppsForRepo` | method | AppsForRepo returns every app deployed from a repo (webhooks fan out to them). |
 | `(*Store) ListApps` | method | ListApps returns every app, by name. |
+| `(*Store) ListReleasedApps` | method | ListReleasedApps lists the apps with at least one release: the ones that have been live. |
 | `(*Store) listApps` | method |  |
 | `(*Store) DeleteApp` | method | DeleteApp removes an app and, through foreign keys, its runs and releases. |
 | `Run` | struct | Run is one CI run: a commit of an app built (and on the default branch, released). |
@@ -1949,7 +1974,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/store_test.go`
 
-<small>361 lines · tests</small>
+<small>368 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1974,7 +1999,7 @@ Package uptime checks every app's services once a minute and keeps the results: 
 
 ### `internal/uptime/uptime.go`
 
-<small>453 lines</small>
+<small>455 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|

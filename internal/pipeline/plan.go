@@ -64,6 +64,11 @@ type Step struct {
 	Timeout   time.Duration     `json:"timeout,omitempty"`
 	// Optional steps may fail without failing the run.
 	Optional bool `json:"optional,omitempty"`
+
+	// Test steps: a throwaway Postgres next to the tests (DATABASE_URL),
+	// and a /cache kept between runs (one volume per app and step).
+	Postgres bool `json:"postgres,omitempty"`
+	Cache    bool `json:"cache,omitempty"`
 }
 
 // TaskStepID is the ID of a task's step.
@@ -83,7 +88,7 @@ type Source struct {
 }
 
 // Plan builds the DAG for a spec: per service, test (if configured) then
-// build; job images; then tasks, after the builds and tasks they name.
+// build; job images; the builds (test, then build); then tasks, after the builds and tasks they name.
 // Services are independent of each other and run in parallel.
 func Plan(app, registry string, s spec.Spec) []Step {
 	var steps []Step
@@ -97,7 +102,20 @@ func Plan(app, registry string, s spec.Spec) []Step {
 			Builder: svc.Build.Builder, Start: svc.Build.Start, BuildArgs: svc.Build.Args,
 		}
 		if svc.Test != nil {
-			test := Step{ID: svc.Name + ":test", Service: svc.Name, Kind: KindTest, Path: svc.Path, Image: svc.Test.Image, Command: svc.Test.Command}
+			test := testStep(app, svc.Name, svc.Name, svc.Path, *svc.Test)
+			steps = append(steps, test)
+			build.DependsOn = []string{test.ID}
+		}
+		steps = append(steps, build)
+	}
+	for _, b := range s.Builds {
+		build := Step{
+			ID: b.Name + ":build", Service: b.ImageKey(), Kind: KindBuild, Path: b.Path,
+			Target: fmt.Sprintf("%s/%s-%s", registry, app, b.Name), Dockerfile: b.Build.Dockerfile,
+			Builder: b.Build.Builder, Start: b.Build.Start, BuildArgs: b.Build.Args,
+		}
+		if b.Test != nil {
+			test := testStep(app, b.Name, b.ImageKey(), b.Path, *b.Test)
 			steps = append(steps, test)
 			build.DependsOn = []string{test.ID}
 		}
@@ -133,6 +151,15 @@ func Plan(app, registry string, s spec.Spec) []Step {
 		steps = append(steps, step)
 	}
 	return steps
+}
+
+// testStep is the test of a service or build named name, whose image key is key.
+func testStep(app, name, key, dir string, t spec.Test) Step {
+	return Step{
+		ID: name + ":test", Service: key, Kind: KindTest, Path: dir, Image: t.Image, Command: t.Command,
+		App: app, Env: t.Env, Resources: t.Requests(), Timeout: time.Duration(t.Timeout) * time.Second,
+		Postgres: t.Postgres, Cache: t.Cache,
+	}
 }
 
 func isTask(s spec.Spec, name string) bool {

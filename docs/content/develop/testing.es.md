@@ -34,17 +34,26 @@ make itest                                       # construcciones reales en el g
 `make test-remote` (`hack/test-remote.sh`) corre los pasos de `make test` en un pod en un nodo trabajador, porque compilar y correr envtest en `main` (el plano de control) hace lento a todo el clúster:
 
 ```bash
---8<-- "hack/test-remote.sh:93:109"
+--8<-- "hack/test-remote.sh:95:115"
 ```
 
 1. Se crea un pod con tres contenedores en `rendimiento-builds`, lejos del plano de control y de cualquier nodo en `TEST_EXCLUDE_NODES`: **go** (las herramientas), **node** (la revisión de tipos) y **postgres** (un acompañante que las pruebas del almacén usan en `localhost`).
 2. Un volumen de **caché local del nodo** (`rendimiento-test-cache`, local-path) guarda entre ejecuciones los módulos de Go, la caché de construcción, los programas de envtest y la caché de npm; la primera ejecución lo llena (unos 20 minutos), las siguientes lo reutilizan.
 3. El árbol de trabajo, **incluidos los cambios sin confirmar**, se manda como un archivo tar.
-4. Corren `controller-gen`, `go vet`, `go test -p 1 ./...` y `npm run typecheck`, y su salida llega aquí en vivo.
+4. `hack/ci-test.sh` corre `controller-gen`, `go vet` y `go test -p 1 ./...`; luego corre `npm run typecheck`, y su salida llega aquí en vivo:
+
+    ```bash
+    --8<-- "hack/ci-test.sh:25:37"
+    ```
+
 5. Los archivos regenerados se copian de vuelta, así el repositorio coincide con lo que se probó.
 6. Se borra el pod.
 
 `-p 1` corre los paquetes uno tras otro: las pruebas del almacén, de la plataforma y de la API comparten una base de datos.
+
+## En cada envío {#on-every-push}
+
+El repositorio de rendimiento es una aplicación más de rendimiento: su `rendimiento.yaml` incluye el libro (un servicio) y la imagen de la plataforma (`builds: platform`). Así, cada envío y cada solicitud de incorporación también corre el mismo `hack/ci-test.sh`, como el paso `platform:test`, con un Postgres desechable (`postgres: true`) y una caché que se conserva (`cache: true`); después `platform:build` construye la imagen, cuyo Dockerfile corre `npm run typecheck`. El resultado es la comprobación de la confirmación en GitHub. En la integración continua, el script también falla si no se confirmaron los archivos generados (deepcopy, CRD) (`CHECK_GENERATED=1`). Para probar cambios **sin confirmar**, se sigue usando `make test-remote`. Vea [Cómo se construye rendimiento a sí mismo](../environment/deploy.md#rendimiento-builds-itself).
 
 ## Escribir pruebas {#writing-tests}
 

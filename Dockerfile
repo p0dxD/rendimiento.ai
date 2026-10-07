@@ -3,7 +3,8 @@ WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
 COPY web/ ./
-RUN npm run build
+# Types and translations are checked here, so every image build checks the UI.
+RUN npm run typecheck && npm run build
 
 FROM golang:1.27 AS build
 WORKDIR /src

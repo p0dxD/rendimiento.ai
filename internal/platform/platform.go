@@ -80,6 +80,10 @@ type Platform struct {
 	Notify *notify.Notifier
 	// Clientset runs post-deploy tasks (Jobs in app namespaces) and reads their logs.
 	Clientset kubernetes.Interface
+	// Caches deletes the cache volumes of an app's tests (nil: none).
+	Caches interface {
+		DeleteCaches(ctx context.Context, app string) error
+	}
 
 	mu        sync.Mutex
 	cancels   map[int64]context.CancelFunc      // running run → cancel
@@ -337,6 +341,11 @@ func (p *Platform) DeleteApp(ctx context.Context, app *store.App) error {
 	err := p.Kube.Delete(ctx, &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: app.Name}})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
+	}
+	if p.Caches != nil {
+		if err := p.Caches.DeleteCaches(ctx, app.Name); err != nil {
+			p.Log.Warn("could not delete the app's test caches", "app", app.Name, "err", err)
+		}
 	}
 	return p.Store.DeleteApp(ctx, app.ID)
 }
@@ -855,7 +864,7 @@ func touched(files []string, dir string, watch []string) bool {
 	return false
 }
 
-// reusable decides which built services and jobs can keep the image from
+// reusable decides which built services, jobs and builds can keep the image from
 // the latest release because nothing they are built from changed since.
 // It returns image key → image, and a note for the skipped steps.
 func reusable(sp spec.Spec, files []string, prev *store.Release) (map[string]string, string) {
@@ -871,6 +880,11 @@ func reusable(sp spec.Spec, files []string, prev *store.Release) (map[string]str
 	for _, j := range sp.Jobs {
 		if j.Path != "" && prev.Images[j.ImageKey()] != "" && !touched(files, j.Path, j.Watch) {
 			reuse[j.ImageKey()] = prev.Images[j.ImageKey()]
+		}
+	}
+	for _, b := range sp.Builds {
+		if prev.Images[b.ImageKey()] != "" && !touched(files, b.Path, b.Watch) {
+			reuse[b.ImageKey()] = prev.Images[b.ImageKey()]
 		}
 	}
 	return reuse, M("unchanged since release #%d; its image is reused", prev.Number)

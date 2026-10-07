@@ -1,6 +1,7 @@
-# rendimiento deploys its own book: every push to main rebuilds the docs
-# site (docs/Dockerfile, built from the repository root so the code map and
-# source excerpts are current) and serves it on the home network.
+# rendimiento builds itself. Every push to main rebuilds its book (docs,
+# served on the home network) and tests and builds its own image (builds:
+# platform), so a change is checked on the cluster like any app's. The
+# image is kept with the release; it is not deployed from here yet.
 services:
   - name: docs
     path: .
@@ -18,3 +19,15 @@ services:
       category: devtools
       title: rendimiento book
       description: How rendimiento works, how it is deployed here, and how to change it.
+builds:
+  # rendimiento's own image: the Go tests (envtest and a throwaway Postgres)
+  # first, then the Dockerfile, which also checks the UI.
+  - name: platform
+    path: .
+    build: { dockerfile: Dockerfile }
+    test:
+      image: golang:1.27
+      command: CHECK_GENERATED=1 hack/ci-test.sh
+      postgres: true
+      cache: true
+      resources: { cpu: "1", memory: 2Gi, memoryLimit: 5Gi }

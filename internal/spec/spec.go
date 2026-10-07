@@ -23,6 +23,10 @@ type Spec struct {
 	Services []Service `json:"services"`
 	// Jobs run on a schedule (Kubernetes CronJobs).
 	Jobs []Job `json:"jobs,omitempty"`
+	// Builds are images built, tested and kept with each release that no
+	// service of the app runs (an image other things use, or rendimiento's
+	// own image when it builds itself).
+	Builds []ImageBuild `json:"builds,omitempty"`
 	// SharedNamespace means the app's namespace also holds things rendimiento
 	// does not manage (e.g. a service still deployed by ArgoCD, which owns the
 	// namespace). rendimiento then never creates, labels, owns or deletes the
@@ -297,6 +301,20 @@ func Touches(f, dir string, watch []string) bool {
 // ImageKey is the key of a built job's image in a release's image map.
 func (j Job) ImageKey() string { return "job:" + j.Name }
 
+// ImageBuild is an image built from a folder of the repo on every run,
+// like a service's, but not deployed: its digest is kept in the release.
+type ImageBuild struct {
+	Name string `json:"name"`
+	Path string `json:"path,omitempty"`
+	// Watch lists extra repo paths whose changes also rebuild the image.
+	Watch []string `json:"watch,omitempty"`
+	Build Build    `json:"build,omitempty"`
+	Test  *Test    `json:"test,omitempty"`
+}
+
+// ImageKey is the key of the image in a release's image map.
+func (b ImageBuild) ImageKey() string { return "build:" + b.Name }
+
 // Service is one deployable part of an app: built from a folder of the repo (or a ready-made image)
 // and run as a Deployment with a Service.
 type Service struct {
@@ -415,7 +433,10 @@ type IngressOptions struct {
 
 // ResourcesFor resolves the service's requests and limits ("" = unset).
 func ResourcesFor(size Size, o *ResourceOverride) Resources {
-	r := size.Resources()
+	return override(size.Resources(), o)
+}
+
+func override(r Resources, o *ResourceOverride) Resources {
 	if o == nil {
 		return r
 	}
@@ -582,6 +603,52 @@ func (b Build) validate(p string) []error {
 type Test struct {
 	Image   string `json:"image"`
 	Command string `json:"command"`
+	// Size and Resources replace the default requests and limits (250m
+	// CPU, 256Mi memory, at most 2Gi), e.g. for a large test suite.
+	Size      Size              `json:"size,omitempty"`
+	Resources *ResourceOverride `json:"resources,omitempty"`
+	// Timeout stops the tests after this many seconds (default and maximum:
+	// the platform's step timeout).
+	Timeout int               `json:"timeout,omitempty"`
+	Env     map[string]string `json:"env,omitempty"`
+	// Postgres starts a throwaway PostgreSQL next to the tests, empty for
+	// every run; its address is in DATABASE_URL.
+	Postgres bool `json:"postgres,omitempty"`
+	// Cache keeps /cache from one run to the next (Go, npm and pip are
+	// pointed there), so dependencies are not downloaded and compiled again.
+	Cache bool `json:"cache,omitempty"`
+}
+
+// testResources are a test's requests and limits when it sets no size.
+var testResources = Resources{"250m", "256Mi", "", "2Gi"}
+
+// Requests resolves the test's requests and limits ("" = unset).
+func (t Test) Requests() Resources {
+	r := testResources
+	if t.Size != "" {
+		r = t.Size.Resources()
+	}
+	return override(r, t.Resources)
+}
+
+func (t Test) validate(p string) []error {
+	var errs []error
+	if t.Image == "" || strings.TrimSpace(t.Command) == "" {
+		errs = append(errs, fmt.Errorf("%s needs both image and command", p))
+	}
+	if _, ok := sizes[t.Size]; t.Size != "" && !ok {
+		errs = append(errs, fmt.Errorf("%s.size %q must be small, medium or large", p, t.Size))
+	}
+	errs = append(errs, validateResources(p, t.Resources)...)
+	if t.Timeout < 0 {
+		errs = append(errs, fmt.Errorf("%s.timeout must be a number of seconds", p))
+	}
+	for k := range t.Env {
+		if !envKey.MatchString(k) {
+			errs = append(errs, fmt.Errorf("%s.env key %q is invalid", p, k))
+		}
+	}
+	return errs
 }
 
 // Health is the readiness and liveness check of a service.
@@ -715,6 +782,15 @@ func (s *Spec) Default() {
 		}
 		if j.Path != "" && j.Build.Dockerfile == "" {
 			j.Build.Dockerfile = "Dockerfile"
+		}
+	}
+	for i := range s.Builds {
+		b := &s.Builds[i]
+		if b.Path == "" {
+			b.Path = "."
+		}
+		if b.Build.Dockerfile == "" {
+			b.Build.Dockerfile = "Dockerfile"
 		}
 	}
 	for i := range s.Services {
@@ -859,8 +935,8 @@ func (s *Spec) Validate() error {
 				errs = append(errs, fmt.Errorf("%s.configFiles[%d].mount must be an absolute directory other than /", p, i))
 			}
 		}
-		if svc.Test != nil && (svc.Test.Image == "" || svc.Test.Command == "") {
-			errs = append(errs, fmt.Errorf("%s.test needs both image and command", p))
+		if svc.Test != nil {
+			errs = append(errs, svc.Test.validate(p+".test")...)
 		}
 		for k := range svc.Env {
 			if !envKey.MatchString(k) {
@@ -920,11 +996,46 @@ func (s *Spec) Validate() error {
 	errs = append(errs, s.validateNeeds(seen)...)
 	errs = append(errs, s.validateRoutes()...)
 	errs = append(errs, s.validateJobs(seen)...)
+	errs = append(errs, s.validateBuilds()...)
 	errs = append(errs, s.validateTasks()...)
 	if v := s.Verify; v != nil && v.Window != 0 && (v.Window < 60 || v.Window > 3600) {
 		errs = append(errs, fmt.Errorf("verify.window %d must be between 60 and 3600 seconds", v.Window))
 	}
 	return errors.Join(errs...)
+}
+
+func (s *Spec) validateBuilds() []error {
+	var errs []error
+	used := map[string]string{}
+	for _, svc := range s.Services {
+		used[svc.Name] = "service"
+	}
+	for _, j := range s.Jobs {
+		used[j.Name] = "job"
+	}
+	for i, b := range s.Builds {
+		p := fmt.Sprintf("builds[%d]", i)
+		if !dnsLabel.MatchString(b.Name) || len(b.Name) > 40 {
+			errs = append(errs, fmt.Errorf("%s.name %q must be a lowercase DNS label of at most 40 characters", p, b.Name))
+		}
+		if kind, dup := used[b.Name]; dup {
+			errs = append(errs, fmt.Errorf("%s.name %q is already used by a %s", p, b.Name, kind))
+		}
+		used[b.Name] = "build"
+		if strings.HasPrefix(b.Path, "/") || strings.Contains(b.Path, "..") {
+			errs = append(errs, fmt.Errorf("%s.path %q must be relative to the repo root", p, b.Path))
+		}
+		for _, w := range b.Watch {
+			if w == "" || strings.HasPrefix(w, "/") || strings.Contains(w, "..") {
+				errs = append(errs, fmt.Errorf("%s.watch %q must be a path relative to the repo root", p, w))
+			}
+		}
+		errs = append(errs, b.Build.validate(p)...)
+		if b.Test != nil {
+			errs = append(errs, b.Test.validate(p+".test")...)
+		}
+	}
+	return errs
 }
 
 func (s *Spec) validateTasks() []error {
@@ -937,6 +1048,10 @@ func (s *Spec) validateTasks() []error {
 	}
 	for _, j := range s.Jobs {
 		used[j.Name] = "job"
+	}
+	for _, b := range s.Builds {
+		used[b.Name] = "build"
+		built[b.Name] = true
 	}
 	tasks := map[string]Task{}
 	for i, t := range s.Tasks {
@@ -1022,8 +1137,8 @@ func (s *Spec) validateTasks() []error {
 				errs = append(errs, fmt.Errorf("tasks[%d].after: a task cannot wait for itself", i))
 			case used[a] == "service" && !built[a]:
 				errs = append(errs, fmt.Errorf("tasks[%d].after: service %q runs a ready-made image, so there is no build to wait for", i, a))
-			case used[a] != "service" && used[a] != "task":
-				errs = append(errs, fmt.Errorf("tasks[%d].after: %q is not a service or task of this app", i, a))
+			case used[a] != "service" && used[a] != "task" && used[a] != "build":
+				errs = append(errs, fmt.Errorf("tasks[%d].after: %q is not a service, build or task of this app", i, a))
 			}
 		}
 	}

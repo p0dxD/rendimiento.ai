@@ -27,7 +27,38 @@ test:
   command: pip install -r requirements.txt && pytest -q
 ```
 
-The test runs in its own pod, in the service's folder of a fresh clone, before the build. A failure marks the build *skipped* and the run failed, and GitHub shows a red check. Test pods have 2 GiB of memory and the same network isolation as builds (the internet for dependencies, nothing inside the cluster).
+The test runs in its own pod, in the service's folder of a fresh clone, before the build. A failure marks the build *skipped* and the run failed, and GitHub shows a red check. Test pods have the same network isolation as builds (the internet for dependencies, nothing inside the cluster).
+
+A larger test suite can ask for more:
+
+```yaml
+test:
+  image: golang:1.27
+  command: go test ./...
+  resources: { cpu: "1", memory: 2Gi, memoryLimit: 5Gi }   # or size: large
+  timeout: 1800
+  env: { CGO_ENABLED: "0" }
+  postgres: true    # a throwaway database: DATABASE_URL
+  cache: true       # /cache is kept between runs
+```
+
+- **Resources.** Without `size` or `resources`, a test requests 250m CPU and 256 MiB and may use up to 2 GiB; `size` and `resources` work as for services.
+- **`postgres: true`** starts an empty PostgreSQL next to the tests, in the same pod; the tests start once it accepts connections, and it is gone when they end. Its address is in `DATABASE_URL` (`postgres://postgres:test@127.0.0.1:5432/test`).
+- **`cache: true`** keeps a volume at `/cache` from one run to the next, so dependencies are not downloaded and compiled every time. Go, npm and pip are pointed there (`GOCACHE`, `GOMODCACHE`, `npm_config_cache`, `PIP_CACHE_DIR`, `XDG_CACHE_HOME`); other tools can use `/cache` themselves. There is one volume per app and test, deleted with the app. Branch and pull request runs share it, so a cache only speeds tests up: never let a test trust what it finds there. The images that are deployed are built by BuildKit and never read it.
+
+## Images that are not services {#images-that-are-not-services}
+
+`builds:` lists images the repository produces that no service of the app runs: an image other apps or tools use, or, in rendimiento's own repository, rendimiento itself. Each is tested and built like a service (same `path`, `watch`, `build` and `test` fields), and its digest is kept with the release, but nothing is deployed from it.
+
+```yaml
+builds:
+  - name: platform
+    path: .
+    build: { dockerfile: Dockerfile }
+    test: { image: golang:1.27, command: go test ./..., postgres: true, cache: true }
+```
+
+The image is pushed as `<registry>/<app>-<name>`; the run page shows `platform:test` and `platform:build`. [How rendimiento builds itself](../environment/deploy.md#rendimiento-builds-itself).
 
 ## Only what changed is rebuilt
 

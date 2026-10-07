@@ -387,7 +387,7 @@ tasks:
 		{"[{name: api, image: i, command: c}]", `"api" is already used by a service`},
 		{"[{name: t, image: i}]", "needs both image and command"},
 		{"[{name: t, image: i, command: c, when: nightly}]", "must be deploy or always"},
-		{"[{name: t, image: i, command: c, after: [nope]}]", `"nope" is not a service or task`},
+		{"[{name: t, image: i, command: c, after: [nope]}]", `"nope" is not a service, build or task`},
 		{"[{name: t, image: i, command: c, after: [db]}]", "no build to wait for"},
 		{"[{name: t, image: i, command: c, after: [t]}]", "cannot wait for itself"},
 		{"[{name: a, image: i, command: c, after: [b]}, {name: b, image: i, command: c, after: [a]}]", "cycle"},
@@ -430,6 +430,49 @@ tasks:
 		_, err := Parse([]byte("services: [{name: api}]\ntasks: " + tc.tasks))
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: got %v, want %q", tc.tasks, err, tc.want)
+		}
+	}
+}
+
+func TestBuilds(t *testing.T) {
+	s, err := Parse([]byte(`
+services: [{name: docs}]
+builds:
+  - name: platform
+    test:
+      image: golang:1.27
+      command: hack/ci-test.sh
+      postgres: true
+      cache: true
+      env: { CGO_ENABLED: "0" }
+      resources: { cpu: "1", memoryLimit: 5Gi }
+tasks:
+  - {name: smoke, image: curl, command: curl -f x, after: [platform]}
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := s.Builds[0]
+	if b.Path != "." || b.Build.Dockerfile != "Dockerfile" || b.ImageKey() != "build:platform" || !b.Test.Postgres || !b.Test.Cache {
+		t.Fatalf("build = %+v", b)
+	}
+	if r := b.Test.Requests(); r != (Resources{"1", "256Mi", "", "5Gi"}) {
+		t.Fatalf("test resources = %+v", r)
+	}
+	if r := (Test{Size: SizeLarge}).Requests(); r != SizeLarge.Resources() {
+		t.Fatalf("sized test = %+v", r)
+	}
+	for in, want := range map[string]string{
+		"services: [{name: a}]\nbuilds: [{name: a}]":                                          "already used by a service",
+		"services: [{name: a}]\nbuilds: [{name: B}]":                                          "lowercase DNS label",
+		"services: [{name: a}]\nbuilds: [{name: b, path: ../x}]":                              "relative to the repo root",
+		"services: [{name: a}]\nbuilds: [{name: b, test: {image: x}}]":                        "builds[0].test needs both image and command",
+		"services: [{name: a}]\nbuilds: [{name: b, test: {image: x, command: y, size: xl}}]":  "builds[0].test.size",
+		"services: [{name: a, test: {image: x, command: y, timeout: -1}}]":                    "services[0].test.timeout",
+		"services: [{name: a}]\nbuilds: [{name: b}]\ntasks: [{name: b, image: x, command: y}]": "already used by a build",
+	} {
+		if _, err := Parse([]byte(in)); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("Parse(%q) = %v, want %q", in, err, want)
 		}
 	}
 }

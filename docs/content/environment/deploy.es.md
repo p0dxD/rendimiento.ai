@@ -153,6 +153,18 @@ Al reiniciar, la plataforma:
 !!! warning "`:latest` no tiene historial"
     Revertir la plataforma significa volver a construir la confirmación anterior. Etiquetar cada construcción con su confirmación está en la [hoja de ruta](../future/roadmap.md); mientras tanto, `git checkout <confirmación buena> && make image` es la reversión.
 
+## rendimiento se construye a sí mismo {#rendimiento-builds-itself}
+
+El repositorio de rendimiento está incorporado como cualquier aplicación. Su `rendimiento.yaml` tiene el libro (`docs`, un servicio) y la imagen de la plataforma (`builds: platform`), así que cada envío corre:
+
+- `platform:test`: `hack/ci-test.sh` (generar, vet y las pruebas de Go, con envtest y un Postgres desechable) en `golang`, con una caché que se conserva;
+- `platform:build`: el Dockerfile, que además revisa los tipos y las traducciones de la interfaz, publicado como `<registro>/rendimiento-ai-platform:<confirmación>`.
+
+Las solicitudes de incorporación reciben la misma comprobación, sin versión. En la rama principal, el resumen (digest) de la imagen se guarda con la versión, junto al del libro. **Todavía no se despliega solo**: publicar sigue siendo los pasos de arriba, que construyen el mismo Dockerfile. El siguiente paso es que una versión actualice la plataforma (con una actualización gradual que conserve la versión anterior hasta que la nueva esté lista, para que una imagen rota no pueda tumbar la plataforma).
+
+!!! note "Un campo que la plataforma en marcha no conoce"
+    La plataforma lee `rendimiento.yaml` de forma estricta. Un cambio que le agrega un campo (como `builds:`) debe publicarse **antes** de enviar la confirmación que lo usa; si no, la ejecución de ese envío no puede leer su propio spec.
+
 ## El lado de las construcciones {#the-build-side}
 
 | Qué | De dónde viene |

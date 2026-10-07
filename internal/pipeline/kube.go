@@ -55,6 +55,13 @@ type KubeExecutor struct {
 	// RailpackFrontend is the BuildKit frontend that builds a Railpack plan;
 	// keep its version in step with the CLI's.
 	RailpackFrontend string
+	// PostgresImage is the throwaway database of tests with postgres: true.
+	PostgresImage string
+	// CacheStorageClass and CacheSize make the volumes of tests with
+	// cache: true (empty class: the cluster's default). A node-local class
+	// such as local-path is fastest; the tests then run on that node.
+	CacheStorageClass string
+	CacheSize         string
 }
 
 func (k *KubeExecutor) defaults() {
@@ -69,6 +76,12 @@ func (k *KubeExecutor) defaults() {
 	}
 	if k.RailpackFrontend == "" {
 		k.RailpackFrontend = "ghcr.io/railwayapp/railpack-frontend:v0.40.0"
+	}
+	if k.PostgresImage == "" {
+		k.PostgresImage = "postgres:17-alpine"
+	}
+	if k.CacheSize == "" {
+		k.CacheSize = "10Gi"
 	}
 }
 
@@ -175,6 +188,11 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 			fmt.Fprintf(w, "rendimiento: building on %s\n", daemon)
 		}
 	}
+	if step.Kind == KindTest && step.Cache {
+		if err := k.ensureCache(ctx, step); err != nil {
+			return fail("cache volume: %v", err)
+		}
+	}
 	pod, err := k.pod(name, labels, src, step, buildkit, taskEnv...)
 	if err != nil {
 		return fail("%v", err)
@@ -197,6 +215,9 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 
 	var containers []string
 	for _, c := range append(pod.Spec.InitContainers, pod.Spec.Containers...) {
+		if c.RestartPolicy != nil {
+			continue // a sidecar (the tests' database) runs until the step ends
+		}
 		containers = append(containers, c.Name)
 	}
 	for _, container := range containers {
@@ -216,8 +237,13 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 	}
 	res.Finished = time.Now()
 	if final.Status.Phase != corev1.PodSucceeded {
-		if step.Kind == KindTask && final.Status.Reason == "DeadlineExceeded" {
-			return fail("task timed out after %s", timeout)
+		if final.Status.Reason == "DeadlineExceeded" {
+			switch step.Kind {
+			case KindTask:
+				return fail("task timed out after %s", timeout)
+			case KindTest:
+				return fail("tests timed out after %s", timeout)
+			}
 		}
 		return fail("step failed: %s", terminationSummary(final))
 	}
@@ -358,19 +384,33 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 		VolumeMounts: []corev1.VolumeMount{ws},
 	}
 	initContainers := []corev1.Container{clone}
+	volumes := []corev1.Volume{{Name: "workspace", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}}
+	var cacheMount *corev1.VolumeMount
 	var main corev1.Container
 	switch step.Kind {
 	case KindTest:
+		res, err := taskResources(step.Resources)
+		if err != nil {
+			return nil, err
+		}
+		env := []corev1.EnvVar{{Name: "CI", Value: "true"}, {Name: "GIT_SHA", Value: src.SHA}}
+		if step.Postgres {
+			env = append(env, corev1.EnvVar{Name: "DATABASE_URL", Value: testDatabaseURL})
+			initContainers = append(initContainers, k.testPostgres())
+		}
+		if step.Cache {
+			env = append(env, cacheEnv...)
+			cacheMount = &corev1.VolumeMount{Name: "cache", MountPath: "/cache"}
+			volumes = append(volumes, corev1.Volume{Name: "cache", VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: cacheName(step)}}})
+		}
 		main = corev1.Container{
 			Name:       "step",
 			Image:      step.Image,
 			Command:    []string{"sh", "-c", step.Command},
 			WorkingDir: workdir,
-			Env:        []corev1.EnvVar{{Name: "CI", Value: "true"}, {Name: "GIT_SHA", Value: src.SHA}},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("250m"), corev1.ResourceMemory: resource.MustParse("256Mi")},
-				Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
-			},
+			Env:        append(env, sortedEnv(step.Env)...), // the test's own env wins
+			Resources:  res,
 		}
 	case KindBuild:
 		insecure := ""
@@ -429,14 +469,7 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 	case KindTask:
 		env := []corev1.EnvVar{{Name: "CI", Value: "true"}, {Name: "GIT_SHA", Value: src.SHA},
 			{Name: "GIT_BRANCH", Value: src.Branch}, {Name: "RENDIMIENTO_APP", Value: step.App}}
-		keys := make([]string, 0, len(step.Env))
-		for key := range step.Env {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		for _, key := range keys {
-			env = append(env, corev1.EnvVar{Name: key, Value: step.Env[key]})
-		}
+		env = append(env, sortedEnv(step.Env)...)
 		res, err := taskResources(step.Resources)
 		if err != nil {
 			return nil, err
@@ -453,6 +486,9 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 		return nil, fmt.Errorf("unknown step kind %q", step.Kind)
 	}
 	main.VolumeMounts = []corev1.VolumeMount{ws}
+	if cacheMount != nil {
+		main.VolumeMounts = append(main.VolumeMounts, *cacheMount)
+	}
 	main.TerminationMessagePolicy = corev1.TerminationMessageReadFile
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: k.Namespace, Labels: labels},
@@ -463,9 +499,111 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 			AutomountServiceAccountToken: ptr(false),
 			InitContainers:               initContainers,
 			Containers:                   []corev1.Container{main},
-			Volumes:                      []corev1.Volume{{Name: "workspace", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}},
+			Volumes:                      volumes,
 		},
 	}, nil
+}
+
+// testDatabaseURL is the address of a test's throwaway Postgres.
+const testDatabaseURL = "postgres://postgres:test@127.0.0.1:5432/test?sslmode=disable"
+
+// testPostgres is the database of a test with postgres: true: a sidecar
+// (an init container that keeps running) that the tests start after, once
+// it accepts connections, and that stops when they end. Its data lives in
+// the container and is gone with the pod.
+func (k *KubeExecutor) testPostgres() corev1.Container {
+	return corev1.Container{
+		Name:          "postgres",
+		Image:         k.PostgresImage,
+		RestartPolicy: ptr(corev1.ContainerRestartPolicyAlways),
+		Env:           []corev1.EnvVar{{Name: "POSTGRES_PASSWORD", Value: "test"}, {Name: "POSTGRES_DB", Value: "test"}},
+		// Over TCP: the image's first-start setup listens only on its socket.
+		StartupProbe: &corev1.Probe{
+			ProbeHandler:  corev1.ProbeHandler{Exec: &corev1.ExecAction{Command: []string{"pg_isready", "-U", "postgres", "-h", "127.0.0.1"}}},
+			PeriodSeconds: 2, FailureThreshold: 90,
+		},
+		Resources: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("50m"), corev1.ResourceMemory: resource.MustParse("128Mi")},
+			Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi")},
+		},
+	}
+}
+
+// cacheEnv points the usual tool caches at a test's /cache.
+var cacheEnv = []corev1.EnvVar{
+	{Name: "XDG_CACHE_HOME", Value: "/cache"},
+	{Name: "GOCACHE", Value: "/cache/go-build"},
+	{Name: "GOMODCACHE", Value: "/cache/go-mod"},
+	{Name: "npm_config_cache", Value: "/cache/npm"},
+	{Name: "PIP_CACHE_DIR", Value: "/cache/pip"},
+}
+
+// CacheAppLabel marks the cache volumes of an app's tests, so deleting the
+// app deletes them.
+const CacheAppLabel = "rendimiento.ai/cache-of"
+
+// cacheName is the volume kept between runs of a test step: one per app
+// and step, e.g. cache-shop-web.
+func cacheName(step Step) string {
+	n := nonName.ReplaceAllString(strings.ToLower("cache-"+step.App+"-"+strings.TrimSuffix(step.ID, ":test")), "-")
+	if len(n) > 63 {
+		n = n[:63]
+	}
+	return strings.TrimRight(n, "-")
+}
+
+// ensureCache creates the step's cache volume the first time it runs.
+func (k *KubeExecutor) ensureCache(ctx context.Context, step Step) error {
+	size, err := resource.ParseQuantity(k.CacheSize)
+	if err != nil {
+		return fmt.Errorf("cache size: %v", err)
+	}
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{Name: cacheName(step), Namespace: k.Namespace,
+			Labels: map[string]string{"app.kubernetes.io/managed-by": "rendimiento", CacheAppLabel: nonName.ReplaceAllString(step.App, "-")}},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			Resources:   corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: size}},
+		},
+	}
+	if k.CacheStorageClass != "" {
+		pvc.Spec.StorageClassName = &k.CacheStorageClass
+	}
+	return transientRetry(ctx, func() error {
+		_, err := k.Client.CoreV1().PersistentVolumeClaims(k.Namespace).Create(ctx, pvc, metav1.CreateOptions{})
+		if apierrors.IsAlreadyExists(err) {
+			return nil
+		}
+		return err
+	})
+}
+
+// DeleteCaches removes the cache volumes of an app's tests.
+func (k *KubeExecutor) DeleteCaches(ctx context.Context, app string) error {
+	pvcs := k.Client.CoreV1().PersistentVolumeClaims(k.Namespace)
+	l, err := pvcs.List(ctx, metav1.ListOptions{LabelSelector: CacheAppLabel + "=" + nonName.ReplaceAllString(app, "-")})
+	if err != nil {
+		return err
+	}
+	for _, c := range l.Items {
+		if err := pvcs.Delete(ctx, c.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+func sortedEnv(m map[string]string) []corev1.EnvVar {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	env := make([]corev1.EnvVar, 0, len(keys))
+	for _, key := range keys {
+		env = append(env, corev1.EnvVar{Name: key, Value: m[key]})
+	}
+	return env
 }
 
 // waitStarted blocks until the container is running or has terminated,

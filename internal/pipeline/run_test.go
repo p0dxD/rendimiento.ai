@@ -14,6 +14,9 @@ import (
 	"testing"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
+
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
 )
 
@@ -302,5 +305,79 @@ func TestBuildkitPool(t *testing.T) {
 	k.Resolver = fakeSRV{err: fmt.Errorf("no such host")}
 	if addr, _ := k.buildkitFor(context.Background(), "reg/a-web"); addr != "tcp://single:1234" {
 		t.Errorf("fallback = %s", addr)
+	}
+}
+
+func TestPlanBuilds(t *testing.T) {
+	s := spec.Spec{Services: []spec.Service{{Name: "docs"}}, Builds: []spec.ImageBuild{
+		{Name: "platform", Test: &spec.Test{Image: "golang", Command: "go test ./...", Postgres: true, Cache: true}}}}
+	s.Default()
+	steps := Plan("ai", "reg", s)
+	if len(steps) != 3 || steps[1].ID != "platform:test" || steps[2].ID != "platform:build" || steps[2].DependsOn[0] != "platform:test" {
+		t.Fatalf("steps = %+v", steps)
+	}
+	test, build := steps[1], steps[2]
+	if build.Service != "build:platform" || build.Target != "reg/ai-platform" || build.Dockerfile != "Dockerfile" ||
+		test.Service != "build:platform" || !test.Postgres || !test.Cache || test.App != "ai" || test.Resources.MemLimit != "2Gi" {
+		t.Fatalf("test %+v\nbuild %+v", test, build)
+	}
+}
+
+func TestTestPod(t *testing.T) {
+	k := &KubeExecutor{Namespace: "b"}
+	k.defaults()
+	step := Step{ID: "platform:test", Kind: KindTest, Path: ".", Image: "golang", Command: "go test ./...", App: "ai",
+		Env: map[string]string{"GOCACHE": "/elsewhere"}, Resources: spec.Resources{CPURequest: "1", MemLimit: "5Gi"},
+		Postgres: true, Cache: true}
+	pod, err := k.pod("p", nil, Source{Repo: "o/r", SHA: "abc"}, step, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pod.Spec.InitContainers) != 2 || pod.Spec.InitContainers[1].Name != "postgres" ||
+		pod.Spec.InitContainers[1].RestartPolicy == nil || pod.Spec.InitContainers[1].StartupProbe == nil {
+		t.Fatalf("the database is a sidecar the tests wait for: %+v", pod.Spec.InitContainers)
+	}
+	c := pod.Spec.Containers[0]
+	env := map[string]string{}
+	for _, e := range c.Env {
+		env[e.Name] = e.Value // the last one wins, as in Kubernetes
+	}
+	if env["DATABASE_URL"] != testDatabaseURL || env["GOMODCACHE"] != "/cache/go-mod" || env["GOCACHE"] != "/elsewhere" {
+		t.Fatalf("env = %+v", c.Env)
+	}
+	if c.Resources.Requests.Cpu().String() != "1" || c.Resources.Limits.Memory().String() != "5Gi" {
+		t.Fatalf("resources = %+v", c.Resources)
+	}
+	if len(c.VolumeMounts) != 2 || c.VolumeMounts[1].MountPath != "/cache" ||
+		pod.Spec.Volumes[1].PersistentVolumeClaim.ClaimName != "cache-ai-platform" {
+		t.Fatalf("mounts %+v volumes %+v", c.VolumeMounts, pod.Spec.Volumes)
+	}
+
+	plain, _ := k.pod("p", nil, Source{}, Step{ID: "web:test", Kind: KindTest, Path: ".", Image: "i", Command: "c"}, "")
+	if len(plain.Spec.InitContainers) != 1 || len(plain.Spec.Volumes) != 1 {
+		t.Fatalf("a plain test gets no database or cache: %+v", plain.Spec)
+	}
+}
+
+func TestTestCaches(t *testing.T) {
+	ctx := context.Background()
+	cs := fake.NewSimpleClientset()
+	k := &KubeExecutor{Client: cs, Namespace: "b", CacheStorageClass: "local-path"}
+	k.defaults()
+	step := Step{ID: "platform:test", App: "ai"}
+	for range 2 { // the second run finds it
+		if err := k.ensureCache(ctx, step); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pvc, err := cs.CoreV1().PersistentVolumeClaims("b").Get(ctx, "cache-ai-platform", metav1.GetOptions{})
+	if err != nil || *pvc.Spec.StorageClassName != "local-path" || pvc.Spec.Resources.Requests.Storage().String() != "10Gi" {
+		t.Fatalf("pvc = %+v, %v", pvc, err)
+	}
+	if err := k.DeleteCaches(ctx, "ai"); err != nil {
+		t.Fatal(err)
+	}
+	if l, _ := cs.CoreV1().PersistentVolumeClaims("b").List(ctx, metav1.ListOptions{}); len(l.Items) != 0 {
+		t.Fatalf("caches left: %d", len(l.Items))
 	}
 }

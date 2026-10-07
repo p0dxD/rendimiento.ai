@@ -37,6 +37,9 @@ rendimiento se configura solo con **variables de entorno**, que se leen una vez 
 | `BUILD_EXCLUDE_NODES` | *(vacío)* | `gpu-node` | los nodos que deben evitar los pods de construcción |
 | `RAILPACK_IMAGE` | *(vacío: Railpack apagado)* | `registry.example.lan:5000/rendimiento-railpack:0.40.0` | la imagen con la herramienta de Railpack, para los servicios sin Dockerfile |
 | `RAILPACK_FRONTEND` | *(vacío)* | `ghcr.io/railwayapp/railpack-frontend:v0.40.0` | la interfaz de entrada de BuildKit que corresponde a esa versión |
+| `TEST_POSTGRES_IMAGE` | `postgres:17-alpine` | | la base de datos desechable de las pruebas con `postgres: true` |
+| `TEST_CACHE_STORAGE_CLASS` | *(vacío: la predeterminada del clúster)* | `local-path` | clase de almacenamiento de los volúmenes de las pruebas con `cache: true`; una clase local del nodo es la más rápida (la prueba corre entonces en ese nodo) |
+| `TEST_CACHE_SIZE` | `10Gi` | | tamaño de cada uno de esos volúmenes |
 
 ## Generar las aplicaciones {#rendering-apps}
 

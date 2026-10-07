@@ -455,10 +455,48 @@ spec:
                       description: Test is a command run in a container image before
                         the build; a failure stops the build.
                       properties:
+                        cache:
+                          description: |-
+                            Cache keeps /cache from one run to the next (Go, npm and pip are
+                            pointed there), so dependencies are not downloaded and compiled again.
+                          type: boolean
                         command:
                           type: string
+                        env:
+                          additionalProperties:
+                            type: string
+                          type: object
                         image:
                           type: string
+                        postgres:
+                          description: |-
+                            Postgres starts a throwaway PostgreSQL next to the tests, empty for
+                            every run; its address is in DATABASE_URL.
+                          type: boolean
+                        resources:
+                          description: |-
+                            ResourceOverride replaces individual values of the size preset. Limits
+                            may be "none" to leave them unset (e.g. no CPU limit).
+                          properties:
+                            cpu:
+                              type: string
+                            cpuLimit:
+                              type: string
+                            memory:
+                              type: string
+                            memoryLimit:
+                              type: string
+                          type: object
+                        size:
+                          description: |-
+                            Size and Resources replace the default requests and limits (250m
+                            CPU, 256Mi memory, at most 2Gi), e.g. for a large test suite.
+                          type: string
+                        timeout:
+                          description: |-
+                            Timeout stops the tests after this many seconds (default and maximum:
+                            the platform's step timeout).
+                          type: integer
                       required:
                       - command
                       - image

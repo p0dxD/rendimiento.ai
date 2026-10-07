@@ -235,19 +235,23 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		return err
 	}
 	executor := &pipeline.KubeExecutor{
-		Client:           clientset,
-		Namespace:        env("BUILD_NAMESPACE", "rendimiento-builds"),
-		BuildkitAddr:     env("BUILDKIT_ADDR", "tcp://buildkitd.devops-tools.svc.cluster.local:1234"),
-		BuildkitPool:     os.Getenv("BUILDKIT_POOL"),
-		BuildImage:       env("BUILDKIT_IMAGE", "moby/buildkit:v0.18.2"),
-		InsecureRegistry: env("REGISTRY_INSECURE", "true") == "true",
-		Token:            p.CloneToken,
-		Timeout:          stepTimeout,
-		ExcludeNodes:     splitList(os.Getenv("BUILD_EXCLUDE_NODES")),
-		RailpackImage:    os.Getenv("RAILPACK_IMAGE"),
-		RailpackFrontend: os.Getenv("RAILPACK_FRONTEND"),
+		Client:            clientset,
+		Namespace:         env("BUILD_NAMESPACE", "rendimiento-builds"),
+		BuildkitAddr:      env("BUILDKIT_ADDR", "tcp://buildkitd.devops-tools.svc.cluster.local:1234"),
+		BuildkitPool:      os.Getenv("BUILDKIT_POOL"),
+		BuildImage:        env("BUILDKIT_IMAGE", "moby/buildkit:v0.18.2"),
+		InsecureRegistry:  env("REGISTRY_INSECURE", "true") == "true",
+		Token:             p.CloneToken,
+		Timeout:           stepTimeout,
+		ExcludeNodes:      splitList(os.Getenv("BUILD_EXCLUDE_NODES")),
+		RailpackImage:     os.Getenv("RAILPACK_IMAGE"),
+		RailpackFrontend:  os.Getenv("RAILPACK_FRONTEND"),
+		PostgresImage:     os.Getenv("TEST_POSTGRES_IMAGE"),
+		CacheStorageClass: os.Getenv("TEST_CACHE_STORAGE_CLASS"),
+		CacheSize:         os.Getenv("TEST_CACHE_SIZE"),
 	}
 	p.Runner = pipeline.NewRunner(executor, p, parallel)
+	p.Caches = executor
 	renovateRunner := &renovate.Runner{
 		Kube: clientset, Namespace: executor.Namespace, ExcludeNodes: executor.ExcludeNodes,
 		Store: st, GitHub: holder, Log: log,

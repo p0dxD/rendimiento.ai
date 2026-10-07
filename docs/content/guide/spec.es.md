@@ -63,6 +63,7 @@ tasks:
 |---|---|---|---|
 | `services` | lista | **obligatorio** | Los servicios de la aplicación (al menos uno). |
 | `jobs` | lista | ninguno | Tareas programadas (CronJobs). |
+| `builds` | lista | ninguna | Imágenes que se construyen y prueban pero no se despliegan ([Imágenes](#builds)). |
 | `tasks` | lista | ninguno | Comandos que se ejecutan como pasos de integración continua ([Tareas](tasks.md)). |
 | `verify` | objeto | activa, 5 min, con reversión | Cómo se verifica cada versión después de publicarse: `window` (segundos, 60–3600), `rollback` (`false` solo reporta), `disabled` ([Confiabilidad](reliability.md#verifying-each-release)). |
 | `sharedNamespace` | booleano | `false` | El espacio de nombres de la aplicación pertenece a otra cosa (por ejemplo, ArgoCD): debe existir, y rendimiento nunca lo crea, lo etiqueta, se adueña de él ni lo elimina. |
@@ -91,6 +92,11 @@ tasks:
 | `build.start` | texto | detectado | Solo Railpack: el comando de inicio. |
 | `test.image` | texto | — | Imagen en la que corren las pruebas. |
 | `test.command` | texto | — | Comando de la terminal, ejecutado en la carpeta del servicio; un código de salida distinto de cero hace fallar la ejecución y omite la construcción. |
+| `test.size`, `test.resources` | como en el servicio | 250m / 256Mi, límite 2Gi | Las solicitudes y los límites del pod de pruebas. |
+| `test.timeout` | segundos | `STEP_TIMEOUT` | Solo más corto que el límite de la plataforma. |
+| `test.env` | mapa | ninguno | Variables de entorno para las pruebas. |
+| `test.postgres` | booleano | `false` | Un PostgreSQL desechable junto a las pruebas, en `DATABASE_URL` ([Pruebas](builds.md#tests)). |
+| `test.cache` | booleano | `false` | Conservar `/cache` entre ejecuciones; Go, npm y pip lo usan ([Pruebas](builds.md#tests)). |
 
 ### Ejecución {#running}
 
@@ -201,20 +207,31 @@ Cómo se describe el servicio en la página Servicios, para las demás aplicacio
 | `timeout` | segundos | ninguno | Detener una ejecución pasado este tiempo. |
 | `env`, `secretEnv`, `secrets` | como en los servicios | | |
 
+## Imágenes (builds) {#builds}
+
+Imágenes que se construyen en cada ejecución como las de un servicio, pero no se despliegan; sus resúmenes (digests) se guardan con cada versión ([Imágenes que no son servicios](builds.md#images-that-are-not-services)).
+
+| Campo | Tipo | Predeterminado | Qué significa |
+|---|---|---|---|
+| `name` | texto ≤ 40 | **obligatorio** | Único entre servicios, tareas programadas, imágenes y tareas. Los pasos son `<nombre>:test` y `<nombre>:build`; la imagen es `<registro>/<aplicación>-<nombre>`. |
+| `path`, `watch` | como en los servicios | `.` | Qué se construye y qué cuenta como cambio. |
+| `build` | como en los servicios | `Dockerfile` | |
+| `test` | como en los servicios | ninguna | Corre antes de la construcción. |
+
 ## Tareas {#tasks}
 
 Comandos que se ejecutan como pasos de integración continua; vea [Tareas](tasks.md) para saber cuándo corren y cómo funcionan los secretos.
 
 | Campo | Tipo | Predeterminado | Qué significa |
 |---|---|---|---|
-| `name` | texto ≤ 40 | **obligatorio** | Único entre servicios, tareas programadas y tareas. El paso es `<nombre>:task`. |
+| `name` | texto ≤ 40 | **obligatorio** | Único entre servicios, tareas programadas, imágenes y tareas. El paso es `<nombre>:task`. |
 | `stage` | `build` \| `pre-deploy` \| `post-deploy` | `build` | `build`: un paso de integración continua. `pre-deploy`: después de la construcción, antes del despliegue; una falla detiene la versión ([previas al despliegue](tasks.md#pre-deploy-tasks)). `post-deploy`: contra la versión en vivo, como parte de la verificación; una falla la revierte ([posteriores al despliegue](tasks.md#post-deploy-tasks)). |
 | `service` | nombre de servicio | — | Previas y posteriores al despliegue: ejecutar con la imagen nueva de este servicio y su entorno (en lugar de `image`). |
 | `image` | imagen | **obligatorio** (build) | En qué corre el comando. Las tareas posteriores al despliegue indican `image` o `service`. |
 | `command` | texto | **obligatorio** | Se ejecuta con `sh -c`. |
 | `path` | texto | `.` | Carpeta de trabajo, relativa a la raíz del repositorio; también lo que cuenta como cambio. |
 | `watch` | lista de rutas | ninguna | Más rutas cuyos cambios ejecutan la tarea. |
-| `after` | lista | ninguna | Servicios (su construcción) y tareas a los que hay que esperar. |
+| `after` | lista | ninguna | Servicios e imágenes (su construcción) y tareas a los que hay que esperar. |
 | `when` | `deploy` \| `always` | `deploy` | `deploy`: solo los envíos a la rama principal. `always`: cada ejecución, incluidas las ramas y las solicitudes de incorporación. (No `on:`, que YAML lee como `true`.) |
 | `optional` | booleano | `false` | Una falla no hace fallar la ejecución. |
 | `size`, `resources` | como en los servicios | `medium` | |

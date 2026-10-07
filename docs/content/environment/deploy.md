@@ -153,6 +153,18 @@ On restart the platform:
 !!! warning "`:latest` has no history"
     Rolling back the platform means rebuilding the previous commit. Tagging each build with its commit is on the [roadmap](../future/roadmap.md); until then, `git checkout <good commit> && make image` is the rollback.
 
+## rendimiento builds itself {#rendimiento-builds-itself}
+
+rendimiento's repository is onboarded like any app. Its `rendimiento.yaml` has the book (`docs`, a service) and the platform's own image (`builds: platform`), so every push runs:
+
+- `platform:test`: `hack/ci-test.sh` (generate, vet and the Go tests, with envtest and a throwaway Postgres) in `golang`, with a kept cache;
+- `platform:build`: the Dockerfile, which also checks the UI's types and translations, pushed as `<registry>/rendimiento-ai-platform:<commit>`.
+
+Pull requests get the same check without a release. On the default branch the image's digest is kept with the release, next to the book's. **It is not deployed by itself yet**: shipping is still the steps above, which build the same Dockerfile. Letting a release update the platform (a rolling update that keeps the old version until the new one is ready, so a broken image cannot take the platform down) is the next step.
+
+!!! note "A field the running platform doesn't know"
+    The platform reads `rendimiento.yaml` strictly. A change that adds a field to it (as `builds:` did) must be shipped **before** the commit that uses the field is pushed, or that push's run fails to read its own spec.
+
 ## The build side
 
 | What | Where it comes from |

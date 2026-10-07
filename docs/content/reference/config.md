@@ -37,6 +37,9 @@ rendimiento is configured only through **environment variables**, read once at s
 | `BUILD_EXCLUDE_NODES` | *(empty)* | `gpu-node` | nodes build pods must avoid |
 | `RAILPACK_IMAGE` | *(empty: Railpack off)* | `registry.example.lan:5000/rendimiento-railpack:0.40.0` | the Railpack CLI image, for services without a Dockerfile |
 | `RAILPACK_FRONTEND` | *(empty)* | `ghcr.io/railwayapp/railpack-frontend:v0.40.0` | the BuildKit frontend matching that version |
+| `TEST_POSTGRES_IMAGE` | `postgres:17-alpine` | | the throwaway database of tests with `postgres: true` |
+| `TEST_CACHE_STORAGE_CLASS` | *(empty: the cluster's default)* | `local-path` | storage class of the volumes of tests with `cache: true`; a node-local class is fastest (the test then runs on that node) |
+| `TEST_CACHE_SIZE` | `10Gi` | | size of each of those volumes |
 
 ## Rendering apps
 
