@@ -6,7 +6,7 @@ A green deploy says a release *started*. The **Reliability** tab of every app sa
 
 ## What gets checked
 
-Once a minute, the platform checks every service of every app (services scaled to zero are skipped):
+Once a minute, the platform checks every service of every app. Services scaled to zero are skipped, and so are apps that have **no release yet**: an app waiting for its first build is not down, so it is not reported as an outage.
 
 | Check | How | What it catches |
 |---|---|---|

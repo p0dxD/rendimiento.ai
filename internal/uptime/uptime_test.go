@@ -105,7 +105,7 @@ type fakeStore struct {
 	nextID    int64
 }
 
-func (f *fakeStore) ListApps(context.Context) ([]*store.App, error) { return f.apps, nil }
+func (f *fakeStore) ListReleasedApps(context.Context) ([]*store.App, error) { return f.apps, nil }
 func (f *fakeStore) RecordProbes(_ context.Context, p []store.Probe) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

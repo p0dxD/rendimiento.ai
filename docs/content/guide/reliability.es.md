@@ -6,7 +6,7 @@ Un despliegue en verde dice que una versión *arrancó*. La pestaña **Confiabil
 
 ## Qué se comprueba {#what-gets-checked}
 
-Una vez por minuto, la plataforma comprueba cada servicio de cada aplicación (los servicios con cero réplicas se omiten):
+Una vez por minuto, la plataforma comprueba cada servicio de cada aplicación. Se omiten los servicios con cero réplicas, y también las aplicaciones que **todavía no tienen una versión**: una aplicación que espera su primera construcción no está caída, así que no se avisa como una interrupción.
 
 | Comprobación | Cómo | Qué detecta |
 |---|---|---|

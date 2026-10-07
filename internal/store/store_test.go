@@ -59,6 +59,10 @@ func TestAppsRunsReleases(t *testing.T) {
 		t.Fatalf("AppsForRepo = %v %v", apps, err)
 	}
 
+	if live, err := s.ListReleasedApps(ctx); err != nil || len(live) != 0 {
+		t.Fatalf("before its first release the app is not live: %v %v", live, err)
+	}
+
 	steps := pipeline.Plan("hello", "reg", sp)
 	run := &Run{AppID: app.ID, SHA: "abc123", Branch: "main", Event: "push", Deploy: true}
 	if err := s.CreateRun(ctx, run, steps); err != nil {
@@ -120,6 +124,9 @@ func TestAppsRunsReleases(t *testing.T) {
 	list, _ := s.ListReleases(ctx, app.ID, 10)
 	if len(list) != 2 || list[0].Number != 2 {
 		t.Fatalf("releases = %+v", list)
+	}
+	if live, err := s.ListReleasedApps(ctx); err != nil || len(live) != 1 || live[0].Name != "hello" {
+		t.Fatalf("released apps = %v %v", live, err)
 	}
 }
 

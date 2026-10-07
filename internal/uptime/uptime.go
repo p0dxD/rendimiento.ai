@@ -158,7 +158,9 @@ func shortError(err error) string {
 
 // Recorder is what the prober stores results in (the store in production).
 type Recorder interface {
-	ListApps(ctx context.Context) ([]*store.App, error)
+	// ListReleasedApps lists the apps that have been live: one still
+	// waiting for its first build is not checked, so it is never "down".
+	ListReleasedApps(ctx context.Context) ([]*store.App, error)
 	RecordProbes(ctx context.Context, probes []store.Probe) error
 	OpenIncident(ctx context.Context, in store.Incident) (int64, error)
 	CloseIncident(ctx context.Context, id int64, ended time.Time) error
@@ -245,7 +247,7 @@ func (p *Prober) Run(ctx context.Context) {
 
 // Round checks every target once, records the results and updates outages.
 func (p *Prober) Round(ctx context.Context) {
-	apps, err := p.Store.ListApps(ctx)
+	apps, err := p.Store.ListReleasedApps(ctx)
 	if err != nil {
 		p.Log.Warn("uptime: could not list apps", "err", err)
 		return

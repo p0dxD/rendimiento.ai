@@ -151,6 +151,12 @@ func (s *Store) ListApps(ctx context.Context) ([]*App, error) {
 	return s.listApps(ctx, `SELECT `+appCols+` FROM apps ORDER BY name`)
 }
 
+// ListReleasedApps lists the apps with at least one release: the ones that
+// have been live. An app still waiting for its first build is not down.
+func (s *Store) ListReleasedApps(ctx context.Context) ([]*App, error) {
+	return s.listApps(ctx, `SELECT `+appCols+` FROM apps WHERE EXISTS (SELECT 1 FROM releases r WHERE r.app_id = apps.id) ORDER BY name`)
+}
+
 func (s *Store) listApps(ctx context.Context, q string, args ...any) ([]*App, error) {
 	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
