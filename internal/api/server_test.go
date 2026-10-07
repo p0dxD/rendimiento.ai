@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
+	"github.com/p0dxD/rendimiento.ai/internal/analytics"
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
 	"github.com/p0dxD/rendimiento.ai/internal/events"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
@@ -470,4 +471,51 @@ func (b bearerRT) RoundTrip(r *http.Request) (*http.Response, error) {
 	r = r.Clone(r.Context())
 	r.Header.Set("Authorization", "Bearer "+b.token)
 	return http.DefaultTransport.RoundTrip(r)
+}
+
+// fakeAnalytics counts one website, for the shop app's domain.
+type fakeAnalytics struct{}
+
+func (fakeAnalytics) Websites(context.Context) ([]analytics.Website, error) {
+	return []analytics.Website{{ID: "w1", Name: "Shop", Domain: "www.shop.example.com"}, {ID: "w2", Name: "Other", Domain: "other.example.com"}}, nil
+}
+
+func (fakeAnalytics) Report(_ context.Context, w analytics.Website, p analytics.Period) (*analytics.Report, error) {
+	return &analytics.Report{Website: w, Current: analytics.Stats{Visitors: 7, Pageviews: 20}, Pageviews: []analytics.Point{{At: p.From, N: 20}}}, nil
+}
+
+func (fakeAnalytics) Totals(context.Context, analytics.Website, time.Time, time.Time) (analytics.Stats, analytics.Stats, error) {
+	return analytics.Stats{Visitors: 7}, analytics.Stats{Visitors: 5}, nil
+}
+
+func TestVisitsAPI(t *testing.T) {
+	e := newEnv(t, false)
+	ctx := context.Background()
+	me := e.session(t, "p0dxD")
+	sp := spec.Spec{Services: []spec.Service{{Name: "web", Domain: "shop.example.com"}}}
+	sp.Default()
+	if err := e.store.CreateApp(ctx, &store.App{Name: "shop", Repo: "p0dxD/shop", DefaultBranch: "main", Spec: sp}); err != nil {
+		t.Fatal(err)
+	}
+	// Without Umami the tab says so instead of failing.
+	if r, body := e.do(t, "GET", "/api/apps/shop/visits", "", me, nil); r.StatusCode != 200 || !strings.Contains(body, `"configured":false`) {
+		t.Fatalf("off: %d %s", r.StatusCode, body)
+	}
+	e.s.Analytics = fakeAnalytics{}
+	if r, _ := e.do(t, "GET", "/api/apps/shop/visits", "", nil, nil); r.StatusCode != 401 {
+		t.Fatalf("without a session: %d", r.StatusCode)
+	}
+	if r, _ := e.do(t, "GET", "/api/apps/shop/visits?range=1y", "", me, nil); r.StatusCode != 400 {
+		t.Fatalf("bad range: %d", r.StatusCode)
+	}
+	r, body := e.do(t, "GET", "/api/apps/shop/visits?range=24h", "", me, nil)
+	var v VisitsView
+	if r.StatusCode != 200 || json.Unmarshal([]byte(body), &v) != nil || len(v.Reports) != 1 || v.Reports[0].Website.ID != "w1" {
+		t.Fatalf("visits: %d %s", r.StatusCode, body)
+	}
+	r, body = e.do(t, "GET", "/api/stats/visits", "", me, nil)
+	var sum VisitsSummary
+	if r.StatusCode != 200 || json.Unmarshal([]byte(body), &sum) != nil || len(sum.Apps) != 1 || sum.Current.Visitors != 7 || sum.Previous.Visitors != 5 {
+		t.Fatalf("summary: %d %s", r.StatusCode, body)
+	}
 }

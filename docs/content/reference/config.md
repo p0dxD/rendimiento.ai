@@ -89,6 +89,16 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 | `PUBLIC_STATS_ORIGINS` | *(none)* | | browser origins allowed to fetch it (CORS); not needed when it's fetched server-side |
 | `PUBLIC_STATS_TZ` | `UTC` | `America/New_York` | the time zone its days are counted in |
 
+## Visits (Umami) {#visits-umami}
+
+| Variable | Default | Example | Meaning |
+|---|---|---|---|
+| `UMAMI_URL` | *(empty: off)* | `http://umami.umami.svc.cluster.local:3000` | Umami inside the cluster, read for the [Visits](../guide/visits.md) tab and the dashboard's visitors panel |
+| `UMAMI_PUBLIC_URL` | *(empty: no links)* | `https://umami.example.com` | Umami's public address, for "Open in Umami" links |
+| `UMAMI_USERNAME`, `UMAMI_PASSWORD` | — | from the `rendimiento-umami` Secret | a **view-only** Umami user in the team that owns the websites |
+
+Days and hours are counted in `PUBLIC_STATS_TZ`.
+
 ## Log archive
 
 | Variable | Default | Example | Meaning |

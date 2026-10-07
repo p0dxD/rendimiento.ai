@@ -29,6 +29,7 @@ import (
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/addon"
+	"github.com/p0dxD/rendimiento.ai/internal/analytics"
 	"github.com/p0dxD/rendimiento.ai/internal/api"
 	"github.com/p0dxD/rendimiento.ai/internal/catalog"
 	"github.com/p0dxD/rendimiento.ai/internal/controller"
@@ -300,6 +301,26 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	srv.PublicStats = env("PUBLIC_STATS", "false") == "true"
 	srv.PublicOrigins = splitList(os.Getenv("PUBLIC_STATS_ORIGINS"))
 	srv.PublicTimeZone = env("PUBLIC_STATS_TZ", "UTC")
+	// Visitor numbers from Umami, read with a view-only Umami user.
+	if umamiURL := os.Getenv("UMAMI_URL"); umamiURL != "" {
+		if os.Getenv("UMAMI_USERNAME") == "" || os.Getenv("UMAMI_PASSWORD") == "" {
+			log.Warn("UMAMI_URL is set but UMAMI_USERNAME or UMAMI_PASSWORD is not: visitor numbers are off")
+		} else {
+			srv.Analytics = &analytics.Umami{URL: umamiURL, Username: os.Getenv("UMAMI_USERNAME"), Password: os.Getenv("UMAMI_PASSWORD")}
+			srv.AnalyticsURL = strings.TrimRight(os.Getenv("UMAMI_PUBLIC_URL"), "/")
+		}
+	}
+	if u, ok := srv.Analytics.(*analytics.Umami); ok {
+		srv.Environment.Config.Analytics = func(ctx context.Context) (bool, string) {
+			sites, err := u.Websites(ctx)
+			if errors.Is(err, analytics.ErrAuth) {
+				return false, i18n.M("Umami refused rendimiento's user name or password (UMAMI_USERNAME, UMAMI_PASSWORD)")
+			} else if err != nil {
+				return false, i18n.M("cannot reach Umami: %s", err.Error())
+			}
+			return true, i18n.M("rendimiento can read %d Umami websites; each app's Visits tab shows the ones whose domain is the app's", len(sites))
+		}
+	}
 	// With STATS_LISTEN, the stats are served only on that internal port
 	// (not routed by the public ingress), never on the public listener.
 	statsAddr := os.Getenv("STATS_LISTEN")

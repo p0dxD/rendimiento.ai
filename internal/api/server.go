@@ -32,6 +32,7 @@ import (
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/addon"
+	"github.com/p0dxD/rendimiento.ai/internal/analytics"
 	"github.com/p0dxD/rendimiento.ai/internal/catalog"
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
 	"github.com/p0dxD/rendimiento.ai/internal/environment"
@@ -85,6 +86,17 @@ type Server struct {
 	Addons       *addon.Syncer
 	// MCP serves /mcp, the agents' door to the Ruta (nil: off).
 	MCP http.Handler
+	// Analytics reads visitor numbers from Umami (nil: off); AnalyticsURL
+	// is Umami's public address, for links.
+	Analytics    Analytics
+	AnalyticsURL string
+}
+
+// Analytics is where visitor numbers come from (Umami).
+type Analytics interface {
+	Websites(ctx context.Context) ([]analytics.Website, error)
+	Report(ctx context.Context, w analytics.Website, p analytics.Period) (*analytics.Report, error)
+	Totals(ctx context.Context, w analytics.Website, from, to time.Time) (cur, prev analytics.Stats, err error)
 }
 
 const sessionCookie = "rendimiento_session"
@@ -120,6 +132,7 @@ func (s *Server) Handler() http.Handler {
 	auth("GET /api/environment", s.environment)
 	auth("GET /api/services", s.services)
 	auth("GET /api/stats/delivery", s.delivery)
+	auth("GET /api/stats/visits", s.visitsSummary)
 	auth("GET /api/problems", s.listProblems)
 	auth("GET /api/problems/count", s.problemCount)
 	auth("POST /api/problems/{id}/dismiss", s.dismissProblem)
@@ -160,6 +173,7 @@ func (s *Server) Handler() http.Handler {
 	auth("POST /api/apps/{app}/runs", s.triggerRun)
 	auth("GET /api/apps/{app}/releases", s.listReleases)
 	auth("GET /api/apps/{app}/reliability", s.reliability)
+	auth("GET /api/apps/{app}/visits", s.visits)
 	auth("GET /api/apps/{app}/releases/{number}/tasks/{task}/log", s.releaseTaskLog)
 	auth("POST /api/apps/{app}/rollback", s.rollback)
 	auth("GET /api/apps/{app}/resources", s.resources)

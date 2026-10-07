@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo, type Release, type ReleaseTask } from "../api";
 import { ErrorBox, PhaseBadge, ResourceTree, RunBadge, Switch, usePoll } from "../components/ui";
 import { ReliabilityTab } from "../components/reliability";
+import { VisitsTab } from "../components/visits";
 import { AppProblems } from "./Problems";
 import { Flor } from "../components/ambiente";
 import { t, tn } from "../i18n";
@@ -12,6 +13,7 @@ const tabs = [
   { id: "runs", label: "Runs" },
   { id: "releases", label: "Releases" },
   { id: "reliability", label: "Reliability" },
+  { id: "visits", label: "Visits" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -55,6 +57,7 @@ export function AppPage() {
       {tab === "runs" && <Runs name={name} />}
       {tab === "releases" && <Releases name={name} current={app.status.release} />}
       {tab === "reliability" && <ReliabilityTab app={app} />}
+      {tab === "visits" && <VisitsTab app={app} />}
       {tab === "settings" && <Settings name={name} secrets={appSecretNames(app.spec)} />}
     </>
   );

@@ -43,6 +43,7 @@ func (c *Checker) checks(s *snapshot) []checkFunc {
 		c.checkDNS,
 		c.checkNotifications,
 		c.checkLogArchive,
+		c.checkAnalytics,
 		c.checkGitHub,
 		c.checkDatabase,
 	}
@@ -457,6 +458,24 @@ func (c *Checker) checkLogArchive(ctx context.Context) Check {
 	} else {
 		ch.Status = Error
 		ch.Fix = M("Check that the bucket exists and the rendimiento-logs credentials can read and write it.")
+	}
+	return ch
+}
+
+func (c *Checker) checkAnalytics(ctx context.Context) Check {
+	ch := Check{ID: "analytics", Name: M("Visitor numbers (Umami)"), Category: CatIntegrations}
+	if c.Config.Analytics == nil {
+		// Optional: being off is not a warning.
+		ch.Status, ch.Summary = OK, M("off (optional): to show visitors in each app, set UMAMI_URL in the rendimiento ConfigMap and UMAMI_USERNAME/UMAMI_PASSWORD (a view-only Umami user) in the rendimiento-umami secret")
+		return ch
+	}
+	ok, summary := c.Config.Analytics(ctx)
+	ch.Summary = summary
+	if ok {
+		ch.Status = OK
+	} else {
+		ch.Status = Error
+		ch.Fix = M("Check the rendimiento-umami secret, and that the Umami user belongs to the team that owns the websites.")
 	}
 	return ch
 }

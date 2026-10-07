@@ -32,6 +32,7 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | GET | `/api/zones` | las zonas DNS que el token puede editar |
 | GET | `/api/environment` | las comprobaciones de la página Entorno |
 | GET | `/api/services` | el catálogo de Servicios (aplicaciones, complementos, servicios del clúster, datos de conexión) |
+| GET | `/api/stats/visits` | el panel de visitantes del inicio: los últimos 7 días de cada aplicación que Umami cuenta, y los 7 anteriores ([Visitas](../guide/visits.md)) |
 | GET | `/api/stats/delivery` | las estadísticas de entregas del panel: los últimos 30 días, los 30 anteriores y doce puntos semanales |
 | GET | `/api/problems` | las advertencias y errores de la propia plataforma, agrupados ([Problemas](../guide/problems.md)) |
 | GET | `/api/problems/count` | cuántos problemas están abiertos (la insignia de la barra superior) |
@@ -64,6 +65,7 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | GET | `/api/apps/{app}/releases` | el historial de versiones (huella por servicio) |
 | GET | `/api/apps/{app}/releases/{number}/tasks/{task}/log` | el registro de una tarea posterior al despliegue de una versión |
 | GET | `/api/apps/{app}/reliability?range=24h\|7d\|30d` | las comprobaciones de disponibilidad: por comprobación, la disponibilidad, p50/p95, los intervalos de la gráfica y la última comprobación; las caídas; las versiones del intervalo |
+| GET | `/api/apps/{app}/visits?range=24h\|7d\|30d` | los visitantes según Umami: por cada sitio que coincide, los totales y los del periodo anterior, una serie para la gráfica, las páginas principales, los orígenes y los países |
 | POST | `/api/apps/{app}/rollback` | revierte a una versión anterior (`{"release": N}`) |
 | GET | `/api/apps/{app}/resources` | los objetos vivos de Kubernetes y su salud (el árbol de recursos) |
 | PUT | `/api/apps/{app}/secrets/{secret}` | define los valores de un secreto (solo escritura; los valores nunca se devuelven) |

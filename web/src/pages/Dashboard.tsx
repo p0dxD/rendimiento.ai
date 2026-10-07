@@ -4,6 +4,7 @@ import { api, envApi, timeAgo, type App } from "../api";
 import { ErrorBox, PhaseBadge, RunBadge, usePoll } from "../components/ui";
 import { fmtPct } from "../components/reliability";
 import { DeliveryPanel } from "../components/delivery";
+import { VisitsPanel } from "../components/visits";
 import { Flor, LluviaDePetalos } from "../components/ambiente";
 import { t, tn } from "../i18n";
 
@@ -104,7 +105,7 @@ export function Dashboard() {
           );
         })}
       </div>
-      {apps && apps.length > 0 && <div style={{ marginTop: 28 }}><DeliveryPanel /></div>}
+      {apps && apps.length > 0 && <div style={{ marginTop: 28 }}><VisitsPanel /><DeliveryPanel /></div>}
     </>
   );
 }

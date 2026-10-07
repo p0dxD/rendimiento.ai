@@ -348,6 +348,20 @@ textarea.code { width: 100%; min-height: 280px; font-family: var(--mono); font-s
 .rel-check details { margin-top: 10px; }
 .rel-check details table td, .rel-check details table th { padding: 4px 8px; font-size: 12px; font-variant-numeric: tabular-nums; }
 
+/* Visits (Umami): top lists with in-row bars, and the dashboard's apps. */
+.vis-tops { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.vis-top h3 { margin: 0 0 8px; font-size: 14px; }
+.vis-top table, .vis-apps { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.vis-top td, .vis-apps td { padding: 4px 6px; font-size: 13px; vertical-align: middle; border: 0; }
+.vis-top td:first-child, .vis-cell { position: relative; overflow: hidden; }
+.vis-top td.num { width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
+.vis-bar { position: absolute; inset: 3px auto 3px 0; border-radius: 4px; background: var(--viz-series-1); opacity: 0.16; }
+.vis-label { position: relative; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vis-apps td:first-child { width: 30%; font-weight: 600; }
+.vis-apps td:last-child { width: 38%; }
+.vis-top pre, .card pre.mono { white-space: pre-wrap; word-break: break-all; }
+@media (max-width: 560px) { .vis-apps td:last-child { display: none; } .vis-apps td:first-child { width: 40%; } }
+
 /* Delivery panel (dashboard): DORA tiles with twelve-week sparklines. */
 .dlv { margin-bottom: 16px; }
 .dlv-tiles { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-bottom: 6px; }

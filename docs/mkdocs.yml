@@ -88,6 +88,7 @@ plugins:
             Reliability (uptime and charts): Confiabilidad (disponibilidad y gráficas)
             Notifications (email): Notificaciones (correo)
             Problems (what went wrong in the platform): Problemas (lo que salió mal en la plataforma)
+            Visits (Umami): Visitas (Umami)
             La Ruta (memory for people and agents, over MCP): La Ruta (la memoria de personas y agentes, por MCP)
             Languages (English, Spanish): Idiomas (inglés y español)
             Needs and the services catalog: Necesidades y catálogo de servicios
@@ -169,6 +170,7 @@ nav:
       - Builds and tests: guide/builds.md
       - Tasks (commands in CI): guide/tasks.md
       - Reliability (uptime and charts): guide/reliability.md
+      - Visits (Umami): guide/visits.md
       - Notifications (email): guide/notifications.md
       - Problems (what went wrong in the platform): guide/problems.md
       - La Ruta (memory for people and agents, over MCP): guide/ruta.md

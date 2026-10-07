@@ -173,6 +173,8 @@ type Config struct {
 	NotifyReady bool
 	// LogArchive describes the step log archive (nil: not configured).
 	LogArchive func(ctx context.Context) (ok bool, summary string)
+	// Analytics checks that Umami answers (nil: visitor numbers are off).
+	Analytics func(ctx context.Context) (ok bool, summary string)
 }
 
 // Pinger is satisfied by the store.

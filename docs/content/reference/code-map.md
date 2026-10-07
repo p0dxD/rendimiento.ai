@@ -11,29 +11,31 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 417 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 450 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/api`](#internal-api) | 12 | 2690 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/analytics`](#internal-analytics) | 2 | 600 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
+| [`internal/api`](#internal-api) | 14 | 3252 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 887 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2738 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 430 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
 | [`internal/dns`](#internal-dns) | 4 | 770 | Package dns manages the public DNS record for each app domain. |
-| [`internal/environment`](#internal-environment) | 4 | 1351 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
+| [`internal/environment`](#internal-environment) | 6 | 1604 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
 | [`internal/events`](#internal-events) | 2 | 80 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 278 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1164 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/i18n`](#internal-i18n) | 3 | 696 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
+| [`internal/i18n`](#internal-i18n) | 3 | 728 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 308 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
 | [`internal/notify`](#internal-notify) | 2 | 447 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
 | [`internal/pipeline`](#internal-pipeline) | 7 | 1605 | Package pipeline plans and executes CI runs. |
 | [`internal/platform`](#internal-platform) | 7 | 3173 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/problems`](#internal-problems) | 2 | 278 | Package problems keeps the platform's own warnings and errors for the Problems page: a slog handler passes every record on to the real log and also queues warnings and errors; a Recorder stores them, folding repeats of the same problem into one row with a count. |
-| [`internal/render`](#internal-render) | 3 | 1160 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
+| [`internal/render`](#internal-render) | 3 | 1169 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
+| [`internal/ruta`](#internal-ruta) | 2 | 910 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
 | [`internal/spec`](#internal-spec) | 2 | 1661 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 10 | 2217 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/store`](#internal-store) | 12 | 2671 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/uptime`](#internal-uptime) | 2 | 648 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
@@ -95,7 +97,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>408 lines</small>
+<small>441 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -213,6 +215,53 @@ Package addon renders add-ons (Helm charts or kustomize folders in git) into Kub
 | `TestRenderHelm` | func |  |
 | `TestRenderGitKustomize` | func |  |
 | `TestBuildPlainManifests` | func |  |
+
+## `internal/analytics` {#internal-analytics}
+
+Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento.
+
+### `internal/analytics/umami.go`
+
+<small>456 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Umami` | struct | Umami is a client for the Umami API (v2 and v3), signed in as one user. |
+| `cached` | struct |  |
+| `Website` | struct | Website is a site Umami counts visits for. |
+| `Stats` | struct | Stats are the totals of a period. |
+| `Point` | struct | Point is one bucket of a series: its start and its count. |
+| `Metric` | struct | Metric is one row of a top list (a path, a referrer, a country code). |
+| `Report` | struct | Report is everything the Visits tab shows for one website. |
+| `(*Umami) client` | method |  |
+| `(*Umami) login` | method |  |
+| `(*Umami) get` | method | get calls a read-only endpoint, signing in first and again when the token has expired. |
+| `remember` | func | remember returns a cached answer for key, or computes and keeps it. |
+| `page` | struct |  |
+| `(*Umami) Websites` | method | Websites lists the sites the user can see: its own and its teams'. |
+| `num` | type | num reads a JSON number that may come as a string (bigint columns) or null. |
+| `(*num) UnmarshalJSON` | method |  |
+| `rawStats` | struct |  |
+| `(rawStats) stats` | method |  |
+| `xy` | struct |  |
+| `Period` | struct | Period is the window a report covers, bucketed by hour or by day. |
+| `(*Umami) Report` | method | Report gathers a website's numbers for the period, in parallel. |
+| `(*Umami) Totals` | method | Totals are a website's numbers for a period and for the one before it: the dashboard's summary, one call per site. |
+| `series` | func | series turns Umami's sparse buckets into one point per hour or day of the period, zeros included, so a chart has no holes. |
+| `truncate` | func |  |
+| `next` | func |  |
+| `parseBucket` | func | parseBucket reads "2026-10-06 13:00:00" (local to the time zone asked for) or "2026-10-06T13:00:00Z" (UTC). |
+| `Host` | func | Host normalizes a website domain or an app host for matching: lower case, no scheme, port, path or leading "www.". |
+| `Match` | func | Match returns the websites whose domain is one of hosts. |
+
+### `internal/analytics/umami_test.go`
+
+<small>144 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestUmamiReport` | func |  |
+| `TestHost` | func |  |
 
 ## `internal/api` {#internal-api}
 
@@ -341,14 +390,36 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `reliabilityView` | struct |  |
 | `(*Server) reliability` | method | reliability returns an app's uptime checks over a range (24h, 7d or 30d): per check, uptime, response times and chart buckets; its outages; and its releases, to mark on the charts. |
 
+### `internal/api/ruta.go`
+
+<small>225 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `RutaInput` | struct | RutaInput is what a person writes or changes on the Ruta page. |
+| `(*RutaInput) check` | method |  |
+| `(*Server) listRuta` | method |  |
+| `(*Server) addRuta` | method |  |
+| `rutaID` | func |  |
+| `(*Server) updateRuta` | method |  |
+| `(*Server) archiveRuta` | method |  |
+| `RutaActivity` | struct | RutaActivity is the agents' side of the Ruta page: their turns and what they did. |
+| `(*Server) rutaActivity` | method |  |
+| `NewAgentKey` | struct | NewAgentKey asks for a key. |
+| `CreatedAgentKey` | struct | CreatedAgentKey is the answer: the token appears here once and never again. |
+| `(*Server) listAgentKeys` | method |  |
+| `(*Server) createAgentKey` | method |  |
+| `(*Server) revokeAgentKey` | method |  |
+
 ### `internal/api/server.go`
 
-<small>1140 lines</small>
+<small>1172 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `CredentialStore` | interface | CredentialStore persists the GitHub App credentials (a Kubernetes Secret in production). |
 | `Server` | struct | Server holds everything the HTTP API needs; Handler returns its routes. |
+| `Analytics` | interface | Analytics is where visitor numbers come from (Umami). |
 | `(*Server) Handler` | method | Handler returns the HTTP handler: public routes (health, webhooks, login, setup), session-protected /api routes and the embedded UI. |
 | `(*Server) guard` | method | guard adds security headers and rejects cross-site state changes. |
 | `sameOrigin` | func |  |
@@ -406,9 +477,25 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `readJSON` | func |  |
 | `httpError` | func |  |
 
+### `internal/api/visits.go`
+
+<small>168 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `VisitsView` | struct | VisitsView is an app's Visits tab: one report per Umami website whose domain is one of the app's hostnames. |
+| `appHosts` | func | appHosts are every hostname an app's services answer on. |
+| `(*Server) visitTZ` | method |  |
+| `umamiError` | func | umamiError answers a failed Umami call: a refused login is a setup problem, anything else that Umami is unreachable. |
+| `(*Server) visits` | method |  |
+| `AppVisits` | struct | AppVisits is one app's line in the dashboard summary. |
+| `VisitsSummary` | struct | VisitsSummary is the dashboard's visitors panel: the last 7 days of every app that Umami counts, and the 7 before them. |
+| `addStats` | func |  |
+| `(*Server) visitsSummary` | method |  |
+
 ### `internal/api/server_test.go`
 
-<small>384 lines · tests</small>
+<small>521 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -423,6 +510,8 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `TestDeliveryReport` | func | The dashboard's delivery report needs a login and has both periods and twelve weeks. |
 | `TestProblemsAPI` | func | The Problems page needs a login; problems can be listed, counted and dismissed. |
 | `TestSpanishAnswers` | func | A browser that asks for Spanish gets the platform's messages in Spanish; names and English requests are left alone. |
+| `TestRutaAPI` | func |  |
+| `TestVisitsAPI` | func |  |
 
 ## `internal/catalog` {#internal-catalog}
 
@@ -706,9 +795,18 @@ Package dns manages the public DNS record for each app domain.
 
 Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health.
 
+### `internal/environment/backups.go`
+
+<small>161 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `longhornList` | func |  |
+| `(*Checker) checkBackups` | method | checkBackups reports which Longhorn volumes a backup job covers, which volumes in use are not covered, and whose last backup is too old. |
+
 ### `internal/environment/checks.go`
 
-<small>557 lines</small>
+<small>577 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -732,6 +830,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 | `(*Checker) checkBuildIsolation` | method | checkBuildIsolation reports whether CI pods, which run repo code, are fenced off from the rest of the cluster by a NetworkPolicy. |
 | `(*Checker) checkDNS` | method |  |
 | `(*Checker) checkLogArchive` | method |  |
+| `(*Checker) checkAnalytics` | method |  |
 | `(*Checker) checkNotifications` | method |  |
 | `(*Checker) checkGitHub` | method |  |
 | `(*Checker) checkDatabase` | method |  |
@@ -751,7 +850,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 
 ### `internal/environment/environment.go`
 
-<small>291 lines</small>
+<small>293 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -773,6 +872,15 @@ Package environment inspects the cluster and integrations rendimiento depends on
 | `Checker` | struct | Checker builds environment reports and caches them for TTL. |
 | `(*Checker) Report` | method | Report returns a fresh or cached environment report. |
 | `(*Checker) build` | method |  |
+
+### `internal/environment/backups_test.go`
+
+<small>70 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestCheckBackups` | func |  |
+| `TestCheckBackupsWithoutLonghorn` | func |  |
 
 ### `internal/environment/environment_test.go`
 
@@ -970,7 +1078,7 @@ Package i18n translates the platform's messages for people: the API's answers to
 
 ### `internal/i18n/es.go`
 
-<small>374 lines</small>
+<small>406 lines</small>
 
 ### `internal/i18n/i18n.go`
 
@@ -1385,7 +1493,7 @@ Package render turns an app's spec plus its released images into the Kubernetes 
 
 ### `internal/render/render.go`
 
-<small>585 lines</small>
+<small>589 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1417,7 +1525,7 @@ Package render turns an app's spec plus its released images into the Kubernetes 
 
 ### `internal/render/render_test.go`
 
-<small>430 lines · tests</small>
+<small>435 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1482,6 +1590,66 @@ Package renovate is the Renovate add-on: it keeps the dependencies of the apps i
 | `TestPod` | func |  |
 | `TestParseKeepsErrorDetails` | func |  |
 | `TestMissingPermissions` | func |  |
+
+## `internal/ruta` {#internal-ruta}
+
+Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session.
+
+### `internal/ruta/ruta.go`
+
+<small>577 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Backend` | interface | Backend is the storage the endpoint needs; *store.Store implements it. |
+| `NewToken` | func | NewToken returns a fresh agent key and the hash to store. |
+| `HashToken` | func | HashToken is how agent keys are stored and looked up. |
+| `Server` | struct | Server serves /mcp. |
+| `keyInfo` | struct |  |
+| `(*Server) Handler` | method | Handler returns the /mcp handler: bearer-token auth, then a stateless MCP server with the tools the key may use. |
+| `(*Server) verify` | method |  |
+| `keyFrom` | func |  |
+| `Summary` | struct | Summary is an entry without its full body. |
+| `Entry` | struct | Entry is a full entry. |
+| `CargoOut` | struct | CargoOut is a cargo as agents see it. |
+| `empty` | struct |  |
+| `InicioOut` | struct | InicioOut is ruta_inicio's answer. |
+| `buscarIn` | struct |  |
+| `listaOut` | struct |  |
+| `leerIn` | struct |  |
+| `tomarIn` | struct |  |
+| `tomarOut` | struct |  |
+| `anotarIn` | struct |  |
+| `actualizarIn` | struct |  |
+| `entregarIn` | struct |  |
+| `summary` | func |  |
+| `summaries` | func |  |
+| `cargoOut` | func |  |
+| `LooksSecret` | func | LooksSecret reports whether text seems to contain a credential. |
+| `checkText` | func |  |
+| `(*Server) newServer` | method |  |
+| `addTool` | func | addTool registers a tool whose every call is recorded in the audit log. |
+| `(*Server) audit` | method |  |
+| `(*Server) lastHandovers` | method |  |
+| `(*Server) inicio` | method |  |
+| `(*Server) buscar` | method |  |
+| `(*Server) leer` | method |  |
+| `(*Server) cargoFor` | method | writing needs a write key and an open cargo. |
+| `(*Server) tomar` | method |  |
+| `cleanTags` | func |  |
+| `(*Server) anotar` | method |  |
+| `(*Server) actualizar` | method |  |
+| `(*Server) entregar` | method |  |
+
+### `internal/ruta/ruta_test.go`
+
+<small>333 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestRutaAuth` | func |  |
+| `TestRutaCargoFlow` | func |  |
+| `TestLooksSecret` | func |  |
 
 ## `internal/spec` {#internal-spec}
 
@@ -1624,6 +1792,39 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) ReleaseTasks` | method | ReleaseTasks returns the post-deploy tasks of the given releases, by release ID, without their logs. |
 | `(*Store) ReleaseTaskLog` | method | ReleaseTaskLog returns the log of one post-deploy task of an app's release. |
 
+### `internal/store/ruta.go`
+
+<small>354 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `AgentKey` | struct | AgentKey is a bearer token for the MCP endpoint (the token itself is never stored). |
+| `(AgentKey) Usable` | method | Usable reports whether the key may be used now. |
+| `Cargo` | struct | Cargo is an agent's turn of work. |
+| `RutaEntry` | struct | RutaEntry is one thing the platform knows: a decision, a manual, a pending task, a note, or something a person lived. |
+| `AgentAction` | struct | AgentAction is one tool call made through the MCP endpoint. |
+| `(*Store) CreateAgentKey` | method | CreateAgentKey stores a new key by its token's hash. |
+| `scanAgentKey` | func |  |
+| `(*Store) AgentKeyByHash` | method | AgentKeyByHash finds a key by its token's hash, and notes that it was used (at most once a minute, to keep writes down). |
+| `(*Store) AgentKey` | method | AgentKey returns one key. |
+| `(*Store) ListAgentKeys` | method | ListAgentKeys returns every key, newest first. |
+| `(*Store) RevokeAgentKey` | method | RevokeAgentKey stops a key from working, and closes its open cargo. |
+| `scanCargo` | func |  |
+| `(*Store) TakeCargo` | method | TakeCargo opens a cargo for a key; ErrCargoOpen if it already has one. |
+| `(*Store) Cargo` | method | Cargo returns one cargo. |
+| `(*Store) OpenCargo` | method | OpenCargo returns a key's open cargo, or ErrNotFound. |
+| `(*Store) HandOver` | method | HandOver closes a cargo with its entrega and what is left. |
+| `(*Store) ListCargos` | method | ListCargos returns cargos, newest first. |
+| `scanRuta` | func |  |
+| `(*Store) AddRuta` | method | AddRuta stores a new entry. |
+| `(*Store) Ruta` | method | Ruta returns one entry. |
+| `(*Store) UpdateRuta` | method | UpdateRuta replaces an entry's title, body, tags and done, keeping the previous version in ruta_history. |
+| `(*Store) ArchiveRuta` | method | ArchiveRuta hides an entry from lists (it is never deleted). |
+| `(*Store) SearchRuta` | method | SearchRuta lists entries that are not archived, newest change first. |
+| `(*Store) RecordAgentAction` | method | RecordAgentAction notes one tool call. |
+| `AgentActionRow` | struct | AgentActionRow is a recorded tool call, for the UI. |
+| `(*Store) ListAgentActions` | method | ListAgentActions returns the latest tool calls, newest first. |
+
 ### `internal/store/stats.go`
 
 <small>243 lines</small>
@@ -1728,6 +1929,14 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 |---|---|---|
 | `TestLogArchiveBookkeeping` | func |  |
 
+### `internal/store/ruta_test.go`
+
+<small>100 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestRuta` | func |  |
+
 ### `internal/store/stats_test.go`
 
 <small>181 lines · tests</small>
@@ -1826,7 +2035,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>678 lines</small>
+<small>798 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1845,11 +2054,25 @@ Package web embeds the built UI (npm run build → web/dist).
 | `ServiceStatus` | interface |  |
 | `AppStatus` | interface |  |
 | `App` | interface |  |
+| `RutaKind` | type | ---- la Ruta (what people and agents know; agents reach it over /mcp) ---- |
+| `RutaEntry` | interface |  |
+| `RutaInput` | interface |  |
+| `Cargo` | interface |  |
+| `AgentAction` | interface |  |
+| `AgentKey` | interface |  |
+| `CreatedAgentKey` | interface |  |
 | `Problem` | interface | ---- problems (the platform's own warnings and errors) ---- |
 | `ProblemList` | interface |  |
 | `DeliveryStats` | interface | ---- delivery (the dashboard's DORA numbers) ---- |
 | `DeliveryWeek` | interface |  |
 | `DeliveryReport` | interface |  |
+| `VisitRange` | type | ---- visits (Umami) ---- |
+| `VisitStats` | interface |  |
+| `VisitPoint` | interface |  |
+| `VisitMetric` | interface |  |
+| `VisitReport` | interface |  |
+| `Visits` | interface |  |
+| `VisitsSummary` | interface |  |
 | `ReliabilityRange` | type | ---- reliability (uptime checks) ---- |
 | `CheckKind` | type |  |
 | `UptimeBucket` | interface |  |
@@ -1977,6 +2200,26 @@ Package web embeds the built UI (npm run build → web/dist).
 | `PipelineGraph` | component |  |
 | `Switch` | component | An on/off switch (a button with role="switch"). |
 
+### `web/src/components/visits.tsx`
+
+<small>284 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `fmtN` | const |  |
+| `bounceRate` | function |  |
+| `avgVisit` | function |  |
+| `fmtVisitTime` | function |  |
+| `change` | function | "↑ 40% vs the previous period, better": direction in words. |
+| `Tile` | component |  |
+| `niceMax` | function |  |
+| `VisitChart` | component | Visitors and page views per hour or day, with a crosshair tooltip. |
+| `countryName` | function |  |
+| `Top` | component | A top list: the value, a bar for its share, the count. |
+| `ReportView` | component |  |
+| `VisitsTab` | component |  |
+| `VisitsPanel` | component | The dashboard's visitors panel: the last 7 days, all apps Umami counts. |
+
 ### `web/src/i18n.ts`
 
 <small>50 lines</small>
@@ -1991,7 +2234,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>600 lines</small>
+<small>712 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1999,7 +2242,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/main.tsx`
 
-<small>129 lines</small>
+<small>132 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2019,7 +2262,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/AppPage.tsx`
 
-<small>451 lines</small>
+<small>454 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2041,7 +2284,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Dashboard.tsx`
 
-<small>110 lines</small>
+<small>111 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2119,6 +2362,27 @@ Package web embeds the built UI (npm run build → web/dist).
 |---|---|---|
 | `RunPage` | component |  |
 | `formatLog` | function | Drops the ::group:: markers the executor uses to separate clone and step output. |
+
+### `web/src/pages/Ruta.tsx`
+
+<small>337 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Tab` | type |  |
+| `kindLabel` | const |  |
+| `Monarca` | component | A monarch, which no single one of makes the whole journey. |
+| `Tags` | component |  |
+| `Author` | component |  |
+| `EntryForm` | component |  |
+| `EntryCard` | component |  |
+| `Entries` | component |  |
+| `Vivido` | component |  |
+| `Cargos` | component |  |
+| `NewKey` | component |  |
+| `Connect` | component |  |
+| `Keys` | component |  |
+| `Ruta` | component |  |
 
 ### `web/src/pages/Services.tsx`
 

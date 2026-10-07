@@ -61,6 +61,10 @@ data:
   LOG_ARCHIVE_ENDPOINT: garage.garage.svc.cluster.local:3900
   LOG_ARCHIVE_BUCKET: rendimiento-logs
   LOG_RETENTION_DAYS: "365"
+  # Visitor numbers from Umami (each app's Visits tab), read inside the
+  # cluster with a view-only user (the rendimiento-umami secret).
+  # UMAMI_URL: http://umami.umami.svc.cluster.local:3000
+  # UMAMI_PUBLIC_URL: https://umami.example.com
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -89,6 +93,8 @@ spec:
             - secretRef: { name: rendimiento-notify, optional: true }
             # LOG_ARCHIVE_ACCESS_KEY / LOG_ARCHIVE_SECRET_KEY for the log archive.
             - secretRef: { name: rendimiento-logs, optional: true }
+            # UMAMI_USERNAME / UMAMI_PASSWORD (a view-only Umami user) for visitor numbers.
+            - secretRef: { name: rendimiento-umami, optional: true }
           env:
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: rendimiento-db, key: password } }

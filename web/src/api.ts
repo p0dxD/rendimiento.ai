@@ -295,6 +295,50 @@ export interface DeliveryReport {
   weekly: DeliveryWeek[];
 }
 
+// ---- visits (Umami) ----
+
+export type VisitRange = "24h" | "7d" | "30d";
+
+export interface VisitStats {
+  pageviews: number;
+  visitors: number;
+  visits: number;
+  bounces: number;
+  totalTimeSec: number;
+}
+
+export interface VisitPoint { at: string; n: number }
+export interface VisitMetric { value: string; n: number }
+
+export interface VisitReport {
+  website: { id: string; name: string; domain: string };
+  current: VisitStats;
+  previous: VisitStats;
+  active: number;
+  pageviews: VisitPoint[];
+  visitors: VisitPoint[];
+  paths: VisitMetric[];
+  referrers: VisitMetric[];
+  countries: VisitMetric[];
+}
+
+export interface Visits {
+  configured: boolean;
+  range: VisitRange;
+  timeZone: string;
+  hosts: string[];
+  umamiURL?: string;
+  reports: VisitReport[];
+}
+
+export interface VisitsSummary {
+  configured: boolean;
+  days: number;
+  current: VisitStats;
+  previous: VisitStats;
+  apps: { app: string; current: VisitStats; previous: VisitStats }[];
+}
+
 // ---- reliability (uptime checks) ----
 
 export type ReliabilityRange = "24h" | "7d" | "30d";
@@ -434,6 +478,8 @@ export const api = {
   releases: (app: string) => request<Release[]>("GET", `/api/apps/${app}/releases`),
   releaseTaskLog: (app: string, release: number, task: string) => request<string>("GET", `/api/apps/${app}/releases/${release}/tasks/${encodeURIComponent(task)}/log`),
   delivery: () => request<DeliveryReport>("GET", "/api/stats/delivery"),
+  visitsSummary: () => request<VisitsSummary>("GET", "/api/stats/visits"),
+  visits: (app: string, range: VisitRange) => request<Visits>("GET", `/api/apps/${app}/visits?range=${range}`),
   problems: (opts: { app?: string; dismissed?: boolean } = {}) =>
     request<ProblemList>("GET", `/api/problems?app=${encodeURIComponent(opts.app ?? "")}${opts.dismissed ? "&dismissed=1" : ""}`),
   problemCount: () => request<{ open: number }>("GET", "/api/problems/count"),

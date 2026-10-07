@@ -89,6 +89,16 @@ Se toman del Secret opcional `rendimiento-dns`. Sin token, la automatización de
 | `PUBLIC_STATS_ORIGINS` | *(ninguno)* | | los orígenes de navegador que pueden pedirlas (CORS); no hace falta si se piden desde un servidor |
 | `PUBLIC_STATS_TZ` | `UTC` | `America/New_York` | la zona horaria en la que se cuentan sus días |
 
+## Visitas (Umami) {#visits-umami}
+
+| Variable | Predeterminado | Ejemplo | Significado |
+|---|---|---|---|
+| `UMAMI_URL` | *(vacío: apagado)* | `http://umami.umami.svc.cluster.local:3000` | Umami dentro del clúster; se lee para la pestaña [Visitas](../guide/visits.md) y el panel de visitantes del inicio |
+| `UMAMI_PUBLIC_URL` | *(vacío: sin enlaces)* | `https://umami.example.com` | la dirección pública de Umami, para los enlaces «Abrir en Umami» |
+| `UMAMI_USERNAME`, `UMAMI_PASSWORD` | — | del Secret `rendimiento-umami` | un usuario de Umami **de solo lectura**, en el equipo dueño de los sitios |
+
+Los días y las horas se cuentan en `PUBLIC_STATS_TZ`.
+
 ## Archivo de registros {#log-archive}
 
 | Variable | Predeterminado | Ejemplo | Significado |
