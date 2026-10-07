@@ -13,6 +13,7 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 |---|---|---|
 | GET | `/healthz` | `ok`; las sondas de disponibilidad y de vida |
 | GET | `/api/public/stats` | números agregados para una página pública; solo con `PUBLIC_STATS=true`, y solo en el puerto interno `STATS_LISTEN` cuando está definido ([qué contiene](../guide/reliability.md#public-stats)) |
+| GET | `/api/public/activity` | el *Ahora mismo* de la página de bienvenida: las ejecuciones en cola o en curso y las 8 versiones más recientes, solo con el nombre de la aplicación y la hora (sin repositorios, confirmaciones, ramas ni mensajes); solo con `PUBLIC_ACTIVITY=true` |
 | POST | `/api/webhooks/github` | los avisos web de la aplicación de GitHub (envío, solicitud de incorporación, instalación), verificados con HMAC |
 | GET | `/api/auth/login` | redirige al OAuth de GitHub |
 | GET | `/api/auth/callback` | la respuesta de OAuth; crea la sesión |

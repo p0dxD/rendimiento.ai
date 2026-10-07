@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError } from "./api";
-import { lang, setLang, t } from "./i18n";
+import { t } from "./i18n";
 import { Dashboard } from "./pages/Dashboard";
 import { NewApp } from "./pages/NewApp";
 import { AppPage } from "./pages/AppPage";
@@ -15,41 +15,22 @@ import { AddonDetail } from "./pages/Installed";
 import { Problems, ProblemsNavLink } from "./pages/Problems";
 import { Ruta } from "./pages/Ruta";
 import { Cielo, Guardapolvo, MovimientoSwitch, TemaSwitch, Techo } from "./components/ambiente";
+import { LangSwitch, Logo } from "./components/marca";
+import { Bienvenida, type BookLinks } from "./pages/Bienvenida";
 import "./styles.css";
 
-function Logo() {
-  return (
-    <span className="logo" aria-hidden>
-      <svg width="20" height="20" viewBox="0 0 32 32">
-        <path d="M3 17 L10 17 L13 9 L18 25 L21 17 L29 17" stroke="var(--accent-text)" strokeWidth="3.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </span>
-  );
-}
-
-/** EN/ES: shows the other language, in that language. */
-function LangSwitch() {
-  const other = lang === "es" ? "en" : "es";
-  return (
-    <button className="lang-switch" onClick={() => setLang(other)} title={other === "es" ? "Cambiar a español" : "Switch to English"}
-      aria-label={other === "es" ? "Cambiar a español" : "Switch to English"}>
-      {other.toUpperCase()}
-    </button>
-  );
-}
-
 function Shell() {
-  const [state, setState] = useState<{ login?: string; configured?: boolean; loading: boolean }>({ loading: true });
+  const [state, setState] = useState<{ login?: string; configured?: boolean; book?: BookLinks; activity?: boolean; loading: boolean }>({ loading: true });
 
   useEffect(() => {
     (async () => {
-      const setup = await api.setupStatus().catch(() => ({ configured: false }));
+      const setup = await api.setupStatus().catch(() => ({ configured: false, book: undefined, activity: false }));
       if (!setup.configured) return setState({ configured: false, loading: false });
       try {
         const me = await api.me();
         setState({ login: me.login, configured: true, loading: false });
       } catch (e) {
-        if (e instanceof ApiError && e.status === 401) setState({ configured: true, loading: false });
+        if (e instanceof ApiError && e.status === 401) setState({ configured: true, book: setup.book, activity: setup.activity, loading: false });
         else throw e;
       }
     })();
@@ -65,20 +46,7 @@ function Shell() {
     );
   }
 
-  if (!state.login) {
-    return (
-      <div className="center">
-        <div className="stack">
-          <div className="row" style={{ justifyContent: "center" }}>
-            <span className="brand" style={{ fontSize: 22 }}><Logo /> <span className="brand-name">rendimiento</span></span>
-          </div>
-          <p className="muted">{t("Connect a repo, press deploy, get a live HTTPS URL.")}</p>
-          <a className="btn primary big" href="/api/auth/login">{t("Sign in with GitHub")}</a>
-          <div className="row" style={{ justifyContent: "center" }}><LangSwitch /><TemaSwitch /><MovimientoSwitch /></div>
-        </div>
-      </div>
-    );
-  }
+  if (!state.login) return <Bienvenida book={state.book ?? {}} activity={!!state.activity} />;
 
   return (
     <>

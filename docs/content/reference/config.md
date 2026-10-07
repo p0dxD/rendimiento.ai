@@ -8,6 +8,7 @@ rendimiento is configured only through **environment variables**, read once at s
 |---|---|---|---|
 | `DATABASE_URL` | *(required)* | from Secret `rendimiento-db` | Postgres connection string |
 | `BASE_URL` | `http://localhost:8080` | `https://rendimiento.example.com` | public URL; used for OAuth callbacks, webhooks and links in GitHub checks |
+| `BOOK_URL`, `BOOK_URL_ES` | *(empty: no link)* | `https://learn.example.com/`, `https://aprende.example.com/` | the book in English and in Spanish, linked from the welcome page that people see before they sign in |
 | `ALLOWED_USERS` | *(empty: nobody)* | `your-github-login` | GitHub logins allowed to sign in (comma- or space-separated) |
 | `SETUP_TOKEN` | — | from Secret `rendimiento-setup` | protects `/api/setup/github` until the GitHub App exists |
 | `NAMESPACE` | `rendimiento-system` | | where the platform and its Secrets live |
@@ -91,6 +92,7 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 | `STATS_LISTEN` | *(empty: on the main listener)* | `:8081` | serve the public stats only on this internal port, not on the public listener |
 | `PUBLIC_STATS_ORIGINS` | *(none)* | | browser origins allowed to fetch it (CORS); not needed when it's fetched server-side |
 | `PUBLIC_STATS_TZ` | `UTC` | `America/New_York` | the time zone its days are counted in |
+| `PUBLIC_ACTIVITY` | `false` | `true` | show *Right now* on the welcome page: what is building and the latest releases, by app name ([`GET /api/public/activity`](api.md)) |
 
 ## Visits (Umami) {#visits-umami}
 

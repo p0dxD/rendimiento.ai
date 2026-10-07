@@ -11,12 +11,12 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 454 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 456 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
 | [`internal/analytics`](#internal-analytics) | 2 | 600 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
-| [`internal/api`](#internal-api) | 14 | 3252 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 14 | 3344 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 887 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2738 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 430 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
@@ -35,7 +35,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
 | [`internal/ruta`](#internal-ruta) | 2 | 910 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
 | [`internal/spec`](#internal-spec) | 2 | 1819 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 12 | 2684 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/store`](#internal-store) | 12 | 2712 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/uptime`](#internal-uptime) | 2 | 650 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
@@ -97,7 +97,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>445 lines</small>
+<small>447 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -367,7 +367,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/public.go`
 
-<small>157 lines</small>
+<small>200 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -379,6 +379,9 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `publicCache` | struct | publicCache keeps the last answer for a minute, so visitors cannot make the platform recompute it on every page view. |
 | `(*Server) publicStats` | method | publicStats serves PublicStats when PublicStats is on (no login needed). |
 | `(*Server) buildPublicStats` | method |  |
+| `PublicActivity` | struct | PublicActivity is what GET /api/public/activity returns, for the welcome page: the runs going on now and the latest releases, by app name only (no repositories, commits, branches, messages or errors). |
+| `activityCache` | struct | activityCache keeps the last answer for 15 seconds. |
+| `(*Server) publicActivity` | method |  |
 
 ### `internal/api/reliability.go`
 
@@ -413,7 +416,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1172 lines</small>
+<small>1183 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -495,7 +498,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server_test.go`
 
-<small>521 lines · tests</small>
+<small>559 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -512,6 +515,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `TestSpanishAnswers` | func | A browser that asks for Spanish gets the platform's messages in Spanish; names and English requests are left alone. |
 | `TestRutaAPI` | func |  |
 | `TestVisitsAPI` | func |  |
+| `TestPublicActivity` | func | The welcome page's activity is off unless asked for, and names only the app. |
 
 ## `internal/catalog` {#internal-catalog}
 
@@ -1851,7 +1855,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/stats.go`
 
-<small>243 lines</small>
+<small>271 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1866,6 +1870,8 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) PublicSites` | method | PublicSites returns every public URL check with its uptime over 24 hours and 30 days, its typical response time and its daily uptime for `days` days (days counted in time zone tz). |
 | `ReleaseEvent` | struct | ReleaseEvent is one release, for the public activity feed. |
 | `(*Store) RecentReleases` | method | RecentReleases lists the newest releases across all apps. |
+| `ActiveRun` | struct | ActiveRun is a run waiting or in progress, as the welcome page shows it: which app, and since when; nothing about the commit. |
+| `(*Store) ActiveRuns` | method | ActiveRuns lists the runs queued or running, oldest first. |
 
 ### `internal/store/store.go`
 
@@ -2060,7 +2066,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>798 lines</small>
+<small>805 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2114,6 +2120,7 @@ Package web embeds the built UI (npm run build → web/dist).
 | `request` | function |  |
 | `api` | const |  |
 | `subscribe` | function | Subscribes to server-sent events; returns an unsubscribe function. |
+| `PublicActivity` | interface | The welcome page's "right now": runs going on and the latest releases, by app name only. |
 | `timeAgo` | function |  |
 | `duration` | function |  |
 | `EnvStatus` | type | ---- environment ---- |
@@ -2174,6 +2181,15 @@ Package web embeds the built UI (npm run build → web/dist).
 | `tiles` | function |  |
 | `Spark` | component | Twelve weeks as a line; gaps where a week has no data; a dot on the last. |
 | `DeliveryPanel` | component |  |
+
+### `web/src/components/marca.tsx`
+
+<small>23 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Logo` | component |  |
+| `LangSwitch` | component | EN/ES: shows the other language, in that language. |
 
 ### `web/src/components/reliability.tsx`
 
@@ -2259,7 +2275,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>712 lines</small>
+<small>771 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2267,12 +2283,10 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/main.tsx`
 
-<small>132 lines</small>
+<small>100 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `Logo` | component |  |
-| `LangSwitch` | component | EN/ES: shows the other language, in that language. |
 | `Shell` | component |  |
 
 ### `web/src/pages/Addons.tsx`
@@ -2306,6 +2320,17 @@ Package web embeds the built UI (npm run build → web/dist).
 | `Settings` | component |  |
 | `DangerZone` | component |  |
 | `SecretForm` | component |  |
+
+### `web/src/pages/Bienvenida.tsx`
+
+<small>210 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `BookLinks` | interface |  |
+| `Monarca` | component | A monarch butterfly, the Ruta's emblem. |
+| `EnEsteMomento` | component | "Right now": what rendimiento is doing, refreshed every 20 seconds. |
+| `Bienvenida` | component |  |
 
 ### `web/src/pages/Dashboard.tsx`
 

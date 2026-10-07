@@ -182,6 +182,10 @@ func TestSetupRequiresToken(t *testing.T) {
 	if r, body := e.do(t, "GET", "/api/setup/status", "", nil, nil); r.StatusCode != 200 || !strings.Contains(body, `"configured":false`) {
 		t.Fatalf("status: %s", body)
 	}
+	e.s.BookURL, e.s.BookURLEs = "https://learn.example.com/", "https://aprende.example.com/"
+	if _, body := e.do(t, "GET", "/api/setup/status", "", nil, nil); !strings.Contains(body, `"book":{"en":"https://learn.example.com/","es":"https://aprende.example.com/"}`) {
+		t.Fatalf("the welcome page links the book: %s", body)
+	}
 	if r, _ := e.do(t, "GET", "/api/setup/github?token=nope", "", nil, nil); r.StatusCode != 403 {
 		t.Fatalf("bad setup token: %d", r.StatusCode)
 	}
@@ -517,5 +521,39 @@ func TestVisitsAPI(t *testing.T) {
 	var sum VisitsSummary
 	if r.StatusCode != 200 || json.Unmarshal([]byte(body), &sum) != nil || len(sum.Apps) != 1 || sum.Current.Visitors != 7 || sum.Previous.Visitors != 5 {
 		t.Fatalf("summary: %d %s", r.StatusCode, body)
+	}
+}
+
+// The welcome page's activity is off unless asked for, and names only the app.
+func TestPublicActivity(t *testing.T) {
+	e := newEnv(t, false)
+	ctx := context.Background()
+	if r, _ := e.do(t, "GET", "/api/public/activity", "", nil, nil); r.StatusCode != http.StatusNotFound {
+		t.Fatalf("off: %d", r.StatusCode)
+	}
+	sp := spec.Spec{Services: []spec.Service{{Name: "web"}}}
+	sp.Default()
+	app := &store.App{Name: "shop", Repo: "p0dxD/secret-repo", DefaultBranch: "main", Spec: sp}
+	if err := e.store.CreateApp(ctx, app); err != nil {
+		t.Fatal(err)
+	}
+	run := &store.Run{AppID: app.ID, SHA: "abc123def", Branch: "feature-x", Event: "pull_request"}
+	if err := e.store.CreateRun(ctx, run, nil); err != nil {
+		t.Fatal(err)
+	}
+	e.s.PublicActivity = true
+	r, body := e.do(t, "GET", "/api/public/activity", "", nil, nil)
+	var a PublicActivity
+	if r.StatusCode != 200 || json.Unmarshal([]byte(body), &a) != nil || len(a.Running) != 1 || a.Running[0].App != "shop" ||
+		a.Running[0].Status != store.RunQueued || a.Running[0].Deploy || a.Recent == nil {
+		t.Fatalf("%d %s", r.StatusCode, body)
+	}
+	for _, private := range []string{"secret-repo", "abc123", "feature-x", "pull_request"} {
+		if strings.Contains(body, private) {
+			t.Fatalf("public activity reveals %q: %s", private, body)
+		}
+	}
+	if _, body := e.do(t, "GET", "/api/setup/status", "", nil, nil); !strings.Contains(body, `"activity":true`) {
+		t.Fatalf("the welcome page learns the activity is on: %s", body)
 	}
 }

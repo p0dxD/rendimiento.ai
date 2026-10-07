@@ -258,6 +258,7 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	}
 
 	srv := &api.Server{
+		BookURL: os.Getenv("BOOK_URL"), BookURLEs: os.Getenv("BOOK_URL_ES"),
 		Platform: p, Store: st, Kube: kube, GitHub: holder, Credentials: creds, DNS: dnsProvider, Log: log,
 		BaseURL: baseURL, AllowedUsers: users, SetupToken: os.Getenv("SETUP_TOKEN"),
 		AppName: env("GITHUB_APP_NAME", "rendimiento"), UI: web.Dist(),
@@ -303,6 +304,7 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	}
 	srv.Notify = notifier
 	srv.PublicStats = env("PUBLIC_STATS", "false") == "true"
+	srv.PublicActivity = env("PUBLIC_ACTIVITY", "false") == "true"
 	srv.PublicOrigins = splitList(os.Getenv("PUBLIC_STATS_ORIGINS"))
 	srv.PublicTimeZone = env("PUBLIC_STATS_TZ", "UTC")
 	// Visitor numbers from Umami, read with a view-only Umami user.

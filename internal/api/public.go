@@ -155,3 +155,46 @@ func (s *Server) buildPublicStats(ctx context.Context) (*PublicStats, error) {
 	}
 	return out, nil
 }
+
+// PublicActivity is what GET /api/public/activity returns, for the welcome
+// page: the runs going on now and the latest releases, by app name only
+// (no repositories, commits, branches, messages or errors).
+type PublicActivity struct {
+	Running []store.ActiveRun    `json:"running"`
+	Recent  []store.ReleaseEvent `json:"recent"`
+}
+
+// activityCache keeps the last answer for 15 seconds.
+type activityCache struct {
+	mu  sync.Mutex
+	at  time.Time
+	out *PublicActivity
+}
+
+func (s *Server) publicActivity(w http.ResponseWriter, r *http.Request) {
+	if !s.PublicActivity {
+		httpError(w, http.StatusNotFound, "public activity is off (PUBLIC_ACTIVITY)")
+		return
+	}
+	w.Header().Set("Cache-Control", "public, max-age=15")
+	c := &s.activity
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.out == nil || time.Since(c.at) > 15*time.Second {
+		out := &PublicActivity{}
+		var err error
+		if out.Running, err = s.Store.ActiveRuns(r.Context(), 8); err == nil {
+			out.Recent, err = s.Store.RecentReleases(r.Context(), 8)
+		}
+		if err != nil {
+			if c.out == nil {
+				httpError(w, http.StatusInternalServerError, "activity unavailable")
+				return
+			}
+			s.Log.Warn("public activity", "err", err) // serve the previous answer
+		} else {
+			c.out, c.at = out, time.Now()
+		}
+	}
+	writeJSON(w, c.out)
+}

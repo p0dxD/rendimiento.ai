@@ -72,9 +72,13 @@ type Server struct {
 	// StatsInternalOnly keeps /api/public/stats off the main (public)
 	// listener; it is then served only by StatsHandler.
 	StatsInternalOnly bool
+	// PublicActivity serves GET /api/public/activity without login: the
+	// welcome page's "right now" (app names, what is happening, when).
+	PublicActivity bool
 	// Logs reads step logs archived to object storage (nil when off).
 	Logs         *logarchive.Archive
 	public       publicCache
+	activity     activityCache
 	AllowedUsers []string // GitHub logins allowed to sign in
 	SetupToken   string   // guards the one-time GitHub App setup
 	AppName      string   // name for the GitHub App, e.g. "rendimiento-joserod"
@@ -90,6 +94,9 @@ type Server struct {
 	// is Umami's public address, for links.
 	Analytics    Analytics
 	AnalyticsURL string
+	// BookURL and BookURLEs link the welcome page to the book, in English
+	// and in Spanish (either may be empty).
+	BookURL, BookURLEs string
 }
 
 // Analytics is where visitor numbers come from (Umami).
@@ -112,6 +119,7 @@ func (s *Server) Handler() http.Handler {
 	if !s.StatsInternalOnly {
 		mux.HandleFunc("GET /api/public/stats", s.publicStats)
 	}
+	mux.HandleFunc("GET /api/public/activity", s.publicActivity)
 	mux.HandleFunc("GET /api/auth/login", s.login)
 	mux.HandleFunc("GET /api/auth/callback", s.callback)
 	mux.HandleFunc("POST /api/auth/logout", s.logout)
@@ -315,7 +323,10 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) setupStatus(w http.ResponseWriter, _ *http.Request) {
 	app, err := s.GitHub.Get()
-	out := map[string]any{"configured": err == nil}
+	out := map[string]any{"configured": err == nil, "activity": s.PublicActivity}
+	if s.BookURL != "" || s.BookURLEs != "" {
+		out["book"] = map[string]string{"en": s.BookURL, "es": s.BookURLEs}
+	}
 	if err == nil {
 		c := app.Credentials()
 		out["appSlug"], out["installURL"] = c.Slug, c.HTMLURL+"/installations/new"

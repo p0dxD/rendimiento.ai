@@ -8,6 +8,7 @@ rendimiento se configura solo con **variables de entorno**, que se leen una vez 
 |---|---|---|---|
 | `DATABASE_URL` | *(obligatorio)* | del Secret `rendimiento-db` | cadena de conexión a Postgres |
 | `BASE_URL` | `http://localhost:8080` | `https://rendimiento.example.com` | la URL pública; se usa para las respuestas de OAuth, los avisos web y las ligas en las comprobaciones de GitHub |
+| `BOOK_URL`, `BOOK_URL_ES` | *(vacío: sin enlace)* | `https://learn.example.com/`, `https://aprende.example.com/` | el libro en inglés y en español, enlazado desde la página de bienvenida que se ve antes de iniciar sesión |
 | `ALLOWED_USERS` | *(vacío: nadie)* | `su-cuenta-de-github` | las cuentas de GitHub que pueden iniciar sesión (separadas por comas o espacios) |
 | `SETUP_TOKEN` | — | del Secret `rendimiento-setup` | protege `/api/setup/github` hasta que exista la aplicación de GitHub |
 | `NAMESPACE` | `rendimiento-system` | | donde viven la plataforma y sus Secrets |
@@ -91,6 +92,7 @@ Se toman del Secret opcional `rendimiento-dns`. Sin token, la automatización de
 | `STATS_LISTEN` | *(vacío: en el puerto principal)* | `:8081` | servir las estadísticas públicas solo en este puerto interno, no en el público |
 | `PUBLIC_STATS_ORIGINS` | *(ninguno)* | | los orígenes de navegador que pueden pedirlas (CORS); no hace falta si se piden desde un servidor |
 | `PUBLIC_STATS_TZ` | `UTC` | `America/New_York` | la zona horaria en la que se cuentan sus días |
+| `PUBLIC_ACTIVITY` | `false` | `true` | mostrar *Ahora mismo* en la página de bienvenida: lo que se está construyendo y las versiones más recientes, por nombre de aplicación ([`GET /api/public/activity`](api.md)) |
 
 ## Visitas (Umami) {#visits-umami}
 

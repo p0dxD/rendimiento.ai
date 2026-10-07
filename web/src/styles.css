@@ -551,3 +551,73 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 .ruta-bad { color: var(--bad); }
 .ruta-token { padding: 6px 10px; background: var(--code-bg); color: var(--code-text); border-radius: 6px; overflow-wrap: anywhere; flex: 1; }
 .ruta-snippet { flex: 1; margin: 0; padding: 10px 12px; background: var(--code-bg); color: var(--code-text); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12.5px; }
+
+/* ---- the welcome page (signed out) ---- */
+.bienv { min-height: 100vh; display: flex; flex-direction: column; }
+.bienv-barra { display: flex; align-items: center; gap: 8px; padding: 12px 24px; max-width: 1120px; width: 100%; margin: 0 auto; }
+.bienv-barra .spacer { flex: 1; }
+.bienv-main { max-width: 1040px; width: 100%; margin: 0 auto; padding: 8px 16px 48px; flex: 1; }
+.bienv h2 { font-size: clamp(24px, 3.4vw, 32px); margin: 0 0 16px; }
+.bienv h3 { margin: 6px 0 4px; font-size: 17px; }
+.bienv-heroe { text-align: center; padding: 40px 0 32px; display: grid; justify-items: center; gap: 8px; }
+.bienv-heroe h1 { font-size: clamp(36px, 7vw, 64px); line-height: 1.05; margin: 4px 0 8px; }
+.bienv-antetitulo { margin: 8px 0 0; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; color: var(--teja); }
+:root[data-theme="night"] .bienv-antetitulo { color: var(--cempasuchil-2); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="day"]) .bienv-antetitulo { color: var(--cempasuchil-2); } }
+.bienv-entrada { max-width: 680px; margin: 0 auto; font-size: 17px; color: var(--muted); }
+.bienv-acciones { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 16px; }
+
+/* The dictionary entry: an amate-colored card with a grana rule. */
+.bienv-diccionario { margin: 24px auto 48px; max-width: 820px; background: var(--surface); border: 1px solid var(--border);
+  border-left: 6px solid var(--grana); border-radius: var(--radius); padding: 24px 28px; box-shadow: 0 10px 30px rgb(43 27 18 / .07); }
+:root[data-theme="night"] .bienv-diccionario { border-left-color: var(--cempasuchil); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="day"]) .bienv-diccionario { border-left-color: var(--cempasuchil); } }
+.dicc-cabeza { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
+.dicc-cabeza h2 { font-size: clamp(34px, 6vw, 48px); margin: 0; }
+.dicc-fon { font-family: var(--mono); color: var(--muted); font-size: 15px; }
+.dicc-tipo { font-style: italic; color: var(--muted); }
+.dicc-acepciones { margin: 16px 0 0; padding-left: 26px; display: grid; gap: 16px; }
+.dicc-acepciones li::marker { font-family: var(--display); font-weight: 800; color: var(--accent); }
+.dicc-acepciones p { margin: 0; }
+.dicc-def { font-size: 18px; font-weight: 600; }
+.dicc-ej { font-family: var(--display); font-style: italic; color: var(--muted); }
+.dicc-aqui { margin-top: 4px !important; }
+.dicc-flecha { color: var(--cempasuchil); font-weight: 800; }
+.dicc-pie { margin: 20px 0 0; padding-top: 14px; border-top: 1px dashed var(--border); }
+
+.bienv-seccion { margin: 0 0 48px; }
+.bienv-pasos { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.bienv-pasos .card { position: relative; padding-top: 20px; border-radius: 120px 120px var(--radius) var(--radius); text-align: center; padding-left: 20px; padding-right: 20px; }
+.paso-num { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-family: var(--display); font-weight: 800; font-size: 20px; }
+.bienv-pasos p { margin: 0; }
+
+.bienv-ruta { background: var(--surface-2); border-radius: var(--radius); padding: 28px; text-align: center; }
+.bienv-ruta .bienv-entrada { margin-bottom: 18px; }
+.ruta-vuelo { display: flex; justify-content: center; align-items: flex-end; gap: 18px; margin-bottom: 10px; }
+.ruta-vuelo .monarca:nth-child(2) { transform: translateY(-10px); }
+.monarca .ala { transform-origin: 32px 32px; animation: aleteo 1.4s ease-in-out infinite; }
+.ruta-vuelo .monarca:nth-child(2) .ala { animation-delay: -.5s; }
+.ruta-vuelo .monarca:nth-child(3) .ala { animation-delay: -.9s; }
+@keyframes aleteo { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(.55); } }
+.ruta-lista { list-style: none; padding: 0; margin: 0 auto; max-width: 720px; text-align: left; display: grid; gap: 10px; }
+.ruta-lista li { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+
+.ahora-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.ahora-grid h3 { margin-top: 0; }
+.ahora-lista { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.ahora-lista li { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.ahora-punto { width: 10px; height: 10px; border-radius: 999px; background: var(--idle); flex: none; }
+.ahora-punto.running { background: var(--cempasuchil); box-shadow: 0 0 0 0 var(--cempasuchil); animation: latir 1.6s ease-out infinite; }
+@keyframes latir { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--cempasuchil) 60%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
+.bienv-cosas { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.bienv-cosa { border-top: 5px solid var(--accent); }
+.bienv-cosa p { margin: 0; }
+.bienv-cierre { text-align: center; padding: 16px 0 8px; }
+.bienv-cierre h2 { font-size: clamp(28px, 5vw, 44px); }
+@media (max-width: 640px) {
+  .bienv-barra { padding: 10px 16px; gap: 6px; }
+  .bienv-barra .brand-name { font-size: 18px; }
+  .bienv-diccionario { padding: 18px 16px; }
+  .bienv-ruta { padding: 20px 16px; }
+  .bienv-heroe { padding-top: 24px; }
+}

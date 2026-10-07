@@ -241,3 +241,31 @@ func (s *Store) RecentReleases(ctx context.Context, n int) ([]ReleaseEvent, erro
 	}
 	return out, rows.Err()
 }
+
+// ActiveRun is a run waiting or in progress, as the welcome page shows it:
+// which app, and since when; nothing about the commit.
+type ActiveRun struct {
+	App    string    `json:"app"`
+	Status string    `json:"status"` // queued or running
+	Deploy bool      `json:"deploy"` // false: a branch or pull request check
+	Since  time.Time `json:"since"`
+}
+
+// ActiveRuns lists the runs queued or running, oldest first.
+func (s *Store) ActiveRuns(ctx context.Context, n int) ([]ActiveRun, error) {
+	rows, err := s.pool.Query(ctx, `SELECT a.name, r.status, r.deploy, COALESCE(r.started_at, r.created_at)
+		FROM runs r JOIN apps a ON a.id = r.app_id WHERE r.status IN ('queued', 'running') ORDER BY r.id LIMIT $1`, n)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []ActiveRun{}
+	for rows.Next() {
+		var r ActiveRun
+		if err := rows.Scan(&r.App, &r.Status, &r.Deploy, &r.Since); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}

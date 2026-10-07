@@ -450,7 +450,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 export const api = {
   me: () => request<{ login: string }>("GET", "/api/me"),
   logout: () => request<void>("POST", "/api/auth/logout"),
-  setupStatus: () => request<{ configured: boolean; appSlug?: string; installURL?: string }>("GET", "/api/setup/status"),
+  setupStatus: () => request<{ configured: boolean; appSlug?: string; installURL?: string; book?: { en?: string; es?: string }; activity?: boolean }>("GET", "/api/setup/status"),
+  publicActivity: () => request<PublicActivity>("GET", "/api/public/activity"),
   installations: () => request<{ installations: Installation[]; installURL: string }>("GET", "/api/installations"),
   repos: (installation: number) => request<Repo[]>("GET", `/api/installations/${installation}/repos`),
   zones: () => request<string[]>("GET", "/api/zones"),
@@ -510,6 +511,12 @@ export function subscribe(path: string, handlers: Record<string, (data: any) => 
     es.addEventListener(type, (e) => fn(JSON.parse((e as MessageEvent).data)));
   }
   return () => es.close();
+}
+
+/** The welcome page's "right now": runs going on and the latest releases, by app name only. */
+export interface PublicActivity {
+  running: { app: string; status: "queued" | "running"; deploy: boolean; since: string }[];
+  recent: { app: string; number: number; at: string; rollbackOf?: number; verifyStatus?: string; automatic?: boolean }[];
 }
 
 export function timeAgo(iso?: string): string {
