@@ -220,6 +220,7 @@ export const es: Record<string, string> = {
   "Loading…": "Cargando…",
   "Local network": "Red local",
   "local network": "red local",
+  "route": "ruta",
   "Log": "Registro",
   "Log level": "Nivel de registro",
   "Looking around the cluster…": "Explorando el clúster…",

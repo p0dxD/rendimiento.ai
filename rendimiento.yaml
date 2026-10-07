@@ -1,5 +1,5 @@
 # rendimiento builds itself. Every push to main rebuilds its book (docs,
-# served on the home network) and tests and builds its own image (builds:
+# public in English and Spanish, and on the home network) and tests and builds its own image (builds:
 # platform), so a change is checked on the cluster like any app's. The
 # image is kept with the release; it is not deployed from here yet.
 services:
@@ -12,6 +12,9 @@ services:
     size: small
     replicas: 1
     health: { path: / }
+    # The public book; aprende. opens the Spanish edition (docs/nginx.conf).
+    domain: learn.rendimiento.ai
+    aliases: [aprende.rendimiento.ai]
     # A LAN address from MetalLB's pool (any free one): the home-network
     # edition of the book, with private pages, is served from main_configs.
     lan: {}

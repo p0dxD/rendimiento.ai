@@ -29,6 +29,8 @@ For a volume with a database, the switch has a short gap (the volume moves from 
 - `aliases` adds hosts on the same certificate (e.g. `www.`).
 - `routes` sends a path on another service's host to this service: a UI at `wellness.jobsentry.net` and its API at `wellness.jobsentry.net/api`, each deployed on its own.
 
+The app's **Overview** lists every address of each service: its domain, its aliases and its routes.
+
 ## Secrets
 
 Declare names in `rendimiento.yaml` (`secrets`, `secretEnv`, `secretFiles`); set the values on the app's **Settings** page, or commit **sealed secrets** (encrypted with the cluster's public key, only the cluster can decrypt them). Values never go to git in plain text or to the platform database.

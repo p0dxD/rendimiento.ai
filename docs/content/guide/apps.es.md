@@ -29,6 +29,8 @@ Con un volumen que guarda una base de datos, el cambio tiene un hueco breve (el 
 - `aliases` agrega hosts con el mismo certificado (por ejemplo `www.`).
 - `routes` manda una ruta en el host de otro servicio a este servicio: una interfaz en `wellness.jobsentry.net` y su API en `wellness.jobsentry.net/api`, cada una desplegada por su cuenta.
 
+El **Resumen** de la aplicación muestra todas las direcciones de cada servicio: su dominio, sus alias y sus rutas.
+
 ## Secretos {#secrets}
 
 Declare los nombres en `rendimiento.yaml` (`secrets`, `secretEnv`, `secretFiles`); defina los valores en la página **Configuración** de la aplicación, o confirme **secretos sellados** (cifrados con la llave pública del clúster, que solo el clúster puede descifrar). Los valores nunca van a git en texto plano ni a la base de datos de la plataforma.
