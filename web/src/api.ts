@@ -17,6 +17,8 @@ export interface Service {
   size?: Size;
   replicas?: number;
   domain?: string;
+  aliases?: string[];
+  routes?: string[];
   health?: { path: string };
   env?: Record<string, string>;
   secrets?: string[];

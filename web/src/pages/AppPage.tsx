@@ -76,7 +76,15 @@ function Overview({ name, app }: { name: string; app: Awaited<ReturnType<typeof 
                 <strong>{svc.name}</strong>
                 <span className="small muted">{st ? t("{ready}/{total} ready", { ready: st.readyReplicas, total: st.replicas }) : t("not deployed")}</span>
               </div>
-              {svc.domain && <a href={`https://${svc.domain}`} target="_blank" rel="noreferrer">https://{svc.domain}</a>}
+              {[svc.domain, ...(svc.domain ? svc.aliases ?? [] : [])].filter(Boolean).map((h) => (
+                <a key={h} href={`https://${h}`} target="_blank" rel="noreferrer">https://{h}</a>
+              ))}
+              {svc.routes?.map((r) => (
+                <div key={r} className="row small">
+                  <a href={`https://${r}`} target="_blank" rel="noreferrer">https://{r}</a>
+                  <span className="badge">{t("route")}</span>
+                </div>
+              ))}
               {st?.lanURL && (
                 <div className="row small">
                   <a href={st.lanURL} target="_blank" rel="noreferrer">{st.lanURL}</a>
