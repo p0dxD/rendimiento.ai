@@ -282,27 +282,11 @@ type OnboardResult struct {
 // and either opens the onboarding PR or, if the repo already carries a
 // rendimiento.yaml, queues the first build right away.
 func (p *Platform) Onboard(ctx context.Context, req OnboardRequest, existing bool) (*OnboardResult, error) {
-	req.Spec.Default()
-	if err := req.Spec.Validate(); err != nil {
+	app, err := p.Register(ctx, req)
+	if err != nil {
 		return nil, err
 	}
-	req.Name = generate.Slug(req.Name)
-	app := &store.App{Name: req.Name, Repo: req.Repo, InstallationID: req.Installation, DefaultBranch: req.DefaultBranch, Spec: req.Spec}
-	if err := p.Store.CreateApp(ctx, app); err != nil {
-		if store.IsUniqueViolation(err) {
-			return nil, fmt.Errorf("an app named %q already exists", req.Name)
-		}
-		return nil, err
-	}
-	cr := &v1alpha1.App{
-		ObjectMeta: metav1.ObjectMeta{Name: app.Name, Labels: map[string]string{"rendimiento.ai/app-id": strconv.FormatInt(app.ID, 10)}},
-		Spec: v1alpha1.AppSpec{Repo: app.Repo, Services: app.Spec.Services, Jobs: app.Spec.Jobs, SharedNamespace: app.Spec.SharedNamespace,
-			Postgres: app.Spec.Postgres, Redis: app.Spec.Redis, Adopt: req.Adopt},
-	}
-	if err := p.Kube.Create(ctx, cr); err != nil {
-		_ = p.Store.DeleteApp(ctx, app.ID)
-		return nil, fmt.Errorf("create App object: %w", err)
-	}
+	req.Spec = app.Spec
 	res := &OnboardResult{App: app}
 	if existing {
 		run, err := p.QueueRun(ctx, app, req.DefaultBranch, "", "manual")
@@ -333,6 +317,33 @@ func (p *Platform) Onboard(ctx context.Context, req OnboardRequest, existing boo
 	}
 	res.PR = pr
 	return res, nil
+}
+
+// Register records the app and creates its App object, which waits for a
+// first build; the next push with a rendimiento.yaml builds it.
+func (p *Platform) Register(ctx context.Context, req OnboardRequest) (*store.App, error) {
+	req.Spec.Default()
+	if err := req.Spec.Validate(); err != nil {
+		return nil, err
+	}
+	req.Name = generate.Slug(req.Name)
+	app := &store.App{Name: req.Name, Repo: req.Repo, InstallationID: req.Installation, DefaultBranch: req.DefaultBranch, Spec: req.Spec}
+	if err := p.Store.CreateApp(ctx, app); err != nil {
+		if store.IsUniqueViolation(err) {
+			return nil, fmt.Errorf("an app named %q already exists", req.Name)
+		}
+		return nil, err
+	}
+	cr := &v1alpha1.App{
+		ObjectMeta: metav1.ObjectMeta{Name: app.Name, Labels: map[string]string{"rendimiento.ai/app-id": strconv.FormatInt(app.ID, 10)}},
+		Spec: v1alpha1.AppSpec{Repo: app.Repo, Services: app.Spec.Services, Jobs: app.Spec.Jobs, SharedNamespace: app.Spec.SharedNamespace,
+			Postgres: app.Spec.Postgres, Redis: app.Spec.Redis, Adopt: req.Adopt},
+	}
+	if err := p.Kube.Create(ctx, cr); err != nil {
+		_ = p.Store.DeleteApp(ctx, app.ID)
+		return nil, fmt.Errorf("create App object: %w", err)
+	}
+	return app, nil
 }
 
 // DeleteApp removes the App object (the controller then removes DNS and,

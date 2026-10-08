@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.P.Nombre}}</title>
+{{with .P.Lema}}<meta name="description" content="{{.}}">{{end}}
+<meta property="og:title" content="{{.P.Nombre}}">
+{{with .P.Lema}}<meta property="og:description" content="{{.}}">{{end}}
+<meta name="generator" content="rendimiento · Mercado">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Nunito+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root { {{.Colores}}
+    --papel: #FBF5EA; --tarjeta: #FFFDF8; --borde: #E9DCC8; --texto: #2B1B12; --suave: #6B5444;
+    --titulo: var(--oscuro); --boton: var(--principal); --boton-texto: #fff;
+    color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root { --papel: #120F2A; --tarjeta: #211531; --borde: #3A2A52; --texto: #F6EBDD; --suave: #B8A9C9;
+      --titulo: var(--segundo); --boton: var(--segundo); --boton-texto: #1B0F0A; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--papel); }
+  body { margin: 0; min-height: 100vh; background: var(--papel); color: var(--texto);
+    font: 400 1.05rem/1.65 "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .picado { display: block; width: 100%; height: 84px; }
+  .picado .cordel { stroke: var(--suave); stroke-width: 2; fill: none; }
+  .picado .hueco { fill: var(--papel); }
+  @media (prefers-reduced-motion: no-preference) {
+    .picado g.bandera { transform-origin: top center; transform-box: fill-box; animation: viento 5s ease-in-out infinite; }
+    .picado g.bandera:nth-child(odd) { animation-delay: -2.5s; }
+  }
+  @keyframes viento { 0%, 100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
+  main { max-width: 760px; margin: 0 auto; padding: 0 16px 48px; }
+  .puesto { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 18px; overflow: hidden;
+    box-shadow: 0 10px 30px rgb(0 0 0 / .08); text-align: center; }
+  .toldo { height: 34px; background: repeating-linear-gradient(90deg, var(--principal) 0 30px, #FFF8EC 30px 60px);
+    -webkit-mask: radial-gradient(circle at 15px 0, #000 21px, transparent 22px) 0 0 / 30px 34px repeat-x;
+            mask: radial-gradient(circle at 15px 0, #000 21px, transparent 22px) 0 0 / 30px 34px repeat-x; }
+  .portada { padding: 18px 24px 30px; }
+  .foto { width: min(220px, 60vw); aspect-ratio: 1; object-fit: cover; border-radius: 50%;
+    border: 6px solid var(--segundo); box-shadow: 0 0 0 3px var(--principal); margin: 6px auto 4px; display: block; }
+  h1, h2 { font-family: "Fraunces", Georgia, serif; color: var(--titulo); line-height: 1.15; }
+  h1 { font-size: clamp(2rem, 7vw, 3.2rem); font-weight: 800; margin: 14px 0 6px; }
+  h2 { font-size: 1.5rem; font-weight: 600; margin: 0 0 12px; }
+  .lema { font-size: 1.2rem; color: var(--suave); margin: 0 auto; max-width: 34ch; }
+  .enlaces { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 22px; }
+  .enlaces a { display: inline-flex; flex-direction: column; align-items: center; min-width: 120px; padding: 10px 16px;
+    border-radius: 999px; background: var(--boton); color: var(--boton-texto); text-decoration: none; font-weight: 800; line-height: 1.2; }
+  .enlaces a small { font-weight: 600; opacity: .85; font-size: .8rem; overflow-wrap: anywhere; }
+  .enlaces a:hover, .enlaces a:focus-visible { filter: brightness(1.08); outline: 3px solid var(--segundo); outline-offset: 2px; }
+  section.bloque { margin-top: 22px; background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 18px;
+    padding: 24px; border-top: 6px solid var(--principal); }
+  section.bloque p { margin: 0 0 12px; white-space: pre-line; }
+  section.bloque p:last-child { margin-bottom: 0; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; margin: 0; }
+  dt { font-weight: 800; color: var(--titulo); }
+  dd { margin: 0; white-space: pre-line; }
+  @media (max-width: 480px) { dl { grid-template-columns: 1fr; gap: 2px; } dd { margin-bottom: 10px; } }
+  .galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .galeria img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 12px; display: block; }
+  footer { text-align: center; color: var(--suave); font-size: .9rem; padding: 0 16px 32px; }
+  footer .flor { color: var(--principal); }
+</style>
+</head>
+<body>
+<svg class="picado" viewBox="0 0 1408 84" preserveAspectRatio="xMidYMin slice" aria-hidden="true">
+  <path class="cordel" d="M0 10 Q704 22 1408 10"/>
+  {{range .Banderas}}<g class="bandera">
+    <path d="{{.Forma}}" fill="{{.Color}}"/>
+    <circle class="hueco" cx="{{.Ojos}}" cy="34" r="9"/>
+    <path class="hueco" d="M{{.Ojos}} 18 l5 6 -5 6 -5 -6 Z M{{.Ojos}} 44 l5 6 -5 6 -5 -6 Z"/>
+  </g>{{end}}
+</svg>
+<main>
+  <section class="puesto">
+    <div class="toldo" aria-hidden="true"></div>
+    <div class="portada">
+      {{with .Foto}}<img class="foto" src="{{.}}" alt="">{{end}}
+      <h1>{{.P.Nombre}}</h1>
+      {{with .P.Lema}}<p class="lema">{{.}}</p>{{end}}
+      {{if .Enlaces}}<nav class="enlaces">
+        {{range .Enlaces}}<a href="{{.Href}}" rel="noopener" {{if ne .Tipo "correo"}}{{if ne .Tipo "telefono"}}target="_blank"{{end}}{{end}}>{{.Nombre}}<small>{{.Texto}}</small></a>
+        {{end}}
+      </nav>{{end}}
+    </div>
+  </section>
+  {{if eq .P.Tipo "evento"}}{{template "detalles" .}}{{end}}
+  {{if eq .P.Tipo "portafolio"}}{{template "galeria" .}}{{end}}
+  {{if .Parrafos}}<section class="bloque">
+    <h2>{{.Textos.Sobre}}</h2>
+    {{range .Parrafos}}<p>{{.}}</p>{{end}}
+  </section>{{end}}
+  {{if ne .P.Tipo "evento"}}{{template "detalles" .}}{{end}}
+  {{if ne .P.Tipo "portafolio"}}{{template "galeria" .}}{{end}}
+</main>
+<footer><span class="flor" aria-hidden="true">✿</span> {{.Textos.Pie}}</footer>
+</body>
+</html>
+{{define "detalles"}}{{if .P.Detalles}}<section class="bloque">
+    <h2>{{.Textos.Detalles}}</h2>
+    <dl>{{range .P.Detalles}}<dt>{{.Etiqueta}}</dt><dd>{{.Texto}}</dd>{{end}}</dl>
+  </section>{{end}}{{end}}
+{{define "galeria"}}{{if .Galeria}}<section class="bloque">
+    <h2>{{.Textos.Galeria}}</h2>
+    <div class="galeria">{{$t := .Textos.Foto}}{{range $i, $f := .Galeria}}<img src="{{$f}}" alt="{{$t}} {{inc $i}}" loading="lazy">{{end}}</div>
+  </section>{{end}}{{end}}

@@ -9,6 +9,7 @@ rendimiento is configured only through **environment variables**, read once at s
 | `DATABASE_URL` | *(required)* | from Secret `rendimiento-db` | Postgres connection string |
 | `BASE_URL` | `http://localhost:8080` | `https://rendimiento.example.com` | public URL; used for OAuth callbacks, webhooks and links in GitHub checks |
 | `BOOK_URL`, `BOOK_URL_ES` | *(empty: no link)* | `https://learn.example.com/`, `https://aprende.example.com/` | the book in English and in Spanish, linked from the welcome page that people see before they sign in |
+| `PAGES_ORG` | *(empty: the Mercado is off)* | `example-paginas` | the GitHub organization where the [Mercado](../guide/mercado.md) creates each page's repository (the App needs Administration there) |
 | `ALLOWED_USERS` | *(empty: nobody)* | `your-github-login` | GitHub logins allowed to sign in (comma- or space-separated) |
 | `SETUP_TOKEN` | — | from Secret `rendimiento-setup` | protects `/api/setup/github` until the GitHub App exists |
 | `NAMESPACE` | `rendimiento-system` | | where the platform and its Secrets live |

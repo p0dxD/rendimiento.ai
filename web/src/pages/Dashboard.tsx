@@ -13,7 +13,7 @@ const bandas = ["var(--grana)", "var(--cempasuchil)", "var(--anil)", "var(--rosa
 
 /** An app is withered while one of its checks is in an outage, or its
  *  workloads are failing. */
-function marchita(a: App): boolean {
+export function marchita(a: App): boolean {
   return (a.down?.length ?? 0) > 0 || a.status.phase === "Error" || a.status.phase === "Degraded";
 }
 

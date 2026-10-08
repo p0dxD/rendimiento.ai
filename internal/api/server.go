@@ -38,6 +38,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/environment"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
 	"github.com/p0dxD/rendimiento.ai/internal/logarchive"
+	"github.com/p0dxD/rendimiento.ai/internal/mercado"
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
@@ -94,6 +95,8 @@ type Server struct {
 	// is Umami's public address, for links.
 	Analytics    Analytics
 	AnalyticsURL string
+	// Mercado opens and keeps pages made from a form (nil: off).
+	Mercado *mercado.Mercado
 	// BookURL and BookURLEs link the welcome page to the book, in English
 	// and in Spanish (either may be empty).
 	BookURL, BookURLEs string
@@ -171,6 +174,11 @@ func (s *Server) Handler() http.Handler {
 	auth("POST /api/notifications/test", s.testNotification)
 	auth("POST /api/propose", s.propose)
 	auth("GET /api/namespaces/{name}/migration", s.migration)
+	auth("GET /api/mercado", s.listMercado)
+	auth("POST /api/mercado", s.openPuesto)
+	auth("POST /api/mercado/preview", s.previewMercado)
+	auth("GET /api/mercado/{app}", s.getPuesto)
+	auth("PUT /api/mercado/{app}", s.savePuesto)
 	auth("GET /api/apps", s.listApps)
 	auth("POST /api/apps", s.createApp)
 	auth("GET /api/apps/{app}", s.getApp)

@@ -56,6 +56,11 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 |---|---|---|
 | GET | `/api/apps` | list apps with status |
 | POST | `/api/apps` | onboard a repo (opens the setup pull request, or adopts directly) |
+| GET | `/api/mercado` | the [Mercado](../guide/mercado.md): whether it is on, and every page with its app's state |
+| POST | `/api/mercado` | open a page: `{pagina, dominio}`; creates its repository and app (photos as `data:` URLs, up to 24 MB in all) |
+| POST | `/api/mercado/preview` | the page's HTML for the form's preview, as `{html}` |
+| GET | `/api/mercado/{app}` | a page's form answers (`pagina.json`), address and repository |
+| PUT | `/api/mercado/{app}` | save a page: one commit, which publishes it |
 | GET | `/api/apps/{app}` | one app: spec, status, latest run and release |
 | DELETE | `/api/apps/{app}` | delete the app and everything it created |
 | GET | `/api/apps/{app}/impact` | what a delete would remove (shown before confirming) |

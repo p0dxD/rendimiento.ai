@@ -621,3 +621,53 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
   .bienv-ruta { padding: 20px 16px; }
   .bienv-heroe { padding-top: 24px; }
 }
+
+/* ---- El Mercado: every page a stall, under its awning ---- */
+.ghost { background: transparent; border-color: transparent; }
+.ghost:hover { background: var(--surface-2); }
+.mercado-cabeza { display: flex; gap: 18px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; }
+.mercado-cabeza h1 { font-family: var(--display); font-size: clamp(28px, 5vw, 40px); margin: 0 0 4px; }
+.mercado-cabeza p { max-width: 62ch; margin: 0; }
+.puestos { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.puesto-card { background: var(--surface); border: 2px solid var(--border); border-radius: 16px; overflow: hidden; text-align: center; }
+.puesto-card.caida { border-color: var(--bad); }
+.puesto-toldo, .tipo-pagina::before {
+  height: 30px;
+  background: repeating-linear-gradient(90deg, var(--toldo) 0 26px, var(--surface) 26px 52px);
+  -webkit-mask: radial-gradient(circle at 13px 0, #000 18px, transparent 19px) 0 0 / 26px 30px repeat-x;
+          mask: radial-gradient(circle at 13px 0, #000 18px, transparent 19px) 0 0 / 26px 30px repeat-x;
+}
+.puesto-cuerpo { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 16px 16px; }
+.puesto-cuerpo h3 { font-family: var(--display); font-size: 21px; font-weight: 800; margin: 4px 0 0; }
+.puesto-cuerpo a { overflow-wrap: anywhere; }
+.puesto-cuerpo .row { margin-top: 8px; }
+.aviso-ok { border-left: 6px solid var(--ok); background: var(--ok-bg); }
+
+.editor-puesto { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: start; }
+.editor-vista { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 900px) { .editor-puesto { grid-template-columns: 1fr; } .editor-vista { position: static; } }
+.editor-form fieldset { border: 1px solid var(--border); margin: 0; min-width: 0; }
+.editor-form legend { font-family: var(--display); font-weight: 800; font-size: 18px; padding: 0 6px; }
+.campo { display: flex; flex-direction: column; gap: 4px; font-weight: 700; font-size: 14px; }
+.campo input, .campo select { font-weight: 400; }
+.editor-form textarea { width: 100%; }
+.tipos-pagina { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.tipo-pagina { position: relative; display: flex; flex-direction: column; gap: 2px; border: 2px solid var(--border); border-radius: 12px; overflow: hidden; cursor: pointer; padding: 0 12px 12px; }
+.tipo-pagina::before { content: ""; display: block; margin: 0 -12px 8px; }
+.tipo-pagina input, .paleta input { position: absolute; opacity: 0; pointer-events: none; }
+.tipo-pagina.elegido, .paleta.elegido { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.tipo-pagina:focus-within, .paleta:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.paletas { display: flex; flex-wrap: wrap; gap: 10px; }
+.paleta { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border: 2px solid var(--border); border-radius: 12px; cursor: pointer; min-width: 84px; }
+.paleta-muestra { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); }
+.fila-editor { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; align-items: center; }
+@media (max-width: 520px) { .fila-editor { grid-template-columns: minmax(0, 1fr) auto; } .fila-editor > :nth-child(2) { grid-column: 1; } }
+.foto-mini { width: 96px; height: 72px; object-fit: cover; border-radius: 8px; display: block; }
+.foto-mini.redonda { width: 72px; height: 72px; border-radius: 50%; }
+.galeria-editor { display: flex; flex-wrap: wrap; gap: 10px; }
+.foto-editor { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.vista-marco { border: 2px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.vista-barra { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.vista-barra span { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+.vista-barra em { font-style: normal; font-size: 12px; color: var(--muted); margin-left: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vista-marco iframe { display: block; width: 100%; height: min(78vh, 900px); border: 0; background: #FBF5EA; }
