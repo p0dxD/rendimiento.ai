@@ -79,11 +79,11 @@ rendimiento.ai/
 # 1. editar el código (y el libro)
 # 2. respuesta rápida sobre el paquete que tocó (lo bastante ligero para main)
 go vet ./internal/render && go test ./internal/render
-# 3. todo, en un nodo trabajador
-make test-remote
-# 4. publicar
-make image && make deploy && kubectl -n rendimiento-system rollout restart deploy/rendimiento
-# 5. confirmar y enviar (el libro se vuelve a desplegar solo)
+# 3. todo, en el clúster: envíe una rama, y rendimiento la prueba y la
+#    construye como la de cualquier aplicación (o make test-remote, en un nodo trabajador)
+git push origin HEAD:mi-cambio
+# 4. intégrela; cuando pase la ejecución de main, el libro se vuelve a desplegar
+#    solo y la página Entorno ofrece la plataforma nueva: Actualizar
 ```
 
 ## Ejecutar rendimiento {#running-rendimiento}

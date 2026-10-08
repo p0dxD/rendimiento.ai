@@ -32,6 +32,8 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | GET | `/api/installations/{id}/repos` | los repositorios de una instalación |
 | GET | `/api/zones` | las zonas DNS que el token puede editar |
 | GET | `/api/environment` | las comprobaciones de la página Entorno |
+| GET | `/api/platform/version` | qué versión de rendimiento se ejecuta y si hay una más reciente lista (`SELF_APP`) |
+| POST | `/api/platform/update` | actualiza rendimiento a la imagen de una versión: `{release}`; se reinicia unos segundos después |
 | GET | `/api/services` | el catálogo de Servicios (aplicaciones, complementos, servicios del clúster, datos de conexión) |
 | GET | `/api/stats/visits` | el panel de visitantes del inicio: los últimos 7 días de cada aplicación que Umami cuenta, y los 7 anteriores ([Visitas](../guide/visits.md)) |
 | GET | `/api/stats/delivery` | las estadísticas de entregas del panel: los últimos 30 días, los 30 anteriores y doce puntos semanales |

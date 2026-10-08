@@ -151,7 +151,7 @@ Al reiniciar, la plataforma:
 4. arranca los controladores, el trabajador de integración continua, el programador de Renovate, la sincronización de complementos desde git y el DNS dinámico.
 
 !!! warning "`:latest` no tiene historial"
-    Revertir la plataforma significa volver a construir la confirmación anterior. Etiquetar cada construcción con su confirmación está en la [hoja de ruta](../future/roadmap.md); mientras tanto, `git checkout <confirmación buena> && make image` es la reversión.
+    Revertir una plataforma construida a mano significa volver a construir la confirmación anterior (`git checkout <confirmación buena> && make image`). Las imágenes que rendimiento construye de sí mismo se guardan por versión, así que [actualizar desde la página Entorno](#updating-from-the-environment-page) tiene un historial al cual regresar.
 
 ## rendimiento se construye a sí mismo {#rendimiento-builds-itself}
 
@@ -160,7 +160,22 @@ El repositorio de rendimiento está incorporado como cualquier aplicación. Su `
 - `platform:test`: `hack/ci-test.sh` (generar, vet y las pruebas de Go, con envtest y un Postgres desechable) en `golang`, con una caché que se conserva;
 - `platform:build`: el Dockerfile, que además revisa los tipos y las traducciones de la interfaz, publicado como `<registro>/rendimiento-ai-platform:<confirmación>`.
 
-Las solicitudes de incorporación reciben la misma comprobación, sin versión. En la rama principal, el resumen (digest) de la imagen se guarda con la versión, junto al del libro. **Todavía no se despliega solo**: publicar sigue siendo los pasos de arriba, que construyen el mismo Dockerfile. El siguiente paso es que una versión actualice la plataforma (con una actualización gradual que conserve la versión anterior hasta que la nueva esté lista, para que una imagen rota no pueda tumbar la plataforma).
+Las solicitudes de incorporación reciben la misma comprobación, sin versión. En la rama principal, el resumen (digest) de la imagen se guarda con la versión, junto al del libro.
+
+### Actualizar desde la página Entorno {#updating-from-the-environment-page}
+
+Con `SELF_APP` puesto en el nombre de la aplicación con la que está incorporado el repositorio de rendimiento, la plataforma sabe cuál de esas versiones ejecuta (por el resumen de la imagen de su pod). Cuando la versión más reciente tiene otra imagen, el enlace **Entorno** muestra *nueva* y la página Entorno tiene un botón **Actualizar**. Sustituye los pasos de arriba para una versión que pasó sus comprobaciones:
+
+1. el botón apunta el Deployment a la imagen de la versión, fijada por su resumen (`<registro>/rendimiento-ai-platform@sha256:…`), y anota en la plantilla del pod la versión y quién lo presionó;
+2. el Deployment se reinicia como arriba (`Recreate`) y el proceso nuevo aplica sus migraciones;
+3. la página espera a que responda la versión nueva y luego se recarga.
+
+`make deploy` conserva esa imagen (`hack/keep-image.sh` pone el resumen en ejecución en lugar del de la capa privada), así que cambiar la configuración no regresa la plataforma a `:latest`. Sigue siendo la forma de llevar al clúster los cambios de `deploy/` y de la capa privada; el botón solo cambia la imagen.
+
+!!! warning "Si la versión nueva no arranca"
+    Con una réplica y `Recreate`, la versión anterior ya no está cuando la nueva arranca, así que una versión que no puede arrancar deja la plataforma caída (las aplicaciones siguen corriendo). Regrese con `kubectl -n rendimiento-system rollout undo deploy/rendimiento`. Una actualización gradual que conserve la versión anterior hasta que la nueva esté lista queda para un paso posterior.
+
+Para regresar a una imagen construida a mano: `kubectl -n rendimiento-system set image deploy/rendimiento rendimiento=registry.example.lan:5000/rendimiento:latest`.
 
 !!! note "Un campo que la plataforma en marcha no conoce"
     La plataforma lee `rendimiento.yaml` de forma estricta. Un cambio que le agrega un campo (como `builds:`) debe publicarse **antes** de enviar la confirmación que lo usa; si no, la ejecución de ese envío no puede leer su propio spec.

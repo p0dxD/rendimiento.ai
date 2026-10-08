@@ -429,4 +429,11 @@ var catalog = map[string]string{
 	"unknown palette %q":                                         "paleta desconocida: %q",
 	"the Mercado is not set up":                                  "el Mercado no está configurado",
 	"this app is not a page of the Mercado":                      "esta aplicación no es una página del Mercado",
+
+	// Updating rendimiento itself (internal/selfupdate, internal/api/selfupdate.go).
+	"%s is not an app here: rendimiento updates itself from its own repository's releases": "%s no es una aplicación de aquí: rendimiento se actualiza con las versiones de su propio repositorio",
+	"release %d of %s has no image of rendimiento":                                          "la versión %d de %s no tiene una imagen de rendimiento",
+	"release required":                                                                      "falta la versión",
+	"the %s deployment has no container named %s":                                           "el despliegue %s no tiene un contenedor llamado %s",
+	"updates from the platform's own releases are off (SELF_APP)":                           "las actualizaciones con las versiones de la propia plataforma están apagadas (SELF_APP)",
 }

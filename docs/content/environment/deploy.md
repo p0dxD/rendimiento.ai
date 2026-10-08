@@ -151,7 +151,7 @@ On restart the platform:
 4. starts the controllers, the CI worker, the Renovate scheduler, the add-on sync from git, and dynamic DNS.
 
 !!! warning "`:latest` has no history"
-    Rolling back the platform means rebuilding the previous commit. Tagging each build with its commit is on the [roadmap](../future/roadmap.md); until then, `git checkout <good commit> && make image` is the rollback.
+    Rolling back a hand-built platform means rebuilding the previous commit (`git checkout <good commit> && make image`). The images rendimiento builds itself are kept by release, so [updating from the Environment page](#updating-from-the-environment-page) has a history to go back to.
 
 ## rendimiento builds itself {#rendimiento-builds-itself}
 
@@ -160,7 +160,22 @@ rendimiento's repository is onboarded like any app. Its `rendimiento.yaml` has t
 - `platform:test`: `hack/ci-test.sh` (generate, vet and the Go tests, with envtest and a throwaway Postgres) in `golang`, with a kept cache;
 - `platform:build`: the Dockerfile, which also checks the UI's types and translations, pushed as `<registry>/rendimiento-ai-platform:<commit>`.
 
-Pull requests get the same check without a release. On the default branch the image's digest is kept with the release, next to the book's. **It is not deployed by itself yet**: shipping is still the steps above, which build the same Dockerfile. Letting a release update the platform (a rolling update that keeps the old version until the new one is ready, so a broken image cannot take the platform down) is the next step.
+Pull requests get the same check without a release. On the default branch the image's digest is kept with the release, next to the book's.
+
+### Updating from the Environment page {#updating-from-the-environment-page}
+
+With `SELF_APP` set to the app rendimiento's repository is onboarded as, the platform knows which of those releases it runs (by the digest of its pod's image). When the newest release holds another image, the **Environment** link shows *new* and the Environment page has an **Update** button. It replaces the steps above for a version that passed its checks:
+
+1. the button points the Deployment at the release's image, pinned by digest (`<registry>/rendimiento-ai-platform@sha256:…`), and notes the release and who pressed it on the pod template;
+2. the Deployment restarts as above (`Recreate`), and the new process applies its migrations;
+3. the page waits until the new version answers, then reloads.
+
+`make deploy` keeps that image (`hack/keep-image.sh` puts the running digest in place of the overlay's), so changing the configuration does not take the platform back to `:latest`. It is still how `deploy/` and the overlay's changes reach the cluster; the button only changes the image.
+
+!!! warning "If the new version does not start"
+    With one replica and `Recreate` the old version is gone before the new one is ready, so a release that cannot start leaves the platform down (apps keep running). Go back with `kubectl -n rendimiento-system rollout undo deploy/rendimiento`. A rolling update that keeps the old version until the new one is ready is a later step.
+
+To go back to an image built by hand, `kubectl -n rendimiento-system set image deploy/rendimiento rendimiento=registry.example.lan:5000/rendimiento:latest`.
 
 !!! note "A field the running platform doesn't know"
     The platform reads `rendimiento.yaml` strictly. A change that adds a field to it (as `builds:` did) must be shipped **before** the commit that uses the field is pushed, or that push's run fails to read its own spec.

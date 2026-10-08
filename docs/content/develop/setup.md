@@ -79,11 +79,11 @@ rendimiento.ai/
 # 1. edit code (and the book)
 # 2. fast feedback on the package you touched (light enough for main)
 go vet ./internal/render && go test ./internal/render
-# 3. everything, on a worker
-make test-remote
-# 4. ship
-make image && make deploy && kubectl -n rendimiento-system rollout restart deploy/rendimiento
-# 5. commit and push (the book redeploys itself)
+# 3. everything, on the cluster: push a branch, and rendimiento tests and
+#    builds it like any app's (or make test-remote, on a worker)
+git push origin HEAD:my-change
+# 4. merge it; when main's run passes, the book redeploys itself and the
+#    Environment page offers the new platform: Update
 ```
 
 ## Running rendimiento

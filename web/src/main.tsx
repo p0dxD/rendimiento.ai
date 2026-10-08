@@ -15,6 +15,7 @@ import { AddonDetail } from "./pages/Installed";
 import { Problems, ProblemsNavLink } from "./pages/Problems";
 import { Mercado, PuestoEditor } from "./pages/Mercado";
 import { Ruta } from "./pages/Ruta";
+import { EnvironmentNavLink } from "./pages/Version";
 import { Cielo, Guardapolvo, MovimientoSwitch, TemaSwitch, Techo } from "./components/ambiente";
 import { LangSwitch, Logo } from "./components/marca";
 import { Bienvenida, type BookLinks } from "./pages/Bienvenida";
@@ -59,7 +60,7 @@ function Shell() {
         <NavLink to="/mercado" className="nav-link">{t("Mercado")}</NavLink>
         <NavLink to="/services" className="nav-link">{t("Services")}</NavLink>
         <NavLink to="/addons" className="nav-link">{t("Add-ons")}</NavLink>
-        <NavLink to="/environment" className="nav-link">{t("Environment")}</NavLink>
+        <EnvironmentNavLink />
         <NavLink to="/ruta" className="nav-link">{t("Ruta")}</NavLink>
         <ProblemsNavLink />
         <span className="spacer" />

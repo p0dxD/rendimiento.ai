@@ -2,6 +2,7 @@ import { useState } from "react";
 import { envApi, timeAgo, type EnvCheck, type EnvNode, type EnvProvider, type EnvReport, type EnvStatus } from "../api";
 import { ErrorBox, usePoll } from "../components/ui";
 import { locale, t, tn } from "../i18n";
+import { PlatformVersion } from "./Version";
 
 const tone: Record<EnvStatus, string> = { ok: "ok", warning: "warn", missing: "bad", error: "bad" };
 const label: Record<EnvStatus, string> = { ok: "OK", warning: "Attention", missing: "Missing", error: "Error" }; // translated where shown
@@ -48,6 +49,7 @@ export function Environment() {
           {r.cluster.name} {r.cluster.version} · {t("{ready}/{n} nodes", { ready: r.cluster.nodesReady, n: r.cluster.nodes })} · {tn(r.cluster.pods, "{n} pod", "{n} pods")} · {tn(r.cluster.namespaces, "{n} namespace", "{n} namespaces")}
         </span>
       </div>
+      <PlatformVersion />
 
       <h2>{t("Providers")}</h2>
       <div className="grid">
