@@ -34,6 +34,7 @@ var catalog = map[string]string{
 	"%s answered %s to the registry API":                                                              "%s respondió %s a la API del registro",
 	"%s answered normally again.":                                                                     "Volvió a responder con normalidad: %s.",
 	"%s did not succeed":                                                                              "%s no tuvo éxito",
+	"stopped: %s failed":                                                                              "detenido: falló %s",
 	"%s failed two checks in a row. rendimiento keeps checking every minute and will email you when it recovers.": "Fallaron dos comprobaciones seguidas de %s. rendimiento sigue comprobando cada minuto y le enviará un correo cuando se recupere.",
 	"%s installed on %s": "%s instalada en %s",
 	"%s is cordoned":     "%s está acordonado",

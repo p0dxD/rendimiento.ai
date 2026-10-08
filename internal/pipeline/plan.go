@@ -87,9 +87,12 @@ type Source struct {
 	Deploy bool
 }
 
-// Plan builds the DAG for a spec: per service, test (if configured) then
-// build; job images; the builds (test, then build); then tasks, after the builds and tasks they name.
-// Services are independent of each other and run in parallel.
+// Plan builds the DAG for a spec: per service, its test (if configured) and
+// its build, side by side; job images; the builds (test and build); then
+// tasks, after the builds (and their tests) and tasks they name. A release
+// needs every step to succeed, so an image is only released once tested;
+// building while testing saves the wait. Services are independent of each
+// other and run in parallel.
 func Plan(app, registry string, s spec.Spec) []Step {
 	var steps []Step
 	for _, svc := range s.Services {
@@ -102,9 +105,7 @@ func Plan(app, registry string, s spec.Spec) []Step {
 			Builder: svc.Build.Builder, Start: svc.Build.Start, BuildArgs: svc.Build.Args,
 		}
 		if svc.Test != nil {
-			test := testStep(app, svc.Name, svc.Name, svc.Path, *svc.Test)
-			steps = append(steps, test)
-			build.DependsOn = []string{test.ID}
+			steps = append(steps, testStep(app, svc.Name, svc.Name, svc.Path, *svc.Test))
 		}
 		steps = append(steps, build)
 	}
@@ -115,9 +116,7 @@ func Plan(app, registry string, s spec.Spec) []Step {
 			Builder: b.Build.Builder, Start: b.Build.Start, BuildArgs: b.Build.Args,
 		}
 		if b.Test != nil {
-			test := testStep(app, b.Name, b.ImageKey(), b.Path, *b.Test)
-			steps = append(steps, test)
-			build.DependsOn = []string{test.ID}
+			steps = append(steps, testStep(app, b.Name, b.ImageKey(), b.Path, *b.Test))
 		}
 		steps = append(steps, build)
 	}
@@ -145,7 +144,11 @@ func Plan(app, registry string, s spec.Spec) []Step {
 			if isTask(s, a) {
 				step.DependsOn = append(step.DependsOn, TaskStepID(a))
 			} else {
+				// A tested image: its build and, when it has one, its test.
 				step.DependsOn = append(step.DependsOn, a+":build")
+				if hasTest(s, a) {
+					step.DependsOn = append(step.DependsOn, a+":test")
+				}
 			}
 		}
 		steps = append(steps, step)
@@ -166,6 +169,21 @@ func isTask(s spec.Spec, name string) bool {
 	for _, t := range s.Tasks {
 		if t.Name == name {
 			return true
+		}
+	}
+	return false
+}
+
+// hasTest reports whether the service or build named name has a test step.
+func hasTest(s spec.Spec, name string) bool {
+	for _, svc := range s.Services {
+		if svc.Name == name {
+			return svc.Test != nil && svc.Image == ""
+		}
+	}
+	for _, b := range s.Builds {
+		if b.Name == name {
+			return b.Test != nil
 		}
 	}
 	return false

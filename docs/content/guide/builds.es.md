@@ -27,7 +27,7 @@ test:
   command: pip install -r requirements.txt && pytest -q
 ```
 
-La prueba corre en su propio pod, en la carpeta del servicio de un clon recién hecho, antes de la construcción. Si falla, la construcción queda *omitida*, la ejecución falla y GitHub muestra una comprobación en rojo. Los pods de pruebas tienen el mismo aislamiento de red que las construcciones (internet para las dependencias, nada dentro del clúster).
+La prueba corre en su propio pod, en la carpeta del servicio de un clon recién hecho, al mismo tiempo que la construcción. Si falla, detiene la construcción (*detenido: falló …*), la ejecución falla, no se publica nada y GitHub muestra una comprobación en rojo. Los pods de pruebas tienen el mismo aislamiento de red que las construcciones (internet para las dependencias, nada dentro del clúster).
 
 Un conjunto de pruebas más grande puede pedir más:
 

@@ -22,17 +22,26 @@ import (
 
 type fakeExec struct {
 	fail             map[string]bool
+	slow             map[string]bool // run until the run is stopped
 	running, maxSeen atomic.Int32
 	mu               sync.Mutex
 	order            []string
 }
 
-func (f *fakeExec) Execute(_ context.Context, _ string, _ Source, s Step, w io.Writer) StepResult {
+func (f *fakeExec) Execute(ctx context.Context, _ string, _ Source, s Step, w io.Writer) StepResult {
 	n := f.running.Add(1)
 	for {
 		m := f.maxSeen.Load()
 		if n <= m || f.maxSeen.CompareAndSwap(m, n) {
 			break
+		}
+	}
+	if f.slow[s.ID] {
+		select {
+		case <-ctx.Done():
+			f.running.Add(-1)
+			return StepResult{Status: StatusFailed, Message: "pod deleted"}
+		case <-time.After(10 * time.Second):
 		}
 	}
 	time.Sleep(20 * time.Millisecond)
@@ -72,7 +81,7 @@ func TestPlan(t *testing.T) {
 	for _, s := range steps {
 		ids = append(ids, s.ID+"<"+strings.Join(s.DependsOn, ","))
 	}
-	want := "api:test<|api:build<api:test|web:test<|web:build<web:test|worker:build<"
+	want := "api:test<|api:build<|web:test<|web:build<|worker:build<" // tests and builds side by side
 	if got := strings.Join(ids, "|"); got != want {
 		t.Fatalf("plan = %s\nwant   %s", got, want)
 	}
@@ -140,28 +149,39 @@ func TestTransientRetry(t *testing.T) {
 	}
 }
 
-func TestRunnerFailureSkipsDependents(t *testing.T) {
-	exec := &fakeExec{fail: map[string]bool{"web:test": true}}
+func TestRunnerFailureStopsTheRun(t *testing.T) {
+	// worker:build runs until stopped; web:test fails meanwhile.
+	exec := &fakeExec{fail: map[string]bool{"web:test": true}, slow: map[string]bool{"worker:build": true}}
 	r := NewRunner(exec, nopRecorder{}, 2)
+	start := time.Now()
 	res, err := r.Run(context.Background(), "run1", Source{}, Plan("shop", "reg", testSpec()))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]Status{"api:test": StatusSucceeded, "api:build": StatusSucceeded, "web:test": StatusFailed, "web:build": StatusSkipped, "worker:build": StatusSucceeded}
-	for id, st := range want {
-		if res[id].Status != st {
-			t.Errorf("%s = %s, want %s", id, res[id].Status, st)
+	if time.Since(start) > 5*time.Second {
+		t.Error("the run waited for a step after another failed")
+	}
+	if res["web:test"].Status != StatusFailed {
+		t.Errorf("web:test = %s, want failed", res["web:test"].Status)
+	}
+	if w := res["worker:build"]; w.Status != StatusSkipped || w.Message != "stopped: web:test failed" {
+		t.Errorf("worker:build = %+v, want skipped: stopped by web:test", w)
+	}
+	for id, r := range res {
+		if id != "web:test" && r.Status != StatusSucceeded && (r.Status != StatusSkipped || r.Message != "stopped: web:test failed") {
+			t.Errorf("%s = %+v", id, r)
 		}
 	}
 	if m := exec.maxSeen.Load(); m > 2 {
 		t.Errorf("concurrency limit exceeded: %d", m)
 	}
-	pos := map[string]int{}
-	for i, id := range exec.order {
-		pos[id] = i
-	}
-	if pos["api:build"] < pos["api:test"] {
-		t.Error("build ran before its test")
+
+	// An optional step's failure does not stop the others.
+	steps := []Step{{ID: "lint", Optional: true}, {ID: "build"}}
+	exec = &fakeExec{fail: map[string]bool{"lint": true}}
+	res, _ = NewRunner(exec, nopRecorder{}, 2).Run(context.Background(), "run2", Source{}, steps)
+	if res["build"].Status != StatusSucceeded {
+		t.Errorf("after an optional failure, build = %+v", res["build"])
 	}
 }
 
@@ -313,7 +333,7 @@ func TestPlanBuilds(t *testing.T) {
 		{Name: "platform", Test: &spec.Test{Image: "golang", Command: "go test ./...", Postgres: true, Cache: true}}}}
 	s.Default()
 	steps := Plan("ai", "reg", s)
-	if len(steps) != 3 || steps[1].ID != "platform:test" || steps[2].ID != "platform:build" || steps[2].DependsOn[0] != "platform:test" {
+	if len(steps) != 3 || steps[1].ID != "platform:test" || steps[2].ID != "platform:build" || len(steps[2].DependsOn) != 0 {
 		t.Fatalf("steps = %+v", steps)
 	}
 	test, build := steps[1], steps[2]

@@ -27,7 +27,7 @@ test:
   command: pip install -r requirements.txt && pytest -q
 ```
 
-The test runs in its own pod, in the service's folder of a fresh clone, before the build. A failure marks the build *skipped* and the run failed, and GitHub shows a red check. Test pods have the same network isolation as builds (the internet for dependencies, nothing inside the cluster).
+The test runs in its own pod, in the service's folder of a fresh clone, at the same time as the build. A failure stops the build (*stopped: … failed*) and fails the run, nothing is released, and GitHub shows a red check. Test pods have the same network isolation as builds (the internet for dependencies, nothing inside the cluster).
 
 A larger test suite can ask for more:
 

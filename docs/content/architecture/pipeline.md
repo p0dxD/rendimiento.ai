@@ -18,16 +18,16 @@ flowchart LR
 
 `pipeline.Plan(app, registry, spec)` returns the steps for a run:
 
-- for each service **built from the repo** (not a ready-made `image:`): a `build` step, and before it a `test` step if the service has `test:`. The build **depends on** the test;
+- for each service **built from the repo** (not a ready-made `image:`): a `build` step, and beside it a `test` step if the service has `test:`. They run **at the same time**: a release needs every step to succeed, so an untested image is never released, and the build does not wait for the tests;
 - for each **job** with its own `path`: a build step (`job-<name>:build`);
-- for each **task**: a `task` step (`<name>:task`) that depends on the builds and tasks in its `after:` ([Tasks](../guide/tasks.md));
+- for each **task**: a `task` step (`<name>:task`) that depends on the builds (and their tests) and tasks in its `after:` ([Tasks](../guide/tasks.md));
 - steps of different services are independent, so they run in parallel.
 
 Each `Step` carries what its pod needs: the folder, the test image and command, or the image name to push (`registry/<app>-<service>`), the Dockerfile, the builder choice (`dockerfile`, `railpack` or automatic), Railpack's start command and build arguments.
 
 ## Running the graph: `Runner`
 
-`Runner.Run` starts **one goroutine per step**. Each waits for the steps it depends on (a closed channel per step signals "done"), then takes a slot from a **semaphore**, a buffered channel of size `MAX_PARALLEL_STEPS` (4) shared by *all* runs, so the cluster never runs more than that many steps at once. If a dependency did not succeed, the step is marked **skipped** without running.
+`Runner.Run` starts **one goroutine per step**. Each waits for the steps it depends on (a closed channel per step signals "done"), then takes a slot from a **semaphore**, a buffered channel of size `MAX_PARALLEL_STEPS` (4) shared by *all* runs, so the cluster never runs more than that many steps at once. If a dependency did not succeed, the step is marked **skipped** without running. A required step that **fails stops the run**: the steps still waiting are skipped and the running ones are cancelled (their pods deleted), all marked *stopped: &lt;step&gt; failed*, so a failed test does not leave a build holding up the app's next run. The run's message names the step that failed.
 
 ```go
 --8<-- "internal/pipeline/run.go:runner"
