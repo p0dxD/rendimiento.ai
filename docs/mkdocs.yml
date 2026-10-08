@@ -89,6 +89,7 @@ plugins:
             Notifications (email): Notificaciones (correo)
             Problems (what went wrong in the platform): Problemas (lo que salió mal en la plataforma)
             Visits (Umami): Visitas (Umami)
+            The Mercado (pages without code): El Mercado (páginas sin código)
             La Ruta (memory for people and agents, over MCP): La Ruta (la memoria de personas y agentes, por MCP)
             Languages (English, Spanish): Idiomas (inglés y español)
             Needs and the services catalog: Necesidades y catálogo de servicios
@@ -171,6 +172,7 @@ nav:
       - Tasks (commands in CI): guide/tasks.md
       - Reliability (uptime and charts): guide/reliability.md
       - Visits (Umami): guide/visits.md
+      - The Mercado (pages without code): guide/mercado.md
       - Notifications (email): guide/notifications.md
       - Problems (what went wrong in the platform): guide/problems.md
       - La Ruta (memory for people and agents, over MCP): guide/ruta.md

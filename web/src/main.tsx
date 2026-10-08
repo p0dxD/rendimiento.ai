@@ -13,6 +13,7 @@ import { Services } from "./pages/Services";
 import { Addons } from "./pages/Addons";
 import { AddonDetail } from "./pages/Installed";
 import { Problems, ProblemsNavLink } from "./pages/Problems";
+import { Mercado, PuestoEditor } from "./pages/Mercado";
 import { Ruta } from "./pages/Ruta";
 import { Cielo, Guardapolvo, MovimientoSwitch, TemaSwitch, Techo } from "./components/ambiente";
 import { LangSwitch, Logo } from "./components/marca";
@@ -55,6 +56,7 @@ function Shell() {
       <header className="topbar">
         <Link to="/" className="brand"><Logo /> <span className="brand-name">rendimiento</span></Link>
         <NavLink to="/" end className="nav-link">{t("Apps")}</NavLink>
+        <NavLink to="/mercado" className="nav-link">{t("Mercado")}</NavLink>
         <NavLink to="/services" className="nav-link">{t("Services")}</NavLink>
         <NavLink to="/addons" className="nav-link">{t("Add-ons")}</NavLink>
         <NavLink to="/environment" className="nav-link">{t("Environment")}</NavLink>
@@ -72,6 +74,9 @@ function Shell() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/new" element={<NewApp />} />
+          <Route path="/mercado" element={<Mercado />} />
+          <Route path="/mercado/nuevo" element={<PuestoEditor />} />
+          <Route path="/mercado/:app" element={<PuestoEditor />} />
           <Route path="/environment" element={<Environment />} />
           <Route path="/services" element={<Services />} />
           <Route path="/addons" element={<Addons />} />

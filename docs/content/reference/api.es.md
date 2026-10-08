@@ -57,6 +57,11 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 |---|---|---|
 | GET | `/api/apps` | enumera las aplicaciones con su estado |
 | POST | `/api/apps` | incorpora un repositorio (abre la solicitud de configuración, o adopta directamente) |
+| GET | `/api/mercado` | el [Mercado](../guide/mercado.md): si está encendido, y cada página con el estado de su aplicación |
+| POST | `/api/mercado` | abre una página: `{pagina, dominio}`; crea su repositorio y su aplicación (las fotos como URL `data:`, hasta 24 MB en total) |
+| POST | `/api/mercado/preview` | el HTML de la página para la vista previa del formulario, como `{html}` |
+| GET | `/api/mercado/{app}` | las respuestas del formulario de una página (`pagina.json`), su dirección y su repositorio |
+| PUT | `/api/mercado/{app}` | guarda una página: una confirmación, que la publica |
 | GET | `/api/apps/{app}` | una aplicación: especificación, estado, última ejecución y última versión |
 | DELETE | `/api/apps/{app}` | borra la aplicación y todo lo que creó |
 | GET | `/api/apps/{app}/impact` | lo que quitaría un borrado (se muestra antes de confirmar) |

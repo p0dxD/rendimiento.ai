@@ -9,6 +9,7 @@ rendimiento se configura solo con **variables de entorno**, que se leen una vez 
 | `DATABASE_URL` | *(obligatorio)* | del Secret `rendimiento-db` | cadena de conexión a Postgres |
 | `BASE_URL` | `http://localhost:8080` | `https://rendimiento.example.com` | la URL pública; se usa para las respuestas de OAuth, los avisos web y las ligas en las comprobaciones de GitHub |
 | `BOOK_URL`, `BOOK_URL_ES` | *(vacío: sin enlace)* | `https://learn.example.com/`, `https://aprende.example.com/` | el libro en inglés y en español, enlazado desde la página de bienvenida que se ve antes de iniciar sesión |
+| `PAGES_ORG` | *(vacío: el Mercado está apagado)* | `example-paginas` | la organización de GitHub donde el [Mercado](../guide/mercado.md) crea el repositorio de cada página (ahí la aplicación necesita el permiso de administración) |
 | `ALLOWED_USERS` | *(vacío: nadie)* | `su-cuenta-de-github` | las cuentas de GitHub que pueden iniciar sesión (separadas por comas o espacios) |
 | `SETUP_TOKEN` | — | del Secret `rendimiento-setup` | protege `/api/setup/github` hasta que exista la aplicación de GitHub |
 | `NAMESPACE` | `rendimiento-system` | | donde viven la plataforma y sus Secrets |

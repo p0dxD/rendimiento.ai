@@ -173,6 +173,37 @@ export interface App {
   down?: string[];
 }
 
+// ---- el Mercado (pages made from a form; internal/mercado) ----
+
+export type TipoPagina = "personal" | "negocio" | "evento" | "portafolio";
+export type PaletaPagina = "cempasuchil" | "grana" | "anil" | "nopal" | "rosa";
+export type TipoEnlace = "instagram" | "facebook" | "tiktok" | "whatsapp" | "correo" | "telefono" | "web";
+
+/** A page as the form fills it (pagina.json). Photos are repository paths
+ *  (fotos/…) or data: URLs of photos just added. */
+export interface Pagina {
+  tipo: TipoPagina;
+  idioma: "es" | "en";
+  nombre: string;
+  lema?: string;
+  sobre?: string;
+  paleta: PaletaPagina;
+  foto?: string;
+  galeria?: string[];
+  detalles?: { etiqueta: string; texto: string }[];
+  enlaces?: { tipo: TipoEnlace; valor: string }[];
+}
+
+/** A stall of the Mercado: its card and its app's state. */
+export interface Puesto extends App {
+  appId: number;
+  app: string;
+  owner: string;
+  tipo: TipoPagina;
+  nombre: string;
+  updatedAt: string;
+}
+
 // ---- la Ruta (what people and agents know; agents reach it over /mcp) ----
 
 export type RutaKind = "decision" | "manual" | "pendiente" | "nota" | "vivido";
@@ -470,6 +501,11 @@ export const api = {
     existing: boolean;
     adopt: boolean;
   }) => request<{ app: App; pr?: { number: number; html_url: string }; run?: Run }>("POST", "/api/apps", req),
+  mercado: () => request<{ enabled: boolean; org?: string; puestos: Puesto[] }>("GET", "/api/mercado"),
+  previewPagina: (pagina: Pagina, dominio?: string) => request<{ html: string }>("POST", "/api/mercado/preview", { pagina, dominio }),
+  openPuesto: (pagina: Pagina, dominio: string) => request<App>("POST", "/api/mercado", { pagina, dominio }),
+  puesto: (app: string) => request<{ puesto: Puesto; pagina: Pagina; dominio: string; repo: string }>("GET", `/api/mercado/${app}`),
+  savePuesto: (app: string, pagina: Pagina) => request<void>("PUT", `/api/mercado/${app}`, { pagina }),
   apps: () => request<App[]>("GET", "/api/apps"),
   app: (name: string) => request<App>("GET", `/api/apps/${name}`),
   deleteImpact: (name: string) =>

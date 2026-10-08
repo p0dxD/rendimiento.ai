@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -40,6 +41,7 @@ import (
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
 	"github.com/p0dxD/rendimiento.ai/internal/i18n"
 	"github.com/p0dxD/rendimiento.ai/internal/logarchive"
+	"github.com/p0dxD/rendimiento.ai/internal/mercado"
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
@@ -274,6 +276,19 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 				BuildNamespace: executor.Namespace, PlatformURL: baseURL, ExcludeNodes: executor.ExcludeNodes,
 			},
 		},
+	}
+	// The Mercado: pages made from a form, in repositories of PAGES_ORG.
+	if org := os.Getenv("PAGES_ORG"); org != "" {
+		srv.Mercado = &mercado.Mercado{
+			Org: org, GitHub: holder, Platform: p, Store: st, Log: log.With("component", "mercado"),
+			Zones: func(ctx context.Context) ([]string, error) {
+				zones, err := dnsProvider.Zones(ctx)
+				if z := p.Config.Zone; z != "" && !slices.Contains(zones, z) {
+					zones = append([]string{z}, zones...)
+				}
+				return zones, err
+			},
+		}
 	}
 	// Uptime checks of every app's services (the Reliability tab), on the
 	// leader only, so one replica checks.

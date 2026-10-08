@@ -448,3 +448,88 @@ func (c *Client) fileSHA(ctx context.Context, repo, branch, filePath string) (st
 	err := c.do(ctx, http.MethodGet, "/repos/"+repo+"/contents/"+filePath+"?ref="+url.QueryEscape(branch), nil, &out)
 	return out.SHA, err
 }
+
+// ---- repositories made by rendimiento (the Mercado's pages) ----
+
+// CreateOrgRepo creates a public repository in an organization, with a
+// first commit (a README) so files can be committed on its default branch.
+// The App needs the Administration permission on the organization.
+func (c *Client) CreateOrgRepo(ctx context.Context, org, name, description string) (*Repo, error) {
+	var r Repo
+	err := c.do(ctx, http.MethodPost, "/orgs/"+url.PathEscape(org)+"/repos", map[string]any{
+		"name": name, "description": description, "auto_init": true,
+		"has_issues": false, "has_projects": false, "has_wiki": false,
+	}, &r)
+	return &r, err
+}
+
+// CommitFiles commits files (any content, photos included) and removes
+// paths on branch, in a single commit on top of its head, and returns the
+// commit's SHA. It fails if the branch moved meanwhile, rather than
+// overwrite a commit it has not seen.
+func (c *Client) CommitFiles(ctx context.Context, repo, branch, message string, files map[string][]byte, remove []string) (string, error) {
+	head, err := c.BranchSHA(ctx, repo, branch)
+	if err != nil {
+		return "", err
+	}
+	var parent struct {
+		Tree struct {
+			SHA string `json:"sha"`
+		} `json:"tree"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/repos/"+repo+"/git/commits/"+head, nil, &parent); err != nil {
+		return "", err
+	}
+	type entry struct {
+		Path string  `json:"path"`
+		Mode string  `json:"mode"`
+		Type string  `json:"type"`
+		SHA  *string `json:"sha"` // null deletes the path
+	}
+	paths := make([]string, 0, len(files))
+	for p := range files {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	entries := make([]entry, 0, len(files)+len(remove))
+	for _, p := range paths {
+		var blob struct {
+			SHA string `json:"sha"`
+		}
+		if err := c.do(ctx, http.MethodPost, "/repos/"+repo+"/git/blobs", map[string]string{
+			"content": base64.StdEncoding.EncodeToString(files[p]), "encoding": "base64",
+		}, &blob); err != nil {
+			return "", err
+		}
+		entries = append(entries, entry{Path: p, Mode: "100644", Type: "blob", SHA: &blob.SHA})
+	}
+	for _, p := range remove {
+		if _, ok := files[p]; !ok {
+			entries = append(entries, entry{Path: p, Mode: "100644", Type: "blob"})
+		}
+	}
+	var tree struct {
+		SHA string `json:"sha"`
+	}
+	if err := c.do(ctx, http.MethodPost, "/repos/"+repo+"/git/trees", map[string]any{"base_tree": parent.Tree.SHA, "tree": entries}, &tree); err != nil {
+		return "", err
+	}
+	var commit struct {
+		SHA string `json:"sha"`
+	}
+	if err := c.do(ctx, http.MethodPost, "/repos/"+repo+"/git/commits", map[string]any{
+		"message": message, "tree": tree.SHA, "parents": []string{head},
+	}, &commit); err != nil {
+		return "", err
+	}
+	if err := c.do(ctx, http.MethodPatch, "/repos/"+repo+"/git/refs/heads/"+branch, map[string]any{"sha": commit.SHA, "force": false}, nil); err != nil {
+		return "", err
+	}
+	return commit.SHA, nil
+}
+
+// AddCollaborator invites a GitHub user to a repository with permission
+// (pull, triage, push, maintain or admin).
+func (c *Client) AddCollaborator(ctx context.Context, repo, login, permission string) error {
+	return c.do(ctx, http.MethodPut, "/repos/"+repo+"/collaborators/"+url.PathEscape(login), map[string]string{"permission": permission}, nil)
+}
