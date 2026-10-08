@@ -557,3 +557,18 @@ func TestPublicActivity(t *testing.T) {
 		t.Fatalf("the welcome page learns the activity is on: %s", body)
 	}
 }
+
+func TestLoginStartsOnBaseURL(t *testing.T) {
+	s := &Server{BaseURL: "https://rendimiento.example"}
+	for host, want := range map[string]string{
+		"rendimiento.example":     "",
+		"RENDIMIENTO.example":     "",
+		"old.rendimiento.example": "https://rendimiento.example/api/auth/login",
+	} {
+		r := httptest.NewRequest("GET", "/api/auth/login", nil)
+		r.Host = host
+		if got := s.loginElsewhere(r); got != want {
+			t.Errorf("login on %s: redirect %q, want %q", host, got, want)
+		}
+	}
+}

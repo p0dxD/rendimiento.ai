@@ -275,9 +275,33 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/setup", http.StatusFound)
 		return
 	}
+	// GitHub returns to BaseURL, and the state cookie must be there to meet
+	// it: a login started on another of the platform's hosts starts over
+	// on BaseURL's.
+	if u := s.loginElsewhere(r); u != "" {
+		http.Redirect(w, r, u, http.StatusFound)
+		return
+	}
 	state := randomToken()
 	http.SetCookie(w, &http.Cookie{Name: "oauth_state", Value: state, Path: "/api/auth", MaxAge: 600, HttpOnly: true, Secure: s.secureCookies(), SameSite: http.SameSiteLaxMode})
 	http.Redirect(w, r, app.AuthorizeURL(state, s.BaseURL+"/api/auth/callback"), http.StatusFound)
+}
+
+// loginElsewhere is BaseURL's login address when r came in on another
+// host (an old or extra domain of the platform), or "".
+func (s *Server) loginElsewhere(r *http.Request) string {
+	base, err := url.Parse(s.BaseURL)
+	if err != nil || base.Host == "" {
+		return ""
+	}
+	host := r.Host
+	if fh := r.Header.Get("X-Forwarded-Host"); fh != "" {
+		host = fh
+	}
+	if host == "" || strings.EqualFold(host, base.Host) {
+		return ""
+	}
+	return s.BaseURL + "/api/auth/login"
 }
 
 func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
