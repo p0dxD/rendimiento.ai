@@ -83,7 +83,7 @@ func (m *Mercado) Abrir(ctx context.Context, login string, req Abrir) (*store.Ap
 	if err := m.Store.CreatePuesto(ctx, &store.Puesto{AppID: app.ID, Owner: login, Tipo: p.Tipo, Nombre: p.Nombre}); err != nil {
 		return nil, err
 	}
-	files, err := archivos(&p, fotos, sp)
+	files, err := archivos(&p, fotos, &sp)
 	if err != nil {
 		return nil, err
 	}
