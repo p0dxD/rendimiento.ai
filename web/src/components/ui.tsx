@@ -123,9 +123,10 @@ const stepColors: Record<string, string> = {
 };
 
 /**
- * Pipeline DAG: steps are laid out in columns by dependency depth, one row
- * per service, with edges from each dependency. Deploy is drawn as the final
- * node for default-branch runs.
+ * Pipeline DAG: steps are laid out in columns by dependency depth, rows by
+ * service (a service whose test and build go side by side takes one row for
+ * each), with edges from each dependency. Deploy is drawn as the final node
+ * for default-branch runs.
  */
 export function PipelineGraph({ run, selected, onSelect }: { run: Run; selected?: string; onSelect: (id: string) => void }) {
   const steps = run.steps ?? [];
@@ -139,13 +140,24 @@ export function PipelineGraph({ run, selected, onSelect }: { run: Run; selected?
     return v;
   };
   steps.forEach((s) => d(s.id));
-  const services = [...new Set(steps.map((s) => s.service))];
+  // A row for each step of a service that shares its column with another.
+  const row = new Map<string, number>();
+  let rows = 0;
+  for (const service of new Set(steps.map((s) => s.service))) {
+    const used = new Map<number, number>(); // column → steps placed in it
+    for (const s of steps.filter((s) => s.service === service)) {
+      const n = used.get(d(s.id)) ?? 0;
+      used.set(d(s.id), n + 1);
+      row.set(s.id, rows + n);
+    }
+    rows += Math.max(1, ...used.values());
+  }
   const maxDepth = Math.max(0, ...steps.map((s) => d(s.id)));
   const W = 170, H = 54, GX = 60, GY = 22, PAD = 8;
-  const pos = (s: Step) => ({ x: PAD + d(s.id) * (W + GX), y: PAD + services.indexOf(s.service) * (H + GY) });
+  const pos = (s: Step) => ({ x: PAD + d(s.id) * (W + GX), y: PAD + (row.get(s.id) ?? 0) * (H + GY) });
   const deployCol = maxDepth + 1;
   const width = PAD * 2 + (deployCol + (run.deploy ? 1 : 0)) * (W + GX) - GX;
-  const height = PAD * 2 + services.length * (H + GY) - GY;
+  const height = PAD * 2 + rows * (H + GY) - GY;
   const deployX = PAD + deployCol * (W + GX);
   const deployY = height / 2 - H / 2;
   const deployStatus =

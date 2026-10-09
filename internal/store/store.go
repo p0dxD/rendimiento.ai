@@ -262,13 +262,18 @@ func (s *Store) CreateRun(ctx context.Context, r *Run, steps []pipeline.Step) er
 
 // --8<-- [start:claim]
 
-// ClaimRun takes the oldest queued run and marks it running. It returns
-// ErrNotFound when the queue is empty. Safe across replicas.
-func (s *Store) ClaimRun(ctx context.Context) (*Run, error) {
+// ClaimRun takes the oldest queued run, of an app not in skip (those with a
+// run going), and marks it running. It returns ErrNotFound when there is
+// none. Safe across replicas.
+func (s *Store) ClaimRun(ctx context.Context, skip []int64) (*Run, error) {
+	if skip == nil {
+		skip = []int64{}
+	}
 	return scanRun(s.pool.QueryRow(ctx, `
 		UPDATE runs SET status = 'running', started_at = now()
-		WHERE id = (SELECT id FROM runs WHERE status = 'queued' ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1)
-		RETURNING `+runCols))
+		WHERE id = (SELECT id FROM runs WHERE status = 'queued' AND NOT (app_id = ANY($1))
+			ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1)
+		RETURNING `+runCols, skip))
 }
 
 // --8<-- [end:claim]

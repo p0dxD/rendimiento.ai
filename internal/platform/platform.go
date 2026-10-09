@@ -84,6 +84,12 @@ type Platform struct {
 	Caches interface {
 		DeleteCaches(ctx context.Context, app string) error
 	}
+	// Workers is how many runs go at once (default 1), each of a different
+	// app; the Runner's limit on steps still holds across all of them.
+	Workers int
+
+	claimMu sync.Mutex
+	busy    map[int64]bool // apps with a run going, which wait their turn
 
 	mu        sync.Mutex
 	cancels   map[int64]context.CancelFunc      // running run → cancel
@@ -640,8 +646,35 @@ func (p *Platform) rejectRun(ctx context.Context, app *store.App, branch, sha, e
 // Work claims queued runs until ctx ends. Several workers may run; the
 // pipeline Runner enforces the global step concurrency limit.
 func (p *Platform) Work(ctx context.Context) {
+	n := max(p.Workers, 1)
+	var wg sync.WaitGroup
+	for range n {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			p.work(ctx)
+		}()
+	}
+	wg.Wait()
+}
+
+// work takes the oldest queued run of an app with no run going (so an
+// app's runs, and its releases, keep their order) until ctx ends.
+func (p *Platform) work(ctx context.Context) {
 	for ctx.Err() == nil {
-		run, err := p.Store.ClaimRun(ctx)
+		p.claimMu.Lock()
+		busy := make([]int64, 0, len(p.busy))
+		for id := range p.busy {
+			busy = append(busy, id)
+		}
+		run, err := p.Store.ClaimRun(ctx, busy)
+		if err == nil {
+			if p.busy == nil {
+				p.busy = map[int64]bool{}
+			}
+			p.busy[run.AppID] = true
+		}
+		p.claimMu.Unlock()
 		if errors.Is(err, store.ErrNotFound) {
 			select {
 			case <-ctx.Done():
@@ -655,6 +688,9 @@ func (p *Platform) Work(ctx context.Context) {
 			continue
 		}
 		p.execute(ctx, run)
+		p.claimMu.Lock()
+		delete(p.busy, run.AppID)
+		p.claimMu.Unlock()
 	}
 }
 
