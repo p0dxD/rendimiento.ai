@@ -24,7 +24,7 @@ func TestDeliveryAndPublicStats(t *testing.T) {
 		}
 	}
 	for range 2 {
-		if _, err := s.ClaimRun(ctx); err != nil {
+		if _, err := s.ClaimRun(ctx, nil); err != nil {
 			t.Fatal(err)
 		}
 	}

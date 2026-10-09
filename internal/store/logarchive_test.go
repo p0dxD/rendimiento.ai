@@ -23,7 +23,7 @@ func TestLogArchiveBookkeeping(t *testing.T) {
 	if steps, _ := s.UnarchivedSteps(ctx, time.Now(), 10); len(steps) != 0 {
 		t.Fatal("a running run's logs must not be archived")
 	}
-	_, _ = s.ClaimRun(ctx)
+	_, _ = s.ClaimRun(ctx, nil)
 	_ = s.FinishRun(ctx, run.ID, RunSucceeded, "")
 	steps, err := s.UnarchivedSteps(ctx, time.Now().Add(time.Second), 10)
 	if err != nil || len(steps) != 1 || steps[0].App != "shop" || steps[0].Log != logText {
