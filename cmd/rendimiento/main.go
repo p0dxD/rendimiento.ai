@@ -49,6 +49,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/renovate"
 	"github.com/p0dxD/rendimiento.ai/internal/ruta"
+	"github.com/p0dxD/rendimiento.ai/internal/selfupdate"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 	"github.com/p0dxD/rendimiento.ai/internal/uptime"
 	"github.com/p0dxD/rendimiento.ai/web"
@@ -288,6 +289,15 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 				}
 				return zones, err
 			},
+		}
+	}
+	// Updates from rendimiento's own releases: SELF_APP is the app built
+	// from its repository, whose builds: entry SELF_BUILD is this image.
+	if self := os.Getenv("SELF_APP"); self != "" {
+		srv.Update = &selfupdate.Updater{
+			Kube: kube, Releases: st, App: self, Build: env("SELF_BUILD", "platform"),
+			Namespace: ns, Deployment: env("SELF_DEPLOYMENT", "rendimiento"), Container: env("SELF_CONTAINER", "rendimiento"),
+			Pod: os.Getenv("HOSTNAME"),
 		}
 	}
 	// Uptime checks of every app's services (the Reliability tab), on the

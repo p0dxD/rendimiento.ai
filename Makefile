@@ -66,8 +66,9 @@ railpack-image: ## the railpack CLI image build pods use (RAILPACK_IMAGE)
 
 # DEPLOY_DIR is deploy/ (example values) or a private overlay with a real
 # cluster's settings on top of it (set in local.mk).
+# Keeps the release rendimiento updated itself to (hack/keep-image.sh).
 deploy:
-	kubectl kustomize --load-restrictor=LoadRestrictionsNone $(DEPLOY_DIR) | kubectl apply -f -
+	kubectl kustomize --load-restrictor=LoadRestrictionsNone $(DEPLOY_DIR) | hack/keep-image.sh $(IMAGE) | kubectl apply -f -
 
 # The book's code reference, generated from the Go and TypeScript sources.
 # The book's image regenerates it on every build; run this to preview it.

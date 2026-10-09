@@ -39,6 +39,7 @@ import (
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
 	"github.com/p0dxD/rendimiento.ai/internal/logarchive"
 	"github.com/p0dxD/rendimiento.ai/internal/mercado"
+	"github.com/p0dxD/rendimiento.ai/internal/selfupdate"
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
@@ -97,6 +98,8 @@ type Server struct {
 	AnalyticsURL string
 	// Mercado opens and keeps pages made from a form (nil: off).
 	Mercado *mercado.Mercado
+	// Update moves rendimiento to an image it built itself (nil: off).
+	Update *selfupdate.Updater
 	// BookURL and BookURLEs link the welcome page to the book, in English
 	// and in Spanish (either may be empty).
 	BookURL, BookURLEs string
@@ -141,6 +144,8 @@ func (s *Server) Handler() http.Handler {
 	auth("GET /api/installations/{id}/repos", s.repos)
 	auth("GET /api/zones", s.zones)
 	auth("GET /api/environment", s.environment)
+	auth("GET /api/platform/version", s.platformVersion)
+	auth("POST /api/platform/update", s.updatePlatform)
 	auth("GET /api/services", s.services)
 	auth("GET /api/stats/delivery", s.delivery)
 	auth("GET /api/stats/visits", s.visitsSummary)
