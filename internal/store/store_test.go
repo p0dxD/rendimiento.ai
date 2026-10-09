@@ -64,6 +64,11 @@ func TestAppsRunsReleases(t *testing.T) {
 	}
 
 	steps := pipeline.Plan("hello", "reg", sp)
+	for i := range steps {
+		if steps[i].ID == "web:build" {
+			steps[i].DependsOn = []string{"web:test"} // kept as given
+		}
+	}
 	run := &Run{AppID: app.ID, SHA: "abc123", Branch: "main", Event: "push", Deploy: true}
 	if err := s.CreateRun(ctx, run, steps); err != nil {
 		t.Fatal(err)
