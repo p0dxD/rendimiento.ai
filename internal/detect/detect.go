@@ -80,6 +80,10 @@ func Detect(fsys fs.FS) ([]Result, error) {
 	return out, nil
 }
 
+// detectDir looks at one folder: its language (from go.mod, package.json,
+// Python or Java build files, or an index.html for a static site),
+// framework, port, test command and needs. A Dockerfile there is used as
+// it is, and its EXPOSE sets the port. false: nothing found.
 func detectDir(fsys fs.FS, dir string) (Result, bool) {
 	r := Result{Path: dir}
 	switch {
@@ -120,6 +124,7 @@ func detectDir(fsys fs.FS, dir string) (Result, bool) {
 
 var goDirective = regexp.MustCompile(`(?m)^go\s+(\d+\.\d+)`)
 
+// detectGo: a Go module, its version from go.mod, port 8080, go test.
 func detectGo(fsys fs.FS, dir string, r *Result) {
 	r.Language, r.Port = Go, 8080
 	r.Version = "1.24"
@@ -186,6 +191,8 @@ func detectNode(fsys fs.FS, dir string, r *Result) bool {
 
 var digits = regexp.MustCompile(`\d+`)
 
+// nodeMajor is the Node.js major version from package.json's engines (18 or
+// later), else 20.
 func nodeMajor(engine string) string {
 	if m := digits.FindString(engine); m != "" {
 		if n, _ := strconv.Atoi(m); n >= 18 {
@@ -195,6 +202,8 @@ func nodeMajor(engine string) string {
 	return "20"
 }
 
+// installCmd installs dependencies with the package manager the lock file
+// belongs to (pnpm, yarn or npm).
 func installCmd(fsys fs.FS, dir string) string {
 	switch {
 	case exists(fsys, dir, "pnpm-lock.yaml"):
@@ -207,6 +216,9 @@ func installCmd(fsys fs.FS, dir string) string {
 	return "npm install"
 }
 
+// detectPython: Python 3.12, its framework (FastAPI, Django, Flask) from the
+// dependencies, port 8000 (Flask's 5000), how to start it, and pytest when
+// the project has tests.
 func detectPython(fsys fs.FS, dir string, r *Result) {
 	r.Language, r.Version, r.Port = Python, "3.12", 8000
 	deps := strings.ToLower(string(read(fsys, dir, "requirements.txt")) + string(read(fsys, dir, "pyproject.toml")))
@@ -230,6 +242,9 @@ func detectPython(fsys fs.FS, dir string, r *Result) {
 	}
 }
 
+// pythonEntrypoint is what a Python server starts: Django's wsgi module, or
+// the "app" in the first of main.py, app.py or server.py found (as
+// module:app).
 func pythonEntrypoint(fsys fs.FS, dir, framework string) string {
 	if framework == "django" {
 		matches, _ := fs.Glob(fsys, path.Join(dir, "*", "wsgi.py"))
@@ -246,6 +261,7 @@ func pythonEntrypoint(fsys fs.FS, dir, framework string) string {
 	return ""
 }
 
+// detectJava: Java 21 with Maven or Gradle, port 8080, and their tests.
 func detectJava(fsys fs.FS, dir string, r *Result) {
 	r.Language, r.Version, r.Port = Java, "21", 8080
 	if exists(fsys, dir, "pom.xml") {
@@ -260,6 +276,8 @@ func detectJava(fsys fs.FS, dir string, r *Result) {
 
 var expose = regexp.MustCompile(`(?i)^\s*EXPOSE\s+(\d+)`)
 
+// exposedPort is the port a Dockerfile EXPOSEs (the last one: the final
+// stage's), or 0.
 func exposedPort(dockerfile []byte) int {
 	sc := bufio.NewScanner(bytes.NewReader(dockerfile))
 	port := 0
@@ -271,6 +289,7 @@ func exposedPort(dockerfile []byte) int {
 	return port
 }
 
+// exists reports whether dir/name exists in the repository.
 func exists(fsys fs.FS, dir, name string) bool {
 	_, err := fs.Stat(fsys, path.Join(dir, name))
 	return err == nil
@@ -294,6 +313,8 @@ var needDrivers = []struct {
 	{"redis", "pom.xml", regexp.MustCompile(`<artifactId>(jedis|lettuce-core|spring-boot-starter-data-redis)</artifactId>`)},
 }
 
+// detectNeeds finds what the code needs from its dependencies (a Postgres
+// driver means a database, a Redis client a cache).
 func detectNeeds(fsys fs.FS, dir string, r *Result) {
 	seen := map[string]bool{}
 	for _, d := range needDrivers {
@@ -308,11 +329,13 @@ func detectNeeds(fsys fs.FS, dir string, r *Result) {
 	}
 }
 
+// read is a file's contents, or nothing.
 func read(fsys fs.FS, dir, name string) []byte {
 	b, _ := fs.ReadFile(fsys, path.Join(dir, name))
 	return b
 }
 
+// orNone is s, or "none".
 func orNone(s string) string {
 	if s == "" {
 		return M("none")
