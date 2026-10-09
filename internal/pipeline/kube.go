@@ -64,6 +64,7 @@ type KubeExecutor struct {
 	CacheSize         string
 }
 
+// defaults fills the images and timeout left unset.
 func (k *KubeExecutor) defaults() {
 	if k.BuildImage == "" {
 		k.BuildImage = "moby/buildkit:v0.18.2"
@@ -87,6 +88,9 @@ func (k *KubeExecutor) defaults() {
 
 var nonName = regexp.MustCompile(`[^a-z0-9-]+`)
 
+// podName is a step's pod name: run-<run>-<step>, lowercase, with anything
+// Kubernetes does not accept turned into dashes, and short enough to leave
+// room for a suffix.
 func podName(runID, stepID string) string {
 	n := nonName.ReplaceAllString(strings.ToLower("run-"+runID+"-"+stepID), "-")
 	if len(n) > 57 {
@@ -95,6 +99,8 @@ func podName(runID, stepID string) string {
 	return strings.TrimRight(n, "-")
 }
 
+// randSuffix is 5 random hex characters, so a retried step gets a new pod
+// name.
 func randSuffix() string {
 	b := make([]byte, 3)
 	_, _ = rand.Read(b)
@@ -353,6 +359,12 @@ func (k *KubeExecutor) buildkitFor(ctx context.Context, key string) (string, str
 
 // --8<-- [end:buildkitFor]
 
+// pod is the pod a step runs in. An init container clones the commit (with
+// a short-lived token from a secret of the same name) into a shared
+// workspace; then the step's container runs in the service's folder: the
+// test command in the test image (with a throwaway Postgres beside it and a
+// kept /cache when asked), buildctl driving a BuildKit daemon for a build,
+// or the task's command with its environment and secrets for a task.
 func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, step Step, buildkit string, taskEnv ...corev1.EnvVar) (*corev1.Pod, error) {
 	cloneURL := src.Repo
 	if !strings.Contains(cloneURL, "://") {
@@ -593,6 +605,8 @@ func (k *KubeExecutor) DeleteCaches(ctx context.Context, app string) error {
 	return nil
 }
 
+// sortedEnv turns a map into environment variables in a fixed order, so the
+// same step always makes the same pod.
 func sortedEnv(m map[string]string) []corev1.EnvVar {
 	keys := make([]string, 0, len(m))
 	for key := range m {
@@ -637,6 +651,8 @@ func (k *KubeExecutor) waitStarted(ctx context.Context, pod, container string) e
 	}
 }
 
+// streamLogs copies a container's log to w as it is written, until the
+// container ends.
 func (k *KubeExecutor) streamLogs(ctx context.Context, pod, container string, w io.Writer) error {
 	rc, err := k.Client.CoreV1().Pods(k.Namespace).GetLogs(pod, &corev1.PodLogOptions{Container: container, Follow: true}).Stream(ctx)
 	if err != nil {
@@ -647,6 +663,8 @@ func (k *KubeExecutor) streamLogs(ctx context.Context, pod, container string, w 
 	return err
 }
 
+// waitDone polls the pod every second until it succeeds or fails, or the
+// step's time runs out.
 func (k *KubeExecutor) waitDone(ctx context.Context, name string) (*corev1.Pod, error) {
 	for {
 		p, err := k.Client.CoreV1().Pods(k.Namespace).Get(ctx, name, metav1.GetOptions{})
@@ -664,6 +682,8 @@ func (k *KubeExecutor) waitDone(ctx context.Context, name string) (*corev1.Pod, 
 	}
 }
 
+// terminationSummary says why a pod failed: Kubernetes' reason (e.g.
+// evicted), or the first container that exited with an error.
 func terminationSummary(p *corev1.Pod) string {
 	if p.Status.Reason != "" {
 		return p.Status.Reason + ": " + p.Status.Message
@@ -677,6 +697,7 @@ func terminationSummary(p *corev1.Pod) string {
 	return string(p.Status.Phase)
 }
 
+// affinity keeps step pods off the nodes in BUILD_EXCLUDE_NODES.
 func (k *KubeExecutor) affinity() *corev1.Affinity {
 	if len(k.ExcludeNodes) == 0 {
 		return nil
@@ -712,10 +733,14 @@ func transientRetry(ctx context.Context, fn func() error) error {
 	return err
 }
 
+// isTransient reports errors from the API server worth trying again: it is
+// busy, timed out or briefly unavailable (k3s's SQLite says "database is
+// locked").
 func isTransient(err error) bool {
 	return apierrors.IsInternalError(err) || apierrors.IsServerTimeout(err) || apierrors.IsTimeout(err) ||
 		apierrors.IsTooManyRequests(err) || apierrors.IsServiceUnavailable(err) ||
 		strings.Contains(err.Error(), "database is locked")
 }
 
+// ptr returns a pointer to a copy of v.
 func ptr[T any](v T) *T { return &v }

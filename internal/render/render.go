@@ -171,6 +171,8 @@ func jobImage(j spec.Job, in Input) string {
 	return ""
 }
 
+// cronJob is a job of the app: a CronJob in its namespace running the job's
+// image (its own build or the app's) on its schedule.
 func cronJob(ns, app string, j spec.Job, image string) *batchv1.CronJob {
 	labels := appLabels(app)
 	labels["rendimiento.ai/job"] = j.Name
@@ -219,10 +221,13 @@ func cronJob(ns, app string, j spec.Job, image string) *batchv1.CronJob {
 	return cj
 }
 
+// appLabels mark everything rendimiento makes for an app.
 func appLabels(app string) map[string]string {
 	return map[string]string{LabelManagedBy: ManagedBy, LabelApp: app}
 }
 
+// svcLabels are an app's labels plus its service's, including the standard
+// app.kubernetes.io ones other tools read.
 func svcLabels(app, svc string) map[string]string {
 	l := appLabels(app)
 	l[LabelService] = svc
@@ -231,10 +236,17 @@ func svcLabels(app, svc string) map[string]string {
 	return l
 }
 
+// selector picks a service's pods; it never changes once a Deployment
+// exists, since Kubernetes does not allow it.
 func selector(app, svc string) map[string]string {
 	return map[string]string{LabelApp: app, LabelService: svc}
 }
 
+// deployment runs a service: its image, port, command, environment and
+// secrets, size (requests and limits), replicas, health checks, volume and
+// GPU, keeping the last 5 versions for rollbacks. A service with a volume
+// or a GPU uses Recreate (the old pod stops before the new one starts):
+// either can be held by only one pod at a time.
 func deployment(meta metav1.ObjectMeta, sel map[string]string, svc spec.Service, image string, gpu GPUProfile) *appsv1.Deployment {
 	res := spec.ResourcesFor(svc.Size, svc.Resources)
 	replicas := int32(svc.Replicas)
@@ -338,6 +350,9 @@ func deployment(meta metav1.ObjectMeta, sel map[string]string, svc spec.Service,
 	}
 }
 
+// attachGPU gives the service's container its GPUs and what the cluster's
+// GPU profile needs (runtime class, host paths, shared memory,
+// environment).
 func attachGPU(pod *corev1.PodSpec, svc spec.Service, gpu GPUProfile) {
 	c := &pod.Containers[0]
 	n := resource.MustParse(fmt.Sprint(svc.GPU))
@@ -398,6 +413,9 @@ func lanService(meta metav1.ObjectMeta, sel map[string]string, svc spec.Service)
 	}
 }
 
+// env is a service's environment: PORT first, then its env in name order,
+// then its secretEnv as references to Kubernetes secrets (values never
+// appear in the object).
 func env(svc spec.Service) []corev1.EnvVar {
 	out := []corev1.EnvVar{{Name: "PORT", Value: fmt.Sprint(svc.Port)}}
 	keys := make([]string, 0, len(svc.Env))
@@ -446,6 +464,7 @@ func service(meta metav1.ObjectMeta, sel map[string]string, svc spec.Service) *c
 	}
 }
 
+// merge is a copy of a with b's keys added over it.
 func merge(a, b map[string]string) map[string]string {
 	out := make(map[string]string, len(a)+len(b))
 	for k, v := range a {
@@ -457,6 +476,9 @@ func merge(a, b map[string]string) map[string]string {
 	return out
 }
 
+// ingress publishes a service on its domain, aliases and routes over HTTPS:
+// cert-manager issues the certificate, HTTP redirects to HTTPS, and the
+// service's own ingress annotations are added.
 func ingress(meta metav1.ObjectMeta, svc spec.Service, opt Options) *networkingv1.Ingress {
 	meta.Annotations = map[string]string{
 		"cert-manager.io/cluster-issuer":                 opt.ClusterIssuer,
@@ -485,6 +507,7 @@ func ingress(meta metav1.ObjectMeta, svc spec.Service, opt Options) *networkingv
 	}
 }
 
+// tls is the ingress's certificates: one secret per group of hosts.
 func tls(svc spec.Service) []networkingv1.IngressTLS {
 	var out []networkingv1.IngressTLS
 	for _, g := range svc.TLSGroups() {
@@ -508,6 +531,8 @@ func requirements(r spec.Resources) corev1.ResourceRequirements {
 	return corev1.ResourceRequirements{Requests: list(r.CPURequest, r.MemRequest), Limits: list(r.CPULimit, r.MemLimit)}
 }
 
+// rules is the ingress's hosts, each with the paths that go to the
+// service (/ for its domain and aliases, and the paths of its routes).
 func rules(svc spec.Service, pathType *networkingv1.PathType) []networkingv1.IngressRule {
 	var out []networkingv1.IngressRule
 	index := map[string]int{}
@@ -532,6 +557,8 @@ func rules(svc spec.Service, pathType *networkingv1.PathType) []networkingv1.Ing
 	return out
 }
 
+// volume is a service's persistent disk: a claim of its size in the
+// storage class rendimiento uses, mounted by one pod at a time.
 func volume(meta metav1.ObjectMeta, svc spec.Service, opt Options) (*corev1.PersistentVolumeClaim, error) {
 	size, err := resource.ParseQuantity(svc.Volume.Size)
 	if err != nil {
@@ -549,6 +576,7 @@ func volume(meta metav1.ObjectMeta, svc spec.Service, opt Options) (*corev1.Pers
 	}, nil
 }
 
+// ptr returns a pointer to a copy of v.
 func ptr[T any](v T) *T { return &v }
 
 // List returns every object in apply order: namespace, volumes, workloads, services, ingresses.

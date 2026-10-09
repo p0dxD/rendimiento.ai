@@ -436,6 +436,8 @@ func ResourcesFor(size Size, o *ResourceOverride) Resources {
 	return override(size.Resources(), o)
 }
 
+// override applies a service's own resources over its size's: an empty
+// field keeps the size's value, "none" removes it (no limit).
 func override(r Resources, o *ResourceOverride) Resources {
 	if o == nil {
 		return r
@@ -581,6 +583,8 @@ const (
 	BuilderRailpack   = "railpack"
 )
 
+// validate checks a build section: a known builder, start only for
+// Railpack, and well-formed build arguments.
 func (b Build) validate(p string) []error {
 	var errs []error
 	switch b.Builder {
@@ -631,6 +635,8 @@ func (t Test) Requests() Resources {
 	return override(r, t.Resources)
 }
 
+// validate checks a test section: an image and a command, a known size,
+// valid resources and a timeout that is not negative.
 func (t Test) validate(p string) []error {
 	var errs []error
 	if t.Image == "" || strings.TrimSpace(t.Command) == "" {
@@ -1004,6 +1010,9 @@ func (s *Spec) Validate() error {
 	return errors.Join(errs...)
 }
 
+// validateBuilds checks the builds: entries (images built and tested but
+// not run as services): unique names, not taken by a service or job, and
+// valid build and test sections.
 func (s *Spec) validateBuilds() []error {
 	var errs []error
 	used := map[string]string{}
@@ -1038,6 +1047,8 @@ func (s *Spec) validateBuilds() []error {
 	return errs
 }
 
+// validateTasks checks the tasks: unique names, their stage, and that each
+// name in after: is a task or something built in this run.
 func (s *Spec) validateTasks() []error {
 	var errs []error
 	built := map[string]bool{} // services with a build step
@@ -1173,6 +1184,9 @@ func (s *Spec) validateTasks() []error {
 var serviceRef = regexp.MustCompile(`^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?/)?[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`)
 var majorVersion = regexp.MustCompile(`^[0-9]{1,2}(\.[0-9]{1,2})?$`)
 
+// validateNeeds checks what services need (a database, a cache, another
+// service): known kinds, existing services, and no two needs writing the
+// same environment variable.
 func (s *Spec) validateNeeds(services map[string]bool) []error {
 	var errs []error
 	for i, svc := range s.Services {
@@ -1228,6 +1242,8 @@ func (s *Spec) validateNeeds(services map[string]bool) []error {
 	return errs
 }
 
+// validateResources checks resource overrides are quantities Kubernetes
+// understands ("none" only for limits).
 func validateResources(p string, o *ResourceOverride) []error {
 	if o == nil {
 		return nil
@@ -1247,6 +1263,7 @@ func validateResources(p string, o *ResourceOverride) []error {
 // resourceQuantity checks a Kubernetes quantity like 250m, 1Gi or 2.
 var quantityRe = regexp.MustCompile(`^([0-9]+(\.[0-9]+)?)(m|Ki|Mi|Gi|Ti|k|M|G|T)?$`)
 
+// resourceQuantity checks one quantity, like 500m or 2Gi.
 func resourceQuantity(v string) (string, error) {
 	if !quantityRe.MatchString(v) {
 		return "", fmt.Errorf("invalid quantity %q", v)
@@ -1254,6 +1271,10 @@ func resourceQuantity(v string) (string, error) {
 	return v, nil
 }
 
+// validateRoutes checks routes (a path of a domain sent to a service): the
+// host must be a domain or alias of a service in this app (so its
+// certificate covers it), a route needs a path, and no host and path goes
+// to two services.
 func (s *Spec) validateRoutes() []error {
 	var errs []error
 	owned := map[string]bool{}
@@ -1288,6 +1309,9 @@ func (s *Spec) validateRoutes() []error {
 // cronField is a loose check: five space-separated fields or an @macro.
 var cronField = regexp.MustCompile(`^(@(yearly|annually|monthly|weekly|daily|midnight|hourly)|(\S+\s+){4}\S+)$`)
 
+// validateJobs checks the jobs (scheduled commands): names that are DNS
+// labels, unique among jobs and services, a cron schedule, exactly one of
+// service, path or image to run, a known size, and valid environment.
 func (s *Spec) validateJobs(services map[string]bool) []error {
 	var errs []error
 	seen := map[string]bool{}

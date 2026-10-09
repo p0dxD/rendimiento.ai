@@ -98,6 +98,7 @@ type App struct {
 
 const appCols = `id, name, repo, installation_id, default_branch, spec, created_at`
 
+// scanApp reads an app row (with its spec, stored as JSON).
 func scanApp(row pgx.Row) (*App, error) {
 	var a App
 	var raw []byte
@@ -157,6 +158,7 @@ func (s *Store) ListReleasedApps(ctx context.Context) ([]*App, error) {
 	return s.listApps(ctx, `SELECT `+appCols+` FROM apps WHERE EXISTS (SELECT 1 FROM releases r WHERE r.app_id = apps.id) ORDER BY name`)
 }
 
+// listApps runs a query that returns app rows.
 func (s *Store) listApps(ctx context.Context, q string, args ...any) ([]*App, error) {
 	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
@@ -222,6 +224,7 @@ const (
 
 const runCols = `id, app_id, sha, branch, event, deploy, status, message, check_run, created_at, started_at, finished_at`
 
+// scanRun reads a run row, without its steps.
 func scanRun(row pgx.Row) (*Run, error) {
 	var r Run
 	err := row.Scan(&r.ID, &r.AppID, &r.SHA, &r.Branch, &r.Event, &r.Deploy, &r.Status, &r.Message, &r.CheckRun, &r.CreatedAt, &r.StartedAt, &r.FinishedAt)
@@ -547,6 +550,7 @@ func (s *Store) CreateRelease(ctx context.Context, r *Release) error {
 
 const releaseCols = `id, app_id, number, run_id, sha, images, spec, rollback_of, created_at, verify_status, verify_message, verified_at`
 
+// scanRelease reads a release row (images and spec are JSON).
 func scanRelease(row pgx.Row) (*Release, error) {
 	var r Release
 	var images, sp []byte
@@ -617,6 +621,7 @@ func (s *Store) DeleteSession(ctx context.Context, tokenHash string) error {
 	return err
 }
 
+// nullTime is nil for the zero time, so it is stored as NULL.
 func nullTime(t time.Time) *time.Time {
 	if t.IsZero() {
 		return nil
