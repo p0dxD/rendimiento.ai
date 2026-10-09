@@ -160,6 +160,9 @@ func (r *Runner) Loop(ctx context.Context) {
 	}
 }
 
+// tick starts a scheduled Renovate run when its time has come. Only one
+// replica wins each scheduled time (ClaimSchedule); right after Renovate is
+// switched on, the schedule starts counting instead of running at once.
 func (r *Runner) tick(ctx context.Context, now time.Time) error {
 	enabled, s, row, err := Load(ctx, r.Store)
 	if err != nil || !enabled || row == nil {
@@ -291,6 +294,9 @@ func (r *Runner) targets(ctx context.Context, repos []string) ([]target, error) 
 	return out, nil
 }
 
+// execute is one Renovate run: a pod per account it covers, one after
+// another, then the run's summary and results are saved (55 minutes at most
+// by default).
 func (r *Runner) execute(ctx context.Context, run *store.AddonRun, s Settings, targets []target) {
 	timeout := r.Timeout
 	if timeout == 0 {
@@ -384,6 +390,8 @@ type RepoResult struct {
 	Errors     []string `json:"errors,omitempty"`
 }
 
+// summarize is a run's one line: pull requests opened, merged by itself,
+// and repositories that failed.
 func summarize(results map[string]json.RawMessage) string {
 	prs, merged, failed := 0, 0, 0
 	for _, raw := range results {
@@ -402,6 +410,9 @@ func summarize(results map[string]json.RawMessage) string {
 	return msg
 }
 
+// runPod runs Renovate for one account's repositories in a pod, with a
+// fresh token of that installation (as the App's bot), and reads back what
+// it did from its log.
 func (r *Runner) runPod(ctx context.Context, runID int64, t target, s Settings, timeout time.Duration) (map[string]*RepoResult, string, string, error) {
 	app, err := r.GitHub.Get()
 	if err != nil {
@@ -454,6 +465,8 @@ func (r *Runner) runPod(ctx context.Context, runID int64, t target, s Settings, 
 	return results, log, note, nil
 }
 
+// pod is the Renovate pod: its configuration and token from a secret of
+// the same name, the repositories to look at, and a deadline.
 func (r *Runner) pod(name string, labels map[string]string, s Settings, repos string, bot *gh.BotIdentity, extraEnv []corev1.EnvVar, timeout time.Duration) *corev1.Pod {
 	deadline := int64(timeout.Seconds())
 	env := append([]corev1.EnvVar{
@@ -500,6 +513,7 @@ func (r *Runner) pod(name string, labels map[string]string, s Settings, repos st
 	return p
 }
 
+// wait checks the pod every 5 seconds until it ends.
 func (r *Runner) wait(ctx context.Context, name string) (*corev1.Pod, error) {
 	t := time.NewTicker(5 * time.Second)
 	defer t.Stop()
@@ -656,6 +670,7 @@ func extraFields(line string) string {
 	return b.String()
 }
 
+// firstNonEmpty is the first of v that is not "".
 func firstNonEmpty(v ...string) string {
 	for _, s := range v {
 		if s != "" {
@@ -674,6 +689,7 @@ func truncate(s string, max int) string {
 	return s[:half] + "\n… (log truncated) …\n" + s[len(s)-half:]
 }
 
+// cleanup deletes Renovate pods and secrets a previous process left behind.
 func (r *Runner) cleanup(ctx context.Context) {
 	sel := metav1.ListOptions{LabelSelector: "app.kubernetes.io/managed-by=rendimiento,rendimiento.ai/addon=" + Name}
 	if pods, err := r.Kube.CoreV1().Pods(r.Namespace).List(ctx, sel); err == nil {
@@ -695,4 +711,5 @@ func (r *Runner) Running() bool {
 	return r.running
 }
 
+// ptr returns a pointer to a copy of v.
 func ptr[T any](v T) *T { return &v }
