@@ -89,7 +89,7 @@ For a push to the default branch, `Platform.changes` compares the new commit wit
 - **Check runs**: `startCheck` creates a GitHub check "in progress" on the commit with a link to the run; `finishCheck` completes it with success, failure or cancelled.
 - **Logs and live updates**: the platform's recorder (`platform/recorder.go`) buffers each step's output, appends it to the step's row in Postgres (keeping the last 1 MB, where errors are) and publishes it to the events hub, which streams it to open browsers over Server-Sent Events.
 - **Cancelling**: `Platform.Cancel` cancels the run's context; running pods are deleted and waiting steps become skipped.
-- **Restarts**: runs left `running` by a dead process are requeued on startup (`RequeueOrphans`, at most twice), and leftover pods are deleted (`KubeExecutor.Cleanup`).
+- **Restarts**: runs left `running` by a dead process are requeued on startup (`RequeueOrphans`, at most twice), and leftover pods are deleted (`KubeExecutor.Cleanup`). Both happen only in the process that holds the queue's advisory lock in Postgres (`Store.LockQueue`), which also works the queue: a second copy of the platform waits for the lock rather than requeuing runs the first is still doing. Postgres lets the lock go when its holder dies.
 - **Releases**: when every required step of a deploy run succeeded (a failed `optional` task doesn't count), `platform.release` records the images by digest (new ones, reused ones, and ready-made `image:` services as given) and updates the `App` object. That hands over to the [controller](controller.md).
 
 ## Where to change what

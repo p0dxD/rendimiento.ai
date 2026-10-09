@@ -100,11 +100,6 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		return fmt.Errorf("migrate: %w", err)
 	}
 	go problemLog.Run(ctx, st, plain)
-	if requeued, failed, err := st.RequeueOrphans(ctx); err != nil {
-		return fmt.Errorf("recover interrupted runs: %w", err)
-	} else if requeued+failed > 0 {
-		log.Warn("recovered runs interrupted by the last restart", "requeued", requeued, "failed", failed)
-	}
 
 	// --8<-- [end:startup]
 
@@ -411,6 +406,20 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		// CI workers run only on the leader so one replica owns the queue.
 		select {
 		case <-mgr.Elected():
+			// And only in the process holding the queue's lock in Postgres:
+			// another copy (an overlapping pod, the binary started by hand)
+			// waits here instead of putting back in the queue, and deleting
+			// the pods of, runs this one is still doing.
+			release, err := st.LockQueue(ctx, 5*time.Second)
+			if err != nil {
+				break // ctx ended while waiting
+			}
+			defer release()
+			if requeued, failed, err := st.RequeueOrphans(ctx); err != nil {
+				log.Error("could not recover interrupted runs", "err", err)
+			} else if requeued+failed > 0 {
+				log.Warn("recovered runs interrupted by the last restart", "requeued", requeued, "failed", failed)
+			}
 			if n, err := executor.Cleanup(ctx); err != nil {
 				log.Warn("could not clean up old build pods", "err", err)
 			} else if n > 0 {

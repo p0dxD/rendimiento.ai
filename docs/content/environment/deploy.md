@@ -149,7 +149,7 @@ The Deployment pulls `:latest` with `imagePullPolicy: Always` and uses the `Recr
 On restart the platform:
 
 1. applies database migrations (`internal/store/migrations`), each once;
-2. requeues CI runs a previous process left running (up to two retries) and deletes leftover build pods;
+2. once it holds the run queue's lock in Postgres (a second copy of the platform waits for it), requeues CI runs a previous process left running (up to two retries) and deletes leftover build pods;
 3. closes Renovate runs that were interrupted;
 4. starts the controllers, the CI worker, the Renovate scheduler, the add-on sync from git, and dynamic DNS.
 
