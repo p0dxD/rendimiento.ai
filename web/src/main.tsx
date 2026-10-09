@@ -21,6 +21,9 @@ import { LangSwitch, Logo } from "./components/marca";
 import { Bienvenida, type BookLinks } from "./pages/Bienvenida";
 import "./styles.css";
 
+/**
+ * The app's frame: setup until the GitHub App exists, the welcome page until you sign in, then the menu and pages.
+ */
 function Shell() {
   const [state, setState] = useState<{ login?: string; configured?: boolean; book?: BookLinks; activity?: boolean; loading: boolean }>({ loading: true });
 

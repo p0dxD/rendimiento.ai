@@ -61,6 +61,8 @@ func Distribution(gitVersion string, node *corev1.Node) (id, name string) {
 
 var nodeMetricsGVK = schema.GroupVersionKind{Group: "metrics.k8s.io", Version: "v1beta1", Kind: "NodeMetricsList"}
 
+// snapshot is one look at the cluster the checks share: version, nodes and
+// their use, deployments, problems in pods and certificates.
 func (c *Checker) snapshot(ctx context.Context) *snapshot {
 	s := &snapshot{}
 	if c.Discovery != nil {
@@ -218,6 +220,7 @@ func podProblems(pods []corev1.Pod, now time.Time) []Problem {
 
 var certificateListGVK = schema.GroupVersionKind{Group: "cert-manager.io", Version: "v1", Kind: "CertificateList"}
 
+// certificateProblems counts the certificates and lists those not ready.
 func (c *Checker) certificateProblems(ctx context.Context) (int, []Problem) {
 	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(certificateListGVK)

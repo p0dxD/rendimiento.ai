@@ -25,6 +25,8 @@ import (
 
 type checkFunc func(context.Context) Check
 
+// checks is every check of the Environment page, in the order shown; they
+// run in parallel, from one snapshot of the cluster where they can.
 func (c *Checker) checks(s *snapshot) []checkFunc {
 	return []checkFunc{
 		func(context.Context) Check { return c.checkAPI(s) },
@@ -49,6 +51,7 @@ func (c *Checker) checks(s *snapshot) []checkFunc {
 	}
 }
 
+// checkAPI: the Kubernetes API answers, and which version it is.
 func (c *Checker) checkAPI(s *snapshot) Check {
 	ch := Check{ID: "kubernetes", Name: M("Kubernetes API"), Category: CatCluster, Required: true, Version: s.cluster.Version}
 	if s.err != nil && s.cluster.Version == "" {
@@ -61,6 +64,8 @@ func (c *Checker) checkAPI(s *snapshot) Check {
 	return ch
 }
 
+// checkNodes: how many nodes are ready, of which architectures (builds are
+// made for them).
 func checkNodes(s *snapshot) Check {
 	ch := Check{ID: "nodes", Name: M("Nodes"), Category: CatCluster, Required: true}
 	archs := map[string]int{}
@@ -98,6 +103,7 @@ func checkNodes(s *snapshot) Check {
 	return ch
 }
 
+// checkMetrics: whether the metrics server gives live CPU and memory use.
 func checkMetrics(s *snapshot) Check {
 	ch := Check{ID: "metrics", Name: M("Metrics server"), Category: CatCluster}
 	if s.metrics {
@@ -130,6 +136,8 @@ func findDeployment(s *snapshot, substr string) *appsv1.Deployment {
 	return nil
 }
 
+// deploymentReady reports whether every replica of d is ready, and says
+// how many are.
 func deploymentReady(d *appsv1.Deployment) (bool, string) {
 	want := int32(1)
 	if d.Spec.Replicas != nil {
@@ -138,6 +146,7 @@ func deploymentReady(d *appsv1.Deployment) (bool, string) {
 	return d.Status.ReadyReplicas >= want && want > 0, M("%d/%d replicas ready", d.Status.ReadyReplicas, want)
 }
 
+// firstImage is the image of d's first container whose name contains substr.
 func firstImage(d *appsv1.Deployment, substr string) string {
 	for _, ct := range d.Spec.Template.Spec.Containers {
 		if strings.Contains(ct.Image, substr) {
@@ -153,6 +162,7 @@ var ingressControllers = map[string]string{
 	"traefik.io/ingress-controller": "traefik",
 }
 
+// checkIngress: the IngressClass apps use exists, and its controller runs.
 func (c *Checker) checkIngress(ctx context.Context, s *snapshot) Check {
 	ch := Check{ID: "ingress", Name: M("Ingress controller"), Category: CatNetworking, Required: true}
 	ch.Fix = "helm upgrade --install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx -n ingress-nginx --create-namespace"
@@ -205,6 +215,8 @@ func (c *Checker) checkIngress(ctx context.Context, s *snapshot) Check {
 	return ch
 }
 
+// checkCertManager: cert-manager is installed and running, so apps get
+// HTTPS certificates.
 func (c *Checker) checkCertManager(ctx context.Context, s *snapshot) Check {
 	ch := Check{ID: "cert-manager", Name: "cert-manager", Category: CatTLS, Required: true,
 		Fix: "helm upgrade --install cert-manager cert-manager --repo https://charts.jetstack.io -n cert-manager --create-namespace --set crds.enabled=true"}
@@ -230,6 +242,8 @@ func (c *Checker) checkCertManager(ctx context.Context, s *snapshot) Check {
 
 var clusterIssuerGVK = schema.GroupVersionKind{Group: "cert-manager.io", Version: "v1", Kind: "ClusterIssuer"}
 
+// checkIssuer: the ClusterIssuer apps' certificates come from exists and is
+// ready.
 func (c *Checker) checkIssuer(ctx context.Context) Check {
 	ch := Check{ID: "cluster-issuer", Name: M("Certificate issuer"), Category: CatTLS, Required: true}
 	u := &unstructured.Unstructured{}
@@ -272,6 +286,8 @@ func (c *Checker) checkIssuer(ctx context.Context) Check {
 	return ch
 }
 
+// checkCertificates: every certificate in the cluster is valid, listing
+// those that are not.
 func checkCertificates(s *snapshot) Check {
 	ch := Check{ID: "certificates", Name: M("Certificates in the cluster"), Category: CatTLS}
 	if s.certTotal == 0 && len(s.certProblems) == 0 {
@@ -291,6 +307,8 @@ func checkCertificates(s *snapshot) Check {
 	return ch
 }
 
+// checkStorage: the storage class for app volumes exists (and which one is
+// the default).
 func (c *Checker) checkStorage(ctx context.Context) Check {
 	ch := Check{ID: "storage", Name: M("Persistent storage"), Category: CatCluster, Required: true}
 	var list storagev1.StorageClassList
@@ -321,6 +339,7 @@ func (c *Checker) checkStorage(ctx context.Context) Check {
 	return ch
 }
 
+// checkBuildkit: the BuildKit daemons that build images answer.
 func (c *Checker) checkBuildkit(ctx context.Context, s *snapshot) Check {
 	ch := Check{ID: "buildkit", Name: M("BuildKit (image builder)"), Category: CatBuild, Required: true,
 		Fix: M("Deploy moby/buildkit as a Deployment + Service listening on tcp://0.0.0.0:1234 and set BUILDKIT_ADDR.")}
@@ -362,6 +381,7 @@ func (c *Checker) checkBuildkit(ctx context.Context, s *snapshot) Check {
 	return ch
 }
 
+// checkRegistry: the image registry answers its API (/v2/).
 func (c *Checker) checkRegistry(ctx context.Context) Check {
 	ch := Check{ID: "registry", Name: M("Container registry"), Category: CatBuild, Required: true}
 	scheme := "https"
@@ -389,6 +409,7 @@ func (c *Checker) checkRegistry(ctx context.Context) Check {
 	return ch
 }
 
+// checkBuildNamespace: the namespace where CI steps run exists.
 func (c *Checker) checkBuildNamespace(ctx context.Context) Check {
 	ch := Check{ID: "build-namespace", Name: M("Build namespace"), Category: CatBuild, Required: true}
 	var ns corev1.Namespace
@@ -427,6 +448,7 @@ func (c *Checker) checkBuildIsolation(ctx context.Context) Check {
 	return ch
 }
 
+// checkDNS: the DNS provider that creates app records works.
 func (c *Checker) checkDNS(ctx context.Context) Check {
 	ch := Check{ID: "dns", Name: M("DNS provider"), Category: CatIntegrations}
 	d := c.DNS.Describe(ctx)
@@ -444,6 +466,8 @@ func (c *Checker) checkDNS(ctx context.Context) Check {
 	return ch
 }
 
+// checkLogArchive: old step logs are moved to object storage (otherwise
+// they stay in Postgres).
 func (c *Checker) checkLogArchive(ctx context.Context) Check {
 	ch := Check{ID: "log-archive", Name: M("Log archive"), Category: CatIntegrations}
 	if c.Config.LogArchive == nil {
@@ -462,6 +486,7 @@ func (c *Checker) checkLogArchive(ctx context.Context) Check {
 	return ch
 }
 
+// checkAnalytics: Umami answers, for each app's visitor numbers (optional).
 func (c *Checker) checkAnalytics(ctx context.Context) Check {
 	ch := Check{ID: "analytics", Name: M("Visitor numbers (Umami)"), Category: CatIntegrations}
 	if c.Config.Analytics == nil {
@@ -480,6 +505,8 @@ func (c *Checker) checkAnalytics(ctx context.Context) Check {
 	return ch
 }
 
+// checkNotifications: emails about failed runs, rollbacks and outages can
+// be sent, and to whom.
 func (c *Checker) checkNotifications(context.Context) Check {
 	ch := Check{ID: "notifications", Name: M("Email notifications"), Category: CatIntegrations}
 	switch {
@@ -495,6 +522,8 @@ func (c *Checker) checkNotifications(context.Context) Check {
 	return ch
 }
 
+// checkGitHub: the GitHub App is set up, and on which accounts it is
+// installed.
 func (c *Checker) checkGitHub(ctx context.Context) Check {
 	ch := Check{ID: "github", Name: M("GitHub App"), Category: CatIntegrations, Required: true}
 	app, err := c.GitHub.Get()
@@ -522,6 +551,7 @@ func (c *Checker) checkGitHub(ctx context.Context) Check {
 	return ch
 }
 
+// checkDatabase: the platform's Postgres answers.
 func (c *Checker) checkDatabase(ctx context.Context) Check {
 	ch := Check{ID: "database", Name: M("Platform database"), Category: CatIntegrations, Required: true}
 	if err := c.DB.Ping(ctx); err != nil {

@@ -67,6 +67,8 @@ func (r *Recorder) Run(ctx context.Context, st *store.Store, log *slog.Logger) {
 	}
 }
 
+// add queues a problem to be saved; when the queue is full it is counted
+// as dropped rather than holding up the code that logged it.
 func (r *Recorder) add(p store.Problem) {
 	select {
 	case r.ch <- p:
@@ -82,8 +84,10 @@ type handler struct {
 	prefix string      // the current group, "a.b."
 }
 
+// Enabled is the wrapped handler's.
 func (h *handler) Enabled(ctx context.Context, l slog.Level) bool { return h.inner.Enabled(ctx, l) }
 
+// WithAttrs keeps the attributes for problems too.
 func (h *handler) WithAttrs(as []slog.Attr) slog.Handler {
 	c := *h
 	c.inner = h.inner.WithAttrs(as)
@@ -91,6 +95,7 @@ func (h *handler) WithAttrs(as []slog.Attr) slog.Handler {
 	return &c
 }
 
+// WithGroup prefixes later attributes with the group's name, as slog does.
 func (h *handler) WithGroup(name string) slog.Handler {
 	c := *h
 	c.inner = h.inner.WithGroup(name)
@@ -98,6 +103,8 @@ func (h *handler) WithGroup(name string) slog.Handler {
 	return &c
 }
 
+// Handle logs the record as usual and, for warnings and errors, records it
+// as a problem on the Problems page.
 func (h *handler) Handle(ctx context.Context, rec slog.Record) error {
 	err := h.inner.Handle(ctx, rec)
 	if rec.Level >= slog.LevelWarn {
@@ -113,6 +120,7 @@ func (h *handler) Handle(ctx context.Context, rec slog.Record) error {
 	return err
 }
 
+// prefixed adds a group prefix to attribute keys.
 func prefixed(prefix string, as []slog.Attr) []slog.Attr {
 	if prefix == "" {
 		return as
@@ -181,8 +189,11 @@ func ignored(p store.Problem) bool {
 // Numbers, hashes and UUIDs differ between repeats of the same problem.
 var variable = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\b[0-9a-f]{7,}\b|\d+`)
 
+// normalize replaces what changes between repeats of a problem (numbers,
+// hashes, UUIDs) with #, so repeats count as one.
 func normalize(s string) string { return variable.ReplaceAllString(s, "#") }
 
+// clip cuts s to n bytes, saying how much was left out.
 func clip(s string, n int) string {
 	if len(s) <= n {
 		return s

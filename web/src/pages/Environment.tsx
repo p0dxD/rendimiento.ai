@@ -8,10 +8,14 @@ const tone: Record<EnvStatus, string> = { ok: "ok", warning: "warn", missing: "b
 const label: Record<EnvStatus, string> = { ok: "OK", warning: "Attention", missing: "Missing", error: "Error" }; // translated where shown
 const categories = ["Cluster", "Networking", "TLS", "Build", "Integrations"];
 
+/** A check's status as a colored label: OK, Attention, Missing or Error. */
 export function StatusBadge({ status }: { status: EnvStatus }) {
   return <span className={`badge ${tone[status]}`}>{t(label[status])}</span>;
 }
 
+/**
+ * The Environment page: what rendimiento runs on (cluster, providers, nodes), what it needs and whether it has it, and what is failing.
+ */
 export function Environment() {
   const [refreshing, setRefreshing] = useState(false);
   const { data: r, error, setData } = usePoll(() => envApi.report(), [], 30000);
@@ -104,6 +108,7 @@ export function Environment() {
   );
 }
 
+/** Dynamic DNS: the public IP the records follow, when it last changed, and a button to check it now. */
 function DynamicDNS({ ddns, onSynced }: { ddns: NonNullable<EnvReport["ddns"]>; onSynced: () => void }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string>();
@@ -140,6 +145,7 @@ function DynamicDNS({ ddns, onSynced }: { ddns: NonNullable<EnvReport["ddns"]>; 
   );
 }
 
+/** One provider (DNS, certificates, storage, ...) with its status and what it is. */
 function ProviderCard({ p, children }: { p: EnvProvider; children?: React.ReactNode }) {
   return (
     <div className="card stack">
@@ -163,6 +169,9 @@ function ProviderCard({ p, children }: { p: EnvProvider; children?: React.ReactN
   );
 }
 
+/**
+ * One requirement: its status and summary; open (already open when it fails) it shows the details and how to fix it.
+ */
 function CheckRow({ c }: { c: EnvCheck }) {
   const [open, setOpen] = useState(c.status !== "ok");
   const hasMore = (c.details?.length ?? 0) > 0 || !!c.fix;
@@ -221,6 +230,7 @@ function TestEmail() {
   );
 }
 
+/** A bar of how much of something is used (green, then yellow from 75%, red from 90%). */
 function Meter({ label: l, used, total, fmt }: { label: string; used?: number; total: number; fmt: (n: number) => string }) {
   if (used === undefined) return <div className="small muted">{l}: {fmt(total)} ({t("no live usage")})</div>;
   const pct = Math.min(100, Math.round((used / total) * 100));
@@ -238,6 +248,7 @@ function Meter({ label: l, used, total, fmt }: { label: string; used?: number; t
 const gib = (b: number) => `${(b / 1024 ** 3).toLocaleString(locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 })} GiB`;
 const cores = (c: number) => t("{n} cores", { n: c.toLocaleString(locale, { maximumFractionDigits: c < 10 ? 2 : 0, minimumFractionDigits: c < 10 ? 2 : 0 }) });
 
+/** One node: ready or not, pressure, its CPU and memory in use, and what it runs on. */
 function NodeCard({ n }: { n: EnvNode }) {
   const status: EnvStatus = !n.ready ? "error" : (n.pressure?.length || n.unschedulable) ? "warning" : "ok";
   return (

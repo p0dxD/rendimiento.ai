@@ -83,6 +83,8 @@ type bufferedWriter struct {
 	body   bytes.Buffer
 }
 
+// Header, WriteHeader and Write keep the answer, to translate it before it
+// is sent.
 func (b *bufferedWriter) Header() http.Header         { return b.header }
 func (b *bufferedWriter) WriteHeader(status int)      { b.status = status }
 func (b *bufferedWriter) Write(p []byte) (int, error) { return b.body.Write(p) }

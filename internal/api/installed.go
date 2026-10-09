@@ -35,6 +35,8 @@ type installedView struct {
 	Definition  string               `json:"definition,omitempty"`
 }
 
+// view is an installed add-on as the UI shows it (with its full definition
+// when full).
 func view(a *v1alpha1.Addon, full bool) installedView {
 	v := installedView{
 		Name: a.Name, Title: a.Spec.Title, Category: a.Spec.Category, Description: a.Spec.Description,
@@ -58,10 +60,12 @@ func view(a *v1alpha1.Addon, full bool) installedView {
 	return v
 }
 
+// addonCatalog is the add-ons that can be installed in one click.
 func (s *Server) addonCatalog(w http.ResponseWriter, _ *http.Request, _ string) {
 	writeJSON(w, addon.Catalog)
 }
 
+// listInstalled is every installed add-on (Addon objects in the cluster).
 func (s *Server) listInstalled(w http.ResponseWriter, r *http.Request, _ string) {
 	var list v1alpha1.AddonList
 	if err := s.Kube.List(r.Context(), &list); err != nil {
@@ -81,6 +85,7 @@ func (s *Server) listInstalled(w http.ResponseWriter, r *http.Request, _ string)
 	writeJSON(w, resp)
 }
 
+// getInstalled is one installed add-on with its definition.
 func (s *Server) getInstalled(w http.ResponseWriter, r *http.Request, _ string) {
 	var a v1alpha1.Addon
 	if err := s.Kube.Get(r.Context(), client.ObjectKey{Name: r.PathValue("name")}, &a); err != nil {
@@ -102,6 +107,7 @@ func (s *Server) getInstalled(w http.ResponseWriter, r *http.Request, _ string) 
 	writeJSON(w, v)
 }
 
+// owner is the account part of owner/repo.
 func owner(repo string) string {
 	o, _, _ := strings.Cut(repo, "/")
 	return o
@@ -182,6 +188,8 @@ func (s *Server) putInstalled(w http.ResponseWriter, r *http.Request, login stri
 	writeJSON(w, map[string]string{"commit": commit, "repo": s.Addons.Repo})
 }
 
+// commitDefinition writes an add-on's definition to the gitops repository,
+// where add-ons are kept (ADDONS_REPO), and returns the commit.
 func (s *Server) commitDefinition(r *http.Request, name, content, message string) (string, error) {
 	c, branch, err := s.gitopsClient(r)
 	if err != nil {
@@ -190,6 +198,8 @@ func (s *Server) commitDefinition(r *http.Request, name, content, message string
 	return c.PutFile(r.Context(), s.Addons.Repo, branch, addon.Dir+"/"+name+".yaml", content, message)
 }
 
+// gitopsClient is a GitHub client for the gitops repository and its default
+// branch.
 func (s *Server) gitopsClient(r *http.Request) (*gh.Client, string, error) {
 	c, _, err := s.GitHub.ForOwner(r.Context(), owner(s.Addons.Repo))
 	if err != nil {

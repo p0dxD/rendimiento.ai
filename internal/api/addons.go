@@ -38,6 +38,8 @@ type addonApp struct {
 	Enabled bool   `json:"enabled"`
 }
 
+// renovateView is the Renovate add-on as its page shows it: on or off, its
+// settings (or the defaults), its last run and when the next one is.
 func (s *Server) renovateView(r *http.Request) (*addonView, error) {
 	ctx := r.Context()
 	enabled, set, row, err := renovate.Load(ctx, s.Store)
@@ -92,6 +94,7 @@ func (s *Server) renovateView(r *http.Request) (*addonView, error) {
 	return v, nil
 }
 
+// listAddons is the built-in add-ons (Renovate).
 func (s *Server) listAddons(w http.ResponseWriter, r *http.Request, _ string) {
 	v, err := s.renovateView(r)
 	if err != nil {
@@ -101,6 +104,7 @@ func (s *Server) listAddons(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSON(w, []*addonView{v})
 }
 
+// getAddon is one built-in add-on's page.
 func (s *Server) getAddon(w http.ResponseWriter, r *http.Request, _ string) {
 	if r.PathValue("addon") != renovate.Name {
 		httpError(w, http.StatusNotFound, "no such add-on")
@@ -114,6 +118,7 @@ func (s *Server) getAddon(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSON(w, v)
 }
 
+// putAddon switches a built-in add-on on or off and saves its settings.
 func (s *Server) putAddon(w http.ResponseWriter, r *http.Request, login string) {
 	if r.PathValue("addon") != renovate.Name {
 		httpError(w, http.StatusNotFound, "no such add-on")
@@ -148,6 +153,7 @@ func (s *Server) putAddon(w http.ResponseWriter, r *http.Request, login string) 
 	s.getAddon(w, r, login)
 }
 
+// startAddonRun runs the add-on now ("Run now"), unless a run is going.
 func (s *Server) startAddonRun(w http.ResponseWriter, r *http.Request, login string) {
 	if r.PathValue("addon") != renovate.Name || s.Renovate == nil {
 		httpError(w, http.StatusNotFound, "no such add-on")
@@ -166,6 +172,7 @@ func (s *Server) startAddonRun(w http.ResponseWriter, r *http.Request, login str
 	writeJSONStatus(w, http.StatusCreated, run)
 }
 
+// listAddonRuns is the add-on's last 30 runs.
 func (s *Server) listAddonRuns(w http.ResponseWriter, r *http.Request, _ string) {
 	runs, err := s.Store.ListAddonRuns(r.Context(), r.PathValue("addon"), 30)
 	if err != nil {
@@ -175,6 +182,7 @@ func (s *Server) listAddonRuns(w http.ResponseWriter, r *http.Request, _ string)
 	writeJSON(w, runs)
 }
 
+// getAddonRun is one run of an add-on, with what it did per repository.
 func (s *Server) getAddonRun(w http.ResponseWriter, r *http.Request, _ string) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -226,6 +234,7 @@ func (s *Server) appAddons(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSON(w, map[string]any{renovate.Name: out})
 }
 
+// putAppAddon switches Renovate on or off for one app.
 func (s *Server) putAppAddon(w http.ResponseWriter, r *http.Request, login string) {
 	a := s.app(w, r)
 	if a == nil {

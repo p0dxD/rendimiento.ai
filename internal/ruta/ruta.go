@@ -123,6 +123,9 @@ func (s *Server) Handler() http.Handler {
 	return auth.RequireBearerToken(s.verify, nil)(h)
 }
 
+// verify checks an agent's key on each MCP request: it must start with the
+// key prefix, exist (only its hash is stored) and not be revoked; its name
+// and whether it can write go along with the request.
 func (s *Server) verify(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 	if !strings.HasPrefix(token, TokenPrefix) {
 		return nil, auth.ErrInvalidToken
@@ -144,6 +147,7 @@ func (s *Server) verify(ctx context.Context, token string, _ *http.Request) (*au
 	return &auth.TokenInfo{Scopes: scopes, Expiration: k.ExpiresAt, UserID: fmt.Sprintf("key:%d", k.ID), Extra: map[string]any{"key": keyInfo{k}}}, nil
 }
 
+// keyFrom is the agent key a tool call came with (see verify).
 func keyFrom(req *mcp.CallToolRequest) (store.AgentKey, error) {
 	if req == nil || req.Extra == nil || req.Extra.TokenInfo == nil {
 		return store.AgentKey{}, errors.New("no agent key")
@@ -244,6 +248,7 @@ type entregarIn struct {
 
 // ---- conversions ----
 
+// summary is an entry as lists show it: its first 200 characters.
 func summary(e store.RutaEntry) Summary {
 	start := e.Body
 	if r := []rune(start); len(r) > 200 {
@@ -253,6 +258,7 @@ func summary(e store.RutaEntry) Summary {
 		Etiquetas: e.Tags, Cambio: e.UpdatedAt, Inicio: start}
 }
 
+// summaries is summary for each entry.
 func summaries(es []store.RutaEntry) []Summary {
 	out := make([]Summary, 0, len(es))
 	for _, e := range es {
@@ -261,6 +267,7 @@ func summaries(es []store.RutaEntry) []Summary {
 	return out
 }
 
+// cargoOut is a cargo (an agent's turn at work) as tools answer it.
 func cargoOut(c store.Cargo) CargoOut {
 	return CargoOut{ID: c.ID, Llave: c.KeyName, Proposito: c.Purpose, Inicio: c.StartedAt, Fin: c.EndedAt, Entrega: c.Entrega, Pendientes: c.Pendientes}
 }
@@ -301,6 +308,8 @@ func LooksSecret(text string) bool {
 
 var errSecret = errors.New("esto parece contener un secreto (contraseña, token o llave); la Ruta no guarda secretos. Quítelo, o describa dónde vive (p. ej. el nombre del Secret de Kubernetes) sin su valor")
 
+// checkText refuses an entry with no title, a title, body or tags over
+// their limits, or anything that looks like a secret (a key or token).
 func checkText(title, body string, tags []string) error {
 	switch {
 	case strings.TrimSpace(title) == "":
@@ -327,6 +336,9 @@ var agentKinds = map[string]bool{store.KindDecision: true, store.KindManual: tru
 
 // ---- the servers ----
 
+// newServer is the MCP server agents talk to: the Ruta's tools (start,
+// search, read; and, with a key that can write, take a cargo, note, update
+// and hand over), each call audited.
 func (s *Server) newServer(write bool) *mcp.Server {
 	srv := mcp.NewServer(&mcp.Implementation{Name: "rendimiento-ruta", Title: "La Ruta de rendimiento", Version: "1"},
 		&mcp.ServerOptions{Instructions: Instructions})
@@ -360,6 +372,8 @@ func addTool[In, Out any](s *Server, srv *mcp.Server, t *mcp.Tool, h func(contex
 	})
 }
 
+// audit records a tool call (who, which tool, its arguments cut to 2000
+// characters, and whether it worked) for the Ruta's Activity tab.
 func (s *Server) audit(ctx context.Context, k store.AgentKey, tool string, in any, callErr error) {
 	args, _ := json.Marshal(in)
 	if len(args) > 2000 {
@@ -377,6 +391,7 @@ func (s *Server) audit(ctx context.Context, k store.AgentKey, tool string, in an
 	}
 }
 
+// lastHandovers are the n most recent handed-over cargos, newest first.
 func (s *Server) lastHandovers(ctx context.Context, n int) ([]CargoOut, error) {
 	cs, err := s.Store.ListCargos(ctx, 50)
 	if err != nil {
@@ -391,6 +406,8 @@ func (s *Server) lastHandovers(ctx context.Context, n int) ([]CargoOut, error) {
 	return out, nil
 }
 
+// inicio (ruta_inicio) is where an agent starts: its open cargo if any, the
+// last handovers, open to-dos and what changed recently.
 func (s *Server) inicio(ctx context.Context, k store.AgentKey, _ empty) (InicioOut, error) {
 	out := InicioOut{Llave: k.Name, PuedeEscribir: k.CanWrite}
 	if c, err := s.Store.OpenCargo(ctx, k.ID); err == nil {
@@ -421,6 +438,7 @@ func (s *Server) inicio(ctx context.Context, k store.AgentKey, _ empty) (InicioO
 	return out, nil
 }
 
+// buscar (ruta_buscar) finds entries by text and kind, 20 by default.
 func (s *Server) buscar(ctx context.Context, _ store.AgentKey, in buscarIn) (listaOut, error) {
 	if in.Tipo != "" && !agentKinds[in.Tipo] && in.Tipo != store.KindVivido {
 		return listaOut{}, fmt.Errorf("tipo desconocido %q", in.Tipo)
@@ -436,6 +454,7 @@ func (s *Server) buscar(ctx context.Context, _ store.AgentKey, in buscarIn) (lis
 	return listaOut{Entradas: summaries(es)}, err
 }
 
+// leer (ruta_leer) reads one whole entry (not archived ones).
 func (s *Server) leer(ctx context.Context, _ store.AgentKey, in leerIn) (Entry, error) {
 	e, err := s.Store.Ruta(ctx, in.ID)
 	if errors.Is(err, store.ErrNotFound) || (err == nil && e.ArchivedAt != nil) {
@@ -459,6 +478,8 @@ func (s *Server) cargoFor(ctx context.Context, k store.AgentKey) (store.Cargo, e
 	return c, err
 }
 
+// tomar (cargo_tomar) opens a cargo with its purpose: the agent's turn,
+// which every note it writes belongs to. Needs a key that can write.
 func (s *Server) tomar(ctx context.Context, k store.AgentKey, in tomarIn) (tomarOut, error) {
 	if !k.CanWrite {
 		return tomarOut{}, errors.New("esta llave es de solo lectura")
@@ -482,6 +503,7 @@ func (s *Server) tomar(ctx context.Context, k store.AgentKey, in tomarIn) (tomar
 	return tomarOut{Cargo: cargoOut(c), UltimasEntregas: prev}, err
 }
 
+// cleanTags lowercases and trims tags, dropping empty ones.
 func cleanTags(tags []string) []string {
 	out := []string{}
 	for _, t := range tags {
@@ -492,6 +514,8 @@ func cleanTags(tags []string) []string {
 	return out
 }
 
+// anotar (ruta_anotar) writes a new entry (decision, manual, to-do, note)
+// in the agent's open cargo. "Vivido" entries are written by people only.
 func (s *Server) anotar(ctx context.Context, k store.AgentKey, in anotarIn) (Entry, error) {
 	c, err := s.cargoFor(ctx, k)
 	if err != nil {
@@ -515,6 +539,8 @@ func (s *Server) anotar(ctx context.Context, k store.AgentKey, in anotarIn) (Ent
 	return Entry{Summary: summary(e), Cuerpo: e.Body}, nil
 }
 
+// actualizar (ruta_actualizar) changes an entry, or marks a to-do done,
+// within the agent's open cargo.
 func (s *Server) actualizar(ctx context.Context, k store.AgentKey, in actualizarIn) (Entry, error) {
 	if _, err := s.cargoFor(ctx, k); err != nil {
 		return Entry{}, err
@@ -554,6 +580,8 @@ func (s *Server) actualizar(ctx context.Context, k store.AgentKey, in actualizar
 	return Entry{Summary: summary(e), Cuerpo: e.Body}, nil
 }
 
+// entregar (cargo_entregar) closes the agent's cargo with what it did and
+// what is left, for the next one.
 func (s *Server) entregar(ctx context.Context, k store.AgentKey, in entregarIn) (CargoOut, error) {
 	c, err := s.cargoFor(ctx, k)
 	if err != nil {

@@ -109,6 +109,8 @@ func pickFrontDoor(rs []detect.Result) int {
 	return 0
 }
 
+// sizeFor is the starting size for a language: Java large, Go, static and
+// Vite sites small, the rest medium.
 func sizeFor(r detect.Result) spec.Size {
 	switch r.Language {
 	case detect.Java:
@@ -128,6 +130,8 @@ type dfData struct {
 	HasRequirements           bool
 }
 
+// dockerfile writes a Dockerfile for the detected language from the
+// templates (an error for a language with none).
 func dockerfile(fsys fs.FS, r detect.Result) (string, error) {
 	d := dfData{Version: r.Version, Port: r.Port}
 	var name string

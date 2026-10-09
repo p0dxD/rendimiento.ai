@@ -14,6 +14,9 @@ const sizes: { value: Size; label: string }[] = [
 
 type Result = Awaited<ReturnType<typeof api.createApp>>;
 
+/**
+ * The "New app" wizard: pick an installation and a repository, review what was detected in a form, then open the pull request (or build right away).
+ */
 export function NewApp() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [installs, setInstalls] = useState<{ installations: Installation[]; installURL: string }>();
@@ -312,6 +315,7 @@ function Needs({ needs, onChange }: { needs: Need[]; onChange: (n: Need[]) => vo
   );
 }
 
+/** One service's form: port, size, replicas, domain, health check, volume, environment and secrets. */
 function ServiceForm({ service: s, zones, disabled, onChange }: { service: Service; zones: string[]; disabled: boolean; onChange: (s: Service) => void }) {
   const set = (patch: Partial<Service>) => onChange({ ...s, ...patch });
   const zone = zones.find((z) => s.domain?.endsWith("." + z)) ?? "";

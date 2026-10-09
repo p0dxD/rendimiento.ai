@@ -19,6 +19,7 @@ const ranges: { id: ReliabilityRange; label: string }[] = [
 
 const kindLabel: Record<CheckKind, string> = { internal: "Inside the cluster", public: "Public URL" };
 
+/** A share as a percentage: two decimals near 100% (where they matter), "—" with no data. */
 export function fmtPct(ok: number, total: number): string {
   if (total === 0) return "—";
   const p = (ok / total) * 100;
@@ -26,11 +27,13 @@ export function fmtPct(ok: number, total: number): string {
   return (p >= 99 ? p.toFixed(2) : p.toFixed(1)) + "%";
 }
 
+/** A time in milliseconds as "350 ms" or "1.25 s". */
 export function fmtMs(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)} ms`;
   return `${(ms / 1000).toFixed(ms < 10000 ? 2 : 1)} s`;
 }
 
+/** An outage's length in words: minutes, hours and minutes, or days. */
 function fmtDuration(ms: number): string {
   const m = Math.round(ms / 60000);
   if (m < 1) return t("under a minute");
@@ -44,6 +47,7 @@ const stateLabel: Record<BucketState, string> = { good: "Up", warning: "Partly d
 const stateColor: Record<BucketState, string> = {
   good: "var(--viz-good)", warning: "var(--viz-warning)", critical: "var(--viz-critical)", nodata: "var(--viz-nodata)",
 };
+/** A bar of the uptime strip: no data, all good, mostly up, or mostly down. */
 function bucketState(b?: UptimeBucket): BucketState {
   if (!b || b.total === 0) return "nodata";
   if (b.ok === b.total) return "good";
@@ -61,6 +65,7 @@ function timeline(data: Reliability, s: UptimeSeries) {
   return out;
 }
 
+/** A bar's time as the range needs it: the hour for 24 h, the day (and hour for 7 days) otherwise. */
 function fmtWhen(t: number, range: ReliabilityRange) {
   const d = new Date(t);
   return range === "24h"
@@ -68,6 +73,9 @@ function fmtWhen(t: number, range: ReliabilityRange) {
     : d.toLocaleDateString(locale, { month: "short", day: "numeric" }) + (range === "7d" ? " " + d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "");
 }
 
+/**
+ * The checks a service gets: inside the cluster (its health path, or its port), and its public URL if it has a domain.
+ */
 function checksOf(svc: Service): { kind: CheckKind; target: string }[] {
   const out: { kind: CheckKind; target: string }[] = [];
   const path = svc.health?.path;
@@ -76,6 +84,9 @@ function checksOf(svc: Service): { kind: CheckKind; target: string }[] {
   return out;
 }
 
+/**
+ * The app's Reliability tab: uptime and response times of each check over 24 h, 7 or 30 days, and its outages.
+ */
 export function ReliabilityTab({ app }: { app: App }) {
   const [range, setRange] = useState<ReliabilityRange>("24h");
   const { data, error } = usePoll(() => api.reliability(app.name, range), [app.name, range], 60000);
@@ -109,6 +120,7 @@ export function ReliabilityTab({ app }: { app: App }) {
   );
 }
 
+/** One check: its uptime strip, latency chart, numbers and outages. */
 function CheckCard({ data, series: s, target }: { data: Reliability; series: UptimeSeries; target: string }) {
   const outages = data.incidents.filter((i) => i.service === s.service && i.kind === s.kind).length;
   const last = s.last;
@@ -141,6 +153,7 @@ function CheckCard({ data, series: s, target }: { data: Reliability; series: Upt
   );
 }
 
+/** A number with its label and a note under it. */
 function Tile({ label, value, note }: { label: string; value: string; note: string }) {
   return (
     <div className="rel-tile">
@@ -153,6 +166,7 @@ function Tile({ label, value, note }: { label: string; value: string; note: stri
 
 type Tip = { x: number; y: number; lines: { key?: string; value: string; label: string }[]; when: string } | null;
 
+/** The tooltip over a chart: when, and each line's value. */
 function TipBox({ tip }: { tip: Tip }) {
   if (!tip) return null;
   return (
@@ -207,6 +221,7 @@ function StatusStrip({ data, series }: { data: Reliability; series: UptimeSeries
   );
 }
 
+/** A round top for a chart's scale (1, 2, 2.5 or 5 times a power of ten). */
 function niceMax(v: number): number {
   if (v <= 0) return 100;
   const p = Math.pow(10, Math.floor(Math.log10(v)));
@@ -359,6 +374,7 @@ function DataTable({ data, series }: { data: Reliability; series: UptimeSeries }
   );
 }
 
+/** The outages in the range: which check, when, how long, and the error. */
 function Incidents({ data }: { data: Reliability }) {
   return (
     <section className="card">

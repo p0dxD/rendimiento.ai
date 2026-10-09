@@ -169,6 +169,10 @@ type snapshot struct {
 	policies    map[string]int
 }
 
+// build makes the catalog from one look at the cluster: every Service
+// (rendimiento's apps, other apps, infrastructure), where it comes from, its
+// addresses inside and outside the cluster, its pods and images, and which
+// workloads call it (found in their environment variables).
 func (b *Builder) build(ctx context.Context) (*Catalog, error) {
 	var s snapshot
 	var apps v1alpha1.AppList
@@ -329,6 +333,7 @@ type appService struct {
 	svc spec.Service
 }
 
+// groupRank orders the groups: apps, then other, then infrastructure.
 func groupRank(g Group) int {
 	switch g {
 	case GroupApps:
@@ -339,6 +344,8 @@ func groupRank(g Group) int {
 	return 2
 }
 
+// appOrigin says where an app's service comes from: built by rendimiento
+// from its repository (with a link to the folder), or a ready-made image.
 func appOrigin(as appService) Origin {
 	o := Origin{Kind: "rendimiento", App: as.app.Name, Repo: as.app.Spec.Repo, Release: as.app.Spec.Release}
 	ref := as.app.Spec.Images[as.svc.Name]
@@ -394,6 +401,7 @@ type metav1Object interface {
 	GetAnnotations() map[string]string
 }
 
+// firstNonEmpty is the first of a that is not "".
 func firstNonEmpty(a ...string) string {
 	for _, s := range a {
 		if s != "" {
@@ -442,6 +450,9 @@ func lanAddress(svc corev1.Service, port int32, protocol string) (string, string
 	return "", ""
 }
 
+// address is how to reach a service from inside the cluster, as a URL for
+// protocols that have one (no port when it is the protocol's usual one),
+// else host:port.
 func address(protocol, host string, port int32) string {
 	switch protocol {
 	case "http", "https", "postgres", "redis", "mysql", "mongodb", "grpc":
@@ -455,6 +466,8 @@ func address(protocol, host string, port int32) string {
 
 var nonEnv = regexp.MustCompile(`[^A-Z0-9]+`)
 
+// suggestEnv is the environment variable an app would usually read the
+// service's address from (DATABASE_URL, REDIS_URL, ...).
 func suggestEnv(name, protocol string) string {
 	switch protocol {
 	case "postgres", "mysql":
@@ -481,6 +494,8 @@ secretEnv:
 	return fmt.Sprintf("env:\n  %s: %s\n", e.Env, e.URL)
 }
 
+// withCredentials shows where the user, password and database go in the
+// address, as placeholders.
 func withCredentials(u string) string {
 	scheme, rest, ok := strings.Cut(u, "://")
 	if !ok {
@@ -493,6 +508,7 @@ func withCredentials(u string) string {
 	return scheme + "://<user>:<password>@" + rest + db
 }
 
+// publicURLs are the https:// addresses ingresses publish the service on.
 func publicURLs(ings []networkingv1.Ingress, svc corev1.Service) []string {
 	var out []string
 	seen := map[string]bool{}
@@ -522,6 +538,7 @@ func publicURLs(ings []networkingv1.Ingress, svc corev1.Service) []string {
 	return out
 }
 
+// selected are the running pods the Service sends traffic to.
 func selected(pods []corev1.Pod, svc corev1.Service) []corev1.Pod {
 	if len(svc.Spec.Selector) == 0 {
 		return nil
@@ -545,6 +562,7 @@ func selected(pods []corev1.Pod, svc corev1.Service) []corev1.Pod {
 	return out
 }
 
+// podReady reports whether Kubernetes counts the pod as ready.
 func podReady(p corev1.Pod) bool {
 	for _, c := range p.Status.Conditions {
 		if c.Type == corev1.PodReady {
@@ -554,6 +572,7 @@ func podReady(p corev1.Pod) bool {
 	return false
 }
 
+// podImages are the images the pods run, each once.
 func podImages(pods []corev1.Pod) []Image {
 	var out []Image
 	seen := map[string]bool{}
@@ -609,6 +628,8 @@ var categoryRules = []struct {
 	{"platform", regexp.MustCompile(`ingress|cert-manager|metallb|coredns|kube-dns|traefik|webhook|^kubernetes$|metrics-server|dex`)},
 }
 
+// categorize guesses what a service is (database, cache, storage,
+// monitoring, ...) from its protocol, name and images.
 func categorize(e Entry) string {
 	hay := []string{e.Protocol, e.Name, e.Namespace + "/" + e.Name}
 	for _, i := range e.Origin.Images {
@@ -643,6 +664,8 @@ type workload struct {
 	env                        []corev1.EnvVar
 }
 
+// collectWorkloads lists Deployments, StatefulSets and CronJobs with the
+// environment of all their containers, to find which call which service.
 func collectWorkloads(s snapshot, appOfNS map[string]string) []workload {
 	var out []workload
 	add := func(ns, name, kind string, spec corev1.PodSpec) {

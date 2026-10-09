@@ -705,6 +705,12 @@ func (p *Platform) Cancel(runID int64) bool {
 	return false
 }
 
+// execute does one run from start to end: it reads the app's spec (a
+// branch's own, from its commit), plans the steps, leaves out what has not
+// changed since the last release (its images are reused) and the tasks that
+// do not apply, runs the rest, and records the result. A successful run of
+// the default branch becomes a release; GitHub shows the run as a check on
+// the commit, and a failure on the default branch sends an email.
 func (p *Platform) execute(ctx context.Context, run *store.Run) {
 	log := p.Log.With("run", run.ID)
 	app, err := p.Store.GetAppByID(ctx, run.AppID)
@@ -826,6 +832,10 @@ func (p *Platform) execute(ctx context.Context, run *store.Run) {
 	log.Info("run finished", "app", app.Name, "status", status, "message", msg)
 }
 
+// release records a release from a successful run: the images it built (by
+// digest), the ones it reused, and ready-made images as given. It then runs
+// the pre-deploy tasks and points the app's App object at the release, which
+// the controller deploys.
 func (p *Platform) release(ctx context.Context, app *store.App, run *store.Run, sp spec.Spec, steps []pipeline.Step, results map[string]pipeline.StepResult, reuse map[string]string) (*store.Release, error) {
 	images := map[string]string{}
 	for key, img := range reuse {
@@ -857,6 +867,7 @@ func (p *Platform) release(ctx context.Context, app *store.App, run *store.Run, 
 // pre-deploy task failed.
 type errPreDeploy struct{ reason string }
 
+// Error is why the release was not deployed.
 func (e errPreDeploy) Error() string { return e.reason }
 
 // preDeploy runs the release's pre-deploy tasks before it is rolled out. A
@@ -1024,6 +1035,9 @@ func (p *Platform) pointApp(ctx context.Context, name string, rel *store.Release
 
 // ---- GitHub check runs ----
 
+// startCheck shows the run on its commit in GitHub, as an "in progress"
+// check that links to the run page (0: no check, e.g. a manual run of a
+// branch name).
 func (p *Platform) startCheck(ctx context.Context, app *store.App, run *store.Run) int64 {
 	if len(run.SHA) != 40 {
 		return 0 // manual runs on a branch name have no commit to attach to
@@ -1040,6 +1054,8 @@ func (p *Platform) startCheck(ctx context.Context, app *store.App, run *store.Ru
 	return id
 }
 
+// finishCheck completes the run's GitHub check: success, failure or
+// cancelled, with the run's message.
 func (p *Platform) finishCheck(ctx context.Context, app *store.App, run *store.Run, id int64, status, msg string) {
 	if id == 0 {
 		return
@@ -1058,6 +1074,7 @@ func (p *Platform) finishCheck(ctx context.Context, app *store.App, run *store.R
 
 // ---- events & recorder ----
 
+// appTopic is the events topic for an app's live updates.
 func appTopic(app string) string { return "app/" + app }
 
 // RunTopic is the events topic for a run's live updates.
@@ -1066,6 +1083,7 @@ func RunTopic(runID int64) string { return "run/" + strconv.FormatInt(runID, 10)
 // AppTopic is the events topic for an app's live updates.
 func AppTopic(app string) string { return appTopic(app) }
 
+// publishRun sends the run as it is now to whoever watches it or its app.
 func (p *Platform) publishRun(app *store.App, runID int64) {
 	if r, err := p.Store.GetRun(context.Background(), runID); err == nil {
 		p.Hub.Publish(RunTopic(runID), events.Event{Type: "run", Data: r})
@@ -1075,6 +1093,8 @@ func (p *Platform) publishRun(app *store.App, runID int64) {
 
 type installationKey struct{}
 
+// withInstallation carries the GitHub installation into the steps, so each
+// can get a token to clone the repository (see CloneToken).
 func withInstallation(ctx context.Context, id int64) context.Context {
 	return context.WithValue(ctx, installationKey{}, id)
 }

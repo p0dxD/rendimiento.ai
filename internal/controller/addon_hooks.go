@@ -157,6 +157,7 @@ func (r *AddonReconciler) deleteAndWait(ctx context.Context, obj *unstructured.U
 	return fmt.Errorf("%s %s still exists after 2m", obj.GetKind(), obj.GetName())
 }
 
+// hookInfo is what the add-on's status shows of its Helm hooks.
 func hookInfo(hooks []addon.Hook) []v1alpha1.HookInfo {
 	var out []v1alpha1.HookInfo
 	for _, h := range hooks {
@@ -165,6 +166,7 @@ func hookInfo(hooks []addon.Hook) []v1alpha1.HookInfo {
 	return out
 }
 
+// countHooks is how many hooks run on event (install, upgrade, delete).
 func countHooks(hooks []addon.Hook, event string) int {
 	n := 0
 	for _, h := range hooks {

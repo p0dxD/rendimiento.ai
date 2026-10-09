@@ -114,6 +114,9 @@ func (r *Renderer) Render(ctx context.Context, a *v1alpha1.Addon) (*Result, erro
 
 // ---- Helm ----
 
+// renderHelm renders a Helm chart add-on: it downloads the chart version
+// from its repository and renders its templates with the add-on's values,
+// keeping its hooks apart to run them like Helm does.
 func (r *Renderer) renderHelm(ctx context.Context, a *v1alpha1.Addon) (*Result, error) {
 	h := a.Spec.Source.Helm
 	ch, err := r.chart(ctx, h.Repo, h.Chart, h.Version)
@@ -232,6 +235,7 @@ func (r *Renderer) chart(ctx context.Context, repoURL, name, version string) (*c
 	return c, nil
 }
 
+// get downloads a URL (2 minutes at most by default).
 func (r *Renderer) get(ctx context.Context, u string) ([]byte, error) {
 	hc := r.HTTP
 	if hc == nil {
@@ -254,6 +258,8 @@ func (r *Renderer) get(ctx context.Context, u string) ([]byte, error) {
 
 // ---- git (kustomize or plain manifests) ----
 
+// renderGit renders an add-on kept in a git repository: the folder at the
+// revision, as plain manifests or a kustomization (Build).
 func (r *Renderer) renderGit(ctx context.Context, a *v1alpha1.Addon) (*Result, error) {
 	g := a.Spec.Source.Git
 	if r.Git == nil {

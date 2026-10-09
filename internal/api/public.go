@@ -97,6 +97,8 @@ func (s *Server) publicStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, s.public.stats)
 }
 
+// buildPublicStats computes the public numbers: delivery over 30 days and
+// each public site's uptime over 90 days.
 func (s *Server) buildPublicStats(ctx context.Context) (*PublicStats, error) {
 	tz := s.PublicTimeZone
 	if tz == "" {
@@ -171,6 +173,8 @@ type activityCache struct {
 	out *PublicActivity
 }
 
+// publicActivity is the welcome page's "right now", without login: the
+// runs going and the latest releases (cached 15 seconds).
 func (s *Server) publicActivity(w http.ResponseWriter, r *http.Request) {
 	if !s.PublicActivity {
 		httpError(w, http.StatusNotFound, "public activity is off (PUBLIC_ACTIVITY)")

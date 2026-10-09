@@ -22,6 +22,8 @@ type RutaInput struct {
 	Done  bool     `json:"done"`
 }
 
+// check tidies an entry from the Ruta page (trimmed title, lowercase tags)
+// and says what is wrong with it, or "".
 func (in *RutaInput) check() string {
 	in.Title = strings.TrimSpace(in.Title)
 	tags := []string{}
@@ -46,6 +48,7 @@ func (in *RutaInput) check() string {
 	return ""
 }
 
+// listRuta is the Ruta page's list: entries by kind and text.
 func (s *Server) listRuta(w http.ResponseWriter, r *http.Request, _ string) {
 	q := r.URL.Query()
 	kind := q.Get("kind")
@@ -61,6 +64,7 @@ func (s *Server) listRuta(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSON(w, list)
 }
 
+// addRuta writes an entry from the Ruta page, signed by the person.
 func (s *Server) addRuta(w http.ResponseWriter, r *http.Request, login string) {
 	var in RutaInput
 	if !readJSON(w, r, &in) {
@@ -78,6 +82,7 @@ func (s *Server) addRuta(w http.ResponseWriter, r *http.Request, login string) {
 	writeJSONStatus(w, http.StatusCreated, e)
 }
 
+// rutaID reads the entry ID from the URL (400 when it is not a number).
 func rutaID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -87,6 +92,7 @@ func rutaID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	return id, true
 }
 
+// updateRuta changes an entry from the Ruta page.
 func (s *Server) updateRuta(w http.ResponseWriter, r *http.Request, login string) {
 	id, ok := rutaID(w, r)
 	if !ok {
@@ -118,6 +124,7 @@ func (s *Server) updateRuta(w http.ResponseWriter, r *http.Request, login string
 	writeJSON(w, e)
 }
 
+// archiveRuta hides an entry from lists; it is kept.
 func (s *Server) archiveRuta(w http.ResponseWriter, r *http.Request, login string) {
 	id, ok := rutaID(w, r)
 	if !ok {
@@ -140,6 +147,8 @@ type RutaActivity struct {
 	Actions []store.AgentActionRow `json:"actions"`
 }
 
+// rutaActivity is the Ruta's Activity tab: agents' cargos and every tool
+// call they made.
 func (s *Server) rutaActivity(w http.ResponseWriter, r *http.Request, _ string) {
 	cargos, err := s.Store.ListCargos(r.Context(), 100)
 	if err != nil {
@@ -170,6 +179,7 @@ type CreatedAgentKey struct {
 	Endpoint string         `json:"endpoint"`
 }
 
+// listAgentKeys lists the agents' keys (names and rights; never the keys).
 func (s *Server) listAgentKeys(w http.ResponseWriter, r *http.Request, _ string) {
 	keys, err := s.Store.ListAgentKeys(r.Context())
 	if err != nil {
@@ -179,6 +189,9 @@ func (s *Server) listAgentKeys(w http.ResponseWriter, r *http.Request, _ string)
 	writeJSON(w, keys)
 }
 
+// createAgentKey makes a key for an agent, read-only or able to write, that
+// lasts the days asked for. The key is shown once, in this answer; only its
+// hash is kept.
 func (s *Server) createAgentKey(w http.ResponseWriter, r *http.Request, login string) {
 	var in NewAgentKey
 	if !readJSON(w, r, &in) {
@@ -207,6 +220,7 @@ func (s *Server) createAgentKey(w http.ResponseWriter, r *http.Request, login st
 	writeJSONStatus(w, http.StatusCreated, CreatedAgentKey{Key: k, Token: token, Endpoint: strings.TrimRight(s.BaseURL, "/") + "/mcp"})
 }
 
+// revokeAgentKey stops a key from working.
 func (s *Server) revokeAgentKey(w http.ResponseWriter, r *http.Request, login string) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {

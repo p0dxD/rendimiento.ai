@@ -122,6 +122,7 @@ func (s *Store) FailRunningAddonRuns(ctx context.Context) (int64, error) {
 
 const addonRunCols = `id, addon, trigger, status, message, repos, results, started_at, finished_at`
 
+// scanAddonRun reads an add-on run row (with its log when withLog).
 func scanAddonRun(row pgx.Row, withLog bool) (*AddonRun, error) {
 	var r AddonRun
 	var repos, results []byte

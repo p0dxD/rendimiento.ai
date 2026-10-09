@@ -42,6 +42,7 @@ func (s Status) rank() int {
 	return 3
 }
 
+// worst is the more serious of two statuses.
 func worst(a, b Status) Status {
 	if b.rank() > a.rank() {
 		return b
@@ -213,6 +214,8 @@ func (c *Checker) Report(ctx context.Context, refresh bool) *Report {
 	return r
 }
 
+// build makes the report: a snapshot of the cluster, every check run in
+// parallel, and an overall status and summary.
 func (c *Checker) build(ctx context.Context) *Report {
 	r := &Report{GeneratedAt: time.Now()}
 	snap := c.snapshot(ctx)

@@ -33,6 +33,7 @@ type DDNSStatus struct {
 	Error     string    `json:"error,omitempty"`
 }
 
+// auto: records follow the public IP (DNS_TARGET=auto).
 func (c *Cloudflare) auto() bool { return strings.EqualFold(c.Target, "auto") }
 
 // DDNSStatus reports the last public-IP check and change, for the Environment page.
@@ -200,6 +201,7 @@ func PublicIPv4(ctx context.Context) (string, error) {
 	return "", errors.Join(errs...)
 }
 
+// fetchIP asks one public service what our IP is.
 func fetchIP(ctx context.Context, hc *http.Client, src string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, src, nil)
 	if err != nil {

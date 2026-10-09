@@ -15,11 +15,13 @@ const phaseLabel: Record<AddonPhase, string> = {
   Synced: "In sync", OutOfSync: "Changes waiting", Blocked: "Review needed", Pending: "Pending", Error: "Error", Suspended: "Suspended",
 };
 
+/** An installed add-on's state as a colored label. */
 export function AddonPhaseBadge({ phase }: { phase?: AddonPhase }) {
   const p = phase ?? "Pending";
   return <span className={`badge ${phaseTone[p]}`}>{t(phaseLabel[p])}</span>;
 }
 
+/** Where an add-on comes from: its Helm chart and version, or its git folder. */
 export function sourceLabel(a: { source: InstalledAddon["source"] }) {
   if (a.source.helm) return `${a.source.helm.chart} ${a.source.helm.version} (Helm)`;
   if (a.source.git) return `${a.source.git.repo}/${a.source.git.path} (git)`;
@@ -114,11 +116,13 @@ export function InstalledSection({ query }: { query: string }) {
   );
 }
 
+/** A catalog field's starting value in the install form. */
 function fieldDefault(f: CatalogField): string | boolean {
   if (f.type === "boolean") return Boolean(f.default);
   return f.default === undefined ? "" : String(f.default);
 }
 
+/** Sets a value at a dotted key ("a.b.c") in the Helm values, making the levels it needs. */
 function setPath(values: Record<string, unknown>, key: string, v: unknown) {
   const parts = key.split(".");
   let m = values as Record<string, unknown>;
@@ -128,6 +132,9 @@ function setPath(values: Record<string, unknown>, key: string, v: unknown) {
   });
 }
 
+/**
+ * The form to install an add-on: its name, namespace, source and settings (or Helm values), written to the gitops repository.
+ */
 function InstallForm({ entry, existing, onClose, onDone }: { entry: AddonCatalogEntry; existing: InstalledAddon[]; onClose: () => void; onDone: () => void }) {
   const nav = useNavigate();
   const custom = entry.kind !== "helm";

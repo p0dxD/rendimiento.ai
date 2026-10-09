@@ -21,6 +21,9 @@ type DeliveryReport struct {
 	Weekly   []store.DeliveryWeek `json:"weekly"` // oldest first
 }
 
+// delivery is the dashboard's delivery health: deploys, builds and their
+// times, verifications, rollbacks and outages of the last 30 days next to
+// the 30 before, and twelve weeks of history.
 func (s *Server) delivery(w http.ResponseWriter, r *http.Request, _ string) {
 	tzName := s.PublicTimeZone
 	if tzName == "" {

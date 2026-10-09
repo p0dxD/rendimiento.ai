@@ -205,6 +205,7 @@ type change struct {
 	err    string
 }
 
+// key identifies one check: app, service and kind (public or internal).
 func key(appID int64, service, kind string) string {
 	return fmt.Sprintf("%d/%s/%s", appID, service, kind)
 }
@@ -312,6 +313,7 @@ func (p *Prober) notifyChanges() {
 	}
 }
 
+// checkName is a check as emails and pages name it.
 func checkName(t Target) string {
 	if t.Kind == KindPublic {
 		return M("%s (public URL)", t.Service)
@@ -331,6 +333,8 @@ func joinAnd(names []string) string {
 	return out
 }
 
+// outageMessage is the email that says an app's checks went down, since
+// when and what they answered.
 func outageMessage(app string, down []change, baseURL string) notify.Message {
 	var facts []notify.Fact
 	var names, details []string
@@ -356,6 +360,8 @@ func outageMessage(app string, down []change, baseURL string) notify.Message {
 	}
 }
 
+// recoveryMessage is the email that says the checks are back, and how long
+// they were down.
 func recoveryMessage(app string, up []change, baseURL string) notify.Message {
 	var facts []notify.Fact
 	var names []string
@@ -376,6 +382,8 @@ func recoveryMessage(app string, up []change, baseURL string) notify.Message {
 	}
 }
 
+// humanDuration is a duration in words ("under a minute", "12 min",
+// "2 h 5 min").
 func humanDuration(d time.Duration) string {
 	m := int(d.Round(time.Minute).Minutes())
 	switch {

@@ -251,6 +251,8 @@ FROM nginxinc/nginx-unprivileged:stable-alpine
 COPY . /usr/share/nginx/html
 `
 
+// readme is the README of a page's repository: what each file is, and that
+// the form rewrites index.html on every save.
 func readme(p *Pagina) string {
 	return "# " + p.Nombre + `
 

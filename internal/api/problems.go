@@ -18,6 +18,8 @@ type ProblemList struct {
 	Problems []store.Problem `json:"problems"`
 }
 
+// listProblems is the Problems page: warnings and errors the platform
+// logged recently (an app's, or all), repeats grouped.
 func (s *Server) listProblems(w http.ResponseWriter, r *http.Request, _ string) {
 	q := r.URL.Query()
 	list, err := s.Store.ListProblems(r.Context(), q.Get("app"), time.Now().Add(-problems.Keep), q.Get("dismissed") == "1", 300)
@@ -43,6 +45,7 @@ func (s *Server) problemCount(w http.ResponseWriter, r *http.Request, _ string) 
 	writeJSON(w, map[string]int{"open": open})
 }
 
+// dismissProblem hides a problem until it happens again.
 func (s *Server) dismissProblem(w http.ResponseWriter, r *http.Request, login string) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {

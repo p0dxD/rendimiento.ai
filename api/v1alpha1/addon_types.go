@@ -171,4 +171,5 @@ type AddonList struct {
 	Items           []Addon `json:"items"`
 }
 
+// init registers the Addon kind with the API scheme.
 func init() { SchemeBuilder.Register(&Addon{}, &AddonList{}) }

@@ -17,6 +17,7 @@ export function marchita(a: App): boolean {
   return (a.down?.length ?? 0) > 0 || a.status.phase === "Error" || a.status.phase === "Degraded";
 }
 
+/** The Apps page: every app with its state, last run, uptime and visitors, and the delivery numbers. */
 export function Dashboard() {
   const { data: apps, error } = usePoll(api.apps, [], 10000);
   const nav = useNavigate();

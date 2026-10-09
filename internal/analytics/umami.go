@@ -86,6 +86,7 @@ type Report struct {
 // ErrAuth means Umami refused the user name or password.
 var ErrAuth = errors.New("umami refused the user name or password")
 
+// client is the HTTP client (20 seconds at most per request by default).
 func (u *Umami) client() *http.Client {
 	if u.HTTP != nil {
 		return u.HTTP
@@ -93,6 +94,8 @@ func (u *Umami) client() *http.Client {
 	return &http.Client{Timeout: 20 * time.Second}
 }
 
+// login signs in to Umami with its user and password and returns the token
+// for later requests.
 func (u *Umami) login(ctx context.Context) (string, error) {
 	body, _ := json.Marshal(map[string]string{"username": u.Username, "password": u.Password})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(u.URL, "/")+"/api/auth/login", bytes.NewReader(body))
@@ -238,6 +241,8 @@ func (u *Umami) Websites(ctx context.Context) ([]Website, error) {
 // num reads a JSON number that may come as a string (bigint columns) or null.
 type num int64
 
+// UnmarshalJSON accepts Umami's numbers whether they come as numbers,
+// strings or null.
 func (n *num) UnmarshalJSON(b []byte) error {
 	s := strings.Trim(string(b), `"`)
 	if s == "null" || s == "" {
@@ -260,6 +265,7 @@ type rawStats struct {
 	TotalTime num `json:"totaltime"`
 }
 
+// stats converts Umami's numbers to Stats.
 func (r rawStats) stats() Stats {
 	return Stats{Pageviews: int64(r.Pageviews), Visitors: int64(r.Visitors), Visits: int64(r.Visits),
 		Bounces: int64(r.Bounces), TotalTime: int64(r.TotalTime)}
@@ -397,6 +403,7 @@ func series(rows []xy, p Period) []Point {
 	return out
 }
 
+// truncate is the start of t's day or hour in the period's time zone.
 func truncate(t time.Time, p Period) time.Time {
 	t = t.In(p.TZ)
 	if p.Unit == "day" {
@@ -405,6 +412,7 @@ func truncate(t time.Time, p Period) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, p.TZ)
 }
 
+// next is the day or hour after t.
 func next(t time.Time, p Period) time.Time {
 	if p.Unit == "day" {
 		return t.AddDate(0, 0, 1)

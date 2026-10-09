@@ -111,6 +111,11 @@ func (p *Platform) stopVerification(appID int64) {
 	}
 }
 
+// verify watches a release once it is deployed: it waits for every pod to
+// run the new version, runs the post-deploy tasks, checks each service
+// every few seconds for the window, and then decides. A release that broke
+// a service that worked before it is rolled back to the last good one; a
+// newer release replacing it ends the watch as superseded.
 func (p *Platform) verify(ctx context.Context, app *store.App, rel *store.Release, window time.Duration) {
 	log := p.Log.With("app", app.Name, "release", rel.Number)
 	superseded := func() bool {
@@ -272,6 +277,7 @@ func (p *Platform) verifyMessage(app *store.App, rel *store.Release, reason stri
 	return m
 }
 
+// shortSHA is a commit's first 7 characters.
 func shortSHA(sha string) string {
 	if len(sha) > 7 {
 		return sha[:7]
@@ -369,6 +375,7 @@ type windowStats struct {
 	lastError string
 }
 
+// add counts one check result (and its time, when it answered).
 func (w *windowStats) add(r store.Probe) {
 	w.total++
 	if r.OK {
@@ -379,6 +386,7 @@ func (w *windowStats) add(r store.Probe) {
 	}
 }
 
+// p95 is the time 95% of answers took at most, in milliseconds.
 func (w *windowStats) p95() int {
 	if len(w.latency) == 0 {
 		return 0
@@ -460,6 +468,7 @@ func (p *Platform) ResumeVerifications(ctx context.Context) {
 	}
 }
 
+// fmtDur is a duration as people read it: "5 min", or "1m30s".
 func fmtDur(d time.Duration) string {
 	if d%time.Minute == 0 {
 		return fmt.Sprintf("%d min", int(d.Minutes()))
@@ -467,6 +476,7 @@ func fmtDur(d time.Duration) string {
 	return d.Round(time.Second).String()
 }
 
+// fmtMS is milliseconds as "350 ms" or "1.2 s".
 func fmtMS(ms int) string {
 	if ms < 1000 {
 		return fmt.Sprintf("%d ms", ms)

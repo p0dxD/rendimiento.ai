@@ -150,6 +150,7 @@ func Render(p *Pagina, base string) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
+// lastSegment is what follows the last / (a profile name in a link).
 func lastSegment(s string) string {
 	s = strings.TrimRight(s, "/")
 	if i := strings.LastIndex(s, "/"); i >= 0 {

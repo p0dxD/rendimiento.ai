@@ -5,6 +5,7 @@ import { ErrorBox, RunBadge, Switch, usePoll } from "../components/ui";
 import { InstalledSection } from "./Installed";
 import { locale, t } from "../i18n";
 
+/** The Add-ons page: installed add-ons, the catalog to install more, and the built-in ones (Renovate). */
 export function Addons() {
   const { data, error, reload } = usePoll(() => addonsApi.list(), [], 10000);
   const [q, setQ] = useState("");
@@ -24,6 +25,9 @@ export function Addons() {
   );
 }
 
+/**
+ * Renovate's card: on or off, when it runs, which repositories, what it may merge by itself, and its last runs.
+ */
 function RenovateCard({ addon, onChange }: { addon: Addon; onChange: () => void }) {
   const [settings, setSettings] = useState<RenovateSettings>(addon.settings);
   const [extra, setExtra] = useState(addon.settings.extraRepos.join("\n"));
@@ -159,6 +163,7 @@ function RenovateCard({ addon, onChange }: { addon: Addon; onChange: () => void 
   );
 }
 
+/** One Renovate run: when, how long, what it did; open, its log and each repository's result. */
 function RunRow({ run, open, onToggle }: { run: AddonRun; open: boolean; onToggle: () => void }) {
   const { data: full } = usePoll(() => (open ? addonsApi.runLog("renovate", run.id) : Promise.resolve(undefined)), [open, run.id, run.status], open && run.status === "running" ? 5000 : 0);
   const took = run.finishedAt ? Math.round((new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime()) / 1000) : undefined;

@@ -100,6 +100,8 @@ func (n *Notifier) Notify(m Message) bool {
 	return true
 }
 
+// allow keeps email from flooding: the same message (by its key) at most
+// once every 30 minutes, and 20 emails an hour in all, by default.
 func (n *Notifier) allow(m Message) bool {
 	if !n.Enabled() {
 		return false
@@ -197,6 +199,7 @@ func Localize(m Message, lang i18n.Lang) Message {
 // Render returns m as an email-safe HTML page and as plain text, in English.
 func Render(m Message) (string, string, error) { return render(m, i18n.English) }
 
+// render is an email's subject and HTML in a language, in the tone's colors.
 func render(m Message, lang i18n.Lang) (string, string, error) {
 	t, ok := tones[m.Tone]
 	if !ok {

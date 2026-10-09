@@ -94,6 +94,12 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 // errBlocked marks problems that need a human (name clashes); retried slowly.
 var errBlocked = errors.New("blocked")
 
+// sync makes the cluster match one App: it renders the app's objects from
+// its services, jobs, needs and released images (render.Render), applies
+// them (the namespace first, then its secrets, then the rest, ingresses
+// last), moves traffic over from an app it is migrating, deletes objects
+// the app no longer needs, and fills st with each service's health.
+// A suspended app, or one with no build yet, is left alone.
 func (r *AppReconciler) sync(ctx context.Context, app *v1alpha1.App, st *v1alpha1.AppStatus) (ctrl.Result, error) {
 	switch {
 	case app.Spec.Suspend:
@@ -377,6 +383,7 @@ func (r *AppReconciler) migrate(ctx context.Context, app *v1alpha1.App, objs *re
 	return true, nil
 }
 
+// selects reports whether labels carry every key and value of selector.
 func selects(selector, labels map[string]string) bool {
 	for k, v := range selector {
 		if labels[k] != v {
@@ -386,6 +393,9 @@ func selects(selector, labels map[string]string) bool {
 	return true
 }
 
+// apply writes one object with server-side apply as rendimiento, owned by
+// the App (so it goes when the App goes): whatever someone changed by hand
+// in the fields rendimiento sets is put back.
 func (r *AppReconciler) apply(ctx context.Context, app *v1alpha1.App, obj metav1.Object) error {
 	robj := obj.(client.Object)
 	if err := controllerutil.SetControllerReference(app, robj, r.Scheme); err != nil {
@@ -543,6 +553,8 @@ func (r *AppReconciler) prune(ctx context.Context, app *v1alpha1.App, objs *rend
 	return nil
 }
 
+// appendIfStale adds o to stale when the rendered objects (want, by type and
+// name) no longer include it.
 func appendIfStale(stale []client.Object, want map[string]bool, o client.Object) []client.Object {
 	if !want[fmt.Sprintf("%T/%s", o, o.GetName())] {
 		return append(stale, o)
@@ -569,6 +581,7 @@ func (r *AppReconciler) lanURL(ctx context.Context, ns string, svc spec.Service)
 	return ""
 }
 
+// certReady reports whether cert-manager has issued the Certificate ns/name.
 func (r *AppReconciler) certReady(ctx context.Context, ns, name string) bool {
 	u := &unstructured.Unstructured{}
 	u.SetGroupVersionKind(certificateGVK)
@@ -589,6 +602,9 @@ func (r *AppReconciler) certReady(ctx context.Context, ns, name string) bool {
 // running unmanaged, so deleting it must not remove their DNS records.
 const AnnotationDisconnect = "rendimiento.ai/disconnect"
 
+// finalize runs when an App is deleted, before Kubernetes removes it: it
+// deletes the app's DNS records (unless the app is only being disconnected,
+// which leaves everything running), then lets the deletion go on.
 func (r *AppReconciler) finalize(ctx context.Context, app *v1alpha1.App) error {
 	if !controllerutil.ContainsFinalizer(app, finalizer) {
 		return nil
@@ -625,6 +641,7 @@ func (r *AppReconciler) crashLooping(ctx context.Context, dep *appsv1.Deployment
 	return ""
 }
 
+// deploymentCondition is the Deployment's condition of type t, or nil.
 func deploymentCondition(d *appsv1.Deployment, t appsv1.DeploymentConditionType) *appsv1.DeploymentCondition {
 	for i := range d.Status.Conditions {
 		if d.Status.Conditions[i].Type == t {

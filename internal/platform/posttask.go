@@ -128,6 +128,8 @@ func (p *Platform) runStage(ctx context.Context, app *store.App, rel *store.Rele
 	return out
 }
 
+// saveTask records a deploy task's state; a failure to record is only
+// logged.
 func (p *Platform) saveTask(t store.ReleaseTask) {
 	if err := p.Store.SaveReleaseTask(context.Background(), t); err != nil {
 		p.Log.Warn("could not record a post-deploy task", "task", t.Name, "err", err)
@@ -366,6 +368,7 @@ func (p *Platform) waitTaskPod(ctx context.Context, ns, job string) string {
 	return ""
 }
 
+// jobFailed reports whether Kubernetes marked the task's Job failed.
 func jobFailed(j *batchv1.Job) bool {
 	for _, c := range j.Status.Conditions {
 		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue {
@@ -375,6 +378,7 @@ func jobFailed(j *batchv1.Job) bool {
 	return false
 }
 
+// jobFailure says why the Job failed ("timed out", or its reason).
 func jobFailure(j *batchv1.Job) string {
 	for _, c := range j.Status.Conditions {
 		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue {
@@ -387,6 +391,7 @@ func jobFailure(j *batchv1.Job) string {
 	return M("the task failed")
 }
 
+// lastLines is the last n lines of a log on one line, to quote in a message.
 func lastLines(s string, n int) string {
 	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
 	if len(lines) > n {

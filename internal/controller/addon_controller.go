@@ -333,6 +333,8 @@ func normalize(o *unstructured.Unstructured) string {
 	return string(b)
 }
 
+// unifiedDiff shows how an object in the cluster differs from what the
+// add-on wants (for manual sync), cut at 3000 characters.
 func unifiedDiff(a, b string) string {
 	d, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
 		A: difflib.SplitLines(a), B: difflib.SplitLines(b), FromFile: "live", ToFile: "desired", Context: 2,
@@ -360,6 +362,8 @@ func (r *AddonReconciler) applyAll(ctx context.Context, objs []*unstructured.Uns
 	return nil
 }
 
+// waitCRDs waits up to 30 seconds for the CRDs just applied to be ready,
+// before applying objects of those kinds.
 func (r *AddonReconciler) waitCRDs(ctx context.Context, objs []*unstructured.Unstructured) error {
 	deadline := time.Now().Add(30 * time.Second)
 	for _, o := range objs {
@@ -381,6 +385,7 @@ func (r *AddonReconciler) waitCRDs(ctx context.Context, objs []*unstructured.Uns
 	return nil
 }
 
+// established reports whether a CRD is ready to be used.
 func established(crd *unstructured.Unstructured) bool {
 	conds, _, _ := unstructured.NestedSlice(crd.Object, "status", "conditions")
 	for _, c := range conds {
@@ -414,6 +419,8 @@ func (r *AddonReconciler) prune(ctx context.Context, previous, current []v1alpha
 	return nil
 }
 
+// deleteRef deletes one object an add-on made; one already gone (or whose
+// kind no longer exists) is fine.
 func (r *AddonReconciler) deleteRef(ctx context.Context, x v1alpha1.ObjectRef) error {
 	u := &unstructured.Unstructured{}
 	u.SetGroupVersionKind(schema.GroupVersionKind{Group: x.Group, Version: x.Version, Kind: x.Kind})
@@ -464,11 +471,13 @@ func (r *AddonReconciler) finalize(ctx context.Context, a *v1alpha1.Addon) error
 	return r.Update(ctx, a)
 }
 
+// saveStatus writes the add-on's status.
 func (r *AddonReconciler) saveStatus(ctx context.Context, a *v1alpha1.Addon, st *v1alpha1.AddonStatus) error {
 	a.Status = *st
 	return r.Status().Update(ctx, a)
 }
 
+// ref is how an add-on remembers an object it made.
 func ref(o *unstructured.Unstructured) v1alpha1.ObjectRef {
 	gvk := o.GroupVersionKind()
 	return v1alpha1.ObjectRef{Group: gvk.Group, Version: gvk.Version, Kind: gvk.Kind, Namespace: o.GetNamespace(), Name: o.GetName()}
@@ -479,6 +488,7 @@ func refKey(x v1alpha1.ObjectRef) string {
 	return x.Group + "/" + x.Kind + "/" + x.Namespace + "/" + x.Name
 }
 
+// refs is ref of each object, sorted.
 func refs(objs []*unstructured.Unstructured) []v1alpha1.ObjectRef {
 	out := make([]v1alpha1.ObjectRef, 0, len(objs))
 	for _, o := range objs {
@@ -488,6 +498,7 @@ func refs(objs []*unstructured.Unstructured) []v1alpha1.ObjectRef {
 	return out
 }
 
+// fromUnstructured converts an object read without its Go type into one.
 func fromUnstructured(u *unstructured.Unstructured, into any) error {
 	b, err := u.MarshalJSON()
 	if err != nil {

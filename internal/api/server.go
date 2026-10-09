@@ -235,6 +235,9 @@ func (s *Server) guard(next http.Handler) http.Handler {
 	})
 }
 
+// sameOrigin reports whether a browser's Origin header names the host the
+// request came in on (behind the ingress, X-Forwarded-Host). Requests that
+// change something must come from rendimiento's own pages.
 func sameOrigin(origin string, r *http.Request) bool {
 	u, err := url.Parse(origin)
 	if err != nil {
@@ -249,17 +252,23 @@ func sameOrigin(origin string, r *http.Request) bool {
 
 // ---- sessions ----
 
+// hashToken is what the database keeps of a session token: its SHA-256, so
+// a copy of the sessions table cannot be used to sign in.
 func hashToken(t string) string {
 	sum := sha256.Sum256([]byte(t))
 	return hex.EncodeToString(sum[:])
 }
 
+// randomToken is 32 random bytes in hex: session tokens and OAuth states.
 func randomToken() string {
 	b := make([]byte, 32)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
 }
 
+// requireSession wraps a handler for signed-in people: it reads the session
+// cookie, finds whose it is, checks that login is still in ALLOWED_USERS,
+// and passes the login on (or answers 401).
 func (s *Server) requireSession(h func(http.ResponseWriter, *http.Request, string)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(sessionCookie)
@@ -276,12 +285,16 @@ func (s *Server) requireSession(h func(http.ResponseWriter, *http.Request, strin
 	})
 }
 
+// allowed reports whether a GitHub login is in ALLOWED_USERS (any case).
 func (s *Server) allowed(login string) bool {
 	return slices.ContainsFunc(s.AllowedUsers, func(u string) bool { return strings.EqualFold(u, login) })
 }
 
+// secureCookies: cookies are HTTPS-only when the platform is served on HTTPS.
 func (s *Server) secureCookies() bool { return strings.HasPrefix(s.BaseURL, "https://") }
 
+// login starts "Sign in with GitHub": it sets a random state in a cookie and
+// sends the browser to GitHub, which comes back to callback with a code.
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	app, err := s.GitHub.Get()
 	if err != nil {
@@ -317,6 +330,10 @@ func (s *Server) loginElsewhere(r *http.Request) string {
 	return s.BaseURL + "/api/auth/login"
 }
 
+// callback finishes the GitHub sign-in: it checks the state against the
+// cookie (so nobody can make you sign in as them), trades the code for the
+// GitHub login, refuses logins not in ALLOWED_USERS, and opens a session of
+// 7 days.
 func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 	app, err := s.GitHub.Get()
 	if err != nil {
@@ -348,6 +365,7 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
+// logout deletes the session and its cookie.
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(sessionCookie); err == nil {
 		_ = s.Store.DeleteSession(r.Context(), hashToken(c.Value))
@@ -358,6 +376,9 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 
 // ---- one-click GitHub App setup (manifest flow) ----
 
+// setupStatus tells the UI, before anyone signs in, whether the GitHub App
+// exists yet (and where to install it), whether the welcome page shows
+// what is happening, and where the book is.
 func (s *Server) setupStatus(w http.ResponseWriter, _ *http.Request) {
 	app, err := s.GitHub.Get()
 	out := map[string]any{"configured": err == nil, "activity": s.PublicActivity}
@@ -371,6 +392,9 @@ func (s *Server) setupStatus(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, out)
 }
 
+// checkSetupToken guards the one-time GitHub App setup: it is refused once
+// the App exists, and needs the token from the rendimiento-setup secret (in
+// the URL the first time, then in a cookie).
 func (s *Server) checkSetupToken(w http.ResponseWriter, r *http.Request) bool {
 	if _, err := s.GitHub.Get(); err == nil {
 		httpError(w, http.StatusConflict, "GitHub App is already configured")
@@ -398,6 +422,9 @@ var setupPage = template.Must(template.New("setup").Parse(`<!doctype html>
 <script>document.getElementById('f').submit()</script>
 </body></html>`))
 
+// setupStart is the page that posts the App's manifest (name, permissions,
+// webhook URL) to GitHub, which creates the App and sends you back to
+// setupCallback.
 func (s *Server) setupStart(w http.ResponseWriter, r *http.Request) {
 	if !s.checkSetupToken(w, r) {
 		return
@@ -408,6 +435,9 @@ func (s *Server) setupStart(w http.ResponseWriter, r *http.Request) {
 	_ = setupPage.Execute(w, map[string]string{"Name": s.AppName, "Manifest": string(manifest), "State": randomToken()[:16]})
 }
 
+// setupCallback receives the new App from GitHub (its ID, private key and
+// secrets, traded for the code), stores it in the rendimiento-github secret,
+// starts using it without a restart, and sends you on to install it.
 func (s *Server) setupCallback(w http.ResponseWriter, r *http.Request) {
 	if !s.checkSetupToken(w, r) {
 		return
@@ -435,6 +465,10 @@ func (s *Server) setupCallback(w http.ResponseWriter, r *http.Request) {
 
 // ---- webhooks ----
 
+// webhook receives GitHub's events. Only signed ones count (the App's
+// webhook secret); a push to a branch queues the runs of the app that repo
+// belongs to, and every other event, or a push from an account not in
+// GITHUB_ACCOUNTS, is acknowledged and ignored.
 func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 	app, err := s.GitHub.Get()
 	if err != nil {
@@ -517,6 +551,8 @@ func (s *Server) installationAllowed(w http.ResponseWriter, r *http.Request, id 
 	return true
 }
 
+// installations lists the accounts the App is installed on (those in
+// GITHUB_ACCOUNTS, when set), for the "New app" wizard's first choice.
 func (s *Server) installations(w http.ResponseWriter, r *http.Request, _ string) {
 	app, err := s.GitHub.Get()
 	if err != nil {
@@ -531,6 +567,7 @@ func (s *Server) installations(w http.ResponseWriter, r *http.Request, _ string)
 	writeJSON(w, map[string]any{"installations": inst, "installURL": app.Credentials().HTMLURL + "/installations/new"})
 }
 
+// repos lists the repositories one installation can see, for the wizard.
 func (s *Server) repos(w http.ResponseWriter, r *http.Request, _ string) {
 	app, err := s.GitHub.Get()
 	if err != nil {
@@ -554,6 +591,8 @@ func (s *Server) repos(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSON(w, repos)
 }
 
+// zones lists the DNS zones apps can have addresses in (the DNS provider's,
+// plus DNS_ZONE), for the wizard's domain field.
 func (s *Server) zones(w http.ResponseWriter, r *http.Request, _ string) {
 	zones, err := s.DNS.Zones(r.Context())
 	if err != nil {
@@ -569,6 +608,9 @@ func (s *Server) zones(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSON(w, zones)
 }
 
+// propose looks at a repository (detects its languages, ports, Dockerfiles)
+// and answers the rendimiento.yaml it would write, without writing anything:
+// the wizard's form starts from it.
 func (s *Server) propose(w http.ResponseWriter, r *http.Request, _ string) {
 	var req struct {
 		Installation int64  `json:"installation"`
@@ -591,6 +633,8 @@ func (s *Server) propose(w http.ResponseWriter, r *http.Request, _ string) {
 
 // ---- services catalog ----
 
+// services is the Services page: everything running in the cluster, apps
+// and not, with what calls what (cached; ?refresh=1 rebuilds it).
 func (s *Server) services(w http.ResponseWriter, r *http.Request, _ string) {
 	if s.Catalog == nil {
 		httpError(w, http.StatusServiceUnavailable, "the services catalog is not enabled")
@@ -606,6 +650,9 @@ func (s *Server) services(w http.ResponseWriter, r *http.Request, _ string) {
 
 // ---- environment ----
 
+// environment is the Environment page's report: what the cluster has, what
+// rendimiento needs from it, and what is wrong (cached; ?refresh=1 checks
+// again).
 func (s *Server) environment(w http.ResponseWriter, r *http.Request, _ string) {
 	if s.Environment == nil {
 		httpError(w, http.StatusServiceUnavailable, "environment checks are not enabled")
@@ -682,6 +729,8 @@ func (s *Server) downChecks(ctx context.Context) map[int64][]string {
 	return out
 }
 
+// view is an app as the UI shows it: the stored app, its live status from
+// its App object in the cluster, and its last run.
 func (s *Server) view(ctx context.Context, a *store.App) appView {
 	v := appView{App: a}
 	var cr v1alpha1.App
@@ -694,6 +743,8 @@ func (s *Server) view(ctx context.Context, a *store.App) appView {
 	return v
 }
 
+// listApps is the Apps page: every app with its status, last run, uptime of
+// the last 24 hours and any checks failing right now.
 func (s *Server) listApps(w http.ResponseWriter, r *http.Request, _ string) {
 	apps, err := s.Store.ListApps(r.Context())
 	if err != nil {
@@ -718,6 +769,9 @@ func (s *Server) listApps(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSON(w, out)
 }
 
+// createApp onboards a repository from the wizard: it registers the app
+// and opens the pull request that adds rendimiento.yaml or, when the
+// repository already has one (existing), queues its first build.
 func (s *Server) createApp(w http.ResponseWriter, r *http.Request, login string) {
 	var req struct {
 		platform.OnboardRequest
@@ -738,6 +792,8 @@ func (s *Server) createApp(w http.ResponseWriter, r *http.Request, login string)
 	writeJSONStatus(w, http.StatusCreated, res)
 }
 
+// app loads the app named in the URL, answering 404 when there is none; a
+// nil result means the answer was already written.
 func (s *Server) app(w http.ResponseWriter, r *http.Request) *store.App {
 	a, err := s.Store.GetApp(r.Context(), r.PathValue("app"))
 	if errors.Is(err, store.ErrNotFound) {
@@ -751,6 +807,7 @@ func (s *Server) app(w http.ResponseWriter, r *http.Request) *store.App {
 	return a
 }
 
+// getApp is one app's page.
 func (s *Server) getApp(w http.ResponseWriter, r *http.Request, _ string) {
 	if a := s.app(w, r); a != nil {
 		v := s.view(r.Context(), a)
@@ -759,6 +816,8 @@ func (s *Server) getApp(w http.ResponseWriter, r *http.Request, _ string) {
 	}
 }
 
+// deleteApp removes an app and everything rendimiento made for it
+// (namespace, DNS records). The app's name must be repeated in ?confirm=.
 func (s *Server) deleteApp(w http.ResponseWriter, r *http.Request, login string) {
 	a := s.app(w, r)
 	if a == nil {
@@ -776,6 +835,8 @@ func (s *Server) deleteApp(w http.ResponseWriter, r *http.Request, login string)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// deleteImpact lists what deleting the app would remove, for the
+// confirmation dialog.
 func (s *Server) deleteImpact(w http.ResponseWriter, r *http.Request, _ string) {
 	a := s.app(w, r)
 	if a == nil {
@@ -807,6 +868,7 @@ func (s *Server) disconnectApp(w http.ResponseWriter, r *http.Request, login str
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// listRuns is an app's Runs tab: its last 50 runs.
 func (s *Server) listRuns(w http.ResponseWriter, r *http.Request, _ string) {
 	a := s.app(w, r)
 	if a == nil {
@@ -823,6 +885,8 @@ func (s *Server) listRuns(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSON(w, runs)
 }
 
+// triggerRun queues a run by hand ("Run now"), of the default branch unless
+// another is given.
 func (s *Server) triggerRun(w http.ResponseWriter, r *http.Request, _ string) {
 	a := s.app(w, r)
 	if a == nil {
@@ -843,6 +907,8 @@ func (s *Server) triggerRun(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSONStatus(w, http.StatusCreated, run)
 }
 
+// listReleases is an app's Releases tab: its last 50 releases, each with
+// its deploy tasks.
 func (s *Server) listReleases(w http.ResponseWriter, r *http.Request, _ string) {
 	a := s.app(w, r)
 	if a == nil {
@@ -868,6 +934,8 @@ func (s *Server) listReleases(w http.ResponseWriter, r *http.Request, _ string) 
 	writeJSON(w, rels)
 }
 
+// rollback makes a new release with the images of an earlier one; the
+// controller then deploys it like any other.
 func (s *Server) rollback(w http.ResponseWriter, r *http.Request, login string) {
 	a := s.app(w, r)
 	if a == nil {
@@ -905,6 +973,9 @@ type resourceNode struct {
 	Children []resourceNode `json:"children,omitempty"`
 }
 
+// resources is the app's resource tree: per service, its Deployment and
+// pods, Service, Ingress and volume, each with a health (Healthy,
+// Progressing, Degraded or Missing), rolled up to the app.
 func (s *Server) resources(w http.ResponseWriter, r *http.Request, _ string) {
 	a := s.app(w, r)
 	if a == nil {
@@ -979,6 +1050,8 @@ func (s *Server) resources(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSON(w, root)
 }
 
+// deploymentHealth is Healthy when every replica of the current version is
+// ready, Degraded when Kubernetes gave up waiting for it, else Progressing.
 func deploymentHealth(d *appsv1.Deployment) string {
 	for _, c := range d.Status.Conditions {
 		if c.Type == appsv1.DeploymentProgressing && c.Reason == "ProgressDeadlineExceeded" {
@@ -992,6 +1065,8 @@ func deploymentHealth(d *appsv1.Deployment) string {
 	return "Progressing"
 }
 
+// podNode is a pod in the resource tree: Healthy when ready, Degraded when
+// crash-looping or unable to pull its image, with its restarts and node.
 func podNode(p *corev1.Pod) resourceNode {
 	n := resourceNode{Kind: "Pod", Name: p.Name, Health: "Progressing", Info: []string{string(p.Status.Phase)}}
 	ready := false
@@ -1018,6 +1093,7 @@ func podNode(p *corev1.Pod) resourceNode {
 	return n
 }
 
+// ptrOr is *p, or d when p is nil.
 func ptrOr(p *int32, d int32) int32 {
 	if p == nil {
 		return d
@@ -1086,6 +1162,7 @@ func (s *Server) putSecret(w http.ResponseWriter, r *http.Request, login string)
 
 // ---- runs ----
 
+// runID reads the run ID from the URL (400 when it is not a number).
 func (s *Server) runID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -1095,6 +1172,7 @@ func (s *Server) runID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	return id, true
 }
 
+// getRun is one run with its steps, for the run page.
 func (s *Server) getRun(w http.ResponseWriter, r *http.Request, _ string) {
 	id, ok := s.runID(w, r)
 	if !ok {
@@ -1112,6 +1190,8 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSON(w, run)
 }
 
+// cancelRun stops a run: one going is cancelled in this process (its pods
+// are deleted), one still queued is marked cancelled before it starts.
 func (s *Server) cancelRun(w http.ResponseWriter, r *http.Request, _ string) {
 	id, ok := s.runID(w, r)
 	if !ok {
@@ -1129,6 +1209,8 @@ func (s *Server) cancelRun(w http.ResponseWriter, r *http.Request, _ string) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
+// stepLog is one step's log as plain text, from the database or, once
+// archived, from object storage.
 func (s *Server) stepLog(w http.ResponseWriter, r *http.Request, _ string) {
 	id, ok := s.runID(w, r)
 	if !ok {
@@ -1150,6 +1232,8 @@ func (s *Server) stepLog(w http.ResponseWriter, r *http.Request, _ string) {
 	io.WriteString(w, log)
 }
 
+// runEvents streams a run's changes (steps starting, log lines, the end) to
+// the run page as server-sent events.
 func (s *Server) runEvents(w http.ResponseWriter, r *http.Request, _ string) {
 	id, ok := s.runID(w, r)
 	if !ok {
@@ -1158,12 +1242,15 @@ func (s *Server) runEvents(w http.ResponseWriter, r *http.Request, _ string) {
 	s.sse(w, r, platform.RunTopic(id))
 }
 
+// appEvents streams an app's changes (new runs, releases, status) to its page.
 func (s *Server) appEvents(w http.ResponseWriter, r *http.Request, _ string) {
 	if a := s.app(w, r); a != nil {
 		s.sse(w, r, platform.AppTopic(a.Name))
 	}
 }
 
+// sse streams the events of a topic as server-sent events until the browser
+// leaves, with a comment every 20 seconds so proxies keep the connection.
 func (s *Server) sse(w http.ResponseWriter, r *http.Request, topic string) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -1200,6 +1287,9 @@ func (s *Server) sse(w http.ResponseWriter, r *http.Request, topic string) {
 
 // ---- UI ----
 
+// ui serves the web UI built into the binary. Paths that are not files get
+// index.html, so the browser's router can show them; built assets (whose
+// names change with their content) are cached for a year.
 func (s *Server) ui() http.Handler {
 	if s.UI == nil {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1226,6 +1316,7 @@ func (s *Server) ui() http.Handler {
 
 // ---- helpers ----
 
+// writeJSON answers 200 with v as JSON.
 func writeJSON(w http.ResponseWriter, v any) { writeJSONStatus(w, http.StatusOK, v) }
 
 // writeJSONStatus sets headers before the status line; headers set after
@@ -1236,6 +1327,8 @@ func writeJSONStatus(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// readJSON decodes a request body of up to 1 MB into v, answering 400 when
+// it is not valid; false means the answer was already written.
 func readJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 	dec := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
 	if err := dec.Decode(v); err != nil {
@@ -1245,6 +1338,8 @@ func readJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 	return true
 }
 
+// httpError answers {"error": msg} with a status. Messages are in English
+// and translated for Spanish readers on the way out (see i18n.go).
 func httpError(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

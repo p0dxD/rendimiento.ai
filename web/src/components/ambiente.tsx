@@ -9,6 +9,7 @@ import { t } from "../i18n";
 
 type Tema = "day" | "night";
 
+/** Remembers a choice in this browser, when it can. */
 function guardar(key: string, v: string) {
   try {
     localStorage.setItem(key, v);
