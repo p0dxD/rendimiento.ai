@@ -33,4 +33,6 @@ builds:
       command: CHECK_GENERATED=1 hack/ci-test.sh
       postgres: true
       cache: true
-      resources: { cpu: "1", memory: 2Gi, memoryLimit: 5Gi }
+      # Two envtest API servers run at once (hack/ci-test.sh): with less
+      # than two cores, etcd times out.
+      resources: { cpu: "2", memory: 2Gi, memoryLimit: 5Gi }
