@@ -149,7 +149,7 @@ El Deployment descarga `:latest` con `imagePullPolicy: Always` y usa la estrateg
 Al reiniciar, la plataforma:
 
 1. aplica las migraciones de la base de datos (`internal/store/migrations`), cada una una sola vez;
-2. vuelve a poner en cola las ejecuciones de integración continua que un proceso anterior dejó corriendo (hasta dos reintentos) y borra los pods de construcción sobrantes;
+2. en cuanto tiene el candado de la fila de ejecuciones en Postgres (una segunda copia de la plataforma lo espera), vuelve a poner en cola las ejecuciones de integración continua que un proceso anterior dejó corriendo (hasta dos reintentos) y borra los pods de construcción sobrantes;
 3. cierra las ejecuciones de Renovate que se interrumpieron;
 4. arranca los controladores, el trabajador de integración continua, el programador de Renovate, la sincronización de complementos desde git y el DNS dinámico.
 

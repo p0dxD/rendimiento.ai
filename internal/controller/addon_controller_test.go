@@ -20,11 +20,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/config"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/addon"
+	"github.com/p0dxD/rendimiento.ai/internal/testenv"
 )
 
 // fakeGit serves folders that tests can change between syncs.
@@ -52,7 +52,7 @@ func (f *fakeGit) set(path string, files map[string]string) {
 func setupAddons(t *testing.T) (client.Client, *fakeGit) {
 	t.Helper()
 	ctrl.SetLogger(logr.Discard())
-	env := &envtest.Environment{CRDDirectoryPaths: []string{filepath.Join("..", "..", "deploy", "crds")}, ErrorIfCRDPathMissing: true}
+	env := testenv.New(filepath.Join("..", "..", "deploy", "crds"))
 	cfg, err := env.Start()
 	if err != nil {
 		if os.Getenv("KUBEBUILDER_ASSETS") != "" {

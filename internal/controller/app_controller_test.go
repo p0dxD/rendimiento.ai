@@ -26,13 +26,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/config"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
+	"github.com/p0dxD/rendimiento.ai/internal/testenv"
 )
 
 type fakeDNS struct {
@@ -68,7 +68,7 @@ var skip = true
 func setup(t *testing.T) (client.Client, *fakeDNS) {
 	t.Helper()
 	ctrl.SetLogger(logr.Discard())
-	env := &envtest.Environment{CRDDirectoryPaths: []string{filepath.Join("..", "..", "deploy", "crds"), filepath.Join("testdata", "crds")}, ErrorIfCRDPathMissing: true}
+	env := testenv.New(filepath.Join("..", "..", "deploy", "crds"), filepath.Join("testdata", "crds"))
 	cfg, err := env.Start()
 	if err != nil {
 		if os.Getenv("KUBEBUILDER_ASSETS") != "" {
