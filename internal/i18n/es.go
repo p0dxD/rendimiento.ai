@@ -199,6 +199,7 @@ var catalog = map[string]string{
 	"Failed: %s exited with code %d":      "Falló: %s terminó con el código %d",
 	"fixed by %s":                         "corregido con %s",
 	"GitHub App":                          "Aplicación de GitHub",
+	"installation %d is not one rendimiento uses": "la instalación %d no es una de las que usa rendimiento",
 	"GitHub App %s":                       "Aplicación de GitHub %s",
 	"go.mod found (go %s)":                "se encontró go.mod (go %s)",
 	"Helm release %s":                     "Instalación de Helm %s",

@@ -185,7 +185,9 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		return err
 	}
 
-	holder := &gh.Holder{}
+	// GITHUB_ACCOUNTS: the only accounts whose installations of the App
+	// count (empty: all); a public App can be installed by anyone.
+	holder := &gh.Holder{Accounts: splitList(os.Getenv("GITHUB_ACCOUNTS"))}
 	creds := &api.SecretCredentials{Client: kube, Namespace: ns, Name: env("GITHUB_SECRET", "rendimiento-github")}
 	if c, err := creds.Load(ctx); err != nil {
 		return fmt.Errorf("load GitHub credentials: %w", err)

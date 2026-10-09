@@ -14,10 +14,19 @@ var ErrNotConfigured = errors.New("GitHub App is not configured yet; finish setu
 
 // Holder holds the current GitHub App, which appears at runtime after the
 // one-click setup, and adapts it to the per-installation calls the platform makes.
-type Holder struct{ app atomic.Pointer[App] }
+type Holder struct {
+	app atomic.Pointer[App]
+	// Accounts limits every App it holds (see App.SetAccounts).
+	Accounts []string
+}
 
 // Set installs the App (at startup, or after the setup flow).
-func (h *Holder) Set(a *App) { h.app.Store(a) }
+func (h *Holder) Set(a *App) {
+	if len(h.Accounts) > 0 {
+		a.SetAccounts(h.Accounts)
+	}
+	h.app.Store(a)
+}
 
 // Get returns the App, or ErrNotConfigured before setup.
 func (h *Holder) Get() (*App, error) {

@@ -131,6 +131,9 @@ El manifiesto pide estos permisos de repositorio: **Contents** de lectura y escr
 !!! tip "Cambiar después los permisos de la aplicación"
     Cámbielos en `https://github.com/settings/apps/<app-name>/permissions` y luego **acepte** los permisos nuevos en la instalación (`https://github.com/settings/installations` → Configure). Mientras no se acepten, las instalaciones conservan los anteriores; la página Complementos avisa cuando a Renovate le falta lo que necesita.
 
+!!! note "Instalar en una organización"
+    El manifiesto crea una aplicación **privada**, que solo puede instalar la cuenta de su dueño. Para instalarla en una organización (el `PAGES_ORG` del [Mercado](../guide/mercado.md)), hágala pública (`https://github.com/settings/apps/<app-name>/advanced` → *Make public*) después de poner en `GITHUB_ACCOUNTS` las cuentas que usa rendimiento: entonces cualquiera puede instalar la aplicación, y rendimiento deja fuera del asistente cualquier otra instalación e ignora sus envíos.
+
 ## Publicar una versión nueva de rendimiento {#shipping-a-new-version-of-rendimiento}
 
 ```bash
