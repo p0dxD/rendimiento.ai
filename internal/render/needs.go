@@ -61,6 +61,8 @@ func NeedServices(s spec.Spec) []spec.Service {
 	return out
 }
 
+// needKind is name when it is a database or cache this app runs (postgres,
+// redis), else "".
 func needKind(name string, s spec.Spec) string {
 	if (name == spec.NeedPostgres || name == spec.NeedRedis) && s.Needs(name) {
 		return name
@@ -68,6 +70,7 @@ func needKind(name string, s spec.Spec) string {
 	return ""
 }
 
+// orDefault is v, or def when v is "".
 func orDefault(v, def string) string {
 	if v == "" {
 		return def
@@ -119,6 +122,7 @@ func withNeeds(in Input) ([]spec.Service, error) {
 	return append(out, NeedServices(in.Spec)...), nil
 }
 
+// copyMap is a copy of m.
 func copyMap(m map[string]string) map[string]string {
 	out := make(map[string]string, len(m))
 	for k, v := range m {

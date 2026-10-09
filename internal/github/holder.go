@@ -27,6 +27,8 @@ func (h *Holder) Get() (*App, error) {
 	return nil, ErrNotConfigured
 }
 
+// client is an API client for the installation (ErrNotConfigured before
+// setup).
 func (h *Holder) client(installation int64) (*Client, error) {
 	a, err := h.Get()
 	if err != nil {

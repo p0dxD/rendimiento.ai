@@ -215,6 +215,7 @@ func (e Enlace) Href() (string, error) {
 // M marks a message for translation (see internal/i18n).
 var M = i18n.M
 
+// contains reports whether v is in list.
 func contains(list []string, v string) bool {
 	for _, x := range list {
 		if x == v {
@@ -224,6 +225,7 @@ func contains(list []string, v string) bool {
 	return false
 }
 
+// boolInt is 1 for true, 0 for false.
 func boolInt(b bool) int {
 	if b {
 		return 1

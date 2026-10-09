@@ -44,6 +44,8 @@ func (r *AppReconciler) ensureNeedSecrets(ctx context.Context, app *v1alpha1.App
 	return nil
 }
 
+// ensureSecret creates a secret with a new random password the first time;
+// once it exists it is never changed, so the database keeps working.
 func (r *AppReconciler) ensureSecret(ctx context.Context, app *v1alpha1.App, name string, data func(password string) map[string]string) error {
 	var existing corev1.Secret
 	err := r.Get(ctx, client.ObjectKey{Namespace: app.Name, Name: name}, &existing)
@@ -114,6 +116,7 @@ func (r *AppReconciler) serviceURLs(ctx context.Context, app *v1alpha1.App, s sp
 	return out, nil
 }
 
+// isOwnService reports whether name is a service of this app.
 func isOwnService(s spec.Spec, name string) bool {
 	for _, svc := range s.Services {
 		if svc.Name == name {
@@ -123,6 +126,8 @@ func isOwnService(s spec.Spec, name string) bool {
 	return false
 }
 
+// address is the URL of a service inside the cluster (no port for 80 or
+// 443).
 func address(host string, port int32) string {
 	switch port {
 	case 80:

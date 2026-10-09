@@ -73,6 +73,7 @@ func (s *Store) Incidents(ctx context.Context, appID int64, since time.Time) ([]
 	return s.incidents(ctx, `WHERE app_id = $1 AND (ended_at IS NULL OR ended_at >= $2) ORDER BY started_at DESC LIMIT 200`, appID, since)
 }
 
+// incidents runs a query for outages (where is its WHERE clause).
 func (s *Store) incidents(ctx context.Context, where string, args ...any) ([]Incident, error) {
 	rows, err := s.pool.Query(ctx, `SELECT id, app_id, service, kind, started_at, ended_at, error FROM incidents `+where, args...)
 	if err != nil {

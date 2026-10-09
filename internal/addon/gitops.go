@@ -192,6 +192,7 @@ type SyncResult struct {
 	Duration string            `json:"duration"`
 }
 
+// init makes the trigger channel once.
 func (s *Syncer) init() { s.once.Do(func() { s.trigger = make(chan struct{}, 1) }) }
 
 // Trigger asks the loop to sync soon (e.g. after a push to the repo).
@@ -291,6 +292,9 @@ func (s *Syncer) Sync(ctx context.Context) SyncResult {
 	return res
 }
 
+// read loads the add-on definitions from the gitops repository's add-ons
+// folder (one YAML file each), with the commit read; files that cannot be
+// used are returned apart, with why (invalid, or a name already taken).
 func (s *Syncer) read(ctx context.Context) (map[string]*Definition, string, map[string]string, error) {
 	dir, sha, err := GitHubFetcher{GitHub: s.GitHub}.Fetch(ctx, s.Repo, "", "")
 	if err != nil {
@@ -368,6 +372,7 @@ func (s *Syncer) apply(ctx context.Context, file string, d *Definition, sha stri
 	return true, s.Kube.Update(ctx, &a)
 }
 
+// equalSpec reports whether two add-on specs say the same thing.
 func equalSpec(a, b v1alpha1.AddonSpec) bool {
 	x, _ := yaml.Marshal(a)
 	y, _ := yaml.Marshal(b)

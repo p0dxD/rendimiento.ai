@@ -78,6 +78,7 @@ func New(c Credentials) (*App, error) {
 // Credentials returns what the App was created with.
 func (a *App) Credentials() Credentials { return a.creds }
 
+// base is GitHub's API address (changed in tests).
 func (a *App) base() string {
 	if a.BaseURL != "" {
 		return a.BaseURL
@@ -85,6 +86,7 @@ func (a *App) base() string {
 	return "https://api.github.com"
 }
 
+// client is the HTTP client (30 seconds at most per request by default).
 func (a *App) client() *http.Client {
 	if a.HTTP != nil {
 		return a.HTTP

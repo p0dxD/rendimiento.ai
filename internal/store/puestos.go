@@ -22,6 +22,7 @@ type Puesto struct {
 
 const puestoCols = `p.app_id, a.name, p.owner, p.tipo, p.nombre, p.created_at, p.updated_at`
 
+// scanPuesto reads a stall row.
 func scanPuesto(row interface{ Scan(...any) error }) (*Puesto, error) {
 	var p Puesto
 	if err := row.Scan(&p.AppID, &p.App, &p.Owner, &p.Tipo, &p.Nombre, &p.CreatedAt, &p.UpdatedAt); err != nil {

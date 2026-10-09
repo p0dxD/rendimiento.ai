@@ -165,6 +165,7 @@ func testStep(app, name, key, dir string, t spec.Test) Step {
 	}
 }
 
+// isTask reports whether name is a task of the spec.
 func isTask(s spec.Spec, name string) bool {
 	for _, t := range s.Tasks {
 		if t.Name == name {

@@ -91,6 +91,8 @@ func (s *Store) CreateAgentKey(ctx context.Context, name, tokenHash string, canW
 
 const agentKeyCols = `id, name, can_write, created_by, created_at, expires_at, last_used_at, revoked_at`
 
+// scanAgentKey reads an agent key row (never the key: only its hash is
+// stored).
 func scanAgentKey(row pgx.Row) (AgentKey, error) {
 	var k AgentKey
 	err := row.Scan(&k.ID, &k.Name, &k.CanWrite, &k.CreatedBy, &k.CreatedAt, &k.ExpiresAt, &k.LastUsedAt, &k.RevokedAt)
@@ -153,6 +155,7 @@ func (s *Store) RevokeAgentKey(ctx context.Context, id int64) error {
 
 const cargoCols = `c.id, c.key_id, k.name, c.purpose, c.started_at, c.ended_at, c.entrega, c.pendientes`
 
+// scanCargo reads a cargo row.
 func scanCargo(row pgx.Row) (Cargo, error) {
 	var c Cargo
 	err := row.Scan(&c.ID, &c.KeyID, &c.KeyName, &c.Purpose, &c.StartedAt, &c.EndedAt, &c.Entrega, &c.Pendientes)
@@ -220,6 +223,7 @@ func (s *Store) ListCargos(ctx context.Context, limit int) ([]Cargo, error) {
 
 const rutaCols = `id, kind, title, body, tags, done, author, by_agent, cargo_id, created_at, updated_at, archived_at`
 
+// scanRuta reads a Ruta entry row.
 func scanRuta(row pgx.Row) (RutaEntry, error) {
 	var e RutaEntry
 	err := row.Scan(&e.ID, &e.Kind, &e.Title, &e.Body, &e.Tags, &e.Done, &e.Author, &e.ByAgent, &e.CargoID, &e.CreatedAt, &e.UpdatedAt, &e.ArchivedAt)

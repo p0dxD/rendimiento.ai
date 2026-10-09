@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// errorsAs is errors.As that accepts a nil error.
 func errorsAs(err error, target any) bool { return err != nil && errors.As(err, target) }
 
 // ---- manifest flow: create the GitHub App with one click ----
@@ -99,6 +100,8 @@ func (a *App) Login(ctx context.Context, code string) (string, error) {
 	return user.Login, nil
 }
 
+// decodeJSON reads a JSON answer, or an APIError for a status of 300 or
+// more.
 func decodeJSON(resp *http.Response, out any) error {
 	if resp.StatusCode >= 300 {
 		return &APIError{Status: resp.StatusCode, Method: resp.Request.Method, Path: resp.Request.URL.Path}

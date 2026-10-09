@@ -23,6 +23,7 @@ const backupStale = 48 * time.Hour
 
 var longhorn = schema.GroupVersion{Group: "longhorn.io", Version: "v1beta2"}
 
+// longhornList lists Longhorn objects of a kind (volumes, backups, ...).
 func longhornList(ctx context.Context, c *Checker, kind string) ([]unstructured.Unstructured, error) {
 	u := &unstructured.UnstructuredList{}
 	u.SetGroupVersionKind(longhorn.WithKind(kind + "List"))

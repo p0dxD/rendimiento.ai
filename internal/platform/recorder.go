@@ -56,6 +56,8 @@ func (w *logWriter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
+// flush appends what was written since the last flush to the step's log
+// in the database.
 func (w *logWriter) flush() {
 	w.mu.Lock()
 	chunk := w.buf
@@ -69,6 +71,7 @@ func (w *logWriter) flush() {
 	}
 }
 
+// flushLoop flushes every second until the step ends.
 func (w *logWriter) flushLoop() {
 	t := time.NewTicker(time.Second)
 	defer t.Stop()

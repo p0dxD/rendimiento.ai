@@ -79,6 +79,9 @@ func verbs(format string) [][]int {
 	return verb.FindAllStringIndex(strings.ReplaceAll(format, "%%", "\x00\x00"), -1)
 }
 
+// compile prepares the catalog once: messages without verbs are looked up
+// as they are; the others become patterns (verbs match any text), tried
+// longest first, so a specific message wins over a general one.
 func compile() {
 	exact = map[string]string{}
 	for en, es := range catalog {

@@ -133,6 +133,7 @@ func (a *Archive) Read(ctx context.Context, key string) (string, error) {
 	return string(text), err
 }
 
+// compress gzips a log as small as it goes.
 func compress(s string) ([]byte, error) {
 	var buf bytes.Buffer
 	zw, _ := gzip.NewWriterLevel(&buf, gzip.BestCompression)

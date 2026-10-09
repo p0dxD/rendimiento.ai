@@ -22,6 +22,7 @@ type Client struct {
 	installation int64
 }
 
+// do calls GitHub's API as the installation, with a token for it.
 func (c *Client) do(ctx context.Context, method, path string, body, out any) error {
 	tok, err := c.app.InstallationToken(ctx, c.installation)
 	if err != nil {
@@ -133,6 +134,7 @@ func (r *RepoFS) Open(name string) (fs.File, error) {
 	return &blobFile{info: fileInfo{name: path.Base(name), size: int64(len(data))}, r: bytes.NewReader(data)}, nil
 }
 
+// blob is a file's contents, downloaded once and kept.
 func (r *RepoFS) blob(e treeEntry) ([]byte, error) {
 	r.mu.Lock()
 	if b, ok := r.cache[e.SHA]; ok {
@@ -441,6 +443,8 @@ func (c *Client) DeleteFile(ctx context.Context, repo, branch, filePath, message
 	return out.Commit.SHA, err
 }
 
+// fileSHA is the blob SHA of a file on a branch, which GitHub asks for to
+// replace it.
 func (c *Client) fileSHA(ctx context.Context, repo, branch, filePath string) (string, error) {
 	var out struct {
 		SHA string `json:"sha"`

@@ -99,4 +99,5 @@ type AppList struct {
 	Items           []App `json:"items"`
 }
 
+// init registers the App kind with the API scheme.
 func init() { SchemeBuilder.Register(&App{}, &AppList{}) }

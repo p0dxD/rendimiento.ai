@@ -61,6 +61,8 @@ type Status struct {
 // releases looked at for the running version: a few weeks of pushes.
 const history = 50
 
+// Status says which release runs (by the pod's image digest) and whether
+// the newest release holds another image.
 func (u *Updater) Status(ctx context.Context) (*Status, error) {
 	st := &Status{App: u.App}
 	versions, err := u.versions(ctx)
