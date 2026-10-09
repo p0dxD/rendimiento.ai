@@ -297,13 +297,10 @@ func TestOnboardPushDeployRollback(t *testing.T) {
 	fake.files[sha3] = fstest.MapFS{"rendimiento.yaml": {Data: []byte("services:\n  - name: hello\n    domain: hello.joserod.space\n    test: {image: golang:1.23, command: go test ./...}\n")}}
 	runs, _ = p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/hello", Branch: "main", SHA: sha3})
 	r := waitRun(t, p, runs[0].ID)
-	if r.Status != store.RunFailed {
+	// The build runs beside the test; the run (named after the test) fails
+	// and nothing it built is released.
+	if r.Status != store.RunFailed || !strings.Contains(r.Message, "hello:test") {
 		t.Fatalf("failing run = %+v", r)
-	}
-	for _, s := range r.Steps {
-		if s.ID == "hello:build" && s.Status != "skipped" {
-			t.Fatalf("build after failed test = %+v", s)
-		}
 	}
 	_ = kube.Get(ctx, client.ObjectKey{Name: "hello"}, &cr)
 	if cr.Spec.Release != 2 {

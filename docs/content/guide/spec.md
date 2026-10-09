@@ -216,7 +216,7 @@ Images built on every run like a service's, but not deployed; their digests are 
 | `name` | string ≤ 40 | **required** | Unique among services, jobs, builds and tasks. The steps are `<name>:test` and `<name>:build`; the image is `<registry>/<app>-<name>`. |
 | `path`, `watch` | as for services | `.` | What is built, and what counts as a change. |
 | `build` | as for services | `Dockerfile` | |
-| `test` | as for services | none | Run before the build. |
+| `test` | as for services | none | Runs beside the build; the image is released only if it passes. |
 
 ## Tasks
 

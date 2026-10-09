@@ -33,5 +33,30 @@ fi
 echo '== vet'
 go vet ./...
 echo '== test'
-# -p 1: store, platform and api tests share one test database.
-KUBEBUILDER_ASSETS=$(setup-envtest use "$ENVTEST_K8S" -p path --bin-dir "$(dirname "$TOOLS")/envtest") go test -p 1 ./...
+KUBEBUILDER_ASSETS=$(setup-envtest use "$ENVTEST_K8S" -p path --bin-dir "$(dirname "$TOOLS")/envtest")
+export KUBEBUILDER_ASSETS
+# store, platform and api share one test database, so they run one at a
+# time; the rest (internal/controller's envtest among them) run beside
+# them, two packages at a time (with the memory the test step has).
+shared='/internal/(api|platform|store)$'
+out=$(mktemp -d)
+go test -v -p 1 $(go list ./... | grep -E "$shared") >"$out/shared.log" 2>&1 &
+a=$!
+go test -v -p 2 $(go list ./... | grep -vE "$shared") >"$out/rest.log" 2>&1 &
+b=$!
+failed=()
+wait $a || failed+=("$out/shared.log")
+wait $b || failed+=("$out/rest.log")
+
+# What `go test` prints without -v: one line per package.
+grep -hE '^(ok|FAIL)[[:space:]]' "$out"/*.log | sort -k2
+for log in "${failed[@]}"; do
+  # Each failed test with its output, then the end of the log (build
+  # errors, panics and timeouts are there).
+  echo "== failures in $(basename "$log" .log) packages"
+  awk '/^=== RUN/ && index($3, "/") == 0 { buf = "" } { buf = buf $0 "\n" } /^--- FAIL/ { printf "%s", buf; buf = "" }' "$log"
+  tail -40 "$log"
+done
+echo '== slowest tests'
+grep -hE '^--- (PASS|FAIL): ' "$out"/*.log | sed -E 's/^--- [A-Z]+: ([^ ]+) \(([0-9.]+)s\)$/\2s \1/' | sort -rn | head -12
+[ ${#failed[@]} -eq 0 ]

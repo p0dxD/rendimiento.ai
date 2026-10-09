@@ -18,16 +18,16 @@ flowchart LR
 
 `pipeline.Plan(app, registry, spec)` devuelve los pasos de una ejecución:
 
-- por cada servicio **construido desde el repositorio** (no una `image:` ya hecha): un paso `build`, y antes un paso `test` si el servicio tiene `test:`. La construcción **depende** de las pruebas;
+- por cada servicio **construido desde el repositorio** (no una `image:` ya hecha): un paso `build`, y junto a él un paso `test` si el servicio tiene `test:`. Corren **al mismo tiempo**: una versión necesita que todos los pasos tengan éxito, así que nunca se publica una imagen sin probar, y la construcción no espera a las pruebas;
 - por cada **tarea programada** con su propio `path`: un paso de construcción (`job-<name>:build`);
-- por cada **tarea**: un paso `task` (`<name>:task`) que depende de las construcciones y tareas de su `after:` ([Tareas](../guide/tasks.md));
+- por cada **tarea**: un paso `task` (`<name>:task`) que depende de las construcciones (y sus pruebas) y tareas de su `after:` ([Tareas](../guide/tasks.md));
 - los pasos de servicios distintos son independientes, así que corren en paralelo.
 
 Cada `Step` lleva lo que su pod necesita: la carpeta, la imagen y el comando de pruebas, o el nombre de la imagen a enviar (`registry/<app>-<service>`), el Dockerfile, el constructor elegido (`dockerfile`, `railpack` o automático), el comando de arranque de Railpack y los argumentos de construcción.
 
 ## Ejecutar el grafo: `Runner` {#running-the-graph-runner}
 
-`Runner.Run` arranca **una gorrutina por paso**. Cada una espera a los pasos de los que depende (un canal cerrado por paso avisa "terminado"), luego toma un lugar de un **semáforo**, un canal con búfer de tamaño `MAX_PARALLEL_STEPS` (4) compartido por *todas* las ejecuciones, así el clúster nunca corre más pasos que esos a la vez. Si una dependencia no tuvo éxito, el paso se marca como **omitido** sin ejecutarse.
+`Runner.Run` arranca **una gorrutina por paso**. Cada una espera a los pasos de los que depende (un canal cerrado por paso avisa "terminado"), luego toma un lugar de un **semáforo**, un canal con búfer de tamaño `MAX_PARALLEL_STEPS` (4) compartido por *todas* las ejecuciones, así el clúster nunca corre más pasos que esos a la vez. Si una dependencia no tuvo éxito, el paso se marca como **omitido** sin ejecutarse. Un paso obligatorio que **falla detiene la ejecución**: los pasos que esperan se omiten y los que corren se cancelan (se borran sus pods), todos marcados *detenido: falló &lt;paso&gt;*, para que una prueba fallida no deje una construcción deteniendo la siguiente ejecución de la aplicación. El mensaje de la ejecución nombra el paso que falló.
 
 ```go
 --8<-- "internal/pipeline/run.go:runner"

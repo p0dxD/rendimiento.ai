@@ -49,17 +49,32 @@ func NewRunner(exec Executor, rec Recorder, maxParallel int) *Runner {
 // --8<-- [end:runner]
 
 // Run executes steps respecting DependsOn and returns each step's result.
-// A failed step marks everything that depends on it as skipped.
-func (r *Runner) Run(ctx context.Context, runID string, src Source, steps []Step) (map[string]StepResult, error) {
+// A failed step marks everything that depends on it as skipped, and stops
+// the rest of the run (unless it is optional): its other steps are skipped
+// or cancelled, since the run has failed anyway (a build beside a failed
+// test would only hold up the next run).
+func (r *Runner) Run(parent context.Context, runID string, src Source, steps []Step) (map[string]StepResult, error) {
 	if err := validate(steps); err != nil {
 		return nil, err
 	}
+	ctx, stop := context.WithCancel(parent)
+	defer stop()
 	var (
-		mu      sync.Mutex
-		results = map[string]StepResult{}
-		done    = map[string]chan struct{}{}
-		wg      sync.WaitGroup
+		mu        sync.Mutex
+		results   = map[string]StepResult{}
+		done      = map[string]chan struct{}{}
+		wg        sync.WaitGroup
+		stoppedBy string // the step whose failure stopped the run
 	)
+	// cancelled is the result of a step the run did not let finish.
+	cancelled := func() StepResult {
+		mu.Lock()
+		defer mu.Unlock()
+		if stoppedBy != "" && parent.Err() == nil {
+			return StepResult{Status: StatusSkipped, Message: fmt.Sprintf("stopped: %s failed", stoppedBy)}
+		}
+		return StepResult{Status: StatusSkipped, Message: "run cancelled"}
+	}
 	for _, s := range steps {
 		done[s.ID] = make(chan struct{})
 	}
@@ -86,7 +101,7 @@ func (r *Runner) Run(ctx context.Context, runID string, src Source, steps []Step
 			var res StepResult
 			switch {
 			case ctx.Err() != nil:
-				res = StepResult{Status: StatusSkipped, Message: "run cancelled"}
+				res = cancelled()
 			case blocked != "":
 				res = StepResult{Status: StatusSkipped, Message: blocked + " did not succeed"}
 			default:
@@ -97,13 +112,23 @@ func (r *Runner) Run(ctx context.Context, runID string, src Source, steps []Step
 					res = r.Exec.Execute(ctx, runID, src, s, w)
 					w.Close()
 					<-r.sem
+					if res.Status != StatusSucceeded && ctx.Err() != nil {
+						// Stopped part way: say why, not how it ended.
+						started := res.Started
+						res = cancelled()
+						res.Started, res.Finished = started, time.Now()
+					}
 				case <-ctx.Done():
-					res = StepResult{Status: StatusSkipped, Message: "run cancelled"}
+					res = cancelled()
 				}
 			}
 			r.Recorder.StepUpdate(runID, s.ID, res)
 			mu.Lock()
 			results[s.ID] = res
+			if res.Status == StatusFailed && !s.Optional && stoppedBy == "" {
+				stoppedBy = s.ID
+				stop()
+			}
 			mu.Unlock()
 		}(s)
 	}

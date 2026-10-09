@@ -745,11 +745,25 @@ func (p *Platform) execute(ctx context.Context, run *store.Run) {
 	case runCtx.Err() != nil && ctx.Err() == nil:
 		status, msg = store.RunCancelled, M("cancelled")
 	default:
+		// Name the step that failed, rather than one its failure stopped.
+		var first, failed string
 		for _, s := range toRun {
-			if r := results[s.ID]; r.Status != pipeline.StatusSucceeded && !s.Optional {
-				status, msg = store.RunFailed, M("%s %s", s.ID, r.Status)
-				break
+			r := results[s.ID]
+			if r.Status == pipeline.StatusSucceeded || s.Optional {
+				continue
 			}
+			if first == "" {
+				first = M("%s %s", s.ID, r.Status)
+			}
+			if failed == "" && r.Status == pipeline.StatusFailed {
+				failed = M("%s %s", s.ID, r.Status)
+			}
+		}
+		if failed != "" {
+			first = failed
+		}
+		if first != "" {
+			status, msg = store.RunFailed, first
 		}
 	}
 	if status == store.RunSucceeded && run.Deploy {

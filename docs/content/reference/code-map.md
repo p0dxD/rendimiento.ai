@@ -1227,7 +1227,7 @@ Package pipeline plans and executes CI runs.
 | `TaskStepID` | func | TaskStepID is the ID of a task's step. |
 | `TaskKey` | func | TaskKey is the Service field of a task's step: what change detection and the run page group it by. |
 | `Source` | struct | Source identifies the commit being built. |
-| `Plan` | func | Plan builds the DAG for a spec: per service, test (if configured) then build; job images; the builds (test, then build); then tasks, after the builds and tasks they name. |
+| `Plan` | func | Plan builds the DAG for a spec: per service, its test (if configured) and its build, side by side; job images; the builds (test and build); then tasks, after the builds (and their tests) and tasks they name. |
 | `testStep` | func | testStep is the test of a service or build named name, whose image key is key. |
 | `isTask` | func |  |
 

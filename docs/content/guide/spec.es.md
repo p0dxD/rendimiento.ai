@@ -216,7 +216,7 @@ Imágenes que se construyen en cada ejecución como las de un servicio, pero no 
 | `name` | texto ≤ 40 | **obligatorio** | Único entre servicios, tareas programadas, imágenes y tareas. Los pasos son `<nombre>:test` y `<nombre>:build`; la imagen es `<registro>/<aplicación>-<nombre>`. |
 | `path`, `watch` | como en los servicios | `.` | Qué se construye y qué cuenta como cambio. |
 | `build` | como en los servicios | `Dockerfile` | |
-| `test` | como en los servicios | ninguna | Corre antes de la construcción. |
+| `test` | como en los servicios | ninguna | Corre junto a la construcción; la imagen solo se publica si pasa. |
 
 ## Tareas {#tasks}
 
