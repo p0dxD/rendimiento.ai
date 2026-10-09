@@ -86,6 +86,31 @@ func TestInstallationTokenCached(t *testing.T) {
 	}
 }
 
+func TestInstallationsOnlyAllowedAccounts(t *testing.T) {
+	a, _ := newApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `[{"id":1,"account":{"login":"p0dxD"}},{"id":2,"account":{"login":"Example-Paginas"}},{"id":3,"account":{"login":"stranger"}}]`)
+	}))
+	ctx := context.Background()
+	if all, err := a.Installations(ctx); err != nil || len(all) != 3 {
+		t.Fatalf("no accounts set: %v %v", all, err)
+	}
+	h := &Holder{Accounts: []string{"p0dxd", "example-paginas"}}
+	h.Set(a)
+	got, err := a.Installations(ctx)
+	if err != nil || len(got) != 2 || got[0].ID != 1 || got[1].ID != 2 {
+		t.Fatalf("installations = %+v %v", got, err)
+	}
+	if _, err := a.Installation(ctx, 3); err == nil {
+		t.Error("a stranger's installation: want an error")
+	}
+	if !a.Allows("P0DXD") || a.Allows("stranger") {
+		t.Error("Allows ignores case and refuses other accounts")
+	}
+	if _, _, err := h.ForOwner(ctx, "stranger"); err == nil {
+		t.Error("ForOwner found a stranger's installation")
+	}
+}
+
 // fakeRepo serves a tree and blobs for a small monorepo, and records PR calls.
 func fakeRepo(t *testing.T, files map[string]string, prCalls *[]string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
