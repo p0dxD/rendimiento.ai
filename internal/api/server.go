@@ -467,7 +467,8 @@ func (s *Server) setupCallback(w http.ResponseWriter, r *http.Request) {
 
 // webhook receives GitHub's events. Only signed ones count (the App's
 // webhook secret); a push to a branch queues the runs of the app that repo
-// belongs to, and every other event is acknowledged and ignored.
+// belongs to, and every other event, or a push from an account not in
+// GITHUB_ACCOUNTS, is acknowledged and ignored.
 func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 	app, err := s.GitHub.Get()
 	if err != nil {
@@ -513,6 +514,13 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
+	// An installation on an account rendimiento does not use (a public App
+	// can be installed by anyone): acknowledged, never acted on.
+	if owner, _, _ := strings.Cut(push.Repo, "/"); !app.Allows(owner) {
+		s.Log.Info("webhook from an account not in GITHUB_ACCOUNTS: ignored", "repo", push.Repo)
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
 	if s.Addons != nil && strings.EqualFold(push.Repo, s.Addons.Repo) {
 		s.Addons.Trigger() // add-on definitions (or their manifests) may have changed
 	}
@@ -528,8 +536,23 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 
 // ---- GitHub browsing for the wizard ----
 
-// installations lists the accounts the App is installed on, for the "New
-// app" wizard's first choice.
+// installationAllowed answers 403 for an installation on an account not in
+// GITHUB_ACCOUNTS.
+func (s *Server) installationAllowed(w http.ResponseWriter, r *http.Request, id int64) bool {
+	app, err := s.GitHub.Get()
+	if err != nil {
+		httpError(w, http.StatusServiceUnavailable, err.Error())
+		return false
+	}
+	if _, err := app.Installation(r.Context(), id); err != nil {
+		httpError(w, http.StatusForbidden, err.Error())
+		return false
+	}
+	return true
+}
+
+// installations lists the accounts the App is installed on (those in
+// GITHUB_ACCOUNTS, when set), for the "New app" wizard's first choice.
 func (s *Server) installations(w http.ResponseWriter, r *http.Request, _ string) {
 	app, err := s.GitHub.Get()
 	if err != nil {
@@ -554,6 +577,10 @@ func (s *Server) repos(w http.ResponseWriter, r *http.Request, _ string) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		httpError(w, http.StatusBadRequest, "bad installation id")
+		return
+	}
+	if _, err := app.Installation(r.Context(), id); err != nil {
+		httpError(w, http.StatusForbidden, err.Error())
 		return
 	}
 	repos, err := app.Client(id).Repos(r.Context())
@@ -591,6 +618,9 @@ func (s *Server) propose(w http.ResponseWriter, r *http.Request, _ string) {
 		Branch       string `json:"branch"`
 	}
 	if !readJSON(w, r, &req) {
+		return
+	}
+	if !s.installationAllowed(w, r, req.Installation) {
 		return
 	}
 	prop, err := s.Platform.Propose(r.Context(), req.Installation, req.Repo, req.Branch)
@@ -748,6 +778,9 @@ func (s *Server) createApp(w http.ResponseWriter, r *http.Request, login string)
 		Existing bool `json:"existing"`
 	}
 	if !readJSON(w, r, &req) {
+		return
+	}
+	if !s.installationAllowed(w, r, req.Installation) {
 		return
 	}
 	res, err := s.Platform.Onboard(r.Context(), req.OnboardRequest, req.Existing)

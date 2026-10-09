@@ -131,6 +131,9 @@ The manifest asks for these repository permissions: **Contents** read & write (r
 !!! tip "Changing the App's permissions later"
     Change them at `https://github.com/settings/apps/<app-name>/permissions`, then **accept** the new permissions on the installation (`https://github.com/settings/installations` → Configure). Until accepted, installations keep the old ones; the Add-ons page warns when Renovate lacks what it needs.
 
+!!! note "Installing on an organization"
+    The manifest makes a **private** App, which only its owner's account can install. To install it on an organization (the [Mercado](../guide/mercado.md)'s `PAGES_ORG`), make it public (`https://github.com/settings/apps/<app-name>/advanced` → *Make public*) after setting `GITHUB_ACCOUNTS` to the accounts rendimiento uses: anyone can then install the App, and rendimiento leaves every other installation out of the wizard and ignores its pushes.
+
 ## Shipping a new version of rendimiento
 
 ```bash

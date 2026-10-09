@@ -37,7 +37,7 @@ The Mercado is off until `PAGES_ORG` is set. Once:
 
 1. **Create a GitHub organization** for the pages (free), e.g. `example-paginas`.
 2. **Give the GitHub App the Administration permission** (read and write): in GitHub, the App's settings → *Permissions & events* → *Repository permissions* → *Administration*. It is what lets it create repositories and invite people. GitHub asks each installation to accept the new permission.
-3. **Install the App on the organization** for **all repositories**, so it reaches the repositories it creates.
+3. **Install the App on the organization** for **all repositories**, so it reaches the repositories it creates. A private App can only be installed on its owner's account: set `GITHUB_ACCOUNTS` and make it public first ([Installing on an organization](../environment/deploy.md#the-github-app)).
 4. Set `PAGES_ORG` to the organization's name and restart rendimiento.
 
 People who open stalls sign in like everyone else: with GitHub, and on the allowed list (`ALLOWED_USERS`).

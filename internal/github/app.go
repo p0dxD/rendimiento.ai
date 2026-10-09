@@ -47,6 +47,27 @@ type App struct {
 
 	mu     sync.Mutex
 	tokens map[int64]cachedToken
+
+	// accounts, when set, are the only accounts whose installations count:
+	// a public App can be installed by anyone, and those are ignored.
+	accounts []string
+}
+
+// SetAccounts limits the App to installations on these accounts (user or
+// organization logins, any case); none allows every installation.
+func (a *App) SetAccounts(accounts []string) { a.accounts = accounts }
+
+// Allows reports whether an installation on the account login counts.
+func (a *App) Allows(login string) bool {
+	if len(a.accounts) == 0 {
+		return true
+	}
+	for _, acc := range a.accounts {
+		if strings.EqualFold(acc, login) {
+			return true
+		}
+	}
+	return false
 }
 
 type cachedToken struct {
@@ -146,14 +167,38 @@ type Installation struct {
 	} `json:"account"`
 }
 
-// Installations lists the accounts the App is installed on.
+// Installations lists the accounts the App is installed on (those it
+// allows: see SetAccounts).
 func (a *App) Installations(ctx context.Context) ([]Installation, error) {
 	jwt, err := a.JWT(time.Now())
 	if err != nil {
 		return nil, err
 	}
-	var out []Installation
-	return out, a.do(ctx, "Bearer "+jwt, http.MethodGet, "/app/installations?per_page=100", nil, &out)
+	var all []Installation
+	if err := a.do(ctx, "Bearer "+jwt, http.MethodGet, "/app/installations?per_page=100", nil, &all); err != nil {
+		return nil, err
+	}
+	out := []Installation{}
+	for _, i := range all {
+		if a.Allows(i.Account.Login) {
+			out = append(out, i)
+		}
+	}
+	return out, nil
+}
+
+// Installation returns one installation the App allows, or an error.
+func (a *App) Installation(ctx context.Context, id int64) (*Installation, error) {
+	insts, err := a.Installations(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, i := range insts {
+		if i.ID == id {
+			return &i, nil
+		}
+	}
+	return nil, fmt.Errorf("installation %d is not one rendimiento uses", id)
 }
 
 // Client returns an API client acting as the given installation.

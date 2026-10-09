@@ -43,7 +43,7 @@ El Mercado está apagado hasta que se define `PAGES_ORG`. Una sola vez:
 
 1. **Cree una organización de GitHub** para las páginas (es gratis), por ejemplo `example-paginas`.
 2. **Dele a la aplicación de GitHub el permiso de administración** (lectura y escritura): en GitHub, en la configuración de la aplicación → *Permissions & events* → *Repository permissions* → *Administration*. Con él puede crear repositorios e invitar personas. GitHub le pide a cada instalación que acepte el permiso nuevo.
-3. **Instale la aplicación en la organización** para **todos los repositorios**, para que llegue a los repositorios que crea.
+3. **Instale la aplicación en la organización** para **todos los repositorios**, para que llegue a los repositorios que crea. Una aplicación privada solo se puede instalar en la cuenta de su dueño: primero ponga `GITHUB_ACCOUNTS` y hágala pública ([Instalar en una organización](../environment/deploy.md#the-github-app)).
 4. Ponga el nombre de la organización en `PAGES_ORG` y reinicie rendimiento.
 
 Quien pone un puesto inicia sesión como todos: con GitHub, y debe estar en la lista permitida (`ALLOWED_USERS`).
