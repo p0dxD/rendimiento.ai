@@ -73,11 +73,11 @@ func TestAppsRunsReleases(t *testing.T) {
 	if err := s.CreateRun(ctx, run, steps); err != nil {
 		t.Fatal(err)
 	}
-	claimed, err := s.ClaimRun(ctx)
+	claimed, err := s.ClaimRun(ctx, nil)
 	if err != nil || claimed.ID != run.ID || claimed.Status != RunRunning {
 		t.Fatalf("claim = %+v %v", claimed, err)
 	}
-	if _, err := s.ClaimRun(ctx); !errors.Is(err, ErrNotFound) {
+	if _, err := s.ClaimRun(ctx, nil); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("queue should be empty, got %v", err)
 	}
 
@@ -158,7 +158,7 @@ func TestConcurrentClaimsAndReleaseNumbers(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for {
-				r, err := s.ClaimRun(ctx)
+				r, err := s.ClaimRun(ctx, nil)
 				if errors.Is(err, ErrNotFound) {
 					return
 				}
@@ -183,6 +183,47 @@ func TestConcurrentClaimsAndReleaseNumbers(t *testing.T) {
 	wg.Wait()
 	if len(seen) != 20 || len(numbers) != 20 {
 		t.Fatalf("claimed %d runs, %d releases", len(seen), len(numbers))
+	}
+}
+
+func TestClaimSkipsAppsWithARunGoing(t *testing.T) {
+	s := open(t)
+	ctx := context.Background()
+	sp := spec.Spec{Services: []spec.Service{{Name: "web"}}}
+	sp.Default()
+	a, b := &App{Name: "skip-a", Repo: "a/a", Spec: sp}, &App{Name: "skip-b", Repo: "a/b", Spec: sp}
+	for _, app := range []*App{a, b} {
+		if err := s.CreateApp(ctx, app); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a1, a2, b1 := &Run{AppID: a.ID, SHA: "1", Branch: "main", Event: "push"}, &Run{AppID: a.ID, SHA: "2", Branch: "main", Event: "push"}, &Run{AppID: b.ID, SHA: "3", Branch: "main", Event: "push"}
+	for _, r := range []*Run{a1, a2, b1} {
+		if err := s.CreateRun(ctx, r, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	claim := func(skip ...int64) int64 {
+		r, err := s.ClaimRun(ctx, skip)
+		if errors.Is(err, ErrNotFound) {
+			return 0
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.ID
+	}
+	if got := claim(); got != a1.ID {
+		t.Fatalf("first claim = %d, want a's first run %d", got, a1.ID)
+	}
+	if got := claim(a.ID); got != b1.ID {
+		t.Fatalf("with a busy = %d, want b's run %d (not a's second)", got, b1.ID)
+	}
+	if got := claim(a.ID, b.ID); got != 0 {
+		t.Fatalf("both busy = %d, want none", got)
+	}
+	if got := claim(b.ID); got != a2.ID {
+		t.Fatalf("a free again = %d, want %d", got, a2.ID)
 	}
 }
 
@@ -233,7 +274,7 @@ func TestRequeueOrphansRetriesThenGivesUp(t *testing.T) {
 		t.Fatal(err)
 	}
 	for attempt := 1; attempt <= 3; attempt++ {
-		if _, err := s.ClaimRun(ctx); err != nil {
+		if _, err := s.ClaimRun(ctx, nil); err != nil {
 			t.Fatalf("attempt %d: claim: %v", attempt, err)
 		}
 		_ = s.UpdateStep(ctx, run.ID, "web:build", pipeline.StepResult{Status: pipeline.StatusRunning, Started: time.Now()})
@@ -280,7 +321,7 @@ func TestFinishAndCancelCloseSteps(t *testing.T) {
 
 	run := &Run{AppID: app.ID, SHA: "s", Branch: "main", Event: "push"}
 	_ = s.CreateRun(ctx, run, pipeline.Plan("steps", "reg", sp))
-	_, _ = s.ClaimRun(ctx)
+	_, _ = s.ClaimRun(ctx, nil)
 	_ = s.UpdateStep(ctx, run.ID, "web:test", pipeline.StepResult{Status: pipeline.StatusRunning, Started: time.Now()})
 	if err := s.FinishRun(ctx, run.ID, RunCancelled, "cancelled"); err != nil {
 		t.Fatal(err)

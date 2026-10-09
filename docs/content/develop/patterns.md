@@ -53,6 +53,7 @@ Runs are rows. Workers claim one with `SELECT … FOR UPDATE SKIP LOCKED`:
 ```
 
 - **Why:** Postgres is already there; no Redis/RabbitMQ to run. `SKIP LOCKED` lets many workers claim different rows without blocking each other, and a crash leaves the row claimable again (`RequeueOrphans` at startup).
+- **One run per app:** `PARALLEL_RUNS` workers (3) claim side by side, each skipping the apps that already have a run going, so one app's long build never holds up another's page and an app's releases keep their order.
 
 ### GitOps for configuration, database for releases
 
