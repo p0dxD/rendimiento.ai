@@ -17,6 +17,7 @@ export function fmtSec(sec: number): string {
   return m % 60 ? t("{h} h {m} min", { h, m: m % 60 }) : t("{n} h", { n: h });
 }
 
+/** "Week of Oct 6" for a week's first day. */
 function fmtWeek(start: string): string {
   const [y, m, d] = start.split("-").map(Number);
   return t("Week of {date}", { date: new Date(y, m - 1, d).toLocaleDateString(locale, { month: "short", day: "numeric" }) });
@@ -43,6 +44,9 @@ function trend(cur: number | undefined, prev: number | undefined, higherIsBetter
   return t(better ? "{arrow} {pct}% vs the previous 30 days, better" : "{arrow} {pct}% vs the previous 30 days, worse", { arrow: up ? "↑" : "↓", pct });
 }
 
+/**
+ * The delivery numbers to show (deploys, lead time, change failure, recovery, ...), each with its trend against the previous period.
+ */
 function tiles(r: DeliveryReport): Tile[] {
   const c = r.current, p = r.previous;
   const judged = (s: typeof c) => s.verified + s.failedVerify;
@@ -141,6 +145,7 @@ function Spark({ points, weeks, fmt, label }: { points: (number | undefined)[]; 
   );
 }
 
+/** The dashboard's delivery health: the numbers of the last 30 days and a chart of twelve weeks. */
 export function DeliveryPanel() {
   const { data } = usePoll(api.delivery, [], 60000);
   if (!data) return null;

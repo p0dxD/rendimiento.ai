@@ -7,6 +7,7 @@ import { api, timeAgo, type Problem } from "../api";
 import { ErrorBox, usePoll } from "../components/ui";
 import { t, tn } from "../i18n";
 
+/** A problem still counts while it is not dismissed or fixed and happened recently. */
 function isOpen(p: Problem, openForHours: number) {
   return !p.dismissedAt && !p.resolvedAt && Date.now() - new Date(p.lastAt).getTime() < openForHours * 3600_000;
 }
@@ -22,6 +23,7 @@ function resolutionText(r: string) {
   return m ? t("fixed by {sha}", { sha: m[1] }) : t(r);
 }
 
+/** One problem: what was logged, where, how many times and when, and a button to dismiss it. */
 function ProblemCard({ p, open, onDismiss }: { p: Problem; open: boolean; onDismiss: () => void }) {
   const [busy, setBusy] = useState(false);
   return (
@@ -52,6 +54,7 @@ function ProblemCard({ p, open, onDismiss }: { p: Problem; open: boolean; onDism
   );
 }
 
+/** The Problems page: warnings and errors the platform logged, open ones first, for one app or all. */
 export function Problems() {
   const [params, setParams] = useSearchParams();
   const app = params.get("app") ?? "";

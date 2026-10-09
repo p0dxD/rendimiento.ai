@@ -40,11 +40,13 @@ function Monarca({ size = 34 }: { size?: number }) {
   );
 }
 
+/** An entry's tags, as small labels. */
 function Tags({ tags }: { tags: string[] }) {
   if (tags.length === 0) return null;
   return <span className="ruta-tags">{tags.map((g) => <span key={g} className="ruta-tag">{g}</span>)}</span>;
 }
 
+/** Who wrote an entry (marked when it was an agent), when it changed, and in which cargo. */
 function Author({ e }: { e: RutaEntry }) {
   return (
     <span className="small muted">
@@ -55,6 +57,7 @@ function Author({ e }: { e: RutaEntry }) {
   );
 }
 
+/** The form to write or change an entry: kind, title, text, tags and, for a to-do, done. */
 function EntryForm({ initial, kind, onDone, onCancel }: { initial?: RutaEntry; kind: RutaKind; onDone: () => void; onCancel?: () => void }) {
   const [form, setForm] = useState<RutaInput>({
     kind: initial?.kind ?? kind, title: initial?.title ?? "", body: initial?.body ?? "", tags: initial?.tags ?? [], done: initial?.done ?? false,
@@ -106,6 +109,7 @@ function EntryForm({ initial, kind, onDone, onCancel }: { initial?: RutaEntry; k
   );
 }
 
+/** One entry, folded to its first lines: open it, edit it, mark a to-do done, or archive it. */
 function EntryCard({ e, onChange }: { e: RutaEntry; onChange: () => void }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -131,6 +135,7 @@ function EntryCard({ e, onChange }: { e: RutaEntry; onChange: () => void }) {
   );
 }
 
+/** The Ruta tab: entries by kind and text (all but "lived"), and a button to write one. */
 function Entries() {
   const [kind, setKind] = useState<string>("");
   const [q, setQ] = useState("");
@@ -153,6 +158,7 @@ function Entries() {
   );
 }
 
+/** The "Lived" tab: what people wrote about working here, in their words (agents cannot write these). */
 function Vivido() {
   const [adding, setAdding] = useState(false);
   const { data, error, reload } = usePoll(() => api.ruta({ kind: "vivido" }), [], 60000);
@@ -185,6 +191,9 @@ function Vivido() {
   );
 }
 
+/**
+ * The Cargos tab: each agent's turns of work (purpose, handover, what is left) and, on request, every tool call.
+ */
 function Cargos() {
   const { data, error } = usePoll(api.rutaActivity, [], 20000);
   const [showActions, setShowActions] = useState(false);
@@ -232,6 +241,7 @@ function Cargos() {
   );
 }
 
+/** The form to make an agent key: its name, whether it can write, and how many days it lasts. */
 function NewKey({ onCreated }: { onCreated: (k: CreatedAgentKey) => void }) {
   const [name, setName] = useState("");
   const [canWrite, setCanWrite] = useState(true);
@@ -265,6 +275,9 @@ function NewKey({ onCreated }: { onCreated: (k: CreatedAgentKey) => void }) {
   );
 }
 
+/**
+ * Shown once after making a key: the key itself and how to connect an agent with it (Claude Code's command, or a JSON config).
+ */
 function Connect({ k, onClose }: { k: CreatedAgentKey; onClose: () => void }) {
   const cli = `claude mcp add --transport http rendimiento ${k.endpoint} --header "Authorization: Bearer ${k.token}"`;
   const json = JSON.stringify({ mcpServers: { rendimiento: { type: "http", url: k.endpoint, headers: { Authorization: "Bearer ${RENDIMIENTO_MCP_TOKEN}" } } } }, null, 2);
@@ -282,6 +295,9 @@ function Connect({ k, onClose }: { k: CreatedAgentKey; onClose: () => void }) {
   );
 }
 
+/**
+ * The Keys tab: the agents' keys with their state (active, expired, revoked), and making or revoking one.
+ */
 function Keys() {
   const { data, error, reload } = usePoll(api.agentKeys, [], 30000);
   const [created, setCreated] = useState<CreatedAgentKey>();
@@ -314,6 +330,7 @@ function Keys() {
   );
 }
 
+/** The Ruta page: the platform's memory, kept by people and agents, in four tabs. */
 export function Ruta() {
   const [tab, setTab] = useState<Tab>("ruta");
   const tabs: { id: Tab; label: string }[] = [

@@ -459,6 +459,9 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Calls the API in the reader's language; an error answer becomes an ApiError with the server's message.
+ */
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
@@ -557,6 +560,7 @@ export interface PublicActivity {
   recent: { app: string; number: number; at: string; rollbackOf?: number; verifyStatus?: string; automatic?: boolean }[];
 }
 
+/** How long ago a time was: "12s ago", "5m ago", "3h ago", "2d ago". */
 export function timeAgo(iso?: string): string {
   if (!iso) return "";
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -566,6 +570,7 @@ export function timeAgo(iso?: string): string {
   return t("{n}d ago", { n: Math.floor(s / 86400) });
 }
 
+/** How long something took (until now if it has not ended): "45s" or "3m 12s". */
 export function duration(start?: string, end?: string): string {
   if (!start) return "";
   const s = Math.round(((end ? new Date(end) : new Date()).getTime() - new Date(start).getTime()) / 1000);

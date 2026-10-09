@@ -17,14 +17,17 @@ const ranges: { id: VisitRange; label: string }[] = [
 
 const fmtN = (n: number) => n.toLocaleString(locale);
 
+/** The share of visits that saw one page and left, or undefined with no visits. */
 function bounceRate(s: VisitStats): number | undefined {
   return s.visits > 0 ? (Math.min(s.bounces, s.visits) / s.visits) * 100 : undefined;
 }
 
+/** How long a visit lasts on average, in seconds. */
 function avgVisit(s: VisitStats): number | undefined {
   return s.visits > 0 ? s.totalTimeSec / s.visits : undefined;
 }
 
+/** Seconds as "45 s" or "2 min 5 s". */
 function fmtVisitTime(sec: number): string {
   const s = Math.round(sec);
   if (s < 60) return t("{n} s", { n: s });
@@ -41,6 +44,7 @@ function change(cur: number | undefined, prev: number | undefined, higherIsBette
   return t(up === higherIsBetter ? "{arrow} {pct}% vs the period before, better" : "{arrow} {pct}% vs the period before, worse", { arrow: up ? "↑" : "↓", pct });
 }
 
+/** A number with its label and a note under it (and a tooltip). */
 function Tile({ label, value, note, title }: { label: string; value: string; note: string; title?: string }) {
   return (
     <div className="rel-tile" title={title}>
@@ -51,6 +55,7 @@ function Tile({ label, value, note, title }: { label: string; value: string; not
   );
 }
 
+/** A round top for a chart's scale (1, 2, 2.5 or 5 times a power of ten). */
 function niceMax(v: number): number {
   if (v <= 0) return 10;
   const p = Math.pow(10, Math.floor(Math.log10(v)));
@@ -134,6 +139,7 @@ function VisitChart({ report, range, tz }: { report: VisitReport; range: VisitRa
 }
 
 let regionNames: Intl.DisplayNames | undefined;
+/** A country's name in the reader's language, from its two-letter code. */
 function countryName(code: string): string {
   try {
     regionNames ??= new Intl.DisplayNames([locale], { type: "region" });
@@ -168,6 +174,9 @@ function Top({ title, rows, label, empty }: { title: string; rows: VisitMetric[]
   );
 }
 
+/**
+ * One website's visitors: the numbers against the previous period, the chart, and its top pages, sources and countries.
+ */
 function ReportView({ report, data, multi }: { report: VisitReport; data: Visits; multi: boolean }) {
   const c = report.current, p = report.previous;
   const br = bounceRate(c), av = avgVisit(c);
@@ -201,6 +210,7 @@ function ReportView({ report, data, multi }: { report: VisitReport; data: Visits
   );
 }
 
+/** The app's Visits tab: Umami's numbers for each of its addresses over 24 h, 7 or 30 days. */
 export function VisitsTab({ app }: { app: App }) {
   const [range, setRange] = useState<VisitRange>("7d");
   const { data, error } = usePoll(() => api.visits(app.name, range), [app.name, range], 120000);

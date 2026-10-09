@@ -4,6 +4,7 @@ import { api, duration, subscribe, timeAgo, type Run } from "../api";
 import { ErrorBox, PipelineGraph, RunBadge } from "../components/ui";
 import { t } from "../i18n";
 
+/** A run's page: its graph of steps, live as they go, and the log of the step chosen. */
 export function RunPage() {
   const { name = "", id = "" } = useParams();
   const runId = Number(id);

@@ -10,6 +10,9 @@ export type Lang = "en" | "es";
 
 const storageKey = "rendimiento.lang";
 
+/**
+ * The language to start in: the one chosen before in this browser, else the browser's (Spanish or English).
+ */
 function initial(): Lang {
   try {
     const saved = localStorage.getItem(storageKey);

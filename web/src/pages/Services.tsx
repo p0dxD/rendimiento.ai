@@ -32,6 +32,9 @@ const originLabel: Record<CatalogEntry["origin"]["kind"], string> = {
   manual: "kubectl",
 };
 
+/**
+ * The Services page: everything running in the cluster, by group and category, with a search; a link can open one service.
+ */
 export function Services() {
   const { ns, name } = useParams();
   const [group, setGroup] = useState<CatalogGroup>("apps");
@@ -136,6 +139,9 @@ export function Services() {
   );
 }
 
+/**
+ * One service: what it is, its addresses (inside and outside), pods, images, who calls it and how to connect to it.
+ */
 function ServiceCard({ e, open: initiallyOpen }: { e: CatalogEntry; open: boolean }) {
   const [open, setOpen] = useState(initiallyOpen);
   const apps = new Set(e.usedBy.map((u) => u.app ?? u.namespace));
@@ -264,6 +270,7 @@ function ServiceCard({ e, open: initiallyOpen }: { e: CatalogEntry; open: boolea
   );
 }
 
+/** Text with a button that copies it. */
 function Copyable({ text, block }: { text: string; block?: boolean }) {
   const [done, setDone] = useState(false);
   const copy = async (ev: React.MouseEvent) => {
@@ -284,6 +291,7 @@ function Copyable({ text, block }: { text: string; block?: boolean }) {
   );
 }
 
+/** How to describe a service for others in rendimiento.yaml (catalog:). */
 function DocsHint() {
   return (
     <details className="card" style={{ marginTop: 16 }}>

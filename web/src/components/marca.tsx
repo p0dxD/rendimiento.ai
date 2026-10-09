@@ -1,6 +1,7 @@
 // The brand mark and the language switch, shared by the top bar and the welcome page.
 import { lang, setLang } from "../i18n";
 
+/** rendimiento's mark: a pulse line. */
 export function Logo() {
   return (
     <span className="logo" aria-hidden>

@@ -17,6 +17,9 @@ const tabs = [
   { id: "settings", label: "Settings" },
 ];
 
+/**
+ * An app's page, in tabs: overview, runs, releases, reliability, visits and settings. It refreshes as runs and releases happen.
+ */
 export function AppPage() {
   const { name = "", tab = "" } = useParams();
   const { data: app, error, reload } = usePoll(() => api.app(name), [name], 5000);
@@ -63,6 +66,9 @@ export function AppPage() {
   );
 }
 
+/**
+ * The Overview tab: each service with its addresses and health, the last run, and the tree of what runs in the cluster.
+ */
 function Overview({ name, app }: { name: string; app: Awaited<ReturnType<typeof api.app>> }) {
   const { data: tree, error } = usePoll(() => api.resources(name), [name], 5000);
   return (
@@ -218,6 +224,7 @@ function DependencyUpdates({ name }: { name: string }) {
   );
 }
 
+/** The Runs tab: the last runs, with their commit, branch, state and time. */
 function Runs({ name }: { name: string }) {
   const { data: runs, error } = usePoll(() => api.runs(name), [name], 5000);
   const nav = useNavigate();
@@ -249,6 +256,9 @@ function Runs({ name }: { name: string }) {
   );
 }
 
+/**
+ * The Releases tab: each release with its images, verification and deploy tasks, and rolling back to one.
+ */
 function Releases({ name, current }: { name: string; current?: number }) {
   const { data: rels, error, reload } = usePoll(() => api.releases(name), [name], 10000);
   const [busy, setBusy] = useState<number>();
@@ -364,6 +374,7 @@ function VerificationBanner({ name }: { name: string }) {
   return null;
 }
 
+/** The Settings tab: the app's secrets (values set here, never in git) and the danger zone. */
 function Settings({ name, secrets }: { name: string; secrets: string[] }) {
   const nav = useNavigate();
   return (
@@ -377,6 +388,9 @@ function Settings({ name, secrets }: { name: string; secrets: string[] }) {
   );
 }
 
+/**
+ * Disconnect the app (rendimiento lets go, it keeps running) or delete it, after typing its name; says what would be removed.
+ */
 function DangerZone({ name, onGone }: { name: string; onGone: () => void }) {
   const { data: impact } = usePoll(() => api.deleteImpact(name), [name]);
   const [busy, setBusy] = useState(false);
@@ -426,6 +440,9 @@ function DangerZone({ name, onGone }: { name: string; onGone: () => void }) {
   );
 }
 
+/**
+ * The form for one secret's values (KEY=value lines); they go straight to the app's namespace and are never shown again.
+ */
 function SecretForm({ app, secret }: { app: string; secret: string }) {
   const [text, setText] = useState("");
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");

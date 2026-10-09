@@ -49,6 +49,7 @@ function sugeridos(tipo: TipoPagina): { etiqueta: string; texto: string }[] {
 
 const tipoNombre = (id: TipoPagina) => tipos.find((x) => x.id === id)?.titulo() ?? id;
 
+/** The Mercado page: every stall (a page made from a form), with its owner, address and state. */
 export function Mercado() {
   const { data, error } = usePoll(api.mercado, [], 15000);
   return (
@@ -127,6 +128,7 @@ async function achicar(file: File): Promise<string> {
 
 const vacia: Pagina = { tipo: "personal", idioma: "es", nombre: "", paleta: "cempasuchil", detalles: [], enlaces: [{ tipo: "instagram", valor: "" }], galeria: [] };
 
+/** The stall form: opening a new one or changing one, with a live preview of the page. */
 export function PuestoEditor() {
   const { app } = useParams();
   const nuevo = !app;

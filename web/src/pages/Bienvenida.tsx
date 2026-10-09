@@ -82,6 +82,9 @@ function EnEsteMomento() {
   );
 }
 
+/**
+ * The welcome page, before signing in: what "rendir" means, what rendimiento does, la Ruta, what is happening now, and the book.
+ */
 export function Bienvenida({ book, activity }: { book: BookLinks; activity: boolean }) {
   const libro = (lang === "es" ? book.es : book.en) || book.en || book.es;
   const acepciones = [

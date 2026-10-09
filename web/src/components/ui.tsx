@@ -19,6 +19,7 @@ export function statusText(s: string): string {
   return t(phaseLabel[s] ?? s);
 }
 
+/** An app's state as a colored label (its message as the tooltip). */
 export function PhaseBadge({ status }: { status: AppStatus }) {
   const phase = status.phase ?? "Pending";
   const tone = phaseTone[phase] ?? "idle";
@@ -31,16 +32,19 @@ export function PhaseBadge({ status }: { status: AppStatus }) {
 
 const runTone: Record<string, Tone> = { succeeded: "ok", running: "warn", queued: "idle", failed: "bad", cancelled: "idle", reused: "idle" };
 
+/** A run's or step's state as a colored label, pulsing while it runs. */
 export function RunBadge({ status }: { status: Run["status"] | Step["status"] }) {
   const tone = runTone[status] ?? (status === "skipped" || status === "pending" ? "idle" : "idle");
   return <span className={`badge ${tone} ${status === "running" ? "live" : ""}`}>{statusText(status)}</span>;
 }
 
+/** A resource's health as a colored label. */
 export function HealthBadge({ health }: { health: ResourceNode["health"] }) {
   const tone: Tone = health === "Healthy" ? "ok" : health === "Degraded" ? "bad" : health === "Missing" ? "idle" : "warn";
   return <span className={`badge ${tone}`}>{statusText(health)}</span>;
 }
 
+/** An error as a red box, or nothing. */
 export function ErrorBox({ error }: { error: unknown }) {
   if (!error) return null;
   return <div className="alert">{error instanceof Error ? error.message : String(error)}</div>;
@@ -69,6 +73,7 @@ export function usePoll<T>(load: () => Promise<T>, deps: unknown[], intervalMs =
   return { data, error, reload: () => setTick((n) => n + 1), setData };
 }
 
+/** The tree of an app's resources in the cluster, each with its health. */
 export function ResourceTree({ node }: { node: ResourceNode }) {
   return (
     <ul className="tree">
@@ -77,6 +82,7 @@ export function ResourceTree({ node }: { node: ResourceNode }) {
   );
 }
 
+/** One resource in the tree, with what is under it. */
 function TreeNode({ node }: { node: ResourceNode }) {
   return (
     <li>
