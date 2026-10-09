@@ -85,6 +85,8 @@ type Cloudflare struct {
 
 const marker = "managed-by=rendimiento"
 
+// comment marks a DNS record as rendimiento's, for one app; records without
+// it are never changed or deleted.
 func comment(app string) string { return marker + " app=" + app }
 
 type record struct {
@@ -97,6 +99,8 @@ type record struct {
 	Comment string `json:"comment"`
 }
 
+// recordType is A when records point at an IP (given, or the public IP
+// followed automatically), CNAME when they point at a hostname.
 func (c *Cloudflare) recordType() string {
 	if c.auto() || net.ParseIP(c.Target) != nil {
 		return "A"
@@ -233,6 +237,7 @@ func (c *Cloudflare) zoneFor(ctx context.Context, host string) (string, error) {
 	return "", fmt.Errorf("no Cloudflare zone found for %s", host)
 }
 
+// find is the zone's record for host, or nil.
 func (c *Cloudflare) find(ctx context.Context, zoneID, host string) (*record, error) {
 	var recs []record
 	q := url.Values{"name": {host}}
@@ -247,6 +252,8 @@ func (c *Cloudflare) find(ctx context.Context, zoneID, host string) (*record, er
 	return nil, nil
 }
 
+// do calls Cloudflare's API with the token and decodes its result, turning
+// its error list into an error.
 func (c *Cloudflare) do(ctx context.Context, method, path string, body, out any) error {
 	base := c.BaseURL
 	if base == "" {

@@ -27,6 +27,8 @@ type mercadoView struct {
 	Puestos []puestoView `json:"puestos"`
 }
 
+// listMercado is the Mercado page: whether it is on, and every stall with
+// its app's state.
 func (s *Server) listMercado(w http.ResponseWriter, r *http.Request, _ string) {
 	out := mercadoView{Puestos: []puestoView{}}
 	if s.Mercado != nil {
@@ -85,6 +87,8 @@ func (s *Server) previewMercado(w http.ResponseWriter, r *http.Request, _ string
 	writeJSON(w, map[string]string{"html": string(html)})
 }
 
+// openPuesto opens a stall from the form: its repository, app and first
+// version (see mercado.Abrir).
 func (s *Server) openPuesto(w http.ResponseWriter, r *http.Request, login string) {
 	if s.Mercado == nil {
 		httpError(w, http.StatusServiceUnavailable, "the Mercado is not set up")
@@ -125,6 +129,7 @@ func (s *Server) puesto(w http.ResponseWriter, r *http.Request) (*store.App, *st
 	return a, p
 }
 
+// getPuesto is a stall's page as its form edits it.
 func (s *Server) getPuesto(w http.ResponseWriter, r *http.Request, _ string) {
 	if s.Mercado == nil {
 		httpError(w, http.StatusServiceUnavailable, "the Mercado is not set up")
@@ -146,6 +151,7 @@ func (s *Server) getPuesto(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSON(w, map[string]any{"puesto": p, "pagina": pagina, "dominio": dominio, "repo": a.Repo})
 }
 
+// savePuesto saves a changed page; its build and deploy follow on their own.
 func (s *Server) savePuesto(w http.ResponseWriter, r *http.Request, login string) {
 	if s.Mercado == nil {
 		httpError(w, http.StatusServiceUnavailable, "the Mercado is not set up")

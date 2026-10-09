@@ -44,6 +44,7 @@ func appHosts(a *store.App) []string {
 	return hosts
 }
 
+// visitTZ is the time zone visits are counted in (PUBLIC_STATS_TZ, else UTC).
 func (s *Server) visitTZ() *time.Location {
 	if tz, err := time.LoadLocation(s.PublicTimeZone); err == nil && s.PublicTimeZone != "" {
 		return tz
@@ -61,6 +62,8 @@ func umamiError(w http.ResponseWriter, err error) {
 	httpError(w, http.StatusBadGateway, "could not read Umami: "+err.Error())
 }
 
+// visits is an app's Visits tab: Umami's numbers for each of its addresses
+// over the last 24 hours, 7 or 30 days.
 func (s *Server) visits(w http.ResponseWriter, r *http.Request, _ string) {
 	a := s.app(w, r)
 	if a == nil {
@@ -116,6 +119,7 @@ type VisitsSummary struct {
 	Apps       []AppVisits     `json:"apps"` // most visitors first; only apps Umami counts
 }
 
+// addStats adds b's numbers to a.
 func addStats(a *analytics.Stats, b analytics.Stats) {
 	a.Pageviews += b.Pageviews
 	a.Visitors += b.Visitors
@@ -124,6 +128,8 @@ func addStats(a *analytics.Stats, b analytics.Stats) {
 	a.TotalTime += b.TotalTime
 }
 
+// visitsSummary is the dashboard's visitors: each app's total of the last
+// days, next to the days before.
 func (s *Server) visitsSummary(w http.ResponseWriter, r *http.Request, _ string) {
 	out := VisitsSummary{Configured: s.Analytics != nil, Days: visitDays, Apps: []AppVisits{}}
 	if s.Analytics == nil {

@@ -55,6 +55,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/web"
 )
 
+// env is the environment variable key, or def when it is unset or empty.
 func env(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -62,6 +63,7 @@ func env(key, def string) string {
 	return def
 }
 
+// main runs the platform until it is stopped, logging why if it fails.
 func main() {
 	// Warnings and errors also go to the Problems page; plain is the same
 	// log without that, for the recorder's own messages.
@@ -75,6 +77,10 @@ func main() {
 	}
 }
 
+// run reads the configuration from the environment, connects to Kubernetes,
+// Postgres and GitHub, wires every part of the platform together and runs
+// them: the API and UI, the controllers, and (on the leader) the CI
+// workers, schedulers and checks.
 func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -464,6 +470,7 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	return httpSrv.Shutdown(shutdown)
 }
 
+// ptr returns a pointer to a copy of v.
 func ptr[T any](v T) *T { return &v }
 
 // splitList splits a comma- or space-separated setting.
