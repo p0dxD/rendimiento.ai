@@ -200,6 +200,8 @@ var catalog = map[string]string{
 	"fixed by %s":                         "corregido con %s",
 	"GitHub App":                          "Aplicación de GitHub",
 	"installation %d is not one rendimiento uses": "la instalación %d no es una de las que usa rendimiento",
+	"the GitHub App is not installed on %s":              "la aplicación de GitHub no está instalada en %s",
+	"the GitHub App is not installed on %s (needed for %s)": "la aplicación de GitHub no está instalada en %s (hace falta para %s)",
 	"GitHub App %s":                       "Aplicación de GitHub %s",
 	"go.mod found (go %s)":                "se encontró go.mod (go %s)",
 	"Helm release %s":                     "Instalación de Helm %s",
