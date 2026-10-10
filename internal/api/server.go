@@ -198,6 +198,7 @@ func (s *Server) Handler() http.Handler {
 	auth("GET /api/apps/{app}/releases/{number}/tasks/{task}/log", s.releaseTaskLog)
 	auth("POST /api/apps/{app}/rollback", s.rollback)
 	auth("GET /api/apps/{app}/resources", s.resources)
+	auth("GET /api/apps/{app}/secrets/{secret}", s.getSecret)
 	auth("PUT /api/apps/{app}/secrets/{secret}", s.putSecret)
 	auth("GET /api/apps/{app}/events", s.appEvents)
 	auth("GET /api/runs/{id}", s.getRun)
@@ -1101,39 +1102,97 @@ func ptrOr(p *int32, d int32) int32 {
 	return *p
 }
 
-// putSecret writes app secret values straight into the app's namespace;
-// they are never stored in git, in Postgres, or returned by the API.
-func (s *Server) putSecret(w http.ResponseWriter, r *http.Request, login string) {
+// secretTarget is the app and the Secret named in the URL, when the name is
+// declared in rendimiento.yaml and the app's namespace exists (it writes the
+// error otherwise, and returns nil).
+func (s *Server) secretTarget(w http.ResponseWriter, r *http.Request) (*store.App, *corev1.Secret) {
 	a := s.app(w, r)
 	if a == nil {
-		return
+		return nil, nil
 	}
 	name := r.PathValue("secret")
 	if !slices.Contains(a.Spec.SecretNames(), name) {
 		httpError(w, http.StatusBadRequest, fmt.Sprintf("secret %q is not used by any service, job or task in rendimiento.yaml (secrets, secretEnv or secretFiles)", name))
-		return
-	}
-	var data map[string]string
-	if !readJSON(w, r, &data) {
-		return
+		return nil, nil
 	}
 	var ns corev1.Namespace
 	if err := s.Kube.Get(r.Context(), client.ObjectKey{Name: a.Name}, &ns); err != nil || ns.Labels[render.LabelApp] != a.Name {
 		httpError(w, http.StatusConflict, "the app's namespace does not exist yet; set secrets after the first deploy starts")
-		return
+		return nil, nil
 	}
-	sec := &corev1.Secret{
+	return a, &corev1.Secret{
 		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"},
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: a.Name, Labels: map[string]string{render.LabelApp: a.Name, render.LabelManagedBy: render.ManagedBy}},
-		StringData: data,
+	}
+}
+
+// getSecret lists the keys a secret holds, never their values, so the page
+// can show what is already set.
+func (s *Server) getSecret(w http.ResponseWriter, r *http.Request, _ string) {
+	_, sec := s.secretTarget(w, r)
+	if sec == nil {
+		return
+	}
+	keys := []string{}
+	err := s.Kube.Get(r.Context(), client.ObjectKeyFromObject(sec), sec)
+	if err != nil && !apierrors.IsNotFound(err) {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	for k := range sec.Data {
+		keys = append(keys, k)
+	}
+	for k := range sec.StringData {
+		if _, dup := sec.Data[k]; !dup {
+			keys = append(keys, k)
+		}
+	}
+	slices.Sort(keys)
+	writeJSON(w, map[string]any{"keys": keys})
+}
+
+// putSecret writes app secret values straight into the app's namespace;
+// they are never stored in git, in Postgres, or returned by the API. The
+// keys sent are added or replaced and the others are kept; a key sent as
+// null is removed.
+func (s *Server) putSecret(w http.ResponseWriter, r *http.Request, login string) {
+	a, sec := s.secretTarget(w, r)
+	if sec == nil {
+		return
+	}
+	name := sec.Name
+	var data map[string]*string
+	if !readJSON(w, r, &data) {
+		return
 	}
 	var existing corev1.Secret
 	err := s.Kube.Get(r.Context(), client.ObjectKeyFromObject(sec), &existing)
 	switch {
 	case apierrors.IsNotFound(err):
+		sec.StringData = map[string]string{}
+		for k, v := range data {
+			if v != nil {
+				sec.StringData[k] = *v
+			}
+		}
 		err = s.Kube.Create(r.Context(), sec)
 	case err == nil:
-		existing.Data, existing.StringData = nil, data
+		if existing.Data == nil {
+			existing.Data = map[string][]byte{}
+		}
+		// The API server folds stringData into data on write; a fake client
+		// does not, so fold it here too.
+		for k, v := range existing.StringData {
+			existing.Data[k] = []byte(v)
+		}
+		existing.StringData = nil
+		for k, v := range data {
+			if v == nil {
+				delete(existing.Data, k)
+			} else {
+				existing.Data[k] = []byte(*v)
+			}
+		}
 		err = s.Kube.Update(r.Context(), &existing)
 	}
 	if err != nil {

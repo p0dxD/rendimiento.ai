@@ -35,6 +35,8 @@ El **Resumen** de la aplicación muestra todas las direcciones de cada servicio:
 
 Declare los nombres en `rendimiento.yaml` (`secrets`, `secretEnv`, `secretFiles`); defina los valores en la página **Configuración** de la aplicación, o confirme **secretos sellados** (cifrados con la llave pública del clúster, que solo el clúster puede descifrar). Los valores nunca van a git en texto plano ni a la base de datos de la plataforma.
 
+En la página **Configuración**, cada secreto muestra las llaves que contiene (solo los nombres; los valores no se vuelven a mostrar). Al guardar líneas `LLAVE=valor` se agregan o reemplazan esas llaves y se conservan las demás; **×** en una llave la quita. En ambos casos la aplicación se reinicia para tomar el cambio.
+
 ## Volúmenes {#volumes}
 
 `volume: { size: 5Gi, mount: /data }` crea un volumen de Longhorn que sobrevive a los reinicios, a los despliegues e incluso a quitar el servicio del archivo. Use `existingClaim` para conservar un volumen existente. Agregue una etiqueta de respaldo de Longhorn para incluirlo en los respaldos de cada noche.

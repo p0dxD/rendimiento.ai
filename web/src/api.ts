@@ -538,7 +538,10 @@ export const api = {
   reliability: (app: string, range: ReliabilityRange) => request<Reliability>("GET", `/api/apps/${app}/reliability?range=${range}`),
   rollback: (app: string, release: number) => request<Release>("POST", `/api/apps/${app}/rollback`, { release }),
   resources: (app: string) => request<ResourceNode>("GET", `/api/apps/${app}/resources`),
-  putSecret: (app: string, secret: string, data: Record<string, string>) =>
+  secretKeys: (app: string, secret: string) =>
+    request<{ keys: string[] }>("GET", `/api/apps/${app}/secrets/${secret}`),
+  // Keys sent are added or replaced, the others stay; null removes a key.
+  putSecret: (app: string, secret: string, data: Record<string, string | null>) =>
     request<void>("PUT", `/api/apps/${app}/secrets/${secret}`, data),
   run: (id: number) => request<Run>("GET", `/api/runs/${id}`),
   cancelRun: (id: number) => request<void>("POST", `/api/runs/${id}/cancel`),
