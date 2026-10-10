@@ -76,7 +76,8 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | GET | `/api/apps/{app}/visits?range=24h\|7d\|30d` | los visitantes según Umami: por cada sitio que coincide, los totales y los del periodo anterior, una serie para la gráfica, las páginas principales, los orígenes y los países |
 | POST | `/api/apps/{app}/rollback` | revierte a una versión anterior (`{"release": N}`) |
 | GET | `/api/apps/{app}/resources` | los objetos vivos de Kubernetes y su salud (el árbol de recursos) |
-| PUT | `/api/apps/{app}/secrets/{secret}` | define los valores de un secreto (solo escritura; los valores nunca se devuelven) |
+| GET | `/api/apps/{app}/secrets/{secret}` | las llaves que contiene un secreto (`{"keys": [...]}`), nunca sus valores |
+| PUT | `/api/apps/{app}/secrets/{secret}` | agrega o reemplaza llaves de un secreto (`{"LLAVE": "valor"}`) y conserva las demás; `null` quita una llave. Solo escritura: los valores nunca se devuelven |
 | GET | `/api/apps/{app}/events` | SSE: los cambios de estado de la aplicación |
 | GET | `/api/apps/{app}/addons` | los complementos por aplicación (p. ej. Renovate) y su estado |
 | PUT | `/api/apps/{app}/addons/{addon}` | enciende, apaga o configura un complemento por aplicación |

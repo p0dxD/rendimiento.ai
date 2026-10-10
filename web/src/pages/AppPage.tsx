@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo, type Release, type ReleaseTask } from "../api";
 import { ErrorBox, PhaseBadge, ResourceTree, RunBadge, Switch, usePoll } from "../components/ui";
@@ -442,32 +442,52 @@ function DangerZone({ name, onGone }: { name: string; onGone: () => void }) {
 
 /**
  * The form for one secret's values (KEY=value lines); they go straight to the app's namespace and are never shown again.
+ * Saving adds or replaces the keys written and keeps the others; the keys already set are listed by name, each removable.
  */
 function SecretForm({ app, secret }: { app: string; secret: string }) {
   const [text, setText] = useState("");
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState<unknown>();
+  const [keys, setKeys] = useState<string[]>();
+  const loadKeys = useCallback(() => api.secretKeys(app, secret).then((r) => setKeys(r.keys), () => setKeys(undefined)), [app, secret]);
+  useEffect(() => { loadKeys(); }, [loadKeys]);
+  const write = async (data: Record<string, string | null>) => {
+    setState("saving");
+    setError(undefined);
+    try {
+      await api.putSecret(app, secret, data);
+      setState("saved");
+      loadKeys();
+      return true;
+    } catch (e) {
+      setError(e);
+      setState("idle");
+      return false;
+    }
+  };
   const save = async () => {
     const data: Record<string, string> = {};
     for (const line of text.split("\n")) {
       const i = line.indexOf("=");
       if (i > 0) data[line.slice(0, i).trim()] = line.slice(i + 1);
     }
-    setState("saving");
-    setError(undefined);
-    try {
-      await api.putSecret(app, secret, data);
-      setText("");
-      setState("saved");
-    } catch (e) {
-      setError(e);
-      setState("idle");
-    }
+    if (await write(data)) setText("");
+  };
+  const remove = (key: string) => {
+    if (confirm(t("Remove {key} from {secret}? The app restarts without it.", { key, secret }))) write({ [key]: null });
   };
   return (
     <div className="card stack">
       <strong className="mono">{secret}</strong>
-      <p className="small muted" style={{ margin: 0 }}>{t("Values are write-only: they replace the whole secret and restart the app. They are never shown again.")}</p>
+      {keys && keys.length > 0 && (
+        <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
+          <span className="small muted">{t("Keys set:")}</span>
+          {keys.map((k) => (
+            <button key={k} className="chip-btn mono" disabled={state === "saving"} title={t("Remove {key}", { key: k })} onClick={() => remove(k)}>{k}<span>×</span></button>
+          ))}
+        </div>
+      )}
+      <p className="small muted" style={{ margin: 0 }}>{t("Values are write-only and never shown again. Each key you write is added or replaced; the other keys stay. Saving restarts the app.")}</p>
       <textarea rows={3} className="mono" value={text} onChange={(e) => { setText(e.target.value); setState("idle"); }} placeholder={t("KEY=value\nOTHER_KEY=value")} autoComplete="off" spellCheck={false} />
       <ErrorBox error={error} />
       <div className="row">

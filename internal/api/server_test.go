@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -227,6 +228,22 @@ func TestSecretsAndDelete(t *testing.T) {
 	var sec corev1.Secret
 	if err := e.kube.Get(ctx, client.ObjectKey{Namespace: "shop", Name: "web-env"}, &sec); err != nil || sec.StringData["API_KEY"] != "s3cret" {
 		t.Fatalf("secret = %+v %v", sec, err)
+	}
+	// A second save adds its keys and keeps the others; null removes a key.
+	if r, body := e.do(t, "PUT", "/api/apps/shop/secrets/web-env", `{"DB_URL":"postgres://x"}`, me, nil); r.StatusCode != 204 {
+		t.Fatalf("add key: %d %s", r.StatusCode, body)
+	}
+	var listed struct{ Keys []string }
+	_, body := e.do(t, "GET", "/api/apps/shop/secrets/web-env", "", me, nil)
+	if json.Unmarshal([]byte(body), &listed) != nil || strings.Contains(body, "s3cret") || !slices.Equal(listed.Keys, []string{"API_KEY", "DB_URL"}) {
+		t.Fatalf("keys after adding = %v (%s)", listed.Keys, body)
+	}
+	if r, body := e.do(t, "PUT", "/api/apps/shop/secrets/web-env", `{"API_KEY":null}`, me, nil); r.StatusCode != 204 {
+		t.Fatalf("remove key: %d %s", r.StatusCode, body)
+	}
+	sec = corev1.Secret{}
+	if err := e.kube.Get(ctx, client.ObjectKey{Namespace: "shop", Name: "web-env"}, &sec); err != nil || string(sec.Data["DB_URL"]) != "postgres://x" || sec.Data["API_KEY"] != nil {
+		t.Fatalf("after removing API_KEY = %+v %v", sec.Data, err)
 	}
 	// Delete requires typing the app name.
 	if r, _ := e.do(t, "DELETE", "/api/apps/shop", "", me, nil); r.StatusCode != 400 {

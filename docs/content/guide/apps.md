@@ -35,6 +35,8 @@ The app's **Overview** lists every address of each service: its domain, its alia
 
 Declare names in `rendimiento.yaml` (`secrets`, `secretEnv`, `secretFiles`); set the values on the app's **Settings** page, or commit **sealed secrets** (encrypted with the cluster's public key, only the cluster can decrypt them). Values never go to git in plain text or to the platform database.
 
+On the **Settings** page each secret lists the keys it holds (names only; values are never shown again). Saving `KEY=value` lines adds or replaces those keys and keeps the others; **×** on a key removes it. Either way the app restarts to pick up the change.
+
 ## Volumes
 
 `volume: { size: 5Gi, mount: /data }` creates a Longhorn volume that survives restarts, rollouts and even removing the service from the file. Use `existingClaim` to keep an existing volume. Add a Longhorn backup label to include it in the nightly backups.

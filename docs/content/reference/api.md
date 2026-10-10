@@ -75,7 +75,8 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/apps/{app}/visits?range=24h\|7d\|30d` | visitors from Umami: per matching website, totals and the period before, a chart series, top pages, referrers and countries |
 | POST | `/api/apps/{app}/rollback` | roll back to an earlier release (`{"release": N}`) |
 | GET | `/api/apps/{app}/resources` | the live Kubernetes objects and their health (the resource tree) |
-| PUT | `/api/apps/{app}/secrets/{secret}` | set a secret's values (write-only; values are never returned) |
+| GET | `/api/apps/{app}/secrets/{secret}` | the keys a secret holds (`{"keys": [...]}`), never their values |
+| PUT | `/api/apps/{app}/secrets/{secret}` | add or replace a secret's keys (`{"KEY": "value"}`), keeping the others; `null` removes a key. Write-only: values are never returned |
 | GET | `/api/apps/{app}/events` | SSE: app status changes |
 | GET | `/api/apps/{app}/addons` | per-app add-ons (e.g. Renovate) and their state |
 | PUT | `/api/apps/{app}/addons/{addon}` | turn a per-app add-on on or off, or configure it |
