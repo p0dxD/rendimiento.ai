@@ -93,6 +93,7 @@ plugins:
             La Ruta (memory for people and agents, over MCP): La Ruta (la memoria de personas y agentes, por MCP)
             Languages (English, Spanish): Idiomas (inglés y español)
             Needs and the services catalog: Necesidades y catálogo de servicios
+            The Universe (every app from above): El universo (todas las aplicaciones desde arriba)
             Add-ons: Complementos
             Renovate: Renovate
             Developing it: Desarrollo
@@ -178,6 +179,7 @@ nav:
       - La Ruta (memory for people and agents, over MCP): guide/ruta.md
       - Languages (English, Spanish): guide/languages.md
       - Needs and the services catalog: guide/needs.md
+      - The Universe (every app from above): guide/universe.md
       - Add-ons: guide/addons.md
       - Renovate: guide/renovate.md
   - Developing it:

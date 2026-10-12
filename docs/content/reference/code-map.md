@@ -10,33 +10,37 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 
 | Package | Files | Lines | What it is |
 |---|---|---|---|
-| [`api/v1alpha1`](#api-v1alpha1) | 3 | 292 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 456 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`api/v1alpha1`](#api-v1alpha1) | 3 | 294 | Package v1alpha1 contains the App API: one App per deployed application. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 504 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
-| [`internal/addon`](#internal-addon) | 5 | 1056 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/analytics`](#internal-analytics) | 2 | 600 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
-| [`internal/api`](#internal-api) | 14 | 3344 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
-| [`internal/catalog`](#internal-catalog) | 2 | 887 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
-| [`internal/controller`](#internal-controller) | 7 | 2738 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
-| [`internal/detect`](#internal-detect) | 2 | 430 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
-| [`internal/dns`](#internal-dns) | 4 | 770 | Package dns manages the public DNS record for each app domain. |
-| [`internal/environment`](#internal-environment) | 6 | 1604 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
+| [`internal/addon`](#internal-addon) | 5 | 1067 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
+| [`internal/analytics`](#internal-analytics) | 2 | 608 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
+| [`internal/api`](#internal-api) | 16 | 3926 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/catalog`](#internal-catalog) | 2 | 910 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
+| [`internal/controller`](#internal-controller) | 7 | 2773 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
+| [`internal/detect`](#internal-detect) | 2 | 453 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
+| [`internal/dns`](#internal-dns) | 4 | 779 | Package dns manages the public DNS record for each app domain. |
+| [`internal/environment`](#internal-environment) | 6 | 1641 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
 | [`internal/events`](#internal-events) | 2 | 80 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
-| [`internal/generate`](#internal-generate) | 2 | 278 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
-| [`internal/github`](#internal-github) | 5 | 1164 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/i18n`](#internal-i18n) | 3 | 727 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
-| [`internal/logarchive`](#internal-logarchive) | 2 | 308 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
-| [`internal/notify`](#internal-notify) | 2 | 447 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
-| [`internal/pipeline`](#internal-pipeline) | 7 | 1847 | Package pipeline plans and executes CI runs. |
-| [`internal/platform`](#internal-platform) | 8 | 3206 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
-| [`internal/problems`](#internal-problems) | 2 | 278 | Package problems keeps the platform's own warnings and errors for the Problems page: a slog handler passes every record on to the real log and also queues warnings and errors; a Recorder stores them, folding repeats of the same problem into one row with a count. |
-| [`internal/render`](#internal-render) | 3 | 1169 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
-| [`internal/renovate`](#internal-renovate) | 2 | 791 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
-| [`internal/ruta`](#internal-ruta) | 2 | 910 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
-| [`internal/spec`](#internal-spec) | 2 | 1819 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 12 | 2712 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
-| [`internal/uptime`](#internal-uptime) | 2 | 650 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
+| [`internal/generate`](#internal-generate) | 2 | 282 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
+| [`internal/github`](#internal-github) | 5 | 1339 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
+| [`internal/i18n`](#internal-i18n) | 3 | 768 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
+| [`internal/logarchive`](#internal-logarchive) | 2 | 309 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
+| [`internal/mercado`](#internal-mercado) | 4 | 937 | Package mercado makes web pages for people who don't write code. |
+| [`internal/notify`](#internal-notify) | 2 | 450 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
+| [`internal/pipeline`](#internal-pipeline) | 7 | 1936 | Package pipeline plans and executes CI runs. |
+| [`internal/platform`](#internal-platform) | 8 | 3302 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
+| [`internal/problems`](#internal-problems) | 2 | 289 | Package problems keeps the platform's own warnings and errors for the Problems page: a slog handler passes every record on to the real log and also queues warnings and errors; a Recorder stores them, folding repeats of the same problem into one row with a count. |
+| [`internal/render`](#internal-render) | 3 | 1201 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
+| [`internal/renovate`](#internal-renovate) | 2 | 808 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
+| [`internal/ruta`](#internal-ruta) | 2 | 938 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
+| [`internal/selfupdate`](#internal-selfupdate) | 2 | 291 | Package selfupdate moves rendimiento to an image it built and tested itself: its own repository's builds: entry (SELF_APP), released like any app's. |
+| [`internal/spec`](#internal-spec) | 2 | 1843 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
+| [`internal/store`](#internal-store) | 16 | 3003 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/testenv`](#internal-testenv) | 1 | 23 | Package testenv is the envtest (a real API server and etcd) the controller and platform tests run against, tuned for slow machines. |
+| [`internal/universe`](#internal-universe) | 2 | 486 | Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches. |
+| [`internal/uptime`](#internal-uptime) | 2 | 658 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
 
@@ -46,7 +50,7 @@ Package v1alpha1 contains the App API: one App per deployed application.
 
 ### `api/v1alpha1/addon_types.go`
 
-<small>174 lines</small>
+<small>175 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -63,11 +67,11 @@ Package v1alpha1 contains the App API: one App per deployed application.
 | `AddonStatus` | struct | AddonStatus is what the controller last observed and did. |
 | `Addon` | struct | Addon is software installed from a Helm chart or git manifests. |
 | `AddonList` | struct | +kubebuilder:object:root=true |
-| `init` | func |  |
+| `init` | func | init registers the Addon kind with the API scheme. |
 
 ### `api/v1alpha1/app_types.go`
 
-<small>102 lines</small>
+<small>103 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -77,7 +81,7 @@ Package v1alpha1 contains the App API: one App per deployed application.
 | `AppStatus` | struct | AppStatus is what the controller last observed about an app. |
 | `App` | struct | App is one application managed by rendimiento. |
 | `AppList` | struct | +kubebuilder:object:root=true |
-| `init` | func |  |
+| `init` | func | init registers the App kind with the API scheme. |
 
 ### `api/v1alpha1/groupversion.go`
 
@@ -89,22 +93,22 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/logr.go`
 
-<small>9 lines</small>
+<small>11 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `toLogr` | func |  |
+| `toLogr` | func | toLogr hands controller-runtime the platform's logger, so its messages (and warnings, on the Problems page) go the same way. |
 
 ### `cmd/rendimiento/main.go`
 
-<small>447 lines</small>
+<small>493 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `env` | func |  |
-| `main` | func |  |
-| `run` | func |  |
-| `ptr` | func |  |
+| `env` | func | env is the environment variable key, or def when it is unset or empty. |
+| `main` | func | main runs the platform until it is stopped, logging why if it fails. |
+| `run` | func | run reads the configuration from the environment, connects to Kubernetes, Postgres and GitHub, wires every part of the platform together and runs them: the API and UI, the controllers, and (on the leader) the CI workers, schedulers and checks. |
+| `ptr` | func | ptr returns a pointer to a copy of v. |
 | `splitList` | func | splitList splits a comma- or space-separated setting. |
 
 ## `hack/codemap` {#hack-codemap}
@@ -156,7 +160,7 @@ Package addon renders add-ons (Helm charts or kustomize folders in git) into Kub
 
 ### `internal/addon/gitops.go`
 
-<small>375 lines</small>
+<small>380 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -169,18 +173,18 @@ Package addon renders add-ons (Helm charts or kustomize folders in git) into Kub
 | `(GitHubFetcher) Fetch` | method | Fetch implements GitFetcher through the GitHub App installation that owns repo. |
 | `Syncer` | struct | Syncer makes the Addon objects match the definitions in the gitops repo. |
 | `SyncResult` | struct | SyncResult is the outcome of one pass of Syncer.Sync, shown on the Add-ons page. |
-| `(*Syncer) init` | method |  |
+| `(*Syncer) init` | method | init makes the trigger channel once. |
 | `(*Syncer) Trigger` | method | Trigger asks the loop to sync soon (e.g. |
 | `(*Syncer) Last` | method | Last returns the most recent sync's outcome. |
 | `(*Syncer) Loop` | method | Loop syncs every few minutes and whenever triggered, until ctx ends. |
 | `(*Syncer) Sync` | method | Sync makes the Addon objects match the definitions at the head of the gitops repository: it creates and updates them, and deletes those whose file is gone (their software keeps running unless marked for uninstall). |
-| `(*Syncer) read` | method |  |
+| `(*Syncer) read` | method | read loads the add-on definitions from the gitops repository's add-ons folder (one YAML file each), with the commit read; files that cannot be used are returned apart, with why (invalid, or a name already taken). |
 | `(*Syncer) apply` | method | apply creates or updates one Addon; it reports whether anything changed. |
-| `equalSpec` | func |  |
+| `equalSpec` | func | equalSpec reports whether two add-on specs say the same thing. |
 
 ### `internal/addon/render.go`
 
-<small>358 lines</small>
+<small>364 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -191,10 +195,10 @@ Package addon renders add-ons (Helm charts or kustomize folders in git) into Kub
 | `(Hook) HookPolicy` | method | HookPolicy reports whether the hook has a delete policy; hooks without one get Helm's default, before-hook-creation. |
 | `Renderer` | struct | Renderer renders add-ons. |
 | `(*Renderer) Render` | method | Render produces the add-on's objects (and hooks) from its Helm or git source. |
-| `(*Renderer) renderHelm` | method |  |
+| `(*Renderer) renderHelm` | method | renderHelm renders a Helm chart add-on: it downloads the chart version from its repository and renders its templates with the add-on's values, keeping its hooks apart to run them like Helm does. |
 | `(*Renderer) chart` | method | chart downloads a chart from a classic (index.yaml) Helm repository. |
-| `(*Renderer) get` | method |  |
-| `(*Renderer) renderGit` | method |  |
+| `(*Renderer) get` | method | get downloads a URL (2 minutes at most by default). |
+| `(*Renderer) renderGit` | method | renderGit renders an add-on kept in a git repository: the folder at the revision, as plain manifests or a kustomization (Build). |
 | `Build` | func | Build renders a folder: kustomize if it has a kustomization file, otherwise every YAML file in it. |
 | `Decode` | func | Decode splits multi-document YAML into objects, expanding Lists and skipping empty documents. |
 
@@ -222,7 +226,7 @@ Package analytics reads visitor statistics from Umami, so each app's page shows 
 
 ### `internal/analytics/umami.go`
 
-<small>456 lines</small>
+<small>464 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -233,23 +237,23 @@ Package analytics reads visitor statistics from Umami, so each app's page shows 
 | `Point` | struct | Point is one bucket of a series: its start and its count. |
 | `Metric` | struct | Metric is one row of a top list (a path, a referrer, a country code). |
 | `Report` | struct | Report is everything the Visits tab shows for one website. |
-| `(*Umami) client` | method |  |
-| `(*Umami) login` | method |  |
+| `(*Umami) client` | method | client is the HTTP client (20 seconds at most per request by default). |
+| `(*Umami) login` | method | login signs in to Umami with its user and password and returns the token for later requests. |
 | `(*Umami) get` | method | get calls a read-only endpoint, signing in first and again when the token has expired. |
 | `remember` | func | remember returns a cached answer for key, or computes and keeps it. |
 | `page` | struct |  |
 | `(*Umami) Websites` | method | Websites lists the sites the user can see: its own and its teams'. |
 | `num` | type | num reads a JSON number that may come as a string (bigint columns) or null. |
-| `(*num) UnmarshalJSON` | method |  |
+| `(*num) UnmarshalJSON` | method | UnmarshalJSON accepts Umami's numbers whether they come as numbers, strings or null. |
 | `rawStats` | struct |  |
-| `(rawStats) stats` | method |  |
+| `(rawStats) stats` | method | stats converts Umami's numbers to Stats. |
 | `xy` | struct |  |
 | `Period` | struct | Period is the window a report covers, bucketed by hour or by day. |
 | `(*Umami) Report` | method | Report gathers a website's numbers for the period, in parallel. |
 | `(*Umami) Totals` | method | Totals are a website's numbers for a period and for the one before it: the dashboard's summary, one call per site. |
 | `series` | func | series turns Umami's sparse buckets into one point per hour or day of the period, zeros included, so a chart has no holes. |
-| `truncate` | func |  |
-| `next` | func |  |
+| `truncate` | func | truncate is the start of t's day or hour in the period's time zone. |
+| `next` | func | next is the day or hour after t. |
 | `parseBucket` | func | parseBucket reads "2026-10-06 13:00:00" (local to the time zone asked for) or "2026-10-06T13:00:00Z" (UTC). |
 | `Host` | func | Host normalizes a website domain or an app host for matching: lower case, no scheme, port, path or leading "www.". |
 | `Match` | func | Match returns the websites whose domain is one of hosts. |
@@ -269,21 +273,21 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/addons.go`
 
-<small>250 lines</small>
+<small>259 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `addonView` | struct | addonView is an add-on as the UI shows it. |
 | `addonApp` | struct |  |
-| `(*Server) renovateView` | method |  |
-| `(*Server) listAddons` | method |  |
-| `(*Server) getAddon` | method |  |
-| `(*Server) putAddon` | method |  |
-| `(*Server) startAddonRun` | method |  |
-| `(*Server) listAddonRuns` | method |  |
-| `(*Server) getAddonRun` | method |  |
+| `(*Server) renovateView` | method | renovateView is the Renovate add-on as its page shows it: on or off, its settings (or the defaults), its last run and when the next one is. |
+| `(*Server) listAddons` | method | listAddons is the built-in add-ons (Renovate). |
+| `(*Server) getAddon` | method | getAddon is one built-in add-on's page. |
+| `(*Server) putAddon` | method | putAddon switches a built-in add-on on or off and saves its settings. |
+| `(*Server) startAddonRun` | method | startAddonRun runs the add-on now ("Run now"), unless a run is going. |
+| `(*Server) listAddonRuns` | method | listAddonRuns is the add-on's last 30 runs. |
+| `(*Server) getAddonRun` | method | getAddonRun is one run of an add-on, with what it did per repository. |
 | `(*Server) appAddons` | method | appAddons is the app page's view: its switch and what the last run did. |
-| `(*Server) putAppAddon` | method |  |
+| `(*Server) putAppAddon` | method | putAppAddon switches Renovate on or off for one app. |
 
 ### `internal/api/credentials.go`
 
@@ -297,41 +301,41 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/delivery.go`
 
-<small>49 lines</small>
+<small>52 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `DeliveryReport` | struct | DeliveryReport is the dashboard's delivery health: the last 30 days, the 30 before them, and twelve weeks of history. |
-| `(*Server) delivery` | method |  |
+| `(*Server) delivery` | method | delivery is the dashboard's delivery health: deploys, builds and their times, verifications, rollbacks and outages of the last 30 days next to the 30 before, and twelve weeks of history. |
 
 ### `internal/api/i18n.go`
 
-<small>88 lines</small>
+<small>90 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `localized` | func | localized translates the JSON answers of /api/ for a browser that asks for Spanish (Accept-Language). |
 | `translateJSON` | func | translateJSON walks a decoded JSON value; key is the object key the value sits under (array elements inherit it, so "details": [...] translates). |
 | `bufferedWriter` | struct | bufferedWriter holds a handler's answer so it can be translated. |
-| `(*bufferedWriter) Header` | method |  |
+| `(*bufferedWriter) Header` | method | Header, WriteHeader and Write keep the answer, to translate it before it is sent. |
 | `(*bufferedWriter) WriteHeader` | method |  |
 | `(*bufferedWriter) Write` | method |  |
 
 ### `internal/api/installed.go`
 
-<small>343 lines</small>
+<small>353 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `installedView` | struct | installedView summarizes an installed add-on. |
-| `view` | func |  |
-| `(*Server) addonCatalog` | method |  |
-| `(*Server) listInstalled` | method |  |
-| `(*Server) getInstalled` | method |  |
-| `owner` | func |  |
+| `view` | func | view is an installed add-on as the UI shows it (with its full definition when full). |
+| `(*Server) addonCatalog` | method | addonCatalog is the add-ons that can be installed in one click. |
+| `(*Server) listInstalled` | method | listInstalled is every installed add-on (Addon objects in the cluster). |
+| `(*Server) getInstalled` | method | getInstalled is one installed add-on with its definition. |
+| `owner` | func | owner is the account part of owner/repo. |
 | `(*Server) putInstalled` | method | putInstalled installs or changes an add-on by committing its definition to the gitops repository; the sync then applies it. |
-| `(*Server) commitDefinition` | method |  |
-| `(*Server) gitopsClient` | method |  |
+| `(*Server) commitDefinition` | method | commitDefinition writes an add-on's definition to the gitops repository, where add-ons are kept (ADDONS_REPO), and returns the commit. |
+| `(*Server) gitopsClient` | method | gitopsClient is a GitHub client for the gitops repository and its default branch. |
 | `(*Server) syncInstalled` | method | syncInstalled asks a manual-sync add-on to apply its pending changes. |
 | `(*Server) deleteInstalled` | method | deleteInstalled removes the definition from git. |
 | `deepMerge` | func | deepMerge copies src into dst, merging nested maps. |
@@ -346,6 +350,22 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `(*Server) archivedLog` | method | archivedLog reads a step log from the log archive, or explains why it cannot: expired by the retention rule, or the archive is unreachable. |
 | `(*Server) releaseTaskLog` | method | releaseTaskLog serves the log of a release's post-deploy task. |
 
+### `internal/api/mercado.go`
+
+<small>176 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `puestoView` | struct | puestoView is a page in the Mercado: its card, and its app's state. |
+| `mercadoView` | struct |  |
+| `(*Server) listMercado` | method | listMercado is the Mercado page: whether it is on, and every stall with its app's state. |
+| `readPagina` | func | readPagina decodes a page from the form, photos and all. |
+| `(*Server) previewMercado` | method | previewMercado renders the page as the form fills it. |
+| `(*Server) openPuesto` | method | openPuesto opens a stall from the form: its repository, app and first version (see mercado.Abrir). |
+| `(*Server) puesto` | method | puesto finds the page named in the path, or answers 404. |
+| `(*Server) getPuesto` | method | getPuesto is a stall's page as its form edits it. |
+| `(*Server) savePuesto` | method | savePuesto saves a changed page; its build and deploy follow on their own. |
+
 ### `internal/api/notifications.go`
 
 <small>30 lines</small>
@@ -356,18 +376,18 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/problems.go`
 
-<small>61 lines</small>
+<small>64 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `ProblemList` | struct | ProblemList is the Problems page: what went wrong in the platform in the last 30 days, newest first, and how many problems are open. |
-| `(*Server) listProblems` | method |  |
+| `(*Server) listProblems` | method | listProblems is the Problems page: warnings and errors the platform logged recently (an app's, or all), repeats grouped. |
 | `(*Server) problemCount` | method | problemCount is the navigation badge's number. |
-| `(*Server) dismissProblem` | method |  |
+| `(*Server) dismissProblem` | method | dismissProblem hides a problem until it happens again. |
 
 ### `internal/api/public.go`
 
-<small>200 lines</small>
+<small>204 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -378,10 +398,10 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `publicCluster` | struct |  |
 | `publicCache` | struct | publicCache keeps the last answer for a minute, so visitors cannot make the platform recompute it on every page view. |
 | `(*Server) publicStats` | method | publicStats serves PublicStats when PublicStats is on (no login needed). |
-| `(*Server) buildPublicStats` | method |  |
+| `(*Server) buildPublicStats` | method | buildPublicStats computes the public numbers: delivery over 30 days and each public site's uptime over 90 days. |
 | `PublicActivity` | struct | PublicActivity is what GET /api/public/activity returns, for the welcome page: the runs going on now and the latest releases, by app name only (no repositories, commits, branches, messages or errors). |
 | `activityCache` | struct | activityCache keeps the last answer for 15 seconds. |
-| `(*Server) publicActivity` | method |  |
+| `(*Server) publicActivity` | method | publicActivity is the welcome page's "right now", without login: the runs going and the latest releases (cached 15 seconds). |
 
 ### `internal/api/reliability.go`
 
@@ -395,28 +415,37 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/ruta.go`
 
-<small>225 lines</small>
+<small>239 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `RutaInput` | struct | RutaInput is what a person writes or changes on the Ruta page. |
-| `(*RutaInput) check` | method |  |
-| `(*Server) listRuta` | method |  |
-| `(*Server) addRuta` | method |  |
-| `rutaID` | func |  |
-| `(*Server) updateRuta` | method |  |
-| `(*Server) archiveRuta` | method |  |
+| `(*RutaInput) check` | method | check tidies an entry from the Ruta page (trimmed title, lowercase tags) and says what is wrong with it, or "". |
+| `(*Server) listRuta` | method | listRuta is the Ruta page's list: entries by kind and text. |
+| `(*Server) addRuta` | method | addRuta writes an entry from the Ruta page, signed by the person. |
+| `rutaID` | func | rutaID reads the entry ID from the URL (400 when it is not a number). |
+| `(*Server) updateRuta` | method | updateRuta changes an entry from the Ruta page. |
+| `(*Server) archiveRuta` | method | archiveRuta hides an entry from lists; it is kept. |
 | `RutaActivity` | struct | RutaActivity is the agents' side of the Ruta page: their turns and what they did. |
-| `(*Server) rutaActivity` | method |  |
+| `(*Server) rutaActivity` | method | rutaActivity is the Ruta's Activity tab: agents' cargos and every tool call they made. |
 | `NewAgentKey` | struct | NewAgentKey asks for a key. |
 | `CreatedAgentKey` | struct | CreatedAgentKey is the answer: the token appears here once and never again. |
-| `(*Server) listAgentKeys` | method |  |
-| `(*Server) createAgentKey` | method |  |
-| `(*Server) revokeAgentKey` | method |  |
+| `(*Server) listAgentKeys` | method | listAgentKeys lists the agents' keys (names and rights; never the keys). |
+| `(*Server) createAgentKey` | method | createAgentKey makes a key for an agent, read-only or able to write, that lasts the days asked for. |
+| `(*Server) revokeAgentKey` | method | revokeAgentKey stops a key from working. |
+
+### `internal/api/selfupdate.go`
+
+<small>44 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `(*Server) platformVersion` | method | platformVersion says which release of rendimiento runs and whether a newer one is ready (the Environment page's "Update" button). |
+| `(*Server) updatePlatform` | method | updatePlatform switches rendimiento to a release's image; this process is replaced a few seconds after it answers. |
 
 ### `internal/api/server.go`
 
-<small>1183 lines</small>
+<small>1432 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -425,80 +454,85 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `Analytics` | interface | Analytics is where visitor numbers come from (Umami). |
 | `(*Server) Handler` | method | Handler returns the HTTP handler: public routes (health, webhooks, login, setup), session-protected /api routes and the embedded UI. |
 | `(*Server) guard` | method | guard adds security headers and rejects cross-site state changes. |
-| `sameOrigin` | func |  |
-| `hashToken` | func |  |
-| `randomToken` | func |  |
-| `(*Server) requireSession` | method |  |
-| `(*Server) allowed` | method |  |
-| `(*Server) secureCookies` | method |  |
-| `(*Server) login` | method |  |
-| `(*Server) callback` | method |  |
-| `(*Server) logout` | method |  |
-| `(*Server) setupStatus` | method |  |
-| `(*Server) checkSetupToken` | method |  |
-| `(*Server) setupStart` | method |  |
-| `(*Server) setupCallback` | method |  |
-| `(*Server) webhook` | method |  |
-| `(*Server) installations` | method |  |
-| `(*Server) repos` | method |  |
-| `(*Server) zones` | method |  |
-| `(*Server) propose` | method |  |
-| `(*Server) services` | method |  |
-| `(*Server) environment` | method |  |
+| `sameOrigin` | func | sameOrigin reports whether a browser's Origin header names the host the request came in on (behind the ingress, X-Forwarded-Host). |
+| `hashToken` | func | hashToken is what the database keeps of a session token: its SHA-256, so a copy of the sessions table cannot be used to sign in. |
+| `randomToken` | func | randomToken is 32 random bytes in hex: session tokens and OAuth states. |
+| `(*Server) requireSession` | method | requireSession wraps a handler for signed-in people: it reads the session cookie, finds whose it is, checks that login is still in ALLOWED_USERS, and passes the login on (or answers 401). |
+| `(*Server) allowed` | method | allowed reports whether a GitHub login is in ALLOWED_USERS (any case). |
+| `(*Server) secureCookies` | method | secureCookies: cookies are HTTPS-only when the platform is served on HTTPS. |
+| `(*Server) login` | method | login starts "Sign in with GitHub": it sets a random state in a cookie and sends the browser to GitHub, which comes back to callback with a code. |
+| `(*Server) loginElsewhere` | method | loginElsewhere is BaseURL's login address when r came in on another host (an old or extra domain of the platform), or "". |
+| `(*Server) callback` | method | callback finishes the GitHub sign-in: it checks the state against the cookie (so nobody can make you sign in as them), trades the code for the GitHub login, refuses logins not in ALLOWED_USERS, and opens a session of 7 days. |
+| `(*Server) logout` | method | logout deletes the session and its cookie. |
+| `(*Server) setupStatus` | method | setupStatus tells the UI, before anyone signs in, whether the GitHub App exists yet (and where to install it), whether the welcome page shows what is happening, and where the book is. |
+| `(*Server) checkSetupToken` | method | checkSetupToken guards the one-time GitHub App setup: it is refused once the App exists, and needs the token from the rendimiento-setup secret (in the URL the first time, then in a cookie). |
+| `(*Server) setupStart` | method | setupStart is the page that posts the App's manifest (name, permissions, webhook URL) to GitHub, which creates the App and sends you back to setupCallback. |
+| `(*Server) setupCallback` | method | setupCallback receives the new App from GitHub (its ID, private key and secrets, traded for the code), stores it in the rendimiento-github secret, starts using it without a restart, and sends you on to install it. |
+| `(*Server) webhook` | method | webhook receives GitHub's events. |
+| `(*Server) installationAllowed` | method | installationAllowed answers 403 for an installation on an account not in GITHUB_ACCOUNTS. |
+| `(*Server) installations` | method | installations lists the accounts the App is installed on (those in GITHUB_ACCOUNTS, when set), for the "New app" wizard's first choice. |
+| `(*Server) repos` | method | repos lists the repositories one installation can see, for the wizard. |
+| `(*Server) zones` | method | zones lists the DNS zones apps can have addresses in (the DNS provider's, plus DNS_ZONE), for the wizard's domain field. |
+| `(*Server) propose` | method | propose looks at a repository (detects its languages, ports, Dockerfiles) and answers the rendimiento.yaml it would write, without writing anything: the wizard's form starts from it. |
+| `(*Server) services` | method | services is the Services page: everything running in the cluster, apps and not, with what calls what (cached; ?refresh=1 rebuilds it). |
+| `(*Server) universe` | method | universe is the Universe page: every app from above, with its services, what they use and call, what the internet reaches, and their health. |
+| `(*Server) environment` | method | environment is the Environment page's report: what the cluster has, what rendimiento needs from it, and what is wrong (cached; ?refresh=1 checks again). |
 | `(*Server) dnsSync` | method | dnsSync re-detects the public IP now and repoints records that follow it. |
 | `(*Server) migration` | method | migration tells the wizard whether an app name matches a namespace that already runs something (so it can be migrated instead of duplicated). |
 | `appView` | struct |  |
 | `(*Server) downChecks` | method | downChecks maps each app to its checks with an open outage. |
-| `(*Server) view` | method |  |
-| `(*Server) listApps` | method |  |
-| `(*Server) createApp` | method |  |
-| `(*Server) app` | method |  |
-| `(*Server) getApp` | method |  |
-| `(*Server) deleteApp` | method |  |
-| `(*Server) deleteImpact` | method |  |
+| `(*Server) view` | method | view is an app as the UI shows it: the stored app, its live status from its App object in the cluster, and its last run. |
+| `(*Server) listApps` | method | listApps is the Apps page: every app with its status, last run, uptime of the last 24 hours and any checks failing right now. |
+| `(*Server) createApp` | method | createApp onboards a repository from the wizard: it registers the app and opens the pull request that adds rendimiento.yaml or, when the repository already has one (existing), queues its first build. |
+| `(*Server) app` | method | app loads the app named in the URL, answering 404 when there is none; a nil result means the answer was already written. |
+| `(*Server) getApp` | method | getApp is one app's page. |
+| `(*Server) deleteApp` | method | deleteApp removes an app and everything rendimiento made for it (namespace, DNS records). |
+| `(*Server) deleteImpact` | method | deleteImpact lists what deleting the app would remove, for the confirmation dialog. |
 | `(*Server) disconnectApp` | method | disconnectApp stops managing the app but leaves it running. |
-| `(*Server) listRuns` | method |  |
-| `(*Server) triggerRun` | method |  |
-| `(*Server) listReleases` | method |  |
-| `(*Server) rollback` | method |  |
+| `(*Server) listRuns` | method | listRuns is an app's Runs tab: its last 50 runs. |
+| `(*Server) triggerRun` | method | triggerRun queues a run by hand ("Run now"), of the default branch unless another is given. |
+| `(*Server) listReleases` | method | listReleases is an app's Releases tab: its last 50 releases, each with its deploy tasks. |
+| `(*Server) rollback` | method | rollback makes a new release with the images of an earlier one; the controller then deploys it like any other. |
 | `resourceNode` | struct | Resource tree for the Argo-style view. |
-| `(*Server) resources` | method |  |
-| `deploymentHealth` | func |  |
-| `podNode` | func |  |
-| `ptrOr` | func |  |
+| `(*Server) resources` | method | resources is the app's resource tree: per service, its Deployment and pods, Service, Ingress and volume, each with a health (Healthy, Progressing, Degraded or Missing), rolled up to the app. |
+| `deploymentHealth` | func | deploymentHealth is Healthy when every replica of the current version is ready, Degraded when Kubernetes gave up waiting for it, else Progressing. |
+| `podNode` | func | podNode is a pod in the resource tree: Healthy when ready, Degraded when crash-looping or unable to pull its image, with its restarts and node. |
+| `ptrOr` | func | ptrOr is *p, or d when p is nil. |
+| `(*Server) secretTarget` | method | secretTarget is the app and the Secret named in the URL, when the name is declared in rendimiento.yaml and the app's namespace exists (it writes the error otherwise, and returns nil). |
+| `(*Server) getSecret` | method | getSecret lists the keys a secret holds, never their values, so the page can show what is already set. |
 | `(*Server) putSecret` | method | putSecret writes app secret values straight into the app's namespace; they are never stored in git, in Postgres, or returned by the API. |
-| `(*Server) runID` | method |  |
-| `(*Server) getRun` | method |  |
-| `(*Server) cancelRun` | method |  |
-| `(*Server) stepLog` | method |  |
-| `(*Server) runEvents` | method |  |
-| `(*Server) appEvents` | method |  |
-| `(*Server) sse` | method |  |
-| `(*Server) ui` | method |  |
-| `writeJSON` | func |  |
+| `(*Server) runID` | method | runID reads the run ID from the URL (400 when it is not a number). |
+| `(*Server) getRun` | method | getRun is one run with its steps, for the run page. |
+| `(*Server) cancelRun` | method | cancelRun stops a run: one going is cancelled in this process (its pods are deleted), one still queued is marked cancelled before it starts. |
+| `(*Server) stepLog` | method | stepLog is one step's log as plain text, from the database or, once archived, from object storage. |
+| `(*Server) runEvents` | method | runEvents streams a run's changes (steps starting, log lines, the end) to the run page as server-sent events. |
+| `(*Server) appEvents` | method | appEvents streams an app's changes (new runs, releases, status) to its page. |
+| `(*Server) sse` | method | sse streams the events of a topic as server-sent events until the browser leaves, with a comment every 20 seconds so proxies keep the connection. |
+| `(*Server) ui` | method | ui serves the web UI built into the binary. |
+| `writeJSON` | func | writeJSON answers 200 with v as JSON. |
 | `writeJSONStatus` | func | writeJSONStatus sets headers before the status line; headers set after WriteHeader are silently dropped. |
-| `readJSON` | func |  |
-| `httpError` | func |  |
+| `readJSON` | func | readJSON decodes a request body of up to 1 MB into v, answering 400 when it is not valid; false means the answer was already written. |
+| `httpError` | func | httpError answers {"error": msg} with a status. |
 
 ### `internal/api/visits.go`
 
-<small>168 lines</small>
+<small>174 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `VisitsView` | struct | VisitsView is an app's Visits tab: one report per Umami website whose domain is one of the app's hostnames. |
 | `appHosts` | func | appHosts are every hostname an app's services answer on. |
-| `(*Server) visitTZ` | method |  |
+| `(*Server) visitTZ` | method | visitTZ is the time zone visits are counted in (PUBLIC_STATS_TZ, else UTC). |
 | `umamiError` | func | umamiError answers a failed Umami call: a refused login is a setup problem, anything else that Umami is unreachable. |
-| `(*Server) visits` | method |  |
+| `(*Server) visits` | method | visits is an app's Visits tab: Umami's numbers for each of its addresses over the last 24 hours, 7 or 30 days. |
 | `AppVisits` | struct | AppVisits is one app's line in the dashboard summary. |
 | `VisitsSummary` | struct | VisitsSummary is the dashboard's visitors panel: the last 7 days of every app that Umami counts, and the 7 before them. |
-| `addStats` | func |  |
-| `(*Server) visitsSummary` | method |  |
+| `addStats` | func | addStats adds b's numbers to a. |
+| `(*Server) visitsSummary` | method | visitsSummary is the dashboard's visitors: each app's total of the last days, next to the days before. |
 
 ### `internal/api/server_test.go`
 
-<small>559 lines · tests</small>
+<small>621 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -506,6 +540,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `TestWebhookSignature` | func |  |
 | `TestSetupRequiresToken` | func |  |
 | `TestSecretsAndDelete` | func |  |
+| `TestUniverse` | func |  |
 | `TestUIFallback` | func |  |
 | `TestJSONStatusKeepsContentType` | func | Regression: 201 responses were sent without Content-Type because the header was set after WriteHeader, and the UI then read them as text. |
 | `TestMigrationCheckByName` | func |  |
@@ -516,6 +551,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `TestRutaAPI` | func |  |
 | `TestVisitsAPI` | func |  |
 | `TestPublicActivity` | func | The welcome page's activity is off unless asked for, and names only the app. |
+| `TestLoginStartsOnBaseURL` | func |  |
 
 ## `internal/catalog` {#internal-catalog}
 
@@ -523,7 +559,7 @@ Package catalog lists the services apps can integrate with: what each one is, wh
 
 ### `internal/catalog/catalog.go`
 
-<small>698 lines</small>
+<small>721 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -537,29 +573,29 @@ Package catalog lists the services apps can integrate with: what each one is, wh
 | `Builder` | struct | Builder assembles the catalog from the cluster and caches it for TTL. |
 | `(*Builder) Get` | method | Get returns a cached catalog unless it is older than TTL or refresh is set. |
 | `snapshot` | struct |  |
-| `(*Builder) build` | method |  |
+| `(*Builder) build` | method | build makes the catalog from one look at the cluster: every Service (rendimiento's apps, other apps, infrastructure), where it comes from, its addresses inside and outside the cluster, its pods and images, and which workloads call it (found in their environment variables). |
 | `assemble` | func | assemble builds the catalog from a snapshot of the cluster. |
 | `appService` | struct |  |
-| `groupRank` | func |  |
-| `appOrigin` | func |  |
+| `groupRank` | func | groupRank orders the groups: apps, then other, then infrastructure. |
+| `appOrigin` | func | appOrigin says where an app's service comes from: built by rendimiento from its repository (with a link to the folder), or a ready-made image. |
 | `foreignOrigin` | func | foreignOrigin works out who deployed something rendimiento does not manage. |
 | `metav1Object` | interface |  |
-| `firstNonEmpty` | func |  |
+| `firstNonEmpty` | func | firstNonEmpty is the first of a that is not "". |
 | `guessProtocol` | func | guessProtocol names the protocol from the port name or well-known number. |
 | `lanAddress` | func | lanAddress is where a LoadBalancer Service answers on the local network (ip:port, empty until the load balancer assigns an IP), and a link to open when the protocol is a web one. |
-| `address` | func |  |
-| `suggestEnv` | func |  |
+| `address` | func | address is how to reach a service from inside the cluster, as a URL for protocols that have one (no port when it is the protocol's usual one), else host:port. |
+| `suggestEnv` | func | suggestEnv is the environment variable an app would usually read the service's address from (DATABASE_URL, REDIS_URL, ...). |
 | `snippet` | func | snippet is the rendimiento.yaml fragment for a service that calls this one. |
-| `withCredentials` | func |  |
-| `publicURLs` | func |  |
-| `selected` | func |  |
-| `podReady` | func |  |
-| `podImages` | func |  |
+| `withCredentials` | func | withCredentials shows where the user, password and database go in the address, as placeholders. |
+| `publicURLs` | func | publicURLs are the https:// addresses ingresses publish the service on. |
+| `selected` | func | selected are the running pods the Service sends traffic to. |
+| `podReady` | func | podReady reports whether Kubernetes counts the pod as ready. |
+| `podImages` | func | podImages are the images the pods run, each once. |
 | `imageLink` | func | imageLink points at an image's public page (Docker Hub, Quay, GitHub). |
-| `categorize` | func |  |
+| `categorize` | func | categorize guesses what a service is (database, cache, storage, monitoring, ...) from its protocol, name and images. |
 | `imageRepo` | func | imageRepo drops the registry host, tag and digest: what the image is ("dustynv/ollama"), not where it is stored ("registry.example.lan:5000"). |
 | `workload` | struct |  |
-| `collectWorkloads` | func |  |
+| `collectWorkloads` | func | collectWorkloads lists Deployments, StatefulSets and CronJobs with the environment of all their containers, to find which call which service. |
 | `consumers` | func | consumers finds workloads whose plain environment values point at svc: by its cluster DNS name from anywhere, by its short name from the same namespace, or by its LAN address. |
 
 ### `internal/catalog/catalog_test.go`
@@ -579,7 +615,7 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 
 ### `internal/controller/addon_controller.go`
 
-<small>506 lines</small>
+<small>517 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -590,23 +626,23 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 | `applyRank` | func | applyRank orders CRDs and namespaces before the objects that need them. |
 | `(*AddonReconciler) preview` | method | preview dry-runs every object and records what a sync would change. |
 | `normalize` | func | normalize renders an object without the fields that always differ between a live object and a dry run, or that rendimiento adds itself. |
-| `unifiedDiff` | func |  |
+| `unifiedDiff` | func | unifiedDiff shows how an object in the cluster differs from what the add-on wants (for manual sync), cut at 3000 characters. |
 | `(*AddonReconciler) applyAll` | method | applyAll server-side applies the objects in order, waiting for CRDs to be established before the objects that use them. |
-| `(*AddonReconciler) waitCRDs` | method |  |
-| `established` | func |  |
+| `(*AddonReconciler) waitCRDs` | method | waitCRDs waits up to 30 seconds for the CRDs just applied to be ready, before applying objects of those kinds. |
+| `established` | func | established reports whether a CRD is ready to be used. |
 | `(*AddonReconciler) prune` | method | prune deletes objects that were in the previous inventory but are no longer rendered, except kinds that must never be deleted. |
-| `(*AddonReconciler) deleteRef` | method |  |
+| `(*AddonReconciler) deleteRef` | method | deleteRef deletes one object an add-on made; one already gone (or whose kind no longer exists) is fine. |
 | `(*AddonReconciler) finalize` | method | finalize runs when an Addon is deleted: by default everything it installed keeps running; with the uninstall annotation it is removed (except kinds that must never be deleted). |
-| `(*AddonReconciler) saveStatus` | method |  |
-| `ref` | func |  |
+| `(*AddonReconciler) saveStatus` | method | saveStatus writes the add-on's status. |
+| `ref` | func | ref is how an add-on remembers an object it made. |
 | `refKey` | func | refKey identifies an object regardless of API version. |
-| `refs` | func |  |
-| `fromUnstructured` | func |  |
+| `refs` | func | refs is ref of each object, sorted. |
+| `fromUnstructured` | func | fromUnstructured converts an object read without its Go type into one. |
 | `(*AddonReconciler) SetupWithManager` | method | SetupWithManager registers the controller; it reacts to spec and annotation changes, and resyncs periodically. |
 
 ### `internal/controller/addon_hooks.go`
 
-<small>176 lines</small>
+<small>178 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -615,44 +651,44 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 | `(*AddonReconciler) hookDone` | method | hookDone records a hook's outcome and applies its delete policy. |
 | `(*AddonReconciler) waitHook` | method | waitHook waits for a Job to complete or a Pod to succeed; other kinds (a ConfigMap or ServiceAccount a hook Job uses) are done once created. |
 | `(*AddonReconciler) deleteAndWait` | method | deleteAndWait removes an object (and a Job's pods) and waits until it is gone. |
-| `hookInfo` | func |  |
-| `countHooks` | func |  |
+| `hookInfo` | func | hookInfo is what the add-on's status shows of its Helm hooks. |
+| `countHooks` | func | countHooks is how many hooks run on event (install, upgrade, delete). |
 
 ### `internal/controller/app_controller.go`
 
-<small>648 lines</small>
+<small>665 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `AppReconciler` | struct | AppReconciler turns App objects into running workloads, DNS records and status. |
 | `(*AppReconciler) Reconcile` | method | Reconcile brings one app's objects in line with its App object, or cleans up after it is deleted. |
-| `(*AppReconciler) sync` | method |  |
+| `(*AppReconciler) sync` | method | sync makes the cluster match one App: it renders the app's objects from its services, jobs, needs and released images (render.Render), applies them (the namespace first, then its secrets, then the rest, ingresses last), moves traffic over from an app it is migrating, deletes objects the app no longer needs, and fills st with each service's health. |
 | `(*AppReconciler) checkOwnership` | method | checkOwnership refuses to take over a namespace or hostname that belongs to something else, e.g. |
 | `(*AppReconciler) migrate` | method | migrate runs one step of an adoption: new workloads are already applied; once they are ready, traffic moves from the legacy ingresses to ours and the old workloads behind them are removed. |
-| `selects` | func |  |
-| `(*AppReconciler) apply` | method |  |
+| `selects` | func | selects reports whether labels carry every key and value of selector. |
+| `(*AppReconciler) apply` | method | apply writes one object with server-side apply as rendimiento, owned by the App (so it goes when the App goes): whatever someone changed by hand in the fields rendimiento sets is put back. |
 | `(*AppReconciler) applyIngresses` | method | applyIngresses applies ingresses in several passes. |
 | `(*AppReconciler) takeover` | method | takeover replaces, once, a same-named object that rendimiento does not manage yet (e.g. |
 | `(*AppReconciler) prune` | method | prune deletes workloads, services and ingresses of this app that are no longer in the spec. |
-| `appendIfStale` | func |  |
+| `appendIfStale` | func | appendIfStale adds o to stale when the rendered objects (want, by type and name) no longer include it. |
 | `(*AppReconciler) lanURL` | method | lanURL is where the service's `lan:` Service answers on the local network, from the address the load balancer assigned ("" until then). |
-| `(*AppReconciler) certReady` | method |  |
-| `(*AppReconciler) finalize` | method |  |
+| `(*AppReconciler) certReady` | method | certReady reports whether cert-manager has issued the Certificate ns/name. |
+| `(*AppReconciler) finalize` | method | finalize runs when an App is deleted, before Kubernetes removes it: it deletes the app's DNS records (unless the app is only being disconnected, which leaves everything running), then lets the deletion go on. |
 | `(*AppReconciler) crashLooping` | method | crashLooping reports a pod of the deployment stuck restarting, e.g. |
-| `deploymentCondition` | func |  |
+| `deploymentCondition` | func | deploymentCondition is the Deployment's condition of type t, or nil. |
 | `(*AppReconciler) SetupWithManager` | method | SetupWithManager registers the controller; changes to the objects an app owns trigger a reconcile (self-healing). |
 
 ### `internal/controller/needs.go`
 
-<small>134 lines</small>
+<small>139 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `(*AppReconciler) ensureNeedSecrets` | method | ensureNeedSecrets creates the credentials for the app's database and cache the first time they are needed. |
-| `(*AppReconciler) ensureSecret` | method |  |
+| `(*AppReconciler) ensureSecret` | method | ensureSecret creates a secret with a new random password the first time; once it exists it is never changed, so the database keeps working. |
 | `(*AppReconciler) serviceURLs` | method | serviceURLs looks up the services the app's services need and returns the address to inject for each: its app port (not the port-80 alias), by short name within the app's namespace, by cluster DNS name otherwise. |
-| `isOwnService` | func |  |
-| `address` | func |  |
+| `isOwnService` | func | isOwnService reports whether name is a service of this app. |
+| `address` | func | address is the URL of a service inside the cluster (no port for 80 or 443). |
 
 ### `internal/controller/addon_controller_test.go`
 
@@ -696,27 +732,27 @@ Package detect inspects a repository tree and guesses how each deployable servic
 
 ### `internal/detect/detect.go`
 
-<small>321 lines</small>
+<small>344 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Language` | type | Language is a detected language or runtime family. |
 | `Result` | struct | Result describes one deployable service found in the repo. |
 | `Detect` | func | Detect returns the services found at the repo root or, when the root is not itself a service, in its immediate subdirectories (monorepos). |
-| `detectDir` | func |  |
-| `detectGo` | func |  |
+| `detectDir` | func | detectDir looks at one folder: its language (from go.mod, package.json, Python or Java build files, or an index.html for a static site), framework, port, test command and needs. |
+| `detectGo` | func | detectGo: a Go module, its version from go.mod, port 8080, go test. |
 | `packageJSON` | struct |  |
 | `detectNode` | func | detectNode returns false for packages that are not deployable services (mobile apps, libraries without a start or build script). |
-| `nodeMajor` | func |  |
-| `installCmd` | func |  |
-| `detectPython` | func |  |
-| `pythonEntrypoint` | func |  |
-| `detectJava` | func |  |
-| `exposedPort` | func |  |
-| `exists` | func |  |
-| `detectNeeds` | func |  |
-| `read` | func |  |
-| `orNone` | func |  |
+| `nodeMajor` | func | nodeMajor is the Node.js major version from package.json's engines (18 or later), else 20. |
+| `installCmd` | func | installCmd installs dependencies with the package manager the lock file belongs to (pnpm, yarn or npm). |
+| `detectPython` | func | detectPython: Python 3.12, its framework (FastAPI, Django, Flask) from the dependencies, port 8000 (Flask's 5000), how to start it, and pytest when the project has tests. |
+| `pythonEntrypoint` | func | pythonEntrypoint is what a Python server starts: Django's wsgi module, or the "app" in the first of main.py, app.py or server.py found (as module:app). |
+| `detectJava` | func | detectJava: Java 21 with Maven or Gradle, port 8080, and their tests. |
+| `exposedPort` | func | exposedPort is the port a Dockerfile EXPOSEs (the last one: the final stage's), or 0. |
+| `exists` | func | exists reports whether dir/name exists in the repository. |
+| `detectNeeds` | func | detectNeeds finds what the code needs from its dependencies (a Postgres driver means a database, a Redis client a cache). |
+| `read` | func | read is a file's contents, or nothing. |
+| `orNone` | func | orNone is s, or "none". |
 
 ### `internal/detect/detect_test.go`
 
@@ -733,13 +769,13 @@ Package dns manages the public DNS record for each app domain.
 
 ### `internal/dns/ddns.go`
 
-<small>244 lines</small>
+<small>246 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `ddnsState` | struct |  |
 | `DDNSStatus` | struct | DDNSStatus is shown on the environment page. |
-| `(*Cloudflare) auto` | method |  |
+| `(*Cloudflare) auto` | method | auto: records follow the public IP (DNS_TARGET=auto). |
 | `(*Cloudflare) DDNSStatus` | method | DDNSStatus reports the last public-IP check and change, for the Environment page. |
 | `(*Cloudflare) target` | method | target is what new records point at: the configured value, or the detected public IP in auto mode (detecting it on first use). |
 | `SyncResult` | struct | SyncResult reports what one dynamic DNS pass did. |
@@ -747,12 +783,12 @@ Package dns manages the public DNS record for each app domain.
 | `(*Cloudflare) aRecords` | method | aRecords lists every A record in a zone, following pagination. |
 | `(*Cloudflare) Run` | method | Run keeps records following the public IP until ctx ends. |
 | `PublicIPv4` | func | PublicIPv4 returns this network's public IPv4 address. |
-| `fetchIP` | func |  |
+| `fetchIP` | func | fetchIP asks one public service what our IP is. |
 | `ParseIPResponse` | func | ParseIPResponse accepts either a bare address or Cloudflare's trace format, and only returns a public IPv4 address, so a misconfigured proxy or a private address can never be published in DNS. |
 
 ### `internal/dns/dns.go`
 
-<small>297 lines</small>
+<small>304 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -764,16 +800,16 @@ Package dns manages the public DNS record for each app domain.
 | `(Noop) Zones` | method | Zones returns none. |
 | `(Noop) Describe` | method | Describe reports that no DNS provider is configured. |
 | `Cloudflare` | struct | Cloudflare implements Provider with the Cloudflare v4 API and a scoped API token (Zone:Read + DNS:Edit). |
-| `comment` | func |  |
+| `comment` | func | comment marks a DNS record as rendimiento's, for one app; records without it are never changed or deleted. |
 | `record` | struct |  |
-| `(*Cloudflare) recordType` | method |  |
+| `(*Cloudflare) recordType` | method | recordType is A when records point at an IP (given, or the public IP followed automatically), CNAME when they point at a hostname. |
 | `(*Cloudflare) Ensure` | method | Ensure creates or updates the record for host, marked as managed for app; it refuses to change a record another app or a person created. |
 | `(*Cloudflare) Describe` | method | Describe verifies the API token and lists the zones it can manage. |
 | `(*Cloudflare) Remove` | method | Remove deletes host's record if it is managed for app. |
 | `(*Cloudflare) Zones` | method | Zones lists the zones the token can edit, for the domain picker. |
 | `(*Cloudflare) zoneFor` | method | zoneFor finds the most specific zone that contains host. |
-| `(*Cloudflare) find` | method |  |
-| `(*Cloudflare) do` | method |  |
+| `(*Cloudflare) find` | method | find is the zone's record for host, or nil. |
+| `(*Cloudflare) do` | method | do calls Cloudflare's API with the token and decodes its result, turning its error list into an error. |
 
 ### `internal/dns/ddns_test.go`
 
@@ -801,66 +837,66 @@ Package environment inspects the cluster and integrations rendimiento depends on
 
 ### `internal/environment/backups.go`
 
-<small>161 lines</small>
+<small>162 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `longhornList` | func |  |
+| `longhornList` | func | longhornList lists Longhorn objects of a kind (volumes, backups, ...). |
 | `(*Checker) checkBackups` | method | checkBackups reports which Longhorn volumes a backup job covers, which volumes in use are not covered, and whose last backup is too old. |
 
 ### `internal/environment/checks.go`
 
-<small>577 lines</small>
+<small>607 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `checkFunc` | type |  |
-| `(*Checker) checks` | method |  |
-| `(*Checker) checkAPI` | method |  |
-| `checkNodes` | func |  |
-| `checkMetrics` | func |  |
+| `(*Checker) checks` | method | checks is every check of the Environment page, in the order shown; they run in parallel, from one snapshot of the cluster where they can. |
+| `(*Checker) checkAPI` | method | checkAPI: the Kubernetes API answers, and which version it is. |
+| `checkNodes` | func | checkNodes: how many nodes are ready, of which architectures (builds are made for them). |
+| `checkMetrics` | func | checkMetrics: whether the metrics server gives live CPU and memory use. |
 | `imageVersion` | func | imageVersion returns the tag of an image reference, without any digest. |
 | `findDeployment` | func | findDeployment returns the first deployment running an image containing substr. |
-| `deploymentReady` | func |  |
-| `firstImage` | func |  |
-| `(*Checker) checkIngress` | method |  |
-| `(*Checker) checkCertManager` | method |  |
-| `(*Checker) checkIssuer` | method |  |
-| `checkCertificates` | func |  |
-| `(*Checker) checkStorage` | method |  |
-| `(*Checker) checkBuildkit` | method |  |
-| `(*Checker) checkRegistry` | method |  |
-| `(*Checker) checkBuildNamespace` | method |  |
+| `deploymentReady` | func | deploymentReady reports whether every replica of d is ready, and says how many are. |
+| `firstImage` | func | firstImage is the image of d's first container whose name contains substr. |
+| `(*Checker) checkIngress` | method | checkIngress: the IngressClass apps use exists, and its controller runs. |
+| `(*Checker) checkCertManager` | method | checkCertManager: cert-manager is installed and running, so apps get HTTPS certificates. |
+| `(*Checker) checkIssuer` | method | checkIssuer: the ClusterIssuer apps' certificates come from exists and is ready. |
+| `checkCertificates` | func | checkCertificates: every certificate in the cluster is valid, listing those that are not. |
+| `(*Checker) checkStorage` | method | checkStorage: the storage class for app volumes exists (and which one is the default). |
+| `(*Checker) checkBuildkit` | method | checkBuildkit: the BuildKit daemons that build images answer. |
+| `(*Checker) checkRegistry` | method | checkRegistry: the image registry answers its API (/v2/). |
+| `(*Checker) checkBuildNamespace` | method | checkBuildNamespace: the namespace where CI steps run exists. |
 | `(*Checker) checkBuildIsolation` | method | checkBuildIsolation reports whether CI pods, which run repo code, are fenced off from the rest of the cluster by a NetworkPolicy. |
-| `(*Checker) checkDNS` | method |  |
-| `(*Checker) checkLogArchive` | method |  |
-| `(*Checker) checkAnalytics` | method |  |
-| `(*Checker) checkNotifications` | method |  |
-| `(*Checker) checkGitHub` | method |  |
-| `(*Checker) checkDatabase` | method |  |
+| `(*Checker) checkDNS` | method | checkDNS: the DNS provider that creates app records works. |
+| `(*Checker) checkLogArchive` | method | checkLogArchive: old step logs are moved to object storage (otherwise they stay in Postgres). |
+| `(*Checker) checkAnalytics` | method | checkAnalytics: Umami answers, for each app's visitor numbers (optional). |
+| `(*Checker) checkNotifications` | method | checkNotifications: emails about failed runs, rollbacks and outages can be sent, and to whom. |
+| `(*Checker) checkGitHub` | method | checkGitHub: the GitHub App is set up, and on which accounts it is installed. |
+| `(*Checker) checkDatabase` | method | checkDatabase: the platform's Postgres answers. |
 | `(*Checker) providers` | method | providers describes each swappable slot, its active option and the roadmap. |
 
 ### `internal/environment/cluster.go`
 
-<small>252 lines</small>
+<small>255 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `snapshot` | struct | snapshot is read once per report and shared by the checks. |
 | `Distribution` | func | Distribution identifies the Kubernetes flavor from the server version and node metadata. |
-| `(*Checker) snapshot` | method |  |
+| `(*Checker) snapshot` | method | snapshot is one look at the cluster the checks share: version, nodes and their use, deployments, problems in pods and certificates. |
 | `podProblems` | func | podProblems lists pods that are failing or stuck. |
-| `(*Checker) certificateProblems` | method |  |
+| `(*Checker) certificateProblems` | method | certificateProblems counts the certificates and lists those not ready. |
 
 ### `internal/environment/environment.go`
 
-<small>293 lines</small>
+<small>296 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Status` | type | Status is the state of one check or provider. |
 | `(Status) rank` | method | rank orders statuses from best to worst for roll-ups. |
-| `worst` | func |  |
+| `worst` | func | worst is the more serious of two statuses. |
 | `Category` | type | Category groups checks on the Environment page. |
 | `Check` | struct | Check is one requirement and its state. |
 | `Option` | struct | Option is one choice for a provider slot; unavailable ones are on the roadmap. |
@@ -875,7 +911,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 | `Pinger` | interface | Pinger is satisfied by the store. |
 | `Checker` | struct | Checker builds environment reports and caches them for TTL. |
 | `(*Checker) Report` | method | Report returns a fresh or cached environment report. |
-| `(*Checker) build` | method |  |
+| `(*Checker) build` | method | build makes the report: a snapshot of the cluster, every check run in parallel, and an overall status and summary. |
 
 ### `internal/environment/backups_test.go`
 
@@ -927,7 +963,7 @@ Package generate turns detection results into a proposed rendimiento.yaml plus a
 
 ### `internal/generate/generate.go`
 
-<small>197 lines</small>
+<small>201 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -937,9 +973,9 @@ Package generate turns detection results into a proposed rendimiento.yaml plus a
 | `Templates` | struct | Templates is the deterministic, rule-based generator. |
 | `(Templates) Generate` | method | Generate proposes one service per detected directory and a Dockerfile from templates for those without one. |
 | `pickFrontDoor` | func | pickFrontDoor chooses which service gets the bare <repo>.<zone> domain: the first UI-like service, else the first service. |
-| `sizeFor` | func |  |
+| `sizeFor` | func | sizeFor is the starting size for a language: Java large, Go, static and Vite sites small, the rest medium. |
 | `dfData` | struct |  |
-| `dockerfile` | func |  |
+| `dockerfile` | func | dockerfile writes a Dockerfile for the detected language from the templates (an error for a language with none). |
 | `pythonCmd` | func | pythonCmd returns the container CMD (JSON form) and any server package that must be installed alongside the app's own requirements. |
 | `Slug` | func | Slug converts a repo or directory name into a DNS label. |
 
@@ -960,21 +996,24 @@ Package github talks to GitHub as a GitHub App: short-lived installation tokens 
 
 ### `internal/github/app.go`
 
-<small>289 lines</small>
+<small>336 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Credentials` | struct | Credentials are produced once by the manifest flow and stored in a Kubernetes Secret. |
 | `App` | struct | App is the GitHub App: it signs JWTs with its private key and exchanges them for installation tokens. |
+| `(*App) SetAccounts` | method | SetAccounts limits the App to installations on these accounts (user or organization logins, any case); none allows every installation. |
+| `(*App) Allows` | method | Allows reports whether an installation on the account login counts. |
 | `cachedToken` | struct |  |
 | `New` | func | New parses the App's private key. |
 | `(*App) Credentials` | method | Credentials returns what the App was created with. |
-| `(*App) base` | method |  |
-| `(*App) client` | method |  |
+| `(*App) base` | method | base is GitHub's API address (changed in tests). |
+| `(*App) client` | method | client is the HTTP client (30 seconds at most per request by default). |
 | `(*App) JWT` | method | JWT authenticates as the app itself (RS256, 9 minute lifetime). |
 | `(*App) InstallationToken` | method | InstallationToken returns a cached token for the installation, refreshing it five minutes before expiry. |
 | `Installation` | struct | Installation is the App installed on one account (user or organization). |
-| `(*App) Installations` | method | Installations lists the accounts the App is installed on. |
+| `(*App) Installations` | method | Installations lists the accounts the App is installed on (those it allows: see SetAccounts). |
+| `(*App) Installation` | method | Installation returns one installation the App allows, or an error. |
 | `(*App) Client` | method | Client returns an API client acting as the given installation. |
 | `(*App) do` | method | do performs a JSON API call. |
 | `APIError` | struct | APIError is a non-2xx response from the GitHub API. |
@@ -988,12 +1027,12 @@ Package github talks to GitHub as a GitHub App: short-lived installation tokens 
 
 ### `internal/github/client.go`
 
-<small>450 lines</small>
+<small>539 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Client` | struct | Client makes API calls as one installation. |
-| `(*Client) do` | method |  |
+| `(*Client) do` | method | do calls GitHub's API as the installation, with a token for it. |
 | `Repo` | struct | Repo is a repository the installation can access. |
 | `(*Client) Repos` | method | Repos lists every repo the installation can access. |
 | `(*Client) Repo` | method | Repo returns one repository (default branch, visibility). |
@@ -1001,7 +1040,7 @@ Package github talks to GitHub as a GitHub App: short-lived installation tokens 
 | `treeEntry` | struct |  |
 | `(*Client) FS` | method | FS returns the repository tree at ref as an fs.FS; files are downloaded when opened. |
 | `(*RepoFS) Open` | method | Open implements fs.FS. |
-| `(*RepoFS) blob` | method |  |
+| `(*RepoFS) blob` | method | blob is a file's contents, downloaded once and kept. |
 | `fileInfo` | struct |  |
 | `(fileInfo) Name` | method | Name implements fs.FileInfo. |
 | `(fileInfo) Size` | method | Size implements fs.FileInfo. |
@@ -1029,18 +1068,21 @@ Package github talks to GitHub as a GitHub App: short-lived installation tokens 
 | `(*Client) BranchSHA` | method | BranchSHA returns the commit a branch points at. |
 | `(*Client) PutFile` | method | PutFile creates or updates one file on a branch as a single commit and returns the commit's SHA. |
 | `(*Client) DeleteFile` | method | DeleteFile removes one file on a branch as a single commit. |
-| `(*Client) fileSHA` | method |  |
+| `(*Client) fileSHA` | method | fileSHA is the blob SHA of a file on a branch, which GitHub asks for to replace it. |
+| `(*Client) CreateOrgRepo` | method | CreateOrgRepo creates a public repository in an organization, with a first commit (a README) so files can be committed on its default branch. |
+| `(*Client) CommitFiles` | method | CommitFiles commits files (any content, photos included) and removes paths on branch, in a single commit on top of its head, and returns the commit's SHA. |
+| `(*Client) AddCollaborator` | method | AddCollaborator invites a GitHub user to a repository with permission (pull, triage, push, maintain or admin). |
 
 ### `internal/github/holder.go`
 
-<small>127 lines</small>
+<small>138 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Holder` | struct | Holder holds the current GitHub App, which appears at runtime after the one-click setup, and adapts it to the per-installation calls the platform makes. |
 | `(*Holder) Set` | method | Set installs the App (at startup, or after the setup flow). |
 | `(*Holder) Get` | method | Get returns the App, or ErrNotConfigured before setup. |
-| `(*Holder) client` | method |  |
+| `(*Holder) client` | method | client is an API client for the installation (ErrNotConfigured before setup). |
 | `(*Holder) FileAt` | method | FileAt reads one file of repo at ref. |
 | `(*Holder) RepoFS` | method | RepoFS returns repo's tree at ref as an fs.FS. |
 | `(*Holder) OpenPR` | method | OpenPR commits files to branch and opens (or finds) a pull request into base. |
@@ -1053,25 +1095,26 @@ Package github talks to GitHub as a GitHub App: short-lived installation tokens 
 
 ### `internal/github/oauth.go`
 
-<small>107 lines</small>
+<small>110 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `errorsAs` | func |  |
+| `errorsAs` | func | errorsAs is errors.As that accepts a nil error. |
 | `Manifest` | func | Manifest describes the app GitHub should create. |
 | `ConvertManifest` | func | ConvertManifest exchanges the one-time code for the new app's credentials. |
 | `(*App) AuthorizeURL` | method | AuthorizeURL is where the login button sends people (GitHub OAuth through the App). |
 | `(*App) Login` | method | Login exchanges an OAuth code for the user's login name. |
-| `decodeJSON` | func |  |
+| `decodeJSON` | func | decodeJSON reads a JSON answer, or an APIError for a status of 300 or more. |
 
 ### `internal/github/github_test.go`
 
-<small>191 lines · tests</small>
+<small>216 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `TestJWTIsValidRS256` | func |  |
 | `TestInstallationTokenCached` | func |  |
+| `TestInstallationsOnlyAllowedAccounts` | func |  |
 | `TestRepoFSDrivesDetection` | func |  |
 | `TestOpenPRSingleCommit` | func |  |
 | `TestVerifyWebhook` | func |  |
@@ -1082,11 +1125,11 @@ Package i18n translates the platform's messages for people: the API's answers to
 
 ### `internal/i18n/es.go`
 
-<small>405 lines</small>
+<small>443 lines</small>
 
 ### `internal/i18n/i18n.go`
 
-<small>223 lines</small>
+<small>226 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1096,7 +1139,7 @@ Package i18n translates the platform's messages for people: the API's answers to
 | `FromRequest` | func | FromRequest is the language the browser asked for. |
 | `pattern` | struct | pattern is one catalog entry, compiled to match finished messages. |
 | `verbs` | func | verbs finds the verbs of a format, skipping literal percent signs (%%). |
-| `compile` | func |  |
+| `compile` | func | compile prepares the catalog once: messages without verbs are looked up as they are; the others become patterns (verbs match any text), tried longest first, so a specific message wins over a general one. |
 | `Translate` | func | Translate returns msg in lang. |
 | `sprintfStrings` | func | sprintfStrings formats the Spanish format with values captured as text: every verb becomes %s, so numbers keep the form they had. |
 | `TranslateExact` | func | TranslateExact translates only a message the catalog has word for word, never through a pattern. |
@@ -1119,7 +1162,7 @@ Package logarchive moves the step logs of finished CI runs out of Postgres into 
 
 ### `internal/logarchive/logarchive.go`
 
-<small>204 lines</small>
+<small>205 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1130,7 +1173,7 @@ Package logarchive moves the step logs of finished CI runs out of Postgres into 
 | `(*Archive) Sweep` | method | Sweep archives the logs of finished runs, in batches, until none are left or one fails. |
 | `Key` | func | Key is a step log's object key. |
 | `(*Archive) Read` | method | Read returns an archived log's text. |
-| `compress` | func |  |
+| `compress` | func | compress gzips a log as small as it goes. |
 | `MinIO` | struct | MinIO stores objects in one bucket of a MinIO (or other S3) server. |
 | `NewMinIO` | func | NewMinIO connects to endpoint (host:port) with an access key. |
 | `(*MinIO) Put` | method | Put uploads one object. |
@@ -1146,13 +1189,81 @@ Package logarchive moves the step logs of finished CI runs out of Postgres into 
 | `TestSweepStopsWithoutProgress` | func | A sweep that cannot mark anything stops instead of uploading forever. |
 | `TestSweepAndRead` | func |  |
 
+## `internal/mercado` {#internal-mercado}
+
+Package mercado makes web pages for people who don't write code.
+
+### `internal/mercado/mercado.go`
+
+<small>273 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Mercado` | struct | Mercado opens and keeps the pages. |
+| `Abrir` | struct | Abrir is the form's first answers: the page and its address. |
+| `(*Mercado) Abrir` | method | Abrir opens a new page: a repository in Org with the page, its rendimiento.yaml and its Dockerfile, registered as an app. |
+| `(*Mercado) Leer` | method | Leer reads a page from its repository's default branch. |
+| `(*Mercado) Guardar` | method | Guardar saves a changed page as one commit: its HTML and answers, new photos, and without the photos it no longer uses. |
+| `(*Mercado) dominioLibre` | method | dominioLibre checks that a page can be published at dominio: under one of the zones, and not taken by another app. |
+| `enZona` | func | enZona tells whether dominio is one word (an app's name) under one of zones. |
+| `especificacion` | func | especificacion is a page's rendimiento.yaml: one small static service. |
+| `archivos` | func | archivos are the files a commit of the page writes. |
+| `readme` | func | readme is the README of a page's repository: what each file is, and that the form rewrites index.html on every save. |
+| `enIdioma` | func | enIdioma picks the words the page's owner reads in GitHub (its commits and description), in the page's language. |
+
+### `internal/mercado/pagina.go`
+
+<small>234 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Paleta` | struct | Paleta is a page's colors, from the Cotija palette: the awning, the headings and the buttons. |
+| `Pagina` | struct | Pagina is everything the form asks, saved as pagina.json. |
+| `Detalle` | struct | Detalle is one labelled fact: Horario, Dirección, Fecha, Lugar… |
+| `Enlace` | struct | Enlace is a way to reach the owner: a username, a number, an email or an address. |
+| `(*Pagina) Default` | method | Default fills what the form may leave out. |
+| `(*Pagina) Validate` | method | Validate checks a defaulted page. |
+| `(Enlace) Href` | method | Href is the link an Enlace becomes. |
+| `contains` | func | contains reports whether v is in list. |
+| `boolInt` | func | boolInt is 1 for true, 0 for false. |
+
+### `internal/mercado/render.go`
+
+<small>240 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `textos` | struct | Textos are the page's own labels, in its language, by kind of page. |
+| `enlaceVista` | struct |  |
+| `vista` | struct |  |
+| `bandera` | struct | bandera is one flag of the papel picado across the top of the page. |
+| `fotoURL` | func | fotoURL is where the page loads a photo from: a data: URL as it came from the form (the preview), or a path of the repository, relative to base ("" on the published page, the site's address in a preview). |
+| `Render` | func | Render turns a page into its HTML. |
+| `lastSegment` | func | lastSegment is what follows the last / (a profile name in a link). |
+| `banderas` | func | banderas strings the papel picado: fourteen flags in the page's colors and the rest of the Cotija palette. |
+| `Fotos` | func | Fotos takes the photos just added in the form (data: URLs) out of the page: it returns them as files of the repository, named by their content, and leaves their paths in the page. |
+| `fotosDe` | func | fotosDe lists the repository photos a page uses. |
+
+### `internal/mercado/mercado_test.go`
+
+<small>190 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestEnlaces` | func |  |
+| `TestValidate` | func |  |
+| `TestRenderEscapes` | func |  |
+| `TestFotos` | func |  |
+| `TestArchivos` | func |  |
+| `TestEnZona` | func |  |
+
 ## `internal/notify` {#internal-notify}
 
 Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries.
 
 ### `internal/notify/notify.go`
 
-<small>318 lines</small>
+<small>321 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1163,11 +1274,11 @@ Package notify emails the platform's owner about what needs attention: releases 
 | `Notifier` | struct | Notifier renders messages and sends them, de-duplicated and rate-limited. |
 | `(*Notifier) Enabled` | method | Enabled reports whether messages are actually sent. |
 | `(*Notifier) Notify` | method | Notify sends m in the background (a slow mail API never delays the caller). |
-| `(*Notifier) allow` | method |  |
+| `(*Notifier) allow` | method | allow keeps email from flooding: the same message (by its key) at most once every 30 minutes, and 20 emails an hour in all, by default. |
 | `(*Notifier) Send` | method | Send renders and sends m now, without de-duplication (the test email). |
 | `Localize` | func | Localize translates a message's text for people into lang: subject, title, summary, facts, details (line by line) and the action. |
 | `Render` | func | Render returns m as an email-safe HTML page and as plain text, in English. |
-| `render` | func |  |
+| `render` | func | render is an email's subject and HTML in a language, in the tone's colors. |
 | `Resend` | struct | Resend sends email through Resend's HTTP API (https://resend.com). |
 | `(*Resend) Send` | method | Send posts one email to Resend. |
 
@@ -1188,35 +1299,35 @@ Package pipeline plans and executes CI runs.
 
 ### `internal/pipeline/kube.go`
 
-<small>721 lines</small>
+<small>746 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `KubeExecutor` | struct | KubeExecutor runs each step as a pod in a dedicated namespace. |
-| `(*KubeExecutor) defaults` | method |  |
-| `podName` | func |  |
-| `randSuffix` | func |  |
+| `(*KubeExecutor) defaults` | method | defaults fills the images and timeout left unset. |
+| `podName` | func | podName is a step's pod name: run-<run>-<step>, lowercase, with anything Kubernetes does not accept turned into dashes, and short enough to leave room for a suffix. |
+| `randSuffix` | func | randSuffix is 5 random hex characters, so a retried step gets a new pod name. |
 | `(*KubeExecutor) Cleanup` | method | Cleanup removes pods and clone secrets left by a previous process. |
 | `(*KubeExecutor) Execute` | method | Execute runs one step as a pod: a clone secret with a short-lived token, the pod (clone, plan, then the step), its logs streamed to w, and the digest of a build read from the termination message. |
 | `(*KubeExecutor) buildkitFor` | method | buildkitFor picks the pool daemon for key by rendezvous hashing: each key has a stable favourite among the ready daemons, and only the keys of a daemon that goes away move elsewhere. |
-| `(*KubeExecutor) pod` | method |  |
+| `(*KubeExecutor) pod` | method | pod is the pod a step runs in. |
 | `(*KubeExecutor) testPostgres` | method | testPostgres is the database of a test with postgres: true: a sidecar (an init container that keeps running) that the tests start after, once it accepts connections, and that stops when they end. |
 | `cacheName` | func | cacheName is the volume kept between runs of a test step: one per app and step, e.g. |
 | `(*KubeExecutor) ensureCache` | method | ensureCache creates the step's cache volume the first time it runs. |
 | `(*KubeExecutor) DeleteCaches` | method | DeleteCaches removes the cache volumes of an app's tests. |
-| `sortedEnv` | func |  |
+| `sortedEnv` | func | sortedEnv turns a map into environment variables in a fixed order, so the same step always makes the same pod. |
 | `(*KubeExecutor) waitStarted` | method | waitStarted blocks until the container is running or has terminated, failing fast on image pull errors. |
-| `(*KubeExecutor) streamLogs` | method |  |
-| `(*KubeExecutor) waitDone` | method |  |
-| `terminationSummary` | func |  |
-| `(*KubeExecutor) affinity` | method |  |
+| `(*KubeExecutor) streamLogs` | method | streamLogs copies a container's log to w as it is written, until the container ends. |
+| `(*KubeExecutor) waitDone` | method | waitDone polls the pod every second until it succeeds or fails, or the step's time runs out. |
+| `terminationSummary` | func | terminationSummary says why a pod failed: Kubernetes' reason (e.g. |
+| `(*KubeExecutor) affinity` | method | affinity keeps step pods off the nodes in BUILD_EXCLUDE_NODES. |
 | `transientRetry` | func | transientRetry retries API calls that failed for reasons that pass on their own: an overloaded API server (k3s's SQLite datastore answers "database is locked" under heavy I/O), timeouts, throttling. |
-| `isTransient` | func |  |
-| `ptr` | func |  |
+| `isTransient` | func | isTransient reports errors from the API server worth trying again: it is busy, timed out or briefly unavailable (k3s's SQLite says "database is locked"). |
+| `ptr` | func | ptr returns a pointer to a copy of v. |
 
 ### `internal/pipeline/plan.go`
 
-<small>172 lines</small>
+<small>191 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1229,11 +1340,12 @@ Package pipeline plans and executes CI runs.
 | `Source` | struct | Source identifies the commit being built. |
 | `Plan` | func | Plan builds the DAG for a spec: per service, its test (if configured) and its build, side by side; job images; the builds (test and build); then tasks, after the builds (and their tests) and tasks they name. |
 | `testStep` | func | testStep is the test of a service or build named name, whose image key is key. |
-| `isTask` | func |  |
+| `isTask` | func | isTask reports whether name is a task of the spec. |
+| `hasTest` | func | hasTest reports whether the service or build named name has a test step. |
 
 ### `internal/pipeline/run.go`
 
-<small>150 lines</small>
+<small>175 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1269,7 +1381,7 @@ Package pipeline plans and executes CI runs.
 
 ### `internal/pipeline/run_test.go`
 
-<small>383 lines · tests</small>
+<small>403 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1278,7 +1390,7 @@ Package pipeline plans and executes CI runs.
 | `TestPlanBuildsJobImages` | func |  |
 | `TestBuildPodsAvoidExcludedNodes` | func |  |
 | `TestTransientRetry` | func |  |
-| `TestRunnerFailureSkipsDependents` | func |  |
+| `TestRunnerFailureStopsTheRun` | func |  |
 | `TestValidateCycle` | func |  |
 | `TestBuildPodPicksBuilder` | func |  |
 | `TestPlanScript` | func | TestPlanScript runs the real plan script with a stub railpack CLI. |
@@ -1304,7 +1416,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/platform.go`
 
-<small>1029 lines</small>
+<small>1110 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1321,6 +1433,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `OnboardRequest` | struct | OnboardRequest is what the New app wizard submits. |
 | `OnboardResult` | struct | OnboardResult is the created app and either the onboarding PR or the first run. |
 | `(*Platform) Onboard` | method | Onboard registers the app, creates its App object (waiting for a build) and either opens the onboarding PR or, if the repo already carries a rendimiento.yaml, queues the first build right away. |
+| `(*Platform) Register` | method | Register records the app and creates its App object, which waits for a first build; the next push with a rendimiento.yaml builds it. |
 | `(*Platform) DeleteApp` | method | DeleteApp removes the App object (the controller then removes DNS and, through owner references, the namespace) and the app's records. |
 | `Impact` | struct | Impact describes what deleting an app would destroy. |
 | `(*Platform) DeleteImpact` | method | DeleteImpact lists what deleting an app would remove (namespace, volumes, secrets), shown before deleting. |
@@ -1331,11 +1444,12 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `(*Platform) QueueRun` | method | QueueRun reads rendimiento.yaml at the commit, plans the steps and queues the run. |
 | `(*Platform) rejectRun` | method | rejectRun records a push whose rendimiento.yaml is invalid as a failed run, so it shows where pushes are looked for: on the app page, as a red check on the commit in GitHub and, for the default branch, in an email. |
 | `(*Platform) Work` | method | Work claims queued runs until ctx ends. |
+| `(*Platform) work` | method | work takes the oldest queued run of an app with no run going (so an app's runs, and its releases, keep their order) until ctx ends. |
 | `(*Platform) Cancel` | method | Cancel stops a run in progress in this process; it reports whether one was found. |
-| `(*Platform) execute` | method |  |
-| `(*Platform) release` | method |  |
+| `(*Platform) execute` | method | execute does one run from start to end: it reads the app's spec (a branch's own, from its commit), plans the steps, leaves out what has not changed since the last release (its images are reused) and the tasks that do not apply, runs the rest, and records the result. |
+| `(*Platform) release` | method | release records a release from a successful run: the images it built (by digest), the ones it reused, and ready-made images as given. |
 | `errPreDeploy` | struct | errPreDeploy means a release was recorded but not deployed: a required pre-deploy task failed. |
-| `(errPreDeploy) Error` | method |  |
+| `(errPreDeploy) Error` | method | Error is why the release was not deployed. |
 | `(*Platform) preDeploy` | method | preDeploy runs the release's pre-deploy tasks before it is rolled out. |
 | `(*Platform) changes` | method | changes lists the files changed since the latest release, for a push to the default branch. |
 | `touched` | func | touched reports whether any of files is under dir or a watched path. |
@@ -1344,19 +1458,19 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `(*Platform) Rollback` | method | Rollback creates a new release that restores an earlier one's images and spec (the Rollback button). |
 | `(*Platform) rollbackTo` | method | rollbackTo releases an earlier release's images and spec again, as a new release whose verification is recorded as skipped with note. |
 | `(*Platform) pointApp` | method | pointApp writes the release into the App object; the controller does the rest. |
-| `(*Platform) startCheck` | method |  |
-| `(*Platform) finishCheck` | method |  |
-| `appTopic` | func |  |
+| `(*Platform) startCheck` | method | startCheck shows the run on its commit in GitHub, as an "in progress" check that links to the run page (0: no check, e.g. |
+| `(*Platform) finishCheck` | method | finishCheck completes the run's GitHub check: success, failure or cancelled, with the run's message. |
+| `appTopic` | func | appTopic is the events topic for an app's live updates. |
 | `RunTopic` | func | RunTopic is the events topic for a run's live updates. |
 | `AppTopic` | func | AppTopic is the events topic for an app's live updates. |
-| `(*Platform) publishRun` | method |  |
+| `(*Platform) publishRun` | method | publishRun sends the run as it is now to whoever watches it or its app. |
 | `installationKey` | struct |  |
-| `withInstallation` | func |  |
+| `withInstallation` | func | withInstallation carries the GitHub installation into the steps, so each can get a token to clone the repository (see CloneToken). |
 | `(*Platform) CloneToken` | method | CloneToken is plugged into the executor: it mints a token for the installation carried in the run's context. |
 
 ### `internal/platform/posttask.go`
 
-<small>408 lines</small>
+<small>413 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1364,20 +1478,20 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `postDeployTasks` | func | postDeployTasks are the release's post-deploy tasks. |
 | `(*Platform) runPostDeploy` | method | runPostDeploy runs a release's post-deploy tasks (see runStage). |
 | `(*Platform) runStage` | method | runStage runs a release's tasks of one stage, each once its after: tasks succeeded (a task whose dependency failed is skipped), and records each one's state as it goes. |
-| `(*Platform) saveTask` | method |  |
+| `(*Platform) saveTask` | method | saveTask records a deploy task's state; a failure to record is only logged. |
 | `judgeTasks` | func | judgeTasks folds post-deploy results into a verification: a failed required task fails the release; a failed optional one is a warning. |
 | `taskJob` | func | taskJob builds the Job for a post-deploy task. |
 | `(*Platform) runTaskJob` | method | runTaskJob runs one post-deploy task as a Job and waits for it, keeping its log. |
 | `(*Platform) waitTaskPod` | method | waitTaskPod returns the name of a Job's pod once it has started (or finished), or "" if it never does. |
-| `jobFailed` | func |  |
-| `jobFailure` | func |  |
-| `lastLines` | func |  |
+| `jobFailed` | func | jobFailed reports whether Kubernetes marked the task's Job failed. |
+| `jobFailure` | func | jobFailure says why the Job failed ("timed out", or its reason). |
+| `lastLines` | func | lastLines is the last n lines of a log on one line, to quote in a message. |
 | `lockedWriter` | struct |  |
 | `(*lockedWriter) Write` | method | Write appends b under the lock (the log stream and the reader share the buffer). |
 
 ### `internal/platform/recorder.go`
 
-<small>99 lines</small>
+<small>102 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1385,13 +1499,13 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `(*Platform) StepLog` | method | StepLog implements pipeline.Recorder. |
 | `logWriter` | struct |  |
 | `(*logWriter) Write` | method | Write buffers step output and flushes it to the store and live subscribers. |
-| `(*logWriter) flush` | method |  |
-| `(*logWriter) flushLoop` | method |  |
+| `(*logWriter) flush` | method | flush appends what was written since the last flush to the step's log in the database. |
+| `(*logWriter) flushLoop` | method | flushLoop flushes every second until the step ends. |
 | `(*logWriter) Close` | method | Close flushes what is left. |
 
 ### `internal/platform/verify.go`
 
-<small>540 lines</small>
+<small>550 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1399,27 +1513,27 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `RolloutState` | type | RolloutState is where a release's rollout stands. |
 | `(*Platform) startVerification` | method | startVerification watches a new release in the background. |
 | `(*Platform) stopVerification` | method | stopVerification ends an app's running verification as superseded (a newer release, or a rollback by hand, replaced the release). |
-| `(*Platform) verify` | method |  |
+| `(*Platform) verify` | method | verify watches a release once it is deployed: it waits for every pod to run the new version, runs the post-deploy tasks, checks each service every few seconds for the window, and then decides. |
 | `(*Platform) verificationFailed` | method | verificationFailed rolls back to the last good release, or only reports when rollback is off or there is nothing to return to. |
 | `(*Platform) verifyMessage` | method | verifyMessage is the email for a release that failed verification: rolled back (to = {good release, new release number}) or kept (why). |
-| `shortSHA` | func |  |
+| `shortSHA` | func | shortSHA is a commit's first 7 characters. |
 | `(*Platform) lastGoodRelease` | method | lastGoodRelease is the newest release before number that did not fail verification (releases from before verification existed count as good). |
 | `(*Platform) waitRollout` | method | waitRollout waits until the release is fully rolled out and healthy, it fails, or RolloutTimeout passes. |
 | `(*Platform) rolloutState` | method | rolloutState reads the App object: healthy once the controller reports the release Healthy, failed when it reports it Degraded or in Error. |
 | `windowStats` | struct | windowStats accumulates one check's results during a verification window. |
-| `(*windowStats) add` | method |  |
-| `(*windowStats) p95` | method |  |
+| `(*windowStats) add` | method | add counts one check result (and its time, when it answered). |
+| `(*windowStats) p95` | method | p95 is the time 95% of answers took at most, in milliseconds. |
 | `judge` | func | judge decides a verification. |
 | `(*Platform) setVerification` | method | setVerification records the state and tells open App pages. |
 | `(*Platform) ResumeVerifications` | method | ResumeVerifications restarts verifications interrupted by a restart: a release that is still the app's current one is watched again from the start; an older one is marked superseded. |
-| `fmtDur` | func |  |
-| `fmtMS` | func |  |
+| `fmtDur` | func | fmtDur is a duration as people read it: "5 min", or "1m30s". |
+| `fmtMS` | func | fmtMS is milliseconds as "350 ms" or "1.2 s". |
 | `(*Platform) notifyRunFailed` | method | notifyRunFailed emails a failed run of the default branch: nothing was released. |
 | `(*Platform) postDeployOnly` | method | postDeployOnly runs a release's post-deploy tasks without verification (it is off): once the rollout is healthy, results are recorded only. |
 
 ### `internal/platform/platform_test.go`
 
-<small>703 lines · tests</small>
+<small>700 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1464,7 +1578,7 @@ Package problems keeps the platform's own warnings and errors for the Problems p
 
 ### `internal/problems/problems.go`
 
-<small>191 lines</small>
+<small>202 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1472,17 +1586,17 @@ Package problems keeps the platform's own warnings and errors for the Problems p
 | `NewRecorder` | func | NewRecorder returns a Recorder that buffers up to 256 problems until Run starts storing them; beyond that, problems are counted and dropped rather than ever slowing the logging caller. |
 | `(*Recorder) Handler` | method | Handler wraps h: every record still goes to h, and warnings and errors are also queued for the Problems page. |
 | `(*Recorder) Run` | method | Run stores queued problems until ctx ends, and deletes the ones older than Keep every hour. |
-| `(*Recorder) add` | method |  |
+| `(*Recorder) add` | method | add queues a problem to be saved; when the queue is full it is counted as dropped rather than holding up the code that logged it. |
 | `handler` | struct |  |
-| `(*handler) Enabled` | method |  |
-| `(*handler) WithAttrs` | method |  |
-| `(*handler) WithGroup` | method |  |
-| `(*handler) Handle` | method |  |
-| `prefixed` | func |  |
+| `(*handler) Enabled` | method | Enabled is the wrapped handler's. |
+| `(*handler) WithAttrs` | method | WithAttrs keeps the attributes for problems too. |
+| `(*handler) WithGroup` | method | WithGroup prefixes later attributes with the group's name, as slog does. |
+| `(*handler) Handle` | method | Handle logs the record as usual and, for warnings and errors, records it as a problem on the Problems page. |
+| `prefixed` | func | prefixed adds a group prefix to attribute keys. |
 | `FromRecord` | func | FromRecord turns a warning or error into a Problem; ok is false for the routine ones that are not worth showing. |
 | `ignored` | func | ignored are warnings and errors that are routine or shown elsewhere: - optimistic-concurrency conflicts, which the controllers retry at once; - services going down, which the Reliability tab already tracks as outages; - work stopped because the platform is shutting down. |
-| `normalize` | func |  |
-| `clip` | func |  |
+| `normalize` | func | normalize replaces what changes between repeats of a problem (numbers, hashes, UUIDs) with #, so repeats count as one. |
+| `clip` | func | clip cuts s to n bytes, saying how much was left out. |
 
 ### `internal/problems/problems_test.go`
 
@@ -1501,20 +1615,20 @@ Package render turns an app's spec plus its released images into the Kubernetes 
 
 ### `internal/render/needs.go`
 
-<small>145 lines</small>
+<small>149 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `NeedServices` | func | NeedServices are the services rendimiento runs for the app's needs: one Postgres and one Redis per app, shared by every service that needs them. |
-| `needKind` | func |  |
-| `orDefault` | func |  |
+| `needKind` | func | needKind is name when it is a database or cache this app runs (postgres, redis), else "". |
+| `orDefault` | func | orDefault is v, or def when v is "". |
 | `withNeeds` | func | withNeeds adds the need services and, to every service that needs something, the variables to reach it. |
-| `copyMap` | func |  |
+| `copyMap` | func | copyMap is a copy of m. |
 | `NeedRefs` | func | NeedRefs lists the other services an app's services need, as written ("namespace/name" or a same-app "name"), sorted and unique. |
 
 ### `internal/render/render.go`
 
-<small>589 lines</small>
+<small>617 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1525,22 +1639,22 @@ Package render turns an app's spec plus its released images into the Kubernetes 
 | `Objects` | struct | Objects returns the namespace first, then each service's objects in a stable order. |
 | `Render` | func | Render returns every object an app release needs: namespace, deployments, services, ingresses, volumes and cron jobs, including the database and cache its needs ask for. |
 | `jobImage` | func | jobImage resolves a job's image: its service's, its own build, or as given. |
-| `cronJob` | func |  |
-| `appLabels` | func |  |
-| `svcLabels` | func |  |
-| `selector` | func |  |
-| `deployment` | func |  |
-| `attachGPU` | func |  |
+| `cronJob` | func | cronJob is a job of the app: a CronJob in its namespace running the job's image (its own build or the app's) on its schedule. |
+| `appLabels` | func | appLabels mark everything rendimiento makes for an app. |
+| `svcLabels` | func | svcLabels are an app's labels plus its service's, including the standard app.kubernetes.io ones other tools read. |
+| `selector` | func | selector picks a service's pods; it never changes once a Deployment exists, since Kubernetes does not allow it. |
+| `deployment` | func | deployment runs a service: its image, port, command, environment and secrets, size (requests and limits), replicas, health checks, volume and GPU, keeping the last 5 versions for rollbacks. |
+| `attachGPU` | func | attachGPU gives the service's container its GPUs and what the cluster's GPU profile needs (runtime class, host paths, shared memory, environment). |
 | `lanService` | func | lanService exposes a service on the local network: a LoadBalancer Service (MetalLB gives it an address from its pool, the requested one if set). |
-| `env` | func |  |
+| `env` | func | env is a service's environment: PORT first, then its env in name order, then its secretEnv as references to Kubernetes secrets (values never appear in the object). |
 | `service` | func | service exposes port 80 and, when different, the app's own port, so other services can keep calling it as before (e.g. |
-| `merge` | func |  |
-| `ingress` | func |  |
-| `tls` | func |  |
+| `merge` | func | merge is a copy of a with b's keys added over it. |
+| `ingress` | func | ingress publishes a service on its domain, aliases and routes over HTTPS: cert-manager issues the certificate, HTTP redirects to HTTPS, and the service's own ingress annotations are added. |
+| `tls` | func | tls is the ingress's certificates: one secret per group of hosts. |
 | `requirements` | func | requirements builds requests and limits, leaving out unset ("") values. |
-| `rules` | func |  |
-| `volume` | func |  |
-| `ptr` | func |  |
+| `rules` | func | rules is the ingress's hosts, each with the paths that go to the service (/ for its domain and aliases, and the paths of its routes). |
+| `volume` | func | volume is a service's persistent disk: a claim of its size in the storage class rendimiento uses, mounted by one pod at a time. |
+| `ptr` | func | ptr returns a pointer to a copy of v. |
 | `(*Objects) List` | method | List returns every object in apply order: namespace, volumes, workloads, services, ingresses. |
 | `(*Objects) YAML` | method | YAML renders all objects as a multi-document manifest (for previews and tests). |
 
@@ -1567,7 +1681,7 @@ Package renovate is the Renovate add-on: it keeps the dependencies of the apps i
 
 ### `internal/renovate/renovate.go`
 
-<small>698 lines</small>
+<small>715 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1578,27 +1692,27 @@ Package renovate is the Renovate add-on: it keeps the dependencies of the apps i
 | `Load` | func | Load returns the add-on's state, with defaults if it was never set up. |
 | `Runner` | struct | Runner starts Renovate runs on schedule or on request, one at a time. |
 | `(*Runner) Loop` | method | Loop starts scheduled runs until ctx ends. |
-| `(*Runner) tick` | method |  |
+| `(*Runner) tick` | method | tick starts a scheduled Renovate run when its time has come. |
 | `target` | struct |  |
 | `(*Runner) Repos` | method | Repos lists what a run would cover: apps with Renovate switched on, plus the extra repositories. |
 | `(*Runner) Start` | method | Start begins a run in the background and returns its record. |
 | `(*Runner) targets` | method | targets groups repositories by the GitHub App installation that can reach them. |
-| `(*Runner) execute` | method |  |
+| `(*Runner) execute` | method | execute is one Renovate run: a pod per account it covers, one after another, then the run's summary and results are saved (55 minutes at most by default). |
 | `MissingPermissions` | func | MissingPermissions lists what the installation still lacks. |
 | `(*Runner) Problems` | method | Problems explains what would stop a run right now, such as permissions the GitHub App's installations have not been granted yet. |
 | `RepoResult` | struct | RepoResult is what one run did to one repository. |
-| `summarize` | func |  |
-| `(*Runner) runPod` | method |  |
-| `(*Runner) pod` | method |  |
-| `(*Runner) wait` | method |  |
+| `summarize` | func | summarize is a run's one line: pull requests opened, merged by itself, and repositories that failed. |
+| `(*Runner) runPod` | method | runPod runs Renovate for one account's repositories in a pod, with a fresh token of that installation (as the App's bot), and reads back what it did from its log. |
+| `(*Runner) pod` | method | pod is the Renovate pod: its configuration and token from a secret of the same name, the repositories to look at, and a deadline. |
+| `(*Runner) wait` | method | wait checks the pod every 5 seconds until it ends. |
 | `(*Runner) collect` | method | collect reads the pod's JSON log into readable text and per-repo results. |
 | `Parse` | func | Parse turns Renovate's JSON log (LOG_FORMAT=json) into readable lines and a result per repository. |
 | `extraFields` | func | extraFields renders a log entry's remaining fields (e.g. |
-| `firstNonEmpty` | func |  |
+| `firstNonEmpty` | func | firstNonEmpty is the first of v that is not "". |
 | `truncate` | func | truncate keeps the start and end of a long log. |
-| `(*Runner) cleanup` | method |  |
+| `(*Runner) cleanup` | method | cleanup deletes Renovate pods and secrets a previous process left behind. |
 | `(*Runner) Running` | method | Running reports whether a run is in progress in this process. |
-| `ptr` | func |  |
+| `ptr` | func | ptr returns a pointer to a copy of v. |
 
 ### `internal/renovate/renovate_test.go`
 
@@ -1618,7 +1732,7 @@ Package ruta is the MCP endpoint (/mcp) through which agents read and write la R
 
 ### `internal/ruta/ruta.go`
 
-<small>577 lines</small>
+<small>605 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1628,8 +1742,8 @@ Package ruta is the MCP endpoint (/mcp) through which agents read and write la R
 | `Server` | struct | Server serves /mcp. |
 | `keyInfo` | struct |  |
 | `(*Server) Handler` | method | Handler returns the /mcp handler: bearer-token auth, then a stateless MCP server with the tools the key may use. |
-| `(*Server) verify` | method |  |
-| `keyFrom` | func |  |
+| `(*Server) verify` | method | verify checks an agent's key on each MCP request: it must start with the key prefix, exist (only its hash is stored) and not be revoked; its name and whether it can write go along with the request. |
+| `keyFrom` | func | keyFrom is the agent key a tool call came with (see verify). |
 | `Summary` | struct | Summary is an entry without its full body. |
 | `Entry` | struct | Entry is a full entry. |
 | `CargoOut` | struct | CargoOut is a cargo as agents see it. |
@@ -1643,24 +1757,24 @@ Package ruta is the MCP endpoint (/mcp) through which agents read and write la R
 | `anotarIn` | struct |  |
 | `actualizarIn` | struct |  |
 | `entregarIn` | struct |  |
-| `summary` | func |  |
-| `summaries` | func |  |
-| `cargoOut` | func |  |
+| `summary` | func | summary is an entry as lists show it: its first 200 characters. |
+| `summaries` | func | summaries is summary for each entry. |
+| `cargoOut` | func | cargoOut is a cargo (an agent's turn at work) as tools answer it. |
 | `LooksSecret` | func | LooksSecret reports whether text seems to contain a credential. |
-| `checkText` | func |  |
-| `(*Server) newServer` | method |  |
+| `checkText` | func | checkText refuses an entry with no title, a title, body or tags over their limits, or anything that looks like a secret (a key or token). |
+| `(*Server) newServer` | method | newServer is the MCP server agents talk to: the Ruta's tools (start, search, read; and, with a key that can write, take a cargo, note, update and hand over), each call audited. |
 | `addTool` | func | addTool registers a tool whose every call is recorded in the audit log. |
-| `(*Server) audit` | method |  |
-| `(*Server) lastHandovers` | method |  |
-| `(*Server) inicio` | method |  |
-| `(*Server) buscar` | method |  |
-| `(*Server) leer` | method |  |
+| `(*Server) audit` | method | audit records a tool call (who, which tool, its arguments cut to 2000 characters, and whether it worked) for the Ruta's Activity tab. |
+| `(*Server) lastHandovers` | method | lastHandovers are the n most recent handed-over cargos, newest first. |
+| `(*Server) inicio` | method | inicio (ruta_inicio) is where an agent starts: its open cargo if any, the last handovers, open to-dos and what changed recently. |
+| `(*Server) buscar` | method | buscar (ruta_buscar) finds entries by text and kind, 20 by default. |
+| `(*Server) leer` | method | leer (ruta_leer) reads one whole entry (not archived ones). |
 | `(*Server) cargoFor` | method | writing needs a write key and an open cargo. |
-| `(*Server) tomar` | method |  |
-| `cleanTags` | func |  |
-| `(*Server) anotar` | method |  |
-| `(*Server) actualizar` | method |  |
-| `(*Server) entregar` | method |  |
+| `(*Server) tomar` | method | tomar (cargo_tomar) opens a cargo with its purpose: the agent's turn, which every note it writes belongs to. |
+| `cleanTags` | func | cleanTags lowercases and trims tags, dropping empty ones. |
+| `(*Server) anotar` | method | anotar (ruta_anotar) writes a new entry (decision, manual, to-do, note) in the agent's open cargo. |
+| `(*Server) actualizar` | method | actualizar (ruta_actualizar) changes an entry, or marks a to-do done, within the agent's open cargo. |
+| `(*Server) entregar` | method | entregar (cargo_entregar) closes the agent's cargo with what it did and what is left, for the next one. |
 
 ### `internal/ruta/ruta_test.go`
 
@@ -1672,13 +1786,42 @@ Package ruta is the MCP endpoint (/mcp) through which agents read and write la R
 | `TestRutaCargoFlow` | func |  |
 | `TestLooksSecret` | func |  |
 
+## `internal/selfupdate` {#internal-selfupdate}
+
+Package selfupdate moves rendimiento to an image it built and tested itself: its own repository's builds: entry (SELF_APP), released like any app's.
+
+### `internal/selfupdate/selfupdate.go`
+
+<small>175 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Releases` | interface | Releases is what the updater reads from the store. |
+| `Updater` | struct |  |
+| `Version` | struct | Version is one release of the platform. |
+| `Status` | struct |  |
+| `(*Updater) Status` | method | Status says which release runs (by the pod's image digest) and whether the newest release holds another image. |
+| `(*Updater) Update` | method | Update points the Deployment at release's image. |
+| `(*Updater) versions` | method | versions are the app's releases that hold a platform image, newest first. |
+| `(*Updater) running` | method | running is the digest of the image this pod runs ("" when unknown: not in a pod, or the image is still being pulled). |
+| `digest` | func | digest is the sha256:… of an image reference or a container's image ID. |
+
+### `internal/selfupdate/selfupdate_test.go`
+
+<small>116 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestStatus` | func |  |
+| `TestUpdate` | func |  |
+
 ## `internal/spec` {#internal-spec}
 
 Package spec defines rendimiento.yaml, the only file an app repo needs.
 
 ### `internal/spec/spec.go`
 
-<small>1341 lines</small>
+<small>1365 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1709,7 +1852,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 | `ResourceOverride` | struct | ResourceOverride replaces individual values of the size preset. |
 | `IngressOptions` | struct | IngressOptions fine-tune the ingress of a service with a domain. |
 | `ResourcesFor` | func | ResourcesFor resolves the service's requests and limits ("" = unset). |
-| `override` | func |  |
+| `override` | func | override applies a service's own resources over its size's: an empty field keeps the size's value, "none" removes it (no limit). |
 | `Route` | struct | Route is one host + path prefix a service answers on. |
 | `ParseRoute` | func | ParseRoute splits "host/path" (path defaults to "/"). |
 | `(Service) AllRoutes` | method | AllRoutes is everything the service's ingress routes to it: "/" on its domain and aliases, then its extra routes. |
@@ -1722,10 +1865,10 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 | `secretNames` | func | secretNames is the sorted, de-duplicated set of secrets named whole, in NAME: secret/key references, or as mounted files. |
 | `(Service) TLSSecretName` | method | TLSSecretName is the certificate secret for the service's domain. |
 | `Build` | struct | Build says how a service's image is built. |
-| `(Build) validate` | method |  |
+| `(Build) validate` | method | validate checks a build section: a known builder, start only for Railpack, and well-formed build arguments. |
 | `Test` | struct | Test is a command run in a container image before the build; a failure stops the build. |
 | `(Test) Requests` | method | Requests resolves the test's requests and limits ("" = unset). |
-| `(Test) validate` | method |  |
+| `(Test) validate` | method | validate checks a test section: an image and a command, a known size, valid resources and a timeout that is not negative. |
 | `Health` | struct | Health is the readiness and liveness check of a service. |
 | `Volume` | struct | Volume gives a service persistent storage (a Longhorn volume by default). |
 | `(Service) VolumeFSGroup` | method | VolumeFSGroup is the pod fsGroup for the service's volume, or nil. |
@@ -1738,13 +1881,13 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 | `(*Spec) Marshal` | method | Marshal writes the spec as YAML. |
 | `(*Spec) Default` | method | Default fills in defaults (path, port, size, replicas, Dockerfile) in place. |
 | `(*Spec) Validate` | method | Validate reports every problem in the spec at once, each with its path (services[1].port …). |
-| `(*Spec) validateBuilds` | method |  |
-| `(*Spec) validateTasks` | method |  |
-| `(*Spec) validateNeeds` | method |  |
-| `validateResources` | func |  |
-| `resourceQuantity` | func |  |
-| `(*Spec) validateRoutes` | method |  |
-| `(*Spec) validateJobs` | method |  |
+| `(*Spec) validateBuilds` | method | validateBuilds checks the builds: entries (images built and tested but not run as services): unique names, not taken by a service or job, and valid build and test sections. |
+| `(*Spec) validateTasks` | method | validateTasks checks the tasks: unique names, their stage, and that each name in after: is a task or something built in this run. |
+| `(*Spec) validateNeeds` | method | validateNeeds checks what services need (a database, a cache, another service): known kinds, existing services, and no two needs writing the same environment variable. |
+| `validateResources` | func | validateResources checks resource overrides are quantities Kubernetes understands ("none" only for limits). |
+| `resourceQuantity` | func | resourceQuantity checks one quantity, like 500m or 2Gi. |
+| `(*Spec) validateRoutes` | method | validateRoutes checks routes (a path of a domain sent to a service): the host must be a domain or alias of a service in this app (so its certificate covers it), a route needs a path, and no host and path goes to two services. |
+| `(*Spec) validateJobs` | method | validateJobs checks the jobs (scheduled commands): names that are DNS labels, unique among jobs and services, a cron schedule, exactly one of service, path or image to run, a known size, and valid environment. |
 
 ### `internal/spec/spec_test.go`
 
@@ -1774,7 +1917,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/addons.go`
 
-<small>174 lines</small>
+<small>175 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1789,7 +1932,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) CreateAddonRun` | method | CreateAddonRun records a run as started and fills in its ID. |
 | `(*Store) FinishAddonRun` | method | FinishAddonRun records a run's outcome, per-repository results and log. |
 | `(*Store) FailRunningAddonRuns` | method | FailRunningAddonRuns closes runs a previous process left behind. |
-| `scanAddonRun` | func |  |
+| `scanAddonRun` | func | scanAddonRun reads an add-on run row (with its log when withLog). |
 | `(*Store) ListAddonRuns` | method | ListAddonRuns returns the most recent runs, newest first, without their logs. |
 | `(*Store) GetAddonRun` | method | GetAddonRun returns one run with its log. |
 | `prefixed` | func | prefixed qualifies a column list with a table alias ("a.id, a.name"). |
@@ -1809,6 +1952,27 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `ProblemMatch` | struct | ProblemMatch picks the problems a fix resolves: same message, and the same app (when set) and attribute (when set, e.g. |
 | `(*Store) ResolveProblems` | method | ResolveProblems marks the unresolved problems matching m as resolved, saying what fixed them; it returns how many it resolved. |
 
+### `internal/store/puestos.go`
+
+<small>72 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Puesto` | struct | Puesto is a page of the Mercado: an app made from a form (see internal/mercado). |
+| `scanPuesto` | func | scanPuesto reads a stall row. |
+| `(*Store) CreatePuesto` | method | CreatePuesto records that app is a page of the Mercado. |
+| `(*Store) UpdatePuesto` | method | UpdatePuesto keeps the Mercado's card in step with a saved page. |
+| `(*Store) GetPuesto` | method | GetPuesto returns the page of an app, or ErrNotFound when the app is not one. |
+| `(*Store) ListPuestos` | method | ListPuestos lists the Mercado, most recently changed first. |
+
+### `internal/store/queuelock.go`
+
+<small>43 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `(*Store) LockQueue` | method | LockQueue waits until this process owns the run queue: a Postgres advisory lock, held on a connection of its own until release is called or the process dies (Postgres then lets it go). |
+
 ### `internal/store/release_tasks.go`
 
 <small>81 lines</small>
@@ -1822,7 +1986,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/ruta.go`
 
-<small>354 lines</small>
+<small>358 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1832,18 +1996,18 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `RutaEntry` | struct | RutaEntry is one thing the platform knows: a decision, a manual, a pending task, a note, or something a person lived. |
 | `AgentAction` | struct | AgentAction is one tool call made through the MCP endpoint. |
 | `(*Store) CreateAgentKey` | method | CreateAgentKey stores a new key by its token's hash. |
-| `scanAgentKey` | func |  |
+| `scanAgentKey` | func | scanAgentKey reads an agent key row (never the key: only its hash is stored). |
 | `(*Store) AgentKeyByHash` | method | AgentKeyByHash finds a key by its token's hash, and notes that it was used (at most once a minute, to keep writes down). |
 | `(*Store) AgentKey` | method | AgentKey returns one key. |
 | `(*Store) ListAgentKeys` | method | ListAgentKeys returns every key, newest first. |
 | `(*Store) RevokeAgentKey` | method | RevokeAgentKey stops a key from working, and closes its open cargo. |
-| `scanCargo` | func |  |
+| `scanCargo` | func | scanCargo reads a cargo row. |
 | `(*Store) TakeCargo` | method | TakeCargo opens a cargo for a key; ErrCargoOpen if it already has one. |
 | `(*Store) Cargo` | method | Cargo returns one cargo. |
 | `(*Store) OpenCargo` | method | OpenCargo returns a key's open cargo, or ErrNotFound. |
 | `(*Store) HandOver` | method | HandOver closes a cargo with its entrega and what is left. |
 | `(*Store) ListCargos` | method | ListCargos returns cargos, newest first. |
-| `scanRuta` | func |  |
+| `scanRuta` | func | scanRuta reads a Ruta entry row. |
 | `(*Store) AddRuta` | method | AddRuta stores a new entry. |
 | `(*Store) Ruta` | method | Ruta returns one entry. |
 | `(*Store) UpdateRuta` | method | UpdateRuta replaces an entry's title, body, tags and done, keeping the previous version in ruta_history. |
@@ -1875,7 +2039,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/store.go`
 
-<small>639 lines</small>
+<small>649 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1884,7 +2048,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) Close` | method | Close releases the connection pool. |
 | `(*Store) Migrate` | method | Migrate applies embedded migrations in filename order, each once. |
 | `App` | struct | App is an onboarded application: its repo, installation and the rendimiento.yaml of its default branch. |
-| `scanApp` | func |  |
+| `scanApp` | func | scanApp reads an app row (with its spec, stored as JSON). |
 | `(*Store) CreateApp` | method | CreateApp inserts an app; names are unique. |
 | `(*Store) UpdateAppSpec` | method | UpdateAppSpec stores the latest rendimiento.yaml of the default branch. |
 | `(*Store) GetApp` | method | GetApp returns an app by name, or ErrNotFound. |
@@ -1892,13 +2056,13 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) AppsForRepo` | method | AppsForRepo returns every app deployed from a repo (webhooks fan out to them). |
 | `(*Store) ListApps` | method | ListApps returns every app, by name. |
 | `(*Store) ListReleasedApps` | method | ListReleasedApps lists the apps with at least one release: the ones that have been live. |
-| `(*Store) listApps` | method |  |
+| `(*Store) listApps` | method | listApps runs a query that returns app rows. |
 | `(*Store) DeleteApp` | method | DeleteApp removes an app and, through foreign keys, its runs and releases. |
 | `Run` | struct | Run is one CI run: a commit of an app built (and on the default branch, released). |
 | `Step` | struct | Step is one test or build step of a run, with its result. |
-| `scanRun` | func |  |
+| `scanRun` | func | scanRun reads a run row, without its steps. |
 | `(*Store) CreateRun` | method | CreateRun queues a run with its planned steps. |
-| `(*Store) ClaimRun` | method | ClaimRun takes the oldest queued run and marks it running. |
+| `(*Store) ClaimRun` | method | ClaimRun takes the oldest queued run, of an app not in skip (those with a run going), and marks it running. |
 | `(*Store) RequeueOrphans` | method | RequeueOrphans handles runs left "running" by a process that died: they are queued again from scratch (builds are repeatable), up to maxAttempts, after which they are marked failed. |
 | `(*Store) SetCheckRun` | method | SetCheckRun remembers the GitHub check run that mirrors a run. |
 | `(*Store) CreateRejectedRun` | method | CreateRejectedRun records a run that failed before it could start (its rendimiento.yaml was invalid): it is created finished, with no steps, so no worker ever claims it. |
@@ -1917,21 +2081,21 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) SetVerification` | method | SetVerification records a release's verification state and message. |
 | `(*Store) VerifyingReleases` | method | VerifyingReleases lists releases whose verification was interrupted (the process stopped while watching them). |
 | `(*Store) CreateRelease` | method | CreateRelease assigns the next release number for the app. |
-| `scanRelease` | func |  |
+| `scanRelease` | func | scanRelease reads a release row (images and spec are JSON). |
 | `(*Store) GetRelease` | method | GetRelease returns an app's release by number. |
 | `(*Store) LatestRelease` | method | LatestRelease returns the app's newest release, or ErrNotFound. |
 | `(*Store) ListReleases` | method | ListReleases returns an app's most recent releases, newest first. |
 | `(*Store) CreateSession` | method | CreateSession stores a login session by the hash of its token. |
 | `(*Store) SessionLogin` | method | SessionLogin returns the GitHub login of a valid session, or ErrNotFound. |
 | `(*Store) DeleteSession` | method | DeleteSession ends a session and removes expired ones. |
-| `nullTime` | func |  |
+| `nullTime` | func | nullTime is nil for the zero time, so it is stored as NULL. |
 | `IsUniqueViolation` | func | IsUniqueViolation reports a duplicate key (e.g. |
 | `(*Store) ResetForTests` | method | ResetForTests drops every table. |
 | `(*Store) Ping` | method | Ping checks the database connection. |
 
 ### `internal/store/uptime.go`
 
-<small>287 lines</small>
+<small>308 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1942,12 +2106,13 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) CloseIncident` | method | CloseIncident records the end of an outage. |
 | `(*Store) OpenIncidents` | method | OpenIncidents lists the outages still going on, across all apps: what a restarted prober picks up. |
 | `(*Store) Incidents` | method | Incidents lists an app's outages that overlap [since, now], newest first. |
-| `(*Store) incidents` | method |  |
+| `(*Store) incidents` | method | incidents runs a query for outages (where is its WHERE clause). |
 | `(*Store) RollupProbes` | method | RollupProbes (re)computes the hourly summaries of every hour from since's hour on. |
 | `(*Store) PruneProbes` | method | PruneProbes deletes checks older than 7 days and summaries older than 400 days (the hourly summaries keep the long-range charts). |
 | `UptimeBucket` | struct | UptimeBucket is one point of a chart: the checks in [At, At+bucket). |
 | `UptimeSeries` | struct | UptimeSeries is one check's history over a range: totals, response time percentiles (of successful checks) and the chart's buckets. |
 | `(*Store) Uptime` | method | Uptime returns every check of an app over [since, now] in buckets of the given size. |
+| `(*Store) LatestProbes` | method | LatestProbes is the newest check since a time of every app, service and kind: the health the Universe page shows on each service. |
 | `(*Store) UptimeSummary` | method | UptimeSummary is the share of successful checks per app since a time: the dashboard's uptime badges. |
 | `CheckStats` | struct | CheckStats summarizes one check's results over a period. |
 | `(*Store) ProbeStats` | method | ProbeStats summarizes an app's checks in [from, to), per service and check kind: the baseline a new release is compared with. |
@@ -1959,6 +2124,22 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | Name | Kind | Summary |
 |---|---|---|
 | `TestLogArchiveBookkeeping` | func |  |
+
+### `internal/store/puestos_test.go`
+
+<small>47 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestPuestos` | func |  |
+
+### `internal/store/queuelock_test.go`
+
+<small>41 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestLockQueueHasOneOwner` | func |  |
 
 ### `internal/store/ruta_test.go`
 
@@ -1980,12 +2161,13 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/store_test.go`
 
-<small>368 lines · tests</small>
+<small>414 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `TestAppsRunsReleases` | func |  |
 | `TestConcurrentClaimsAndReleaseNumbers` | func |  |
+| `TestClaimSkipsAppsWithARunGoing` | func |  |
 | `TestSessionsAndLogCap` | func |  |
 | `TestRequeueOrphansRetriesThenGivesUp` | func |  |
 | `TestFinishAndCancelCloseSteps` | func |  |
@@ -1993,11 +2175,59 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/uptime_test.go`
 
-<small>101 lines · tests</small>
+<small>107 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `TestUptime` | func |  |
+
+## `internal/testenv` {#internal-testenv}
+
+Package testenv is the envtest (a real API server and etcd) the controller and platform tests run against, tuned for slow machines.
+
+### `internal/testenv/testenv.go`
+
+<small>23 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `New` | func | New is an envtest with the CRDs in crdDirs. |
+
+## `internal/universe` {#internal-universe}
+
+Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches.
+
+### `internal/universe/universe.go`
+
+<small>360 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Universe` | struct | Universe is every system, its nodes and the edges between them. |
+| `System` | struct | System is a group of nodes: one app, one add-on, or one namespace. |
+| `Node` | struct | Node is a service, a database or cache, a workload that only calls others (a cron job), or the internet. |
+| `Health` | struct | Health is the latest uptime checks of a service. |
+| `Edge` | struct | Edge is one node calling another. |
+| `Input` | struct | Input is what the universe is made from. |
+| `Build` | func | Build joins the apps, the catalog and the uptime checks into one graph. |
+| `systemKind` | func | systemKind is the kind of system a catalog entry belongs to. |
+| `builder` | struct | builder collects nodes, systems and edges by ID while the graph is made. |
+| `(*builder) system` | method | system adds s, keeping the first one seen for an ID (apps come first, so an app's system keeps its kind and repo). |
+| `(*builder) node` | method | node is the node with id, added in system when new. |
+| `(*builder) edge` | method | edge records from calling to, merging what each source says about it. |
+| `(*builder) edgesFrom` | method | edgesFrom lists the edges leaving id. |
+| `(*builder) dropLoneInfrastructure` | method | dropLoneInfrastructure removes cluster plumbing nobody outside it calls: ingress controllers, cert-manager and the like are noise on the map unless an app depends on them. |
+| `(*builder) health` | method | health attaches each service's latest uptime checks: up when every latest check passed. |
+| `contains` | func | contains reports whether list has s. |
+
+### `internal/universe/universe_test.go`
+
+<small>126 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestBuild` | func |  |
+| `TestBuildWithoutCatalog` | func |  |
 
 ## `internal/uptime` {#internal-uptime}
 
@@ -2005,7 +2235,7 @@ Package uptime checks every app's services once a minute and keeps the results: 
 
 ### `internal/uptime/uptime.go`
 
-<small>455 lines</small>
+<small>463 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2019,15 +2249,15 @@ Package uptime checks every app's services once a minute and keeps the results: 
 | `Prober` | struct | Prober checks every target once per Interval and records the results. |
 | `checkState` | struct |  |
 | `change` | struct | change is an outage that started or ended, for the round's emails. |
-| `key` | func |  |
+| `key` | func | key identifies one check: app, service and kind (public or internal). |
 | `(*Prober) Run` | method | Run checks until ctx is done. |
 | `(*Prober) Round` | method | Round checks every target once, records the results and updates outages. |
 | `(*Prober) notifyChanges` | method | notifyChanges sends one email per app for the outages that started, and one for those that ended, this round. |
-| `checkName` | func |  |
+| `checkName` | func | checkName is a check as emails and pages name it. |
 | `joinAnd` | func | joinAnd lists names as "a and b and c", one translatable pair at a time. |
-| `outageMessage` | func |  |
-| `recoveryMessage` | func |  |
-| `humanDuration` | func |  |
+| `outageMessage` | func | outageMessage is the email that says an app's checks went down, since when and what they answered. |
+| `recoveryMessage` | func | recoveryMessage is the email that says the checks are back, and how long they were down. |
+| `humanDuration` | func | humanDuration is a duration in words ("under a minute", "12 min", "2 h 5 min"). |
 | `(*Prober) observe` | method | observe updates a target's streak, its metrics, and opens or closes its outage. |
 | `Register` | func | Register adds the uptime metrics to a Prometheus registry (the controller-runtime one, served on METRICS_ADDR). |
 
@@ -2066,7 +2296,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>805 lines</small>
+<small>917 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2085,6 +2315,11 @@ Package web embeds the built UI (npm run build → web/dist).
 | `ServiceStatus` | interface |  |
 | `AppStatus` | interface |  |
 | `App` | interface |  |
+| `TipoPagina` | type | ---- el Mercado (pages made from a form; internal/mercado) ---- |
+| `PaletaPagina` | type |  |
+| `TipoEnlace` | type |  |
+| `Pagina` | interface | A page as the form fills it (pagina.json). |
+| `Puesto` | interface | A stall of the Mercado: its card and its app's state. |
 | `RutaKind` | type | ---- la Ruta (what people and agents know; agents reach it over /mcp) ---- |
 | `RutaEntry` | interface |  |
 | `RutaInput` | interface |  |
@@ -2121,8 +2356,8 @@ Package web embeds the built UI (npm run build → web/dist).
 | `api` | const |  |
 | `subscribe` | function | Subscribes to server-sent events; returns an unsubscribe function. |
 | `PublicActivity` | interface | The welcome page's "right now": runs going on and the latest releases, by app name only. |
-| `timeAgo` | function |  |
-| `duration` | function |  |
+| `timeAgo` | function | How long ago a time was: "12s ago", "5m ago", "3h ago", "2d ago". |
+| `duration` | function | How long something took (until now if it has not ended): "45s" or "3m 12s". |
 | `EnvStatus` | type | ---- environment ---- |
 | `EnvCheck` | interface |  |
 | `EnvProvider` | interface |  |
@@ -2130,9 +2365,16 @@ Package web embeds the built UI (npm run build → web/dist).
 | `EnvProblem` | interface |  |
 | `EnvReport` | interface |  |
 | `envApi` | const |  |
+| `PlatformRelease` | interface | rendimiento's own versions: the images its repository's builds made. |
+| `PlatformVersion` | interface |  |
 | `CatalogGroup` | type | ---- services catalog ---- |
 | `CatalogEntry` | interface |  |
 | `Catalog` | interface |  |
+| `UniverseSystem` | interface | ---- universe ---- Every app from above: systems (apps, add-ons, namespaces), their nodes, and what calls what (see internal/universe). |
+| `UniverseNode` | interface |  |
+| `UniverseEdge` | interface |  |
+| `Universe` | interface |  |
+| `universeApi` | const |  |
 | `catalogApi` | const |  |
 | `RenovateSettings` | interface | ---- add-ons ---- |
 | `RenovateRepoResult` | interface |  |
@@ -2152,12 +2394,12 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/components/ambiente.tsx`
 
-<small>176 lines</small>
+<small>177 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Tema` | type | ---- day / night and movement ---- |
-| `guardar` | function |  |
+| `guardar` | function | Remembers a choice in this browser, when it can. |
 | `temaActual` | function | The theme in effect: the one picked, else the device's. |
 | `TemaSwitch` | component | Día / Noche: switches the theme and remembers it in this browser. |
 | `MovimientoSwitch` | component | Movement on / off (the papel picado, the flowers, the candles). |
@@ -2170,58 +2412,58 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/components/delivery.tsx`
 
-<small>187 lines</small>
+<small>192 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `fmtSec` | function | Seconds as the largest sensible unit. |
-| `fmtWeek` | function |  |
+| `fmtWeek` | function | "Week of Oct 6" for a week's first day. |
 | `Tile` | type |  |
 | `trend` | function | "↓ 40% vs the previous 30 days, better": direction in words, never color alone. |
 | `tiles` | function |  |
 | `Spark` | component | Twelve weeks as a line; gaps where a week has no data; a dot on the last. |
-| `DeliveryPanel` | component |  |
+| `DeliveryPanel` | component | The dashboard's delivery health: the numbers of the last 30 days and a chart of twelve weeks. |
 
 ### `web/src/components/marca.tsx`
 
-<small>23 lines</small>
+<small>24 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `Logo` | component |  |
+| `Logo` | component | rendimiento's mark: a pulse line. |
 | `LangSwitch` | component | EN/ES: shows the other language, in that language. |
 
 ### `web/src/components/reliability.tsx`
 
-<small>392 lines</small>
+<small>408 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `kindLabel` | const |  |
-| `fmtPct` | function |  |
-| `fmtMs` | function |  |
-| `fmtDuration` | function |  |
+| `fmtPct` | function | A share as a percentage: two decimals near 100% (where they matter), "—" with no data. |
+| `fmtMs` | function | A time in milliseconds as "350 ms" or "1.25 s". |
+| `fmtDuration` | function | An outage's length in words: minutes, hours and minutes, or days. |
 | `BucketState` | type |  |
 | `stateLabel` | const |  |
 | `stateColor` | const |  |
-| `bucketState` | function |  |
+| `bucketState` | function | A bar of the uptime strip: no data, all good, mostly up, or mostly down. |
 | `timeline` | function | Every bucket of the range, including the ones without checks. |
-| `fmtWhen` | function |  |
+| `fmtWhen` | function | A bar's time as the range needs it: the hour for 24 h, the day (and hour for 7 days) otherwise. |
 | `checksOf` | function |  |
 | `ReliabilityTab` | component |  |
-| `CheckCard` | component |  |
-| `Tile` | component |  |
+| `CheckCard` | component | One check: its uptime strip, latency chart, numbers and outages. |
+| `Tile` | component | A number with its label and a note under it. |
 | `Tip` | type |  |
-| `TipBox` | component |  |
+| `TipBox` | component | The tooltip over a chart: when, and each line's value. |
 | `StatusStrip` | component | Was it up? One cell per bucket, in the reserved status colors, with a legend. |
-| `niceMax` | function |  |
+| `niceMax` | function | A round top for a chart's scale (1, 2, 2.5 or 5 times a power of ten). |
 | `LatencyChart` | component | Response times: p95 and p50 per bucket, release markers, crosshair tooltip. |
 | `DataTable` | component | The same numbers without hovering: the table view. |
-| `Incidents` | component |  |
+| `Incidents` | component | The outages in the range: which check, when, how long, and the error. |
 
 ### `web/src/components/ui.tsx`
 
-<small>206 lines</small>
+<small>224 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2229,41 +2471,41 @@ Package web embeds the built UI (npm run build → web/dist).
 | `phaseTone` | const |  |
 | `phaseLabel` | const |  |
 | `statusText` | function | A status word from the API (a phase, a run or step status, a health), in the UI's language. |
-| `PhaseBadge` | component |  |
+| `PhaseBadge` | component | An app's state as a colored label (its message as the tooltip). |
 | `runTone` | const |  |
-| `RunBadge` | component |  |
-| `HealthBadge` | component |  |
-| `ErrorBox` | component |  |
+| `RunBadge` | component | A run's or step's state as a colored label, pulsing while it runs. |
+| `HealthBadge` | component | A resource's health as a colored label. |
+| `ErrorBox` | component | An error as a red box, or nothing. |
 | `usePoll` | function | Loads data and refreshes it every `intervalMs` (0 = once). |
-| `ResourceTree` | component |  |
-| `TreeNode` | component |  |
+| `ResourceTree` | component | The tree of an app's resources in the cluster, each with its health. |
+| `TreeNode` | component | One resource in the tree, with what is under it. |
 | `stepColors` | const |  |
 | `PipelineGraph` | component |  |
 | `Switch` | component | An on/off switch (a button with role="switch"). |
 
 ### `web/src/components/visits.tsx`
 
-<small>284 lines</small>
+<small>294 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `fmtN` | const |  |
-| `bounceRate` | function |  |
-| `avgVisit` | function |  |
-| `fmtVisitTime` | function |  |
+| `bounceRate` | function | The share of visits that saw one page and left, or undefined with no visits. |
+| `avgVisit` | function | How long a visit lasts on average, in seconds. |
+| `fmtVisitTime` | function | Seconds as "45 s" or "2 min 5 s". |
 | `change` | function | "↑ 40% vs the previous period, better": direction in words. |
-| `Tile` | component |  |
-| `niceMax` | function |  |
+| `Tile` | component | A number with its label and a note under it (and a tooltip). |
+| `niceMax` | function | A round top for a chart's scale (1, 2, 2.5 or 5 times a power of ten). |
 | `VisitChart` | component | Visitors and page views per hour or day, with a crosshair tooltip. |
-| `countryName` | function |  |
+| `countryName` | function | A country's name in the reader's language, from its two-letter code. |
 | `Top` | component | A top list: the value, a bar for its share, the count. |
 | `ReportView` | component |  |
-| `VisitsTab` | component |  |
+| `VisitsTab` | component | The app's Visits tab: Umami's numbers for each of its addresses over 24 h, 7 or 30 days. |
 | `VisitsPanel` | component | The dashboard's visitors panel: the last 7 days, all apps Umami counts. |
 
 ### `web/src/i18n.ts`
 
-<small>50 lines</small>
+<small>53 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2275,7 +2517,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>771 lines</small>
+<small>884 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2283,7 +2525,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/main.tsx`
 
-<small>100 lines</small>
+<small>112 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2291,17 +2533,17 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Addons.tsx`
 
-<small>191 lines</small>
+<small>196 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `Addons` | component |  |
+| `Addons` | component | The Add-ons page: installed add-ons, the catalog to install more, and the built-in ones (Renovate). |
 | `RenovateCard` | component |  |
-| `RunRow` | component |  |
+| `RunRow` | component | One Renovate run: when, how long, what it did; open, its log and each repository's result. |
 
 ### `web/src/pages/AppPage.tsx`
 
-<small>454 lines</small>
+<small>499 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2310,20 +2552,20 @@ Package web embeds the built UI (npm run build → web/dist).
 | `needTitle` | const |  |
 | `ProvidedNeeds` | component | The database and cache rendimiento runs because the app's services need them. |
 | `DependencyUpdates` | component | The app's Renovate switch and what the last run did for its repo. |
-| `Runs` | component |  |
+| `Runs` | component | The Runs tab: the last runs, with their commit, branch, state and time. |
 | `Releases` | component |  |
 | `taskBadge` | const |  |
 | `PostDeployTask` | component | One post-deploy task under its release: status, duration, and its log on demand. |
 | `verifyBadge` | const |  |
 | `VerifyBadge` | component | What release verification concluded, with its message on hover. |
 | `VerificationBanner` | component | A banner while the newest release is verified, or after it was rolled back. |
-| `Settings` | component |  |
+| `Settings` | component | The Settings tab: the app's secrets (values set here, never in git) and the danger zone. |
 | `DangerZone` | component |  |
 | `SecretForm` | component |  |
 
 ### `web/src/pages/Bienvenida.tsx`
 
-<small>210 lines</small>
+<small>213 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2334,53 +2576,71 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Dashboard.tsx`
 
-<small>111 lines</small>
+<small>112 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `marchita` | function | An app is withered while one of its checks is in an outage, or its |
-| `Dashboard` | component |  |
+| `Dashboard` | component | The Apps page: every app with its state, last run, uptime and visitors, and the delivery numbers. |
 
 ### `web/src/pages/Environment.tsx`
 
-<small>257 lines</small>
+<small>270 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `tone` | const |  |
 | `label` | const |  |
-| `StatusBadge` | component |  |
+| `StatusBadge` | component | A check's status as a colored label: OK, Attention, Missing or Error. |
 | `Environment` | component |  |
-| `DynamicDNS` | component |  |
-| `ProviderCard` | component |  |
+| `DynamicDNS` | component | Dynamic DNS: the public IP the records follow, when it last changed, and a button to check it now. |
+| `ProviderCard` | component | One provider (DNS, certificates, storage, ...) with its status and what it is. |
 | `CheckRow` | component |  |
 | `TestEmail` | component | Sends a sample notification now, and says what happened. |
-| `Meter` | component |  |
+| `Meter` | component | A bar of how much of something is used (green, then yellow from 75%, red from 90%). |
 | `gib` | const |  |
 | `cores` | const |  |
-| `NodeCard` | component |  |
+| `NodeCard` | component | One node: ready or not, pressure, its CPU and memory in use, and what it runs on. |
 
 ### `web/src/pages/Installed.tsx`
 
-<small>407 lines</small>
+<small>414 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `phaseTone` | const |  |
 | `phaseLabel` | const | Translated where shown. |
-| `AddonPhaseBadge` | component |  |
-| `sourceLabel` | function |  |
+| `AddonPhaseBadge` | component | An installed add-on's state as a colored label. |
+| `sourceLabel` | function | Where an add-on comes from: its Helm chart and version, or its git folder. |
 | `useLANByAddon` | function | The add-ons' services reachable on the local network, by add-on name. |
 | `LANLinks` | component | Links to an add-on's UIs on the local network (plain addresses for non-web services). |
 | `InstalledSection` | component | Installed add-ons, the catalog and its install form. |
-| `fieldDefault` | function |  |
-| `setPath` | function |  |
+| `fieldDefault` | function | A catalog field's starting value in the install form. |
+| `setPath` | function | Sets a value at a dotted key ("a.b.c") in the Helm values, making the levels it needs. |
 | `InstallForm` | component |  |
 | `AddonDetail` | component | One installed add-on: status, what a sync would change, and actions. |
 
+### `web/src/pages/Mercado.tsx`
+
+<small>372 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `tipos` | const |  |
+| `tipoColor` | const |  |
+| `paletas` | const |  |
+| `enlaceTipos` | const |  |
+| `sugeridos` | function | Details each kind of page suggests, as empty rows to fill. |
+| `tipoNombre` | const |  |
+| `Mercado` | component | The Mercado page: every stall (a page made from a form), with its owner, address and state. |
+| `palabra` | function | An address word from a name: "Pastelería Ana" → "pasteleria-ana". |
+| `achicar` | function | Shrinks a photo in the browser, so pages stay light: at most 1600 px, as JPEG. |
+| `vacia` | const |  |
+| `PuestoEditor` | component | The stall form: opening a new one or changing one, with a live preview of the page. |
+
 ### `web/src/pages/NewApp.tsx`
 
-<small>399 lines</small>
+<small>403 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2388,55 +2648,55 @@ Package web embeds the built UI (npm run build → web/dist).
 | `Result` | type |  |
 | `NewApp` | component |  |
 | `Needs` | component | What a service depends on: rendimiento runs it (database, cache) or |
-| `ServiceForm` | component |  |
+| `ServiceForm` | component | One service's form: port, size, replicas, domain, health check, volume, environment and secrets. |
 
 ### `web/src/pages/Problems.tsx`
 
-<small>128 lines</small>
+<small>131 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `isOpen` | function |  |
+| `isOpen` | function | A problem still counts while it is not dismissed or fixed and happened recently. |
 | `headline` | function | "rendimiento.yaml rejected; the push was not built: services[0]: …" |
 | `resolutionText` | function | The server's note on what fixed a problem, e.g. |
-| `ProblemCard` | component |  |
-| `Problems` | component |  |
+| `ProblemCard` | component | One problem: what was logged, where, how many times and when, and a button to dismiss it. |
+| `Problems` | component | The Problems page: warnings and errors the platform logged, open ones first, for one app or all. |
 | `AppProblems` | component | Open problems about one app, as a banner on its page. |
 | `ProblemsNavLink` | component | The navigation link, with the number of open problems. |
 
 ### `web/src/pages/RunPage.tsx`
 
-<small>106 lines</small>
+<small>107 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `RunPage` | component |  |
+| `RunPage` | component | A run's page: its graph of steps, live as they go, and the log of the step chosen. |
 | `formatLog` | function | Drops the ::group:: markers the executor uses to separate clone and step output. |
 
 ### `web/src/pages/Ruta.tsx`
 
-<small>337 lines</small>
+<small>354 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Tab` | type |  |
 | `kindLabel` | const |  |
 | `Monarca` | component | A monarch, which no single one of makes the whole journey. |
-| `Tags` | component |  |
-| `Author` | component |  |
-| `EntryForm` | component |  |
-| `EntryCard` | component |  |
-| `Entries` | component |  |
-| `Vivido` | component |  |
+| `Tags` | component | An entry's tags, as small labels. |
+| `Author` | component | Who wrote an entry (marked when it was an agent), when it changed, and in which cargo. |
+| `EntryForm` | component | The form to write or change an entry: kind, title, text, tags and, for a to-do, done. |
+| `EntryCard` | component | One entry, folded to its first lines: open it, edit it, mark a to-do done, or archive it. |
+| `Entries` | component | The Ruta tab: entries by kind and text (all but "lived"), and a button to write one. |
+| `Vivido` | component | The "Lived" tab: what people wrote about working here, in their words (agents cannot write these). |
 | `Cargos` | component |  |
-| `NewKey` | component |  |
+| `NewKey` | component | The form to make an agent key: its name, whether it can write, and how many days it lasts. |
 | `Connect` | component |  |
 | `Keys` | component |  |
-| `Ruta` | component |  |
+| `Ruta` | component | The Ruta page: the platform's memory, kept by people and agents, in four tabs. |
 
 ### `web/src/pages/Services.tsx`
 
-<small>306 lines</small>
+<small>314 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2444,8 +2704,8 @@ Package web embeds the built UI (npm run build → web/dist).
 | `originLabel` | const |  |
 | `Services` | component |  |
 | `ServiceCard` | component |  |
-| `Copyable` | component |  |
-| `DocsHint` | component |  |
+| `Copyable` | component | Text with a button that copies it. |
+| `DocsHint` | component | How to describe a service for others in rendimiento.yaml (catalog:). |
 
 ### `web/src/pages/Setup.tsx`
 
@@ -2454,6 +2714,39 @@ Package web embeds the built UI (npm run build → web/dist).
 | Name | Kind | Summary |
 |---|---|---|
 | `Setup` | component | First-run page: creates the GitHub App through GitHub's manifest flow. |
+
+### `web/src/pages/Universe.tsx`
+
+<small>324 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `colorOf` | function | A stable palette color for a system name. |
+| `kindOrder` | const |  |
+| `systemOrder` | const |  |
+| `Circle` | interface |  |
+| `Layout` | interface |  |
+| `layout` | function |  |
+| `edgePath` | function | A line from a to b, curved when it crosses between systems, stopping at the node's edge. |
+| `healthColor` | function | The color a node's ring takes from its latest checks: up, down, or not checked. |
+| `kindLabel` | const |  |
+| `sourceLabel` | const |  |
+| `Universe` | component | The Universe page. |
+| `visible` | function | The systems, nodes and edges the filters leave on the map. |
+| `glyph` | function | The letter or sign inside a node: the language, or what it is. |
+| `edgeTitle` | function | "wellness/ui → wellness/api (API_URL; declared in rendimiento.yaml)" |
+| `NodeDetail` | component | The side panel for a picked node: what it is, its health, what it calls and what calls it. |
+| `Legend` | component | What the shapes and lines mean, shown while nothing is picked. |
+
+### `web/src/pages/Version.tsx`
+
+<small>74 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `EnvironmentNavLink` | component | The Environment link, marked when a newer rendimiento is ready. |
+| `describe` | const |  |
+| `PlatformVersion` | component | The version of rendimiento that runs, and the button that moves it to the newest image its own repository built and tested. |
 
 ### `web/vite.config.ts`
 

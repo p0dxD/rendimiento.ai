@@ -39,12 +39,13 @@ import (
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
 	"github.com/p0dxD/rendimiento.ai/internal/logarchive"
 	"github.com/p0dxD/rendimiento.ai/internal/mercado"
-	"github.com/p0dxD/rendimiento.ai/internal/selfupdate"
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/renovate"
+	"github.com/p0dxD/rendimiento.ai/internal/selfupdate"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/p0dxD/rendimiento.ai/internal/universe"
 )
 
 // CredentialStore persists the GitHub App credentials (a Kubernetes Secret in production).
@@ -192,6 +193,7 @@ func (s *Server) Handler() http.Handler {
 	auth("POST /api/apps/{app}/disconnect", s.disconnectApp)
 	auth("GET /api/apps/{app}/runs", s.listRuns)
 	auth("POST /api/apps/{app}/runs", s.triggerRun)
+	auth("GET /api/universe", s.universe)
 	auth("GET /api/apps/{app}/releases", s.listReleases)
 	auth("GET /api/apps/{app}/reliability", s.reliability)
 	auth("GET /api/apps/{app}/visits", s.visits)
@@ -647,6 +649,30 @@ func (s *Server) services(w http.ResponseWriter, r *http.Request, _ string) {
 		return
 	}
 	writeJSON(w, c)
+}
+
+// universe is the Universe page: every app from above, with its services,
+// what they use and call, what the internet reaches, and their health.
+// Without the catalog it still shows what each rendimiento.yaml declares.
+func (s *Server) universe(w http.ResponseWriter, r *http.Request, _ string) {
+	ctx := r.Context()
+	apps, err := s.Store.ListApps(ctx)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	in := universe.Input{Apps: apps, Now: time.Now()}
+	if s.Catalog != nil {
+		if in.Catalog, err = s.Catalog.Get(ctx, r.URL.Query().Get("refresh") == "1"); err != nil {
+			httpError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+	}
+	if in.Probes, err = s.Store.LatestProbes(ctx, in.Now.Add(-15*time.Minute)); err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, universe.Build(in))
 }
 
 // ---- environment ----

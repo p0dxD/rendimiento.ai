@@ -716,6 +716,51 @@ export interface Catalog {
   generated: string;
 }
 
+// ---- universe ----
+
+// Every app from above: systems (apps, add-ons, namespaces), their nodes,
+// and what calls what (see internal/universe).
+export interface UniverseSystem {
+  id: string;
+  title: string;
+  kind: "app" | "addon" | "other" | "infrastructure";
+  app?: string;
+  repo?: string;
+}
+
+export interface UniverseNode {
+  id: string;
+  name: string;
+  system?: string;
+  kind: "service" | "postgres" | "redis" | "workload" | "internet";
+  language?: string;
+  category?: string;
+  public?: string[];
+  pods: number;
+  ready: number;
+  catalog?: boolean;
+  health?: { up: boolean; at: string; insideMs?: number; publicMs?: number; error?: string };
+}
+
+export interface UniverseEdge {
+  from: string;
+  to: string;
+  sources: ("declared" | "env" | "ingress")[];
+  env?: string;
+  hosts?: string[];
+}
+
+export interface Universe {
+  systems: UniverseSystem[];
+  nodes: UniverseNode[];
+  edges: UniverseEdge[];
+  generated: string;
+}
+
+export const universeApi = {
+  get: (refresh = false) => request<Universe>("GET", `/api/universe${refresh ? "?refresh=1" : ""}`),
+};
+
 export const catalogApi = {
   list: (refresh = false) => request<Catalog>("GET", `/api/services${refresh ? "?refresh=1" : ""}`),
 };

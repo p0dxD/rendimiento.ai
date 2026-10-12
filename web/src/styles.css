@@ -671,3 +671,28 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 .vista-barra span { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
 .vista-barra em { font-style: normal; font-size: 12px; color: var(--muted); margin-left: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vista-marco iframe { display: block; width: 100%; height: min(78vh, 900px); border: 0; background: #FBF5EA; }
+
+/* ---- the universe ---- */
+.universe { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; align-items: start; }
+@media (max-width: 860px) { .universe { grid-template-columns: minmax(0, 1fr); } }
+.universe-map { width: 100%; height: auto; max-height: 78vh; padding: 0; display: block; background: var(--surface); }
+.universe-side { position: sticky; top: 12px; }
+.u-system-title { font-family: var(--display); font-weight: 700; font-size: 14px; }
+.u-node { cursor: pointer; outline: none; }
+.u-node circle, .u-node rect { fill: var(--surface); stroke-width: 2.5; }
+.u-node.internet circle { fill: var(--anil); fill-opacity: .14; }
+.u-node.selected circle, .u-node.selected rect, .u-node:focus-visible circle, .u-node:focus-visible rect { stroke-width: 4; }
+.u-glyph { font-size: 10px; font-weight: 700; fill: var(--text); pointer-events: none; font-family: var(--mono); }
+.u-node.internet .u-glyph { font-size: 20px; }
+.u-label { font-size: 11px; fill: var(--text); pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.u-edge { fill: none; stroke-width: 1.6; }
+.u-edge.declared { stroke: var(--text); stroke-opacity: .55; }
+.u-edge.env { stroke: var(--teja); stroke-opacity: .7; stroke-dasharray: 5 4; }
+.u-edge.ingress { stroke: var(--anil); stroke-opacity: .45; stroke-dasharray: 1 4; stroke-linecap: round; }
+:root[data-theme="night"] .u-edge.ingress { stroke: var(--link); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="day"]) .u-edge.ingress { stroke: var(--link); } }
+.u-key { fill: var(--surface); stroke-width: 2; }
+.u-legend, .u-list { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 6px; }
+.u-legend li { display: flex; gap: 8px; align-items: center; }
+.u-legend svg { flex: none; }
+.u-list .link { background: none; border: none; padding: 0; color: var(--link); cursor: pointer; font: inherit; text-decoration: underline; }
