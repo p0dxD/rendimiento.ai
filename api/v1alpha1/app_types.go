@@ -21,6 +21,9 @@ type AppSpec struct {
 	// Postgres and Redis mirror rendimiento.yaml's settings for `needs:`.
 	Postgres *spec.PostgresOptions `json:"postgres,omitempty"`
 	Redis    *spec.RedisOptions    `json:"redis,omitempty"`
+	// Observe mirrors rendimiento.yaml's app-wide observe (traces for the
+	// Universe); a service's own observe still wins.
+	Observe bool `json:"observe,omitempty"`
 	// Images maps service name to an image reference, ideally pinned by digest.
 	// Empty until the first successful build.
 	Images map[string]string `json:"images,omitempty"`

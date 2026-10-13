@@ -119,6 +119,7 @@ func (r *AppReconciler) sync(ctx context.Context, app *v1alpha1.App, st *v1alpha
 	in.Spec.Services = app.Spec.Services
 	in.Spec.Jobs = app.Spec.Jobs
 	in.Spec.Postgres, in.Spec.Redis = app.Spec.Postgres, app.Spec.Redis
+	in.Spec.Observe = app.Spec.Observe
 	if in.ServiceURLs, err = r.serviceURLs(ctx, app, in.Spec); err != nil {
 		st.Phase, st.Message = v1alpha1.PhaseError, err.Error()
 		return ctrl.Result{RequeueAfter: time.Minute}, nil
