@@ -35,6 +35,7 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | GET | `/api/platform/version` | qué versión de rendimiento se ejecuta y si hay una más reciente lista (`SELF_APP`) |
 | POST | `/api/platform/update` | actualiza rendimiento a la imagen de una versión: `{release}`; se reinicia unos segundos después |
 | GET | `/api/services` | el catálogo de Servicios (aplicaciones, complementos, servicios del clúster, datos de conexión) |
+| GET | `/api/universe` | todas las aplicaciones desde arriba: sistemas, nodos (con sus últimas revisiones de disponibilidad) y las conexiones entre ellos (`?refresh=1` reconstruye antes el catálogo) |
 | GET | `/api/stats/visits` | el panel de visitantes del inicio: los últimos 7 días de cada aplicación que Umami cuenta, y los 7 anteriores ([Visitas](../guide/visits.md)) |
 | GET | `/api/stats/delivery` | las estadísticas de entregas del panel: los últimos 30 días, los 30 anteriores y doce puntos semanales |
 | GET | `/api/problems` | las advertencias y errores de la propia plataforma, agrupados ([Problemas](../guide/problems.md)) |

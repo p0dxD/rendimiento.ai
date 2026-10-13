@@ -238,6 +238,26 @@ func (s *Store) Uptime(ctx context.Context, appID int64, since time.Time, bucket
 	return out, nil
 }
 
+// LatestProbes is the newest check since a time of every app, service and
+// kind: the health the Universe page shows on each service.
+func (s *Store) LatestProbes(ctx context.Context, since time.Time) ([]Probe, error) {
+	rows, err := s.pool.Query(ctx, `SELECT DISTINCT ON (app_id, service, kind) app_id, service, kind, at, ok, status, latency_ms, error
+		FROM probes WHERE at >= $1 ORDER BY app_id, service, kind, at DESC`, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Probe
+	for rows.Next() {
+		var p Probe
+		if err := rows.Scan(&p.AppID, &p.Service, &p.Kind, &p.At, &p.OK, &p.Status, &p.LatencyMS, &p.Error); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
 // UptimeSummary is the share of successful checks per app since a time:
 // the dashboard's uptime badges.
 func (s *Store) UptimeSummary(ctx context.Context, since time.Time) (map[int64]UptimeBucket, error) {

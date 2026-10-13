@@ -75,6 +75,12 @@ func TestUptime(t *testing.T) {
 		t.Fatalf("summary = %+v %v", sumUp, err)
 	}
 
+	// The newest check of each service and kind.
+	latest, err := s.LatestProbes(ctx, now.Add(-time.Hour))
+	if err != nil || len(latest) != 2 || latest[0].Kind != "internal" || !latest[0].At.Equal(start.Add(119*time.Minute)) || latest[0].LatencyMS != 300 || latest[1].Status != 200 {
+		t.Fatalf("latest = %+v %v", latest, err)
+	}
+
 	// Incidents: open, listed as ongoing, closed.
 	id, err := s.OpenIncident(ctx, Incident{AppID: app.ID, Service: "web", Kind: "internal", StartedAt: start.Add(30 * time.Minute), Error: "HTTP 503"})
 	if err != nil {

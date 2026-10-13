@@ -10,6 +10,7 @@ import { RunPage } from "./pages/RunPage";
 import { Setup } from "./pages/Setup";
 import { Environment } from "./pages/Environment";
 import { Services } from "./pages/Services";
+import { Universe } from "./pages/Universe";
 import { Addons } from "./pages/Addons";
 import { AddonDetail } from "./pages/Installed";
 import { Problems, ProblemsNavLink } from "./pages/Problems";
@@ -61,6 +62,7 @@ function Shell() {
         <Link to="/" className="brand"><Logo /> <span className="brand-name">rendimiento</span></Link>
         <NavLink to="/" end className="nav-link">{t("Apps")}</NavLink>
         <NavLink to="/mercado" className="nav-link">{t("Mercado")}</NavLink>
+        <NavLink to="/universe" className="nav-link">{t("Universe")}</NavLink>
         <NavLink to="/services" className="nav-link">{t("Services")}</NavLink>
         <NavLink to="/addons" className="nav-link">{t("Add-ons")}</NavLink>
         <EnvironmentNavLink />
@@ -82,6 +84,7 @@ function Shell() {
           <Route path="/mercado/nuevo" element={<PuestoEditor />} />
           <Route path="/mercado/:app" element={<PuestoEditor />} />
           <Route path="/environment" element={<Environment />} />
+          <Route path="/universe" element={<Universe />} />
           <Route path="/services" element={<Services />} />
           <Route path="/addons" element={<Addons />} />
           <Route path="/problems" element={<Problems />} />

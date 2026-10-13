@@ -257,6 +257,36 @@ func TestSecretsAndDelete(t *testing.T) {
 	}
 }
 
+func TestUniverse(t *testing.T) {
+	e := newEnv(t, true)
+	ctx := context.Background()
+	me := e.session(t, "p0dxD")
+	sp := spec.Spec{Services: []spec.Service{
+		{Name: "web", Needs: []spec.Need{{Kind: spec.NeedService, Service: "api"}}},
+		{Name: "api", Needs: []spec.Need{{Kind: spec.NeedPostgres}}},
+	}}
+	sp.Default()
+	if err := e.store.CreateApp(ctx, &store.App{Name: "shop", Repo: "p0dxD/shop", DefaultBranch: "main", Spec: sp}); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := e.do(t, "GET", "/api/universe", "", nil, nil); r.StatusCode != 401 {
+		t.Fatalf("without a session: %d", r.StatusCode)
+	}
+	r, body := e.do(t, "GET", "/api/universe", "", me, nil)
+	var u struct {
+		Systems []struct{ ID, Kind string }
+		Nodes   []struct{ ID, Kind string }
+		Edges   []struct{ From, To string }
+	}
+	if r.StatusCode != 200 || json.Unmarshal([]byte(body), &u) != nil {
+		t.Fatalf("universe: %d %s", r.StatusCode, body)
+	}
+	if len(u.Systems) != 1 || u.Systems[0].Kind != "app" || len(u.Nodes) != 3 || len(u.Edges) != 2 ||
+		u.Edges[0].From != "shop/api" || u.Edges[0].To != "shop/postgres" || u.Edges[1].From != "shop/web" || u.Edges[1].To != "shop/api" {
+		t.Fatalf("universe = %s", body)
+	}
+}
+
 func TestUIFallback(t *testing.T) {
 	e := newEnv(t, true)
 	if _, body := e.do(t, "GET", "/apps/shop/runs/3", "", nil, nil); !strings.Contains(body, "<html>ui</html>") {
