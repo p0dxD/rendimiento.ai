@@ -905,4 +905,5 @@ export const es: Record<string, string> = {
   "See everything": "Ver todo",
   "Zoom to {name}": "Zoom a {name}",
   "Scroll or pinch to zoom, drag to move, double-click an app to zoom to it.": "Use la rueda o pellizque para hacer zoom, arrastre para moverse y haga doble clic en una aplicación para acercarse a ella.",
+  "Installing {name}… it appears here in a few seconds.": "Instalando {name}… aparece aquí en unos segundos.",
 };

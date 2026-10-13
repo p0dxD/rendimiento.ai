@@ -266,6 +266,7 @@ var catalog = map[string]string{
 	"Pending for %s":               "Pendiente desde hace %s",
 	"Persistent storage":           "Almacenamiento persistente",
 	"no such app":                  "no existe esa aplicación",
+	"no such add-on":               "no existe ese complemento",
 	"range must be 24h, 7d or 30d": "el intervalo debe ser 24h, 7d o 30d",
 	"Visitor numbers (Umami)":      "Visitas (Umami)",
 	"off (optional): to show visitors in each app, set UMAMI_URL in the rendimiento ConfigMap and UMAMI_USERNAME/UMAMI_PASSWORD (a view-only Umami user) in the rendimiento-umami secret": "apagado (opcional): para ver las visitas de cada aplicación, defina UMAMI_URL en el ConfigMap rendimiento y UMAMI_USERNAME/UMAMI_PASSWORD (un usuario de Umami de solo lectura) en el secreto rendimiento-umami",

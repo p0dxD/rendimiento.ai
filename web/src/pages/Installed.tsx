@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  catalogApi, installedApi, timeAgo,
+  ApiError, catalogApi, installedApi, timeAgo,
   type AddonCatalogEntry, type AddonDefinition, type AddonPhase, type CatalogEntry, type CatalogField, type InstalledAddon,
 } from "../api";
 import { ErrorBox, usePoll } from "../components/ui";
@@ -265,6 +265,11 @@ export function AddonDetail() {
   const [editing, setEditing] = useState<string>();
   const [confirm, setConfirm] = useState<"remove" | "uninstall">();
   const lan = useLANByAddon();
+  // Right after Install the definition is in git but the add-on appears in
+  // the cluster a few seconds later: wait for it instead of saying it does
+  // not exist.
+  const opened = useRef(Date.now());
+  const appearing = error instanceof ApiError && error.status === 404 && Date.now() - opened.current < 90_000;
 
   const act = async (f: () => Promise<unknown>) => {
     setBusy(true);
@@ -278,6 +283,7 @@ export function AddonDetail() {
       setBusy(false);
     }
   };
+  if (appearing) return <p className="muted">{t("Installing {name}… it appears here in a few seconds.", { name })}</p>;
   if (error) return <ErrorBox error={error} />;
   if (!a) return <p className="muted">{t("Loading…")}</p>;
   const st = a.status;
