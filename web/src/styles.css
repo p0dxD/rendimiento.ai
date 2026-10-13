@@ -691,6 +691,8 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 .u-edge.ingress { stroke: var(--anil); stroke-opacity: .45; stroke-dasharray: 1 4; stroke-linecap: round; }
 :root[data-theme="night"] .u-edge.ingress { stroke: var(--link); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="day"]) .u-edge.ingress { stroke: var(--link); } }
+.u-edge.traced { stroke: var(--nopal); stroke-opacity: .75; }
+.u-edge-label { font-size: 10px; font-family: var(--mono); fill: var(--text); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; pointer-events: none; }
 .u-key { fill: var(--surface); stroke-width: 2; }
 .u-legend, .u-list { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 6px; }
 .u-legend li { display: flex; gap: 8px; align-items: center; }

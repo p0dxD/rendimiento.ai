@@ -135,7 +135,7 @@ Installing cluster software needs cluster-admin rights. Rather than giving those
 
 ## The catalog
 
-`internal/addon/catalog.go` lists what the *Add from the catalog* form offers: Longhorn, Hajimari, Uptime Kuma, CloudNativePG, any Helm chart, and manifests from a git folder. Each entry has a chart, a default namespace and a few typed **fields** (dotted Helm value paths such as `persistence.defaultClassReplicaCount`). The form builds values from the fields and merges your YAML on top (server side, so the browser needs no YAML library), then commits the definition.
+`internal/addon/catalog.go` lists what the *Add from the catalog* form offers: Longhorn, Hajimari, Uptime Kuma, CloudNativePG, the OpenTelemetry Collector (for the [Universe](../guide/universe.md#latency-on-every-line)), any Helm chart, and manifests from a git folder. Each entry has a chart, a default namespace and a few typed **fields** (dotted Helm value paths such as `persistence.defaultClassReplicaCount`); an entry whose settings are too big for fields also brings starting **values** (YAML), which fill the form's YAML box. The form builds values from the fields and merges your YAML on top (server side, so the browser needs no YAML library), then commits the definition.
 
 ## Where to change what
 

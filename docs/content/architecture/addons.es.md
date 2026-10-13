@@ -135,7 +135,7 @@ Instalar programas del clúster necesita permisos de cluster-admin. En lugar de 
 
 ## El catálogo {#the-catalog}
 
-`internal/addon/catalog.go` enumera lo que ofrece el formulario *Agregar desde el catálogo*: Longhorn, Hajimari, Uptime Kuma, CloudNativePG, cualquier paquete de Helm y manifiestos de una carpeta de git. Cada entrada tiene un paquete, un espacio de nombres predeterminado y unos cuantos **campos** con tipo (rutas de valores de Helm con puntos, como `persistence.defaultClassReplicaCount`). El formulario arma los valores a partir de los campos y combina encima su YAML (del lado del servidor, así el navegador no necesita una biblioteca de YAML), y luego confirma la definición.
+`internal/addon/catalog.go` enumera lo que ofrece el formulario *Agregar desde el catálogo*: Longhorn, Hajimari, Uptime Kuma, CloudNativePG, el colector de OpenTelemetry (para el [universo](../guide/universe.md#latency-on-every-line)), cualquier paquete de Helm y manifiestos de una carpeta de git. Cada entrada tiene un paquete, un espacio de nombres predeterminado y unos cuantos **campos** con tipo (rutas de valores de Helm con puntos, como `persistence.defaultClassReplicaCount`); una entrada cuyos ajustes no caben en campos trae además **valores** iniciales (YAML), que llenan el recuadro de YAML del formulario. El formulario arma los valores a partir de los campos y combina encima su YAML (del lado del servidor, así el navegador no necesita una biblioteca de YAML), y luego confirma la definición.
 
 ## Dónde cambiar qué {#where-to-change-what}
 

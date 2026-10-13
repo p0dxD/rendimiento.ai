@@ -69,6 +69,7 @@ tasks:
 | `sharedNamespace` | bool | `false` | The app's namespace is owned by something else (e.g. ArgoCD): it must exist, and rendimiento never creates, labels, owns or deletes it. |
 | `postgres` | object | see [needs](#postgres-and-redis) | Settings for `needs: [postgres]`. |
 | `redis` | object | see [needs](#postgres-and-redis) | Settings for `needs: [redis]`. |
+| `observe` | bool | `false` | Send traces from every service, for latency on the [Universe](universe.md#latency-on-every-line) map. Java, Node and Python services get the OpenTelemetry agent without code changes. Does nothing until the platform has `TELEMETRY_ENDPOINT`. |
 
 ## Services
 
@@ -80,7 +81,8 @@ tasks:
 | `path` | string | `.` | Folder of the repository to build, relative to the root. |
 | `image` | string | none | Run this ready-made image instead of building (e.g. `postgres:15-alpine`). No build or test step. |
 | `watch` | list of paths | none | Other folders whose changes should also rebuild this service (shared code). |
-| `language` | string | detected | Informational (shown in the UI). |
+| `language` | string | detected | Shown in the UI; with `observe`, picks the agent (`java`, `node`, `python`). |
+| `observe` | bool | the app's `observe` | Turns traces on or off for this service only. |
 
 ### Build and test
 

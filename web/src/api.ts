@@ -732,7 +732,7 @@ export interface UniverseNode {
   id: string;
   name: string;
   system?: string;
-  kind: "service" | "postgres" | "redis" | "workload" | "internet";
+  kind: "service" | "postgres" | "redis" | "workload" | "external" | "internet";
   language?: string;
   category?: string;
   public?: string[];
@@ -745,9 +745,11 @@ export interface UniverseNode {
 export interface UniverseEdge {
   from: string;
   to: string;
-  sources: ("declared" | "env" | "ingress")[];
+  sources: ("declared" | "env" | "ingress" | "traced")[];
   env?: string;
   hosts?: string[];
+  // Measured from traces over the window (services with observe).
+  metrics?: { perMinute: number; errors: number; p50Ms?: number; p95Ms?: number };
 }
 
 export interface Universe {
@@ -755,10 +757,18 @@ export interface Universe {
   nodes: UniverseNode[];
   edges: UniverseEdge[];
   generated: string;
+  window: UniverseWindow;
+  // traces is on when the platform reads latency (METRICS_URL);
+  // metricsError says why it could not this time.
+  traces: boolean;
+  metricsError?: string;
 }
 
+export type UniverseWindow = "15m" | "1h" | "24h";
+
 export const universeApi = {
-  get: (refresh = false) => request<Universe>("GET", `/api/universe${refresh ? "?refresh=1" : ""}`),
+  get: (window: UniverseWindow, refresh = false) =>
+    request<Universe>("GET", `/api/universe?window=${window}${refresh ? "&refresh=1" : ""}`),
 };
 
 export const catalogApi = {
@@ -885,6 +895,8 @@ export interface AddonCatalogEntry {
   fields?: CatalogField[];
   manualSync?: boolean;
   notes?: string;
+  // Helm values (YAML) the install form starts with.
+  values?: string;
 }
 export interface AddonDefinition {
   name: string;

@@ -147,7 +147,7 @@ function InstallForm({ entry, existing, onClose, onDone }: { entry: AddonCatalog
   const [gitPath, setGitPath] = useState("");
   const [fields, setFields] = useState<Record<string, string | boolean>>(
     Object.fromEntries((entry.fields ?? []).map((f) => [f.key, fieldDefault(f)])));
-  const [valuesYaml, setValuesYaml] = useState("");
+  const [valuesYaml, setValuesYaml] = useState(entry.values ?? "");
   const [adopt, setAdopt] = useState(false);
   const [manualSync, setManualSync] = useState(Boolean(entry.manualSync));
   const [prune, setPrune] = useState(true);

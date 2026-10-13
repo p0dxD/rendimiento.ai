@@ -51,6 +51,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/ruta"
 	"github.com/p0dxD/rendimiento.ai/internal/selfupdate"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/p0dxD/rendimiento.ai/internal/universe"
 	"github.com/p0dxD/rendimiento.ai/internal/uptime"
 	"github.com/p0dxD/rendimiento.ai/web"
 )
@@ -182,6 +183,21 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 			renderOpts.GPU.Env[k] = v
 		}
 	}
+	// TELEMETRY_ENDPOINT is the OpenTelemetry collector (OTLP/HTTP) that
+	// apps with `observe` send traces to; unset, observe does nothing.
+	renderOpts.Telemetry = render.Telemetry{
+		Endpoint:    os.Getenv("TELEMETRY_ENDPOINT"),
+		SampleRatio: os.Getenv("TELEMETRY_SAMPLE_RATIO"),
+		Agents:      render.DefaultAgents(),
+	}
+	// TELEMETRY_AGENTS overrides agent images: language=image pairs.
+	for _, kv := range splitList(env("TELEMETRY_AGENTS", "")) {
+		k, v, ok := strings.Cut(kv, "=")
+		if !ok || k == "" {
+			return fmt.Errorf("TELEMETRY_AGENTS must be language=image pairs, got %q", kv)
+		}
+		renderOpts.Telemetry.Agents[k] = v
+	}
 	if err := (&controller.AppReconciler{Client: mgr.GetClient(), Scheme: scheme, Render: renderOpts, DNS: dnsProvider}).SetupWithManager(mgr); err != nil {
 		return err
 	}
@@ -283,6 +299,11 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 				BuildNamespace: executor.Namespace, PlatformURL: baseURL, ExcludeNodes: executor.ExcludeNodes,
 			},
 		},
+	}
+	// METRICS_URL is a Prometheus-compatible store (VictoriaMetrics) holding
+	// the collector's service graph: latency on the Universe map.
+	if u := os.Getenv("METRICS_URL"); u != "" {
+		srv.Metrics = &universe.Metrics{URL: u}
 	}
 	// The Mercado: pages made from a form, in repositories of PAGES_ORG.
 	if org := os.Getenv("PAGES_ORG"); org != "" {

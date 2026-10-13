@@ -34,7 +34,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/platform/version` | which release of rendimiento runs and whether a newer one is ready (`SELF_APP`) |
 | POST | `/api/platform/update` | update rendimiento to a release's image: `{release}`; it restarts a few seconds later |
 | GET | `/api/services` | the Services catalog (apps, add-ons, cluster services, connection info) |
-| GET | `/api/universe` | every app from above: systems, nodes (with their latest uptime checks) and the edges between them (`?refresh=1` rebuilds the catalog first) |
+| GET | `/api/universe` | every app from above: systems, nodes (with their latest uptime checks) and the edges between them, with calls per minute, errors and latency from traces over `?window=` (`15m`, `1h`, `24h`); `?refresh=1` rebuilds the catalog first |
 | GET | `/api/stats/visits` | the dashboard's visitors panel: the last 7 days of every app Umami counts, and the 7 before ([Visits](../guide/visits.md)) |
 | GET | `/api/stats/delivery` | the dashboard's delivery stats: the last 30 days, the 30 before, and twelve weekly points |
 | GET | `/api/problems` | the platform's own warnings and errors, grouped ([Problems](../guide/problems.md)) |

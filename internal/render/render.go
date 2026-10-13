@@ -41,6 +41,9 @@ type Options struct {
 	// a Longhorn volume in a backup job's group.
 	VolumeLabels map[string]string
 	GPU          GPUProfile
+	// Telemetry is where services with `observe` send traces (empty
+	// endpoint: nowhere, and observe does nothing).
+	Telemetry Telemetry
 }
 
 // GPUProfile is how this cluster attaches a GPU to a pod. Apps only say how
@@ -117,7 +120,11 @@ func Render(in Input, opt Options) (*Objects, error) {
 		if svc.GPU > 0 && opt.GPU.Resource == "" {
 			return nil, fmt.Errorf("service %s needs a GPU but this cluster has no GPU profile configured", svc.Name)
 		}
-		out.Deployments = append(out.Deployments, deployment(meta(svc.Name), sel, svc, image, opt.GPU))
+		d := deployment(meta(svc.Name), sel, svc, image, opt.GPU)
+		if opt.Telemetry.Endpoint != "" && needKind(svc.Name, in.Spec) == "" && in.Spec.Observed(svc) {
+			observe(d, in.App, svc, opt.Telemetry)
+		}
+		out.Deployments = append(out.Deployments, d)
 		s := service(meta(svc.Name), sel, svc)
 		if kind := needKind(svc.Name, in.Spec); kind != "" {
 			// A database or cache is reached on its own port only.

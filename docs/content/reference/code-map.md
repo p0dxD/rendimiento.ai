@@ -11,12 +11,12 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 294 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 504 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 525 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
-| [`internal/addon`](#internal-addon) | 5 | 1067 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
+| [`internal/addon`](#internal-addon) | 5 | 1125 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
 | [`internal/analytics`](#internal-analytics) | 2 | 608 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
-| [`internal/api`](#internal-api) | 16 | 3926 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 16 | 3950 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 910 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2773 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 453 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
@@ -32,14 +32,14 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/pipeline`](#internal-pipeline) | 7 | 1936 | Package pipeline plans and executes CI runs. |
 | [`internal/platform`](#internal-platform) | 8 | 3302 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/problems`](#internal-problems) | 2 | 289 | Package problems keeps the platform's own warnings and errors for the Problems page: a slog handler passes every record on to the real log and also queues warnings and errors; a Recorder stores them, folding repeats of the same problem into one row with a count. |
-| [`internal/render`](#internal-render) | 3 | 1201 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
+| [`internal/render`](#internal-render) | 5 | 1438 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 808 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
 | [`internal/ruta`](#internal-ruta) | 2 | 938 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
 | [`internal/selfupdate`](#internal-selfupdate) | 2 | 291 | Package selfupdate moves rendimiento to an image it built and tested itself: its own repository's builds: entry (SELF_APP), released like any app's. |
-| [`internal/spec`](#internal-spec) | 2 | 1843 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
+| [`internal/spec`](#internal-spec) | 2 | 1859 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
 | [`internal/store`](#internal-store) | 16 | 3003 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/testenv`](#internal-testenv) | 1 | 23 | Package testenv is the envtest (a real API server and etcd) the controller and platform tests run against, tuned for slow machines. |
-| [`internal/universe`](#internal-universe) | 2 | 486 | Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches. |
+| [`internal/universe`](#internal-universe) | 4 | 816 | Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches. |
 | [`internal/uptime`](#internal-uptime) | 2 | 658 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
@@ -101,7 +101,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>493 lines</small>
+<small>514 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -150,7 +150,7 @@ Package addon renders add-ons (Helm charts or kustomize folders in git) into Kub
 
 ### `internal/addon/catalog.go`
 
-<small>89 lines</small>
+<small>147 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -445,7 +445,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1432 lines</small>
+<small>1456 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1626,9 +1626,21 @@ Package render turns an app's spec plus its released images into the Kubernetes 
 | `copyMap` | func | copyMap is a copy of m. |
 | `NeedRefs` | func | NeedRefs lists the other services an app's services need, as written ("namespace/name" or a same-app "name"), sorted and unique. |
 
+### `internal/render/observe.go`
+
+<small>125 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Telemetry` | struct | Telemetry is where observed services send their traces (an OpenTelemetry collector) and the agents that instrument them without code changes. |
+| `DefaultAgents` | func | DefaultAgents are the OpenTelemetry auto-instrumentation images, built for arm64 and amd64. |
+| `agent` | struct | agent is how one language's agent is copied into the pod and loaded. |
+| `observe` | func | observe makes a Deployment send traces: the OTEL_* variables every SDK reads (the service is named app/service, the node ID on the Universe map) and, for Java, Node and Python, an init container that copies the agent into a shared folder plus the variable that loads it. |
+| `setEnv` | func | setEnv sets a container variable. |
+
 ### `internal/render/render.go`
 
-<small>617 lines</small>
+<small>624 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1657,6 +1669,14 @@ Package render turns an app's spec plus its released images into the Kubernetes 
 | `ptr` | func | ptr returns a pointer to a copy of v. |
 | `(*Objects) List` | method | List returns every object in apply order: namespace, volumes, workloads, services, ingresses. |
 | `(*Objects) YAML` | method | YAML renders all objects as a multi-document manifest (for previews and tests). |
+
+### `internal/render/observe_test.go`
+
+<small>105 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestRenderObserve` | func |  |
 
 ### `internal/render/render_test.go`
 
@@ -1821,11 +1841,12 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 
 ### `internal/spec/spec.go`
 
-<small>1365 lines</small>
+<small>1381 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Spec` | struct | Spec is a parsed rendimiento.yaml. |
+| `(*Spec) Observed` | method | Observed reports whether svc sends traces: its own observe, else the app's. |
 | `Verify` | struct | Verify configures release verification: after a release is live, its services are checked for a while, and a release that breaks a service that worked before is rolled back to the last good release. |
 | `(*Verify) AutoRollback` | method | AutoRollback reports whether a release that fails verification is rolled back. |
 | `Task` | struct | Task is a command run as a step of every CI run: the commit is checked out, and the command runs in Image from Path. |
@@ -2197,9 +2218,22 @@ Package testenv is the envtest (a real API server and etcd) the controller and p
 
 Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches.
 
+### `internal/universe/metrics.go`
+
+<small>138 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `EdgeMetrics` | struct | EdgeMetrics are the numbers on one line of the map, measured from traces over the chosen window: how often the caller calls, how many calls fail, and how long they take as the caller sees them. |
+| `Metrics` | struct | Metrics reads the service graph the OpenTelemetry collector's servicegraph connector writes to a Prometheus-compatible store (VictoriaMetrics): one series per caller and callee. |
+| `(*Metrics) Edges` | method | Edges returns the numbers of every caller → callee pair seen in the window, keyed by the collector's client and server labels. |
+| `sample` | struct | sample is one series of an instant query. |
+| `(*Metrics) query` | method | query runs an instant PromQL query and returns its series, skipping values that are not numbers (NaN from an empty histogram). |
+| `promDuration` | func | promDuration writes a window the way PromQL reads it (15m, 1h, 24h). |
+
 ### `internal/universe/universe.go`
 
-<small>360 lines</small>
+<small>439 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2210,6 +2244,8 @@ Package universe is the view of every app from above: the services each one runs
 | `Edge` | struct | Edge is one node calling another. |
 | `Input` | struct | Input is what the universe is made from. |
 | `Build` | func | Build joins the apps, the catalog and the uptime checks into one graph. |
+| `(*builder) traced` | method | traced adds the numbers measured from traces to the edges they belong to, and the calls only traces know about (to a service nobody declared, or outside the cluster) as edges of their own. |
+| `(*builder) resolve` | method | resolve finds the node a collector name stands for: "app/service" (what observe names services), "user" (a call from outside, the internet), a cluster address (api.wellness.svc.cluster.local:8000, api.wellness), a short name in the caller's system (api:8000), or a database the caller's app runs (postgresql, redis). |
 | `systemKind` | func | systemKind is the kind of system a catalog entry belongs to. |
 | `builder` | struct | builder collects nodes, systems and edges by ID while the graph is made. |
 | `(*builder) system` | method | system adds s, keeping the first one seen for an ID (apps come first, so an app's system keeps its kind and repo). |
@@ -2219,6 +2255,15 @@ Package universe is the view of every app from above: the services each one runs
 | `(*builder) dropLoneInfrastructure` | method | dropLoneInfrastructure removes cluster plumbing nobody outside it calls: ingress controllers, cert-manager and the like are noise on the map unless an app depends on them. |
 | `(*builder) health` | method | health attaches each service's latest uptime checks: up when every latest check passed. |
 | `contains` | func | contains reports whether list has s. |
+
+### `internal/universe/metrics_test.go`
+
+<small>113 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestMetricsEdges` | func |  |
+| `TestBuildTraced` | func |  |
 
 ### `internal/universe/universe_test.go`
 
@@ -2296,7 +2341,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>917 lines</small>
+<small>929 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2374,6 +2419,7 @@ Package web embeds the built UI (npm run build → web/dist).
 | `UniverseNode` | interface |  |
 | `UniverseEdge` | interface |  |
 | `Universe` | interface |  |
+| `UniverseWindow` | type |  |
 | `universeApi` | const |  |
 | `catalogApi` | const |  |
 | `RenovateSettings` | interface | ---- add-ons ---- |
@@ -2517,7 +2563,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>884 lines</small>
+<small>897 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2717,7 +2763,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Universe.tsx`
 
-<small>324 lines</small>
+<small>379 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2731,6 +2777,9 @@ Package web embeds the built UI (npm run build → web/dist).
 | `healthColor` | function | The color a node's ring takes from its latest checks: up, down, or not checked. |
 | `kindLabel` | const |  |
 | `sourceLabel` | const |  |
+| `systemTitle` | const | A system's title; the one for calls outside the cluster is translated. |
+| `metricsText` | function | "2.5/min · p50 12 ms · p95 250 ms · 5% errors", or "" without numbers. |
+| `edgeStyle` | function | How a measured line looks: thicker with more calls, red with errors, amber when slow. |
 | `Universe` | component | The Universe page. |
 | `visible` | function | The systems, nodes and edges the filters leave on the map. |
 | `glyph` | function | The letter or sign inside a node: the language, or what it is. |
