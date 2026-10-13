@@ -172,9 +172,9 @@ export function Universe() {
     else next.delete("apps");
     setParams(next, { replace: true });
   };
-  const svgRef = useRef<SVGSVGElement>(null);
+  const [svgEl, setSvgEl] = useState<SVGSVGElement | null>(null);
   const home = geo?.box ?? { x: 0, y: 0, w: 100, h: 100 };
-  const pz = usePanZoom(svgRef, home);
+  const pz = usePanZoom(svgEl, home);
   // The box around the zoomed systems, or the whole map.
   const target = useMemo((): Box | undefined => {
     if (!geo) return undefined;
@@ -255,7 +255,7 @@ export function Universe() {
 
       <div className="universe">
         <div className="universe-frame">
-        <svg ref={svgRef} className="universe-map card" viewBox={pz.viewBox} role="img" aria-label={t("Map of every app and its connections")}
+        <svg ref={setSvgEl} className="universe-map card" viewBox={pz.viewBox} role="img" aria-label={t("Map of every app and its connections")}
           onClick={() => { if (!pz.dragged()) setSelected(undefined); }}>
           <defs>
             <marker id="u-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">

@@ -1,7 +1,7 @@
 // Zoom and pan for an SVG map: the wheel or a pinch zooms around the
 // pointer, a drag pans, and fit() glides to a box. The view is the SVG's
 // viewBox, so everything stays sharp at any zoom.
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface Box { x: number; y: number; w: number; h: number }
 
@@ -11,10 +11,12 @@ function still() {
 }
 
 /**
- * Pan and zoom for the SVG in ref, starting at home. Clicks that end a drag
- * should be ignored: check dragged() in click handlers.
+ * Pan and zoom for an SVG, starting at home. Pass the element itself (from
+ * a callback ref): the map often appears after the page, and the pointer
+ * listeners are attached when it does. Clicks that end a drag should be
+ * ignored: check dragged() in click handlers.
  */
-export function usePanZoom(ref: RefObject<SVGSVGElement | null>, home: Box) {
+export function usePanZoom(svg: SVGSVGElement | null, home: Box) {
   const [vb, setVb] = useState<Box>(home);
   const vbRef = useRef(vb);
   vbRef.current = vb;
@@ -45,11 +47,11 @@ export function usePanZoom(ref: RefObject<SVGSVGElement | null>, home: Box) {
 
   /** The map point under a screen point (the SVG letterboxes: xMidYMid meet). */
   const toMap = useCallback((clientX: number, clientY: number) => {
-    const r = ref.current!.getBoundingClientRect();
+    const r = svg!.getBoundingClientRect();
     const v = vbRef.current;
     const s = Math.max(v.w / r.width, v.h / r.height);
     return { x: v.x - (r.width * s - v.w) / 2 + (clientX - r.left) * s, y: v.y - (r.height * s - v.h) / 2 + (clientY - r.top) * s, s };
-  }, [ref]);
+  }, [svg]);
 
   /** Zooms by factor (< 1 closer) keeping the map point (cx, cy) in place. */
   const zoomAt = useCallback((factor: number, cx: number, cy: number, animate = false) => {
@@ -68,7 +70,6 @@ export function usePanZoom(ref: RefObject<SVGSVGElement | null>, home: Box) {
   }, [zoomAt]);
 
   useEffect(() => {
-    const svg = ref.current;
     if (!svg) return;
     // The wheel zooms the map instead of scrolling the page (non-passive).
     const wheel = (e: WheelEvent) => {
@@ -91,6 +92,12 @@ export function usePanZoom(ref: RefObject<SVGSVGElement | null>, home: Box) {
     const move = (e: PointerEvent) => {
       const prev = pointers.get(e.pointerId);
       if (!prev) return;
+      if (e.pointerType === "mouse" && e.buttons === 0) {
+        // The button went up outside the map: stop dragging.
+        pointers.delete(e.pointerId);
+        start = undefined;
+        return;
+      }
       const cur = { x: e.clientX, y: e.clientY };
       if (pointers.size === 2) {
         const [a, b] = [...pointers.entries()].map(([id, p]) => (id === e.pointerId ? cur : p));
@@ -115,19 +122,23 @@ export function usePanZoom(ref: RefObject<SVGSVGElement | null>, home: Box) {
       pinch = undefined;
       if (pointers.size === 0) start = undefined;
     };
+    // Safari's own pinch would zoom the whole page instead of the map.
+    const gesture = (e: Event) => e.preventDefault();
+    svg.addEventListener("gesturestart", gesture);
     svg.addEventListener("wheel", wheel, { passive: false });
     svg.addEventListener("pointerdown", down);
     svg.addEventListener("pointermove", move);
     svg.addEventListener("pointerup", up);
     svg.addEventListener("pointercancel", up);
     return () => {
+      svg.removeEventListener("gesturestart", gesture);
       svg.removeEventListener("wheel", wheel);
       svg.removeEventListener("pointerdown", down);
       svg.removeEventListener("pointermove", move);
       svg.removeEventListener("pointerup", up);
       svg.removeEventListener("pointercancel", up);
     };
-  }, [ref, toMap, zoomAt, set]);
+  }, [svg, toMap, zoomAt, set]);
 
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
 
