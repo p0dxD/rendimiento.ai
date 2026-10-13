@@ -2,9 +2,10 @@
 // a namespace deployed another way) is a circle holding its services,
 // databases and jobs; lines are what calls what, and the internet sits in
 // the middle with lines to every public address.
-import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { timeAgo, universeApi, type Universe as UniverseData, type UniverseEdge, type UniverseNode, type UniverseSystem, type UniverseWindow } from "../api";
+import { usePanZoom, type Box } from "../components/panzoom";
 import { ErrorBox, usePoll } from "../components/ui";
 import { t } from "../i18n";
 
@@ -162,6 +163,38 @@ export function Universe() {
   const view = useMemo(() => (data ? visible(data, showOther, showInfra) : undefined), [data, showOther, showInfra]);
   const geo = useMemo(() => view && layout(view.systems, view.nodes, view.nodes.some((n) => n.kind === "internet")), [view]);
 
+  // Systems picked to zoom to (?apps=a,b, so the view can be shared).
+  const [params, setParams] = useSearchParams();
+  const zoomed = useMemo(() => (params.get("apps") ?? "").split(",").filter(Boolean), [params]);
+  const setZoomed = (ids: string[]) => {
+    const next = new URLSearchParams(params);
+    if (ids.length) next.set("apps", ids.join(","));
+    else next.delete("apps");
+    setParams(next, { replace: true });
+  };
+  const svgRef = useRef<SVGSVGElement>(null);
+  const home = geo?.box ?? { x: 0, y: 0, w: 100, h: 100 };
+  const pz = usePanZoom(svgRef, home);
+  // The box around the zoomed systems, or the whole map.
+  const target = useMemo((): Box | undefined => {
+    if (!geo) return undefined;
+    const circles = zoomed.map((id) => geo.systems.get(id)).filter((c): c is NonNullable<typeof c> => !!c);
+    if (!circles.length) return geo.box;
+    const x0 = Math.min(...circles.map((c) => c.x - c.r)), x1 = Math.max(...circles.map((c) => c.x + c.r));
+    const y0 = Math.min(...circles.map((c) => c.y - c.r - 22)), y1 = Math.max(...circles.map((c) => c.y + c.r));
+    const pad = 30;
+    return { x: x0 - pad, y: y0 - pad, w: x1 - x0 + 2 * pad, h: y1 - y0 + 2 * pad };
+  }, [geo, zoomed]);
+  // Glide there when the picked systems or the filters change, not on every
+  // minute's refresh of the same map.
+  const targetKey = target ? `${zoomed.join(",")}|${Math.round(home.w)}x${Math.round(home.h)}` : "";
+  const fitted = useRef("");
+  useEffect(() => {
+    if (!target || fitted.current === targetKey) return;
+    fitted.current = targetKey;
+    pz.fit(target);
+  }, [targetKey, target, pz]);
+
   const focus = hover ?? selected;
   const near = useMemo(() => {
     const s = new Set<string>();
@@ -180,6 +213,10 @@ export function Universe() {
   const byId = new Map(view.nodes.map((n) => [n.id, n]));
   const sel = selected ? byId.get(selected) : undefined;
   const apps = data.systems.filter((s) => s.kind === "app").length;
+  const zoomSet = new Set(zoomed);
+  // With systems picked, the others fade so the picked ones stand out.
+  const faded = (system?: string) => zoomSet.size > 0 && !(system && zoomSet.has(system));
+  const toggleZoom = (id: string) => setZoomed(zoomSet.has(id) ? zoomed.filter((z) => z !== id) : [...zoomed, id]);
 
   return (
     <div className="stack">
@@ -206,9 +243,20 @@ export function Universe() {
 
       {data.metricsError && <div className="alert small">{t("Latency could not be read from the metrics store: {error}", { error: data.metricsError })}</div>}
 
+      <div className="u-chips row" role="group" aria-label={t("Zoom to apps")}>
+        <span className="small muted">{t("Zoom to:")}</span>
+        <button className={`chip-btn ${zoomSet.size === 0 ? "on" : ""}`} onClick={() => setZoomed([])}>{t("Everything")}</button>
+        {view.systems.filter((s) => s.kind !== "infrastructure" || showInfra).map((s) => (
+          <button key={s.id} className={`chip-btn ${zoomSet.has(s.id) ? "on" : ""}`} aria-pressed={zoomSet.has(s.id)} onClick={() => toggleZoom(s.id)}>
+            <i className="u-chip-dot" style={{ background: colorOf(s.id) }} />{systemTitle(s)}
+          </button>
+        ))}
+      </div>
+
       <div className="universe">
-        <svg className="universe-map card" viewBox={`${geo.box.x} ${geo.box.y} ${geo.box.w} ${geo.box.h}`} role="img" aria-label={t("Map of every app and its connections")}
-          onClick={() => setSelected(undefined)}>
+        <div className="universe-frame">
+        <svg ref={svgRef} className="universe-map card" viewBox={pz.viewBox} role="img" aria-label={t("Map of every app and its connections")}
+          onClick={() => { if (!pz.dragged()) setSelected(undefined); }}>
           <defs>
             <marker id="u-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
@@ -219,7 +267,8 @@ export function Universe() {
             if (!c) return null;
             const color = colorOf(s.id);
             return (
-              <g key={s.id} className="u-system">
+              <g key={s.id} className="u-system" opacity={faded(s.id) ? 0.3 : 1}
+                onDoubleClick={(ev) => { ev.stopPropagation(); setZoomed([s.id]); }}>
                 <circle cx={c.x} cy={c.y} r={c.r} fill={color} fillOpacity={0.07} stroke={color} strokeOpacity={0.45} strokeDasharray={s.kind === "app" ? undefined : "5 5"} />
                 <text x={c.x} y={c.y - c.r - 8} textAnchor="middle" className="u-system-title" fill={color}>{systemTitle(s)}</text>
               </g>
@@ -230,7 +279,7 @@ export function Universe() {
             if (!a || !b) return null;
             const from = byId.get(e.from), to = byId.get(e.to);
             const crosses = from?.system !== to?.system;
-            const dim = focus && !(e.from === focus || e.to === focus);
+            const dim = (focus && !(e.from === focus || e.to === focus)) || (faded(from?.system) && faded(to?.system));
             const cls = e.sources.includes("ingress") ? "u-edge ingress" : e.sources.includes("declared") ? "u-edge declared"
               : e.sources.includes("env") ? "u-edge env" : "u-edge traced";
             const st = edgeStyle(e);
@@ -250,12 +299,12 @@ export function Universe() {
           {view.nodes.map((n) => {
             const p = geo.nodes.get(n.id);
             if (!p) return null;
-            const dim = focus && !near.has(n.id);
+            const dim = (focus && !near.has(n.id)) || (n.kind !== "internet" && faded(n.system));
             const r = n.kind === "internet" ? INTERNET_R : NODE_R;
             return (
               <g key={n.id} className={`u-node ${n.kind}${n.id === selected ? " selected" : ""}`} transform={`translate(${p.x},${p.y})`} opacity={dim ? 0.25 : 1}
                 onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(undefined)}
-                onClick={(ev) => { ev.stopPropagation(); setSelected(n.id === selected ? undefined : n.id); }}
+                onClick={(ev) => { ev.stopPropagation(); if (!pz.dragged()) setSelected(n.id === selected ? undefined : n.id); }}
                 tabIndex={0} role="button" aria-label={n.name}
                 onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setSelected(n.id); } }}>
                 {n.kind === "postgres" || n.kind === "redis"
@@ -267,9 +316,16 @@ export function Universe() {
             );
           })}
         </svg>
+        <div className="u-zoom" role="group" aria-label={t("Zoom")}>
+          <button onClick={() => pz.zoom(1 / 1.5)} title={t("Zoom in")} aria-label={t("Zoom in")}>+</button>
+          <button onClick={() => pz.zoom(1.5)} title={t("Zoom out")} aria-label={t("Zoom out")}>−</button>
+          <button onClick={() => target && pz.fit(target)} title={zoomSet.size ? t("Back to the picked apps") : t("See everything")} aria-label={t("Fit")}>⤢</button>
+        </div>
+        </div>
 
         <aside className="universe-side card stack">
-          {sel ? <NodeDetail n={sel} view={view} byId={byId} onPick={setSelected} /> : <Legend generated={data.generated} traces={data.traces} />}
+          {sel ? <NodeDetail n={sel} view={view} byId={byId} onPick={setSelected} onZoom={(id) => setZoomed([id])} />
+            : <Legend generated={data.generated} traces={data.traces} />}
         </aside>
       </div>
     </div>
@@ -308,7 +364,9 @@ function edgeTitle(e: UniverseEdge, byId: Map<string, UniverseNode>) {
 }
 
 /** The side panel for a picked node: what it is, its health, what it calls and what calls it. */
-function NodeDetail({ n, view, byId, onPick }: { n: UniverseNode; view: ReturnType<typeof visible>; byId: Map<string, UniverseNode>; onPick: (id: string) => void }) {
+function NodeDetail({ n, view, byId, onPick, onZoom }: {
+  n: UniverseNode; view: ReturnType<typeof visible>; byId: Map<string, UniverseNode>; onPick: (id: string) => void; onZoom: (system: string) => void;
+}) {
   const navigate = useNavigate();
   const system = view.systems.find((s) => s.id === n.system);
   const calls = view.edges.filter((e) => e.from === n.id);
@@ -348,7 +406,10 @@ function NodeDetail({ n, view, byId, onPick }: { n: UniverseNode; view: ReturnTy
       {calls.length > 0 && <div><strong className="small">{t("Calls")}</strong>{list(calls, (e) => e.to)}</div>}
       {calledBy.length > 0 && <div><strong className="small">{t("Called by")}</strong>{list(calledBy, (e) => e.from)}</div>}
       {calls.length === 0 && calledBy.length === 0 && <div className="small muted">{t("No known connections.")}</div>}
-      {page && <button onClick={() => navigate(page)}>{system?.kind === "app" ? t("Open app") : t("Open in Services")}</button>}
+      <div className="row">
+        {page && <button onClick={() => navigate(page)}>{system?.kind === "app" ? t("Open app") : t("Open in Services")}</button>}
+        {system && <button onClick={() => onZoom(system.id)}>{t("Zoom to {name}", { name: systemTitle(system) })}</button>}
+      </div>
     </>
   );
 }
@@ -368,6 +429,7 @@ function Legend({ generated, traces }: { generated: string; traces: boolean }) {
         <li><svg width="22" height="16"><path d="M2,8 H20" className="u-edge traced" /></svg>{t("Seen only in traces: nobody declared it")}</li>
         <li><svg width="22" height="16"><path d="M2,8 H20" className="u-edge declared" style={{ strokeWidth: 5 }} /></svg>{t("Thicker: more calls; red: 5% or more fail; amber: the slowest 5% take half a second or more")}</li>
       </ul>
+      <p className="small muted" style={{ margin: 0 }}>{t("Scroll or pinch to zoom, drag to move, double-click an app to zoom to it.")}</p>
       <p className="small muted" style={{ margin: 0 }}>
         {traces
           ? t("Click a service to see what it calls and what calls it, with calls per minute, latency and errors for apps with observe.")

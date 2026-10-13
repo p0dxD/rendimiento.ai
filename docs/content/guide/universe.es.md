@@ -26,6 +26,8 @@ Una línea que se encuentra de las dos formas se dibuja continua. Los valores qu
 
 ## Cómo usarlo {#using-it}
 
+- **Haga zoom** con la rueda del ratón o pellizcando, y **arrastre** para moverse; los botones **+**, **−** y **⤢** de la esquina acercan, alejan y vuelven a la vista completa.
+- **Zoom a aplicaciones**: las fichas sobre el mapa eligen una o varias aplicaciones (u otros sistemas); el mapa se desliza hacia ellas y atenúa lo demás. **Todo** vuelve al mapa completo. Un doble clic en el círculo de una aplicación, o **Zoom a …** en el panel lateral, elige solo esa. La elección queda en la dirección (`?apps=wellness,jobsentry`), así que una vista se puede guardar o compartir.
 - **Pase el cursor** sobre un nodo para iluminar sus conexiones; lo demás se atenúa.
 - **Haga clic** en un nodo para fijarlo. El panel lateral muestra qué es, su salud y sus pods, sus direcciones públicas, **Llama a** (lo que usa) y **La llaman** (quién lo usa), cada una con la variable o dirección y de dónde sale la línea. Haga clic en un nombre de esas listas para ir a ese nodo.
 - **Abrir aplicación** lleva a la página de la aplicación; **Abrir en Servicios** lleva a su entrada en el catálogo.
