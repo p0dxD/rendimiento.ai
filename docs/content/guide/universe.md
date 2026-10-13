@@ -26,6 +26,8 @@ A line found both ways is drawn solid. Values read from secrets are not seen, so
 
 ## Using it
 
+- **Zoom** with the mouse wheel or a pinch, and **drag** to move around; the **+**, **−** and **⤢** buttons in the corner zoom in, out, and back to the whole view.
+- **Zoom to apps**: the chips above the map pick one or several apps (or other systems); the map glides to them and fades the rest. **Everything** goes back to the whole map. Double-clicking an app's circle, or **Zoom to …** in the side panel, picks just that one. The choice is kept in the address (`?apps=wellness,jobsentry`), so a view can be bookmarked or shared.
 - **Hover** a node to light up its connections; everything else fades.
 - **Click** a node to pin it. The side panel shows what it is, its health and pods, its public addresses, **Calls** (what it uses) and **Called by** (who uses it), each with the variable or address and where the line comes from. Click a name in those lists to jump to that node.
 - **Open app** goes to the app's page; **Open in Services** goes to the service's entry in the catalog.
