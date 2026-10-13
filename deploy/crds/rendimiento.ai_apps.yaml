@@ -160,6 +160,11 @@ spec:
                   - schedule
                   type: object
                 type: array
+              observe:
+                description: |-
+                  Observe mirrors rendimiento.yaml's app-wide observe (traces for the
+                  Universe); a service's own observe still wins.
+                type: boolean
               postgres:
                 description: Postgres and Redis mirror rendimiento.yaml's settings
                   for `needs:`.

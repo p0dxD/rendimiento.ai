@@ -67,6 +67,12 @@ var skip = true
 
 func setup(t *testing.T) (client.Client, *fakeDNS) {
 	t.Helper()
+	return setupWith(t, render.DefaultOptions())
+}
+
+// setupWith starts the controller with these render options.
+func setupWith(t *testing.T, opt render.Options) (client.Client, *fakeDNS) {
+	t.Helper()
 	ctrl.SetLogger(logr.Discard())
 	env := testenv.New(filepath.Join("..", "..", "deploy", "crds"), filepath.Join("testdata", "crds"))
 	cfg, err := env.Start()
@@ -88,7 +94,7 @@ func setup(t *testing.T) (client.Client, *fakeDNS) {
 		t.Fatal(err)
 	}
 	dns := &fakeDNS{records: map[string]string{}}
-	if err := (&AppReconciler{Client: mgr.GetClient(), Scheme: scheme, Render: render.DefaultOptions(), DNS: dns}).SetupWithManager(mgr); err != nil {
+	if err := (&AppReconciler{Client: mgr.GetClient(), Scheme: scheme, Render: opt, DNS: dns}).SetupWithManager(mgr); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -874,4 +880,48 @@ func TestAppLANURL(t *testing.T) {
 		}
 		return false
 	})
+}
+
+// The app-wide observe goes through the API server (the CRD must keep it)
+// and reaches the rendered pods.
+func TestAppObserve(t *testing.T) {
+	opt := render.DefaultOptions()
+	opt.Telemetry = render.Telemetry{Endpoint: "http://collector.observa:4318", Agents: render.DefaultAgents()}
+	c, _ := setupWith(t, opt)
+	ctx := context.Background()
+	quiet := false
+	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "shop"}, Spec: v1alpha1.AppSpec{
+		Observe: true,
+		Images:  map[string]string{"api": "reg/api@sha256:1", "ui": "reg/ui@sha256:2"},
+		Services: []spec.Service{
+			{Name: "api", Path: "api", Language: "python", Port: 8000, Size: spec.SizeSmall, Replicas: 1},
+			{Name: "ui", Path: "ui", Language: "node", Port: 80, Size: spec.SizeSmall, Replicas: 1, Observe: &quiet},
+		},
+	}}
+	if err := c.Create(ctx, app); err != nil {
+		t.Fatal(err)
+	}
+	var stored v1alpha1.App
+	if err := c.Get(ctx, client.ObjectKey{Name: "shop"}, &stored); err != nil || !stored.Spec.Observe {
+		t.Fatalf("observe was not kept by the API server: %+v %v", stored.Spec, err)
+	}
+	var api, ui appsv1.Deployment
+	eventually(t, "api and ui deployed", func() bool {
+		return c.Get(ctx, client.ObjectKey{Namespace: "shop", Name: "api"}, &api) == nil &&
+			c.Get(ctx, client.ObjectKey{Namespace: "shop", Name: "ui"}, &ui) == nil
+	})
+	envOf := func(d appsv1.Deployment, name string) string {
+		for _, e := range d.Spec.Template.Spec.Containers[0].Env {
+			if e.Name == name {
+				return e.Value
+			}
+		}
+		return ""
+	}
+	if envOf(api, "OTEL_SERVICE_NAME") != "shop/api" || len(api.Spec.Template.Spec.InitContainers) != 1 {
+		t.Fatalf("api is not observed: env %+v", api.Spec.Template.Spec.Containers[0].Env)
+	}
+	if envOf(ui, "OTEL_SERVICE_NAME") != "" {
+		t.Fatal("ui has observe: false but is observed")
+	}
 }
