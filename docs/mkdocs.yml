@@ -94,6 +94,7 @@ plugins:
             Languages (English, Spanish): Idiomas (inglés y español)
             Needs and the services catalog: Necesidades y catálogo de servicios
             The Universe (every app from above): El universo (todas las aplicaciones desde arriba)
+            Libraries (rendimiento for Node, Python and Java): Bibliotecas (rendimiento para Node, Python y Java)
             Add-ons: Complementos
             Renovate: Renovate
             Developing it: Desarrollo
@@ -180,6 +181,7 @@ nav:
       - Languages (English, Spanish): guide/languages.md
       - Needs and the services catalog: guide/needs.md
       - The Universe (every app from above): guide/universe.md
+      - Libraries (rendimiento for Node, Python and Java): guide/observa.md
       - Add-ons: guide/addons.md
       - Renovate: guide/renovate.md
   - Developing it:

@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rendimiento-observa"
+version = "0.1.0"
+description = "rendimiento for Python: traces for the Universe map, on top of OpenTelemetry"
+requires-python = ">=3.9"
+dependencies = ["opentelemetry-api>=1.25"]
+
+[project.optional-dependencies]
+# To trace without rendimiento's agent (outside the cluster, or a service
+# without observe): the SDK and the OTLP exporter.
+sdk = ["opentelemetry-sdk>=1.25", "opentelemetry-exporter-otlp-proto-http>=1.25"]
+test = ["opentelemetry-sdk>=1.25", "pytest>=8"]
+
+[tool.setuptools]
+packages = ["rendimiento_observa"]

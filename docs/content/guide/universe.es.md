@@ -58,3 +58,5 @@ Cada servicio observado se llama `aplicación/servicio` (`OTEL_SERVICE_NAME`); a
     El agente de Python está hecho para glibc. Un servicio con una imagen Alpine (musl) puede no cargarlo: use una imagen basada en Debian, o ponga `observe: false` en ese servicio.
 
 Un servicio en Go se mide de todos modos desde el otro lado: las llamadas *hacia* él desde un servicio observado las cronometra quien llama.
+
+Para agregar a las trazas los momentos que solo el código conoce (un pago, un reporte) y banderas de funciones, use las [bibliotecas](observa.md) para Node, Python y Java.

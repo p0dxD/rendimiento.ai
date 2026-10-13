@@ -1,0 +1,38 @@
+{
+  "name": "@rendimiento/observa",
+  "version": "0.1.0",
+  "description": "rendimiento for Node: traces for the Universe map, on top of OpenTelemetry",
+  "private": true,
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": ">=0.60.0",
+    "@opentelemetry/sdk-node": ">=0.200.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentelemetry/auto-instrumentations-node": {
+      "optional": true
+    },
+    "@opentelemetry/sdk-node": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@opentelemetry/api": "1.9.1",
+    "@opentelemetry/context-async-hooks": "2.12.0",
+    "@opentelemetry/core": "2.12.0",
+    "@opentelemetry/sdk-trace-base": "2.12.0"
+  }
+}
