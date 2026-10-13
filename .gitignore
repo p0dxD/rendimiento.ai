@@ -5,3 +5,7 @@ web/dist/
 *.tsbuildinfo
 hack/checkdiagrams/node_modules/
 local.mk
+sdk/node/node_modules/
+sdk/python/**/__pycache__/
+sdk/python/*.egg-info/
+sdk/java/target/
