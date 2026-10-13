@@ -108,6 +108,15 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 
 Days and hours are counted in `PUBLIC_STATS_TZ`.
 
+## Traces and the Universe {#traces-and-the-universe}
+
+| Variable | Default | Example | Meaning |
+|---|---|---|---|
+| `TELEMETRY_ENDPOINT` | *(empty: `observe` does nothing)* | `http://opentelemetry-collector.observa.svc.cluster.local:4318` | the OpenTelemetry collector (OTLP over HTTP) that services with `observe` send traces to; install it from the **OpenTelemetry Collector** add-on |
+| `TELEMETRY_SAMPLE_RATIO` | `0.25` | `1` | share of traces kept (a trace started upstream keeps its caller's decision) |
+| `TELEMETRY_AGENTS` | the OpenTelemetry images for `java`, `node`, `python` | `java=registry.example.lan/otel-java:2.32.0` | `language=image` pairs that replace an agent image |
+| `METRICS_URL` | *(empty: no latency on the map)* | `http://vmsingle.monitoring.svc.cluster.local:8428` | a Prometheus-compatible store (VictoriaMetrics) where the collector writes the service graph; the [Universe](../guide/universe.md) reads calls, errors and latency from it |
+
 ## Log archive
 
 | Variable | Default | Example | Meaning |

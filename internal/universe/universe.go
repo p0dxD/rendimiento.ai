@@ -26,7 +26,12 @@ const (
 	SourceEnv = "env"
 	// SourceIngress is a public address routed to the service.
 	SourceIngress = "ingress"
+	// SourceTraced is a call seen in traces (services with observe).
+	SourceTraced = "traced"
 )
+
+// Outside is the system of what traced services call outside the cluster.
+const Outside = "outside"
 
 // Kinds of systems: a rendimiento app, an add-on, or something deployed
 // another way (ArgoCD, Helm, kubectl), or cluster plumbing.
@@ -61,7 +66,8 @@ type Node struct {
 	ID     string `json:"id"` // namespace/name, or "internet"
 	Name   string `json:"name"`
 	System string `json:"system,omitempty"`
-	// Kind is service, postgres, redis, workload or internet.
+	// Kind is service, postgres, redis, workload, external (called
+	// outside the cluster, seen in traces) or internet.
 	Kind     string   `json:"kind"`
 	Language string   `json:"language,omitempty"`
 	Category string   `json:"category,omitempty"`
@@ -94,6 +100,8 @@ type Edge struct {
 	Env string `json:"env,omitempty"`
 	// Hosts are the public addresses, for edges from the internet.
 	Hosts []string `json:"hosts,omitempty"`
+	// Metrics are measured from traces, when the caller or callee is observed.
+	Metrics *EdgeMetrics `json:"metrics,omitempty"`
 }
 
 // Input is what the universe is made from.
@@ -102,6 +110,9 @@ type Input struct {
 	Catalog *catalog.Catalog // nil when the catalog is off
 	// Probes are the latest uptime checks, one per app, service and kind.
 	Probes []store.Probe
+	// Traced are the calls seen in traces, keyed by the collector's client
+	// and server names (nil without metrics).
+	Traced map[[2]string]EdgeMetrics
 	Now    time.Time
 }
 
@@ -184,6 +195,7 @@ func Build(in Input) Universe {
 			}
 		}
 	}
+	b.traced(in.Traced)
 	if len(b.edgesFrom(Internet)) > 0 {
 		b.nodes[Internet] = &Node{ID: Internet, Name: "Internet", Kind: Internet}
 	}
@@ -214,6 +226,73 @@ func Build(in Input) Universe {
 		return u.Edges[i].To < u.Edges[j].To
 	})
 	return u
+}
+
+// traced adds the numbers measured from traces to the edges they belong
+// to, and the calls only traces know about (to a service nobody declared,
+// or outside the cluster) as edges of their own.
+func (b *builder) traced(calls map[[2]string]EdgeMetrics) {
+	for k, m := range calls {
+		from := b.resolve(k[0], "")
+		if from == "" {
+			continue
+		}
+		system := ""
+		if n := b.nodes[from]; n != nil {
+			system = n.System
+		}
+		to := b.resolve(k[1], system)
+		if to == "" {
+			to = "outside/" + k[1]
+			b.system(System{ID: Outside, Title: "Outside the cluster", Kind: SystemOther})
+			b.node(to, k[1], Outside).Kind = "external"
+		}
+		if from == to {
+			continue
+		}
+		m := m
+		b.edge(from, to, SourceTraced, "").Metrics = &m
+	}
+}
+
+// resolve finds the node a collector name stands for: "app/service" (what
+// observe names services), "user" (a call from outside, the internet), a
+// cluster address (api.wellness.svc.cluster.local:8000, api.wellness), a
+// short name in the caller's system (api:8000), or a database the
+// caller's app runs (postgresql, redis). It returns "" when none matches.
+func (b *builder) resolve(name, callerSystem string) string {
+	if name == "user" {
+		b.nodes[Internet] = &Node{ID: Internet, Name: "Internet", Kind: Internet}
+		return Internet
+	}
+	if b.nodes[name] != nil {
+		return name
+	}
+	host := name
+	if i := strings.Index(host, "://"); i >= 0 {
+		host = host[i+3:]
+	}
+	host, _, _ = strings.Cut(host, "/")
+	if h, _, ok := strings.Cut(host, ":"); ok {
+		host = h
+	}
+	host = strings.TrimSuffix(strings.TrimSuffix(host, "."), ".cluster.local")
+	host = strings.TrimSuffix(host, ".svc")
+	if svc, ns, ok := strings.Cut(host, "."); ok && !strings.Contains(ns, ".") {
+		if id := ns + "/" + svc; b.nodes[id] != nil {
+			return id
+		}
+	}
+	if callerSystem == "" {
+		return ""
+	}
+	db := map[string]string{"postgresql": "postgres", "postgres": "postgres", "redis": "redis"}[host]
+	for _, short := range []string{host, db} {
+		if id := callerSystem + "/" + short; short != "" && b.nodes[id] != nil {
+			return id
+		}
+	}
+	return ""
 }
 
 // systemKind is the kind of system a catalog entry belongs to.

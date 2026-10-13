@@ -31,6 +31,30 @@ Una línea que se encuentra de las dos formas se dibuja continua. Los valores qu
 - **Abrir aplicación** lleva a la página de la aplicación; **Abrir en Servicios** lleva a su entrada en el catálogo.
 - **Actualizar** reconstruye el catálogo desde el clúster en ese momento (si no, tiene a lo más 30 segundos, y la página se recarga cada minuto).
 
-## Lo que sigue {#what-comes-next}
+## La latencia en cada línea {#latency-on-every-line}
 
-La latencia, las solicitudes por minuto y los errores en cada línea, medidos con trazas (OpenTelemetry), para las aplicaciones que activen las trazas. Los servicios en Java, Node y Python se instrumentarán sin cambiar su código; las bibliotecas de cada lenguaje agregarán eventos propios.
+Con las trazas activadas, cada línea lleva también lo medido: **llamadas por minuto**, la proporción que **falló** y cuánto tardaron según quien llama (**p50**, la mitad fue más rápida; **p95**, el 5% más lento). Elija el periodo (15 minutos, una hora, 24 horas) arriba. Las líneas se vuelven **más gruesas** con más llamadas, **rojas** cuando falla el 5% o más y **ámbar** cuando el 5% más lento tarda medio segundo o más. Al pasar el cursor por un servicio se ve el tiempo típico de sus líneas.
+
+Las líneas **vistas solo en las trazas** (nadie las declaró) se dibujan en verde: una llamada a un servicio que ningún `needs:` menciona, a una base de datos o a una API **fuera del clúster**, agrupadas en *Fuera del clúster*.
+
+### Cómo activarla {#turning-it-on}
+
+1. Instale el complemento **OpenTelemetry Collector** (Complementos). Recibe las trazas y escribe solo los números, el grafo de servicios, en el almacén de métricas; las trazas mismas no se guardan. Ponga como dirección de escritura su VictoriaMetrics o Prometheus.
+2. En la plataforma, defina `TELEMETRY_ENDPOINT` con el colector y `METRICS_URL` con el almacén de métricas ([Ajustes](../reference/config.md#traces-and-the-universe)).
+3. En el `rendimiento.yaml` de una aplicación, agregue `observe: true` (o `observe: true` en un solo servicio). El siguiente despliegue agrega las trazas.
+
+Lo que recibe cada servicio:
+
+| `language` | Lo que agrega rendimiento |
+|---|---|
+| `java` | el agente de OpenTelemetry para Java, cargado con `JAVA_TOOL_OPTIONS` |
+| `node` | el agente de OpenTelemetry para Node, cargado con `NODE_OPTIONS` (después de las opciones propias de la aplicación) |
+| `python` | el agente de OpenTelemetry para Python, en `PYTHONPATH` |
+| `go`, otros, imágenes listas | solo las variables `OTEL_*`, para un SDK de OpenTelemetry en el código |
+
+Cada servicio observado se llama `aplicación/servicio` (`OTEL_SERVICE_NAME`); así una línea medida encuentra sus nodos. Un contenedor de inicio pequeño copia el agente al pod; agrega memoria (el de Java es el que más, unos 100 MB) y algo de tiempo de arranque, así que actívelo donde quiera ver. Se conserva una cuarta parte de las trazas (`TELEMETRY_SAMPLE_RATIO`), que basta para los promedios.
+
+!!! note "Python en Alpine"
+    El agente de Python está hecho para glibc. Un servicio con una imagen Alpine (musl) puede no cargarlo: use una imagen basada en Debian, o ponga `observe: false` en ese servicio.
+
+Un servicio en Go se mide de todos modos desde el otro lado: las llamadas *hacia* él desde un servicio observado las cronometra quien llama.

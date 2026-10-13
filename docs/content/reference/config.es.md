@@ -108,6 +108,15 @@ Se toman del Secret opcional `rendimiento-dns`. Sin token, la automatización de
 
 Los días y las horas se cuentan en `PUBLIC_STATS_TZ`.
 
+## Trazas y el universo {#traces-and-the-universe}
+
+| Variable | Predeterminado | Ejemplo | Significado |
+|---|---|---|---|
+| `TELEMETRY_ENDPOINT` | *(vacío: `observe` no hace nada)* | `http://opentelemetry-collector.observa.svc.cluster.local:4318` | el colector de OpenTelemetry (OTLP por HTTP) al que los servicios con `observe` envían sus trazas; se instala con el complemento **OpenTelemetry Collector** |
+| `TELEMETRY_SAMPLE_RATIO` | `0.25` | `1` | la proporción de trazas que se conservan (una traza que empezó antes conserva la decisión de quien llamó) |
+| `TELEMETRY_AGENTS` | las imágenes de OpenTelemetry para `java`, `node`, `python` | `java=registry.example.lan/otel-java:2.32.0` | pares `lenguaje=imagen` que reemplazan la imagen de un agente |
+| `METRICS_URL` | *(vacío: sin latencia en el mapa)* | `http://vmsingle.monitoring.svc.cluster.local:8428` | un almacén compatible con Prometheus (VictoriaMetrics) donde el colector escribe el grafo de servicios; el [universo](../guide/universe.md) lee de ahí las llamadas, los errores y la latencia |
+
 ## Archivo de registros {#log-archive}
 
 | Variable | Predeterminado | Ejemplo | Significado |

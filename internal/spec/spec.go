@@ -42,6 +42,20 @@ type Spec struct {
 	// Verify tunes how each new release is watched after it goes live, and
 	// whether a failing one is rolled back automatically.
 	Verify *Verify `json:"verify,omitempty"`
+	// Observe sends traces from every service to the platform's collector,
+	// for latency and errors on the Universe map: Java, Node and Python
+	// services get the OpenTelemetry agent without code changes; others
+	// get the OTEL_* variables for their own SDK. A service's own observe
+	// wins.
+	Observe bool `json:"observe,omitempty"`
+}
+
+// Observed reports whether svc sends traces: its own observe, else the app's.
+func (s *Spec) Observed(svc Service) bool {
+	if svc.Observe != nil {
+		return *svc.Observe
+	}
+	return s.Observe
 }
 
 // Verify configures release verification: after a release is live, its
@@ -325,8 +339,10 @@ type Service struct {
 	Path  string `json:"path,omitempty"`
 	// Watch lists extra repo paths whose changes also rebuild this service
 	// (code shared with other folders). Its own path always counts.
-	Watch    []string          `json:"watch,omitempty"`
-	Language string            `json:"language,omitempty"`
+	Watch    []string `json:"watch,omitempty"`
+	Language string   `json:"language,omitempty"`
+	// Observe overrides the app's observe for this service.
+	Observe  *bool             `json:"observe,omitempty"`
 	Port     int               `json:"port,omitempty"`
 	Build    Build             `json:"build,omitempty"`
 	Test     *Test             `json:"test,omitempty"`

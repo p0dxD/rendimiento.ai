@@ -101,6 +101,9 @@ type Server struct {
 	Mercado *mercado.Mercado
 	// Update moves rendimiento to an image it built itself (nil: off).
 	Update *selfupdate.Updater
+	// Metrics reads the traced service graph for the Universe page (nil:
+	// the map shows no latency).
+	Metrics *universe.Metrics
 	// BookURL and BookURLEs link the welcome page to the book, in English
 	// and in Spanish (either may be empty).
 	BookURL, BookURLEs string
@@ -654,6 +657,9 @@ func (s *Server) services(w http.ResponseWriter, r *http.Request, _ string) {
 // universe is the Universe page: every app from above, with its services,
 // what they use and call, what the internet reaches, and their health.
 // Without the catalog it still shows what each rendimiento.yaml declares.
+// With metrics, lines measured from traces carry their calls per minute,
+// errors and latency over ?window= (15m, 1h or 24h; 1h by default). The
+// map is still served when the metrics store does not answer.
 func (s *Server) universe(w http.ResponseWriter, r *http.Request, _ string) {
 	ctx := r.Context()
 	apps, err := s.Store.ListApps(ctx)
@@ -672,7 +678,25 @@ func (s *Server) universe(w http.ResponseWriter, r *http.Request, _ string) {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, universe.Build(in))
+	window := r.URL.Query().Get("window")
+	if _, ok := universe.Windows[window]; !ok {
+		window = "1h"
+	}
+	var metricsErr string
+	if s.Metrics != nil {
+		if in.Traced, err = s.Metrics.Edges(ctx, universe.Windows[window]); err != nil {
+			s.Log.Info("universe: metrics did not answer", "err", err)
+			metricsErr = err.Error()
+		}
+	}
+	writeJSON(w, struct {
+		universe.Universe
+		Window string `json:"window"`
+		// Traces is on when latency can be read; MetricsError says why it
+		// could not this time.
+		Traces       bool   `json:"traces"`
+		MetricsError string `json:"metricsError,omitempty"`
+	}{universe.Build(in), window, s.Metrics != nil, metricsErr})
 }
 
 // ---- environment ----

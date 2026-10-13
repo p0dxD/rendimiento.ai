@@ -326,6 +326,11 @@ func (in *Service) DeepCopyInto(out *Service) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Observe != nil {
+		in, out := &in.Observe, &out.Observe
+		*out = new(bool)
+		**out = **in
+	}
 	in.Build.DeepCopyInto(&out.Build)
 	if in.Test != nil {
 		in, out := &in.Test, &out.Test

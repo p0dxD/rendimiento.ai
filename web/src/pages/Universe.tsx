@@ -4,7 +4,7 @@
 // the middle with lines to every public address.
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { timeAgo, universeApi, type Universe as UniverseData, type UniverseEdge, type UniverseNode, type UniverseSystem } from "../api";
+import { timeAgo, universeApi, type Universe as UniverseData, type UniverseEdge, type UniverseNode, type UniverseSystem, type UniverseWindow } from "../api";
 import { ErrorBox, usePoll } from "../components/ui";
 import { t } from "../i18n";
 
@@ -21,7 +21,7 @@ function colorOf(id: string) {
   return palette[h % palette.length];
 }
 
-const kindOrder: Record<UniverseNode["kind"], number> = { service: 0, workload: 1, postgres: 2, redis: 3, internet: 4 };
+const kindOrder: Record<UniverseNode["kind"], number> = { service: 0, workload: 1, postgres: 2, redis: 3, external: 4, internet: 5 };
 const systemOrder: Record<UniverseSystem["kind"], number> = { app: 0, addon: 1, other: 2, infrastructure: 3 };
 
 interface Circle { x: number; y: number; r: number }
@@ -107,6 +107,7 @@ const kindLabel: Record<UniverseNode["kind"], string> = {
   workload: "Job or worker",
   postgres: "PostgreSQL",
   redis: "Redis",
+  external: "Outside the cluster",
   internet: "Internet",
 };
 
@@ -114,11 +115,44 @@ const sourceLabel: Record<UniverseEdge["sources"][number], string> = {
   declared: "declared in rendimiento.yaml",
   env: "found in its environment",
   ingress: "public address",
+  traced: "seen in traces",
 };
+
+const windows: { id: UniverseWindow; label: string }[] = [
+  { id: "15m", label: "Last 15 minutes" },
+  { id: "1h", label: "Last hour" },
+  { id: "24h", label: "Last 24 hours" },
+];
+
+/** A system's title; the one for calls outside the cluster is translated. */
+const systemTitle = (s: UniverseSystem) => (s.id === "outside" ? t("Outside the cluster") : s.title);
+
+/** "2.5/min · p50 12 ms · p95 250 ms · 5% errors", or "" without numbers. */
+function metricsText(e: UniverseEdge) {
+  const m = e.metrics;
+  if (!m) return "";
+  const rate = m.perMinute >= 10 ? Math.round(m.perMinute) : Math.round(m.perMinute * 10) / 10;
+  const parts = [t("{n}/min", { n: rate })];
+  if (m.p50Ms) parts.push(t("p50 {ms} ms", { ms: Math.round(m.p50Ms) }));
+  if (m.p95Ms) parts.push(t("p95 {ms} ms", { ms: Math.round(m.p95Ms) }));
+  if (m.errors > 0) parts.push(t("{pct}% errors", { pct: Math.round(m.errors * 1000) / 10 }));
+  return parts.join(" · ");
+}
+
+/** How a measured line looks: thicker with more calls, red with errors, amber when slow. */
+function edgeStyle(e: UniverseEdge): { width: number; color?: string } {
+  const m = e.metrics;
+  if (!m) return { width: 1.6 };
+  const width = 1.6 + Math.min(4.4, Math.log2(1 + m.perMinute));
+  if (m.errors >= 0.05) return { width, color: "var(--bad)" };
+  if ((m.p95Ms ?? 0) >= 500) return { width, color: "var(--warn)" };
+  return { width };
+}
 
 /** The Universe page. */
 export function Universe() {
-  const { data, error, setData } = usePoll(() => universeApi.get(), [], 60000);
+  const [win, setWin] = useState<UniverseWindow>("1h");
+  const { data, error, setData } = usePoll(() => universeApi.get(win), [win], 60000);
   const [showOther, setShowOther] = useState(true);
   const [showInfra, setShowInfra] = useState(false);
   const [selected, setSelected] = useState<string>();
@@ -159,11 +193,18 @@ export function Universe() {
         <div className="row">
           <label className="row small"><input type="checkbox" checked={showOther} onChange={(e) => setShowOther(e.target.checked)} /> {t("Deployed another way")}</label>
           <label className="row small"><input type="checkbox" checked={showInfra} onChange={(e) => setShowInfra(e.target.checked)} /> {t("Cluster internals")}</label>
-          <button disabled={refreshing} onClick={() => { setRefreshing(true); universeApi.get(true).then(setData).finally(() => setRefreshing(false)); }}>
+          {data.traces && (
+            <select value={win} onChange={(e) => setWin(e.target.value as UniverseWindow)} aria-label={t("Window for the measured numbers")}>
+              {windows.map((w) => <option key={w.id} value={w.id}>{t(w.label)}</option>)}
+            </select>
+          )}
+          <button disabled={refreshing} onClick={() => { setRefreshing(true); universeApi.get(win, true).then(setData).finally(() => setRefreshing(false)); }}>
             {refreshing ? t("Refreshing…") : t("Refresh")}
           </button>
         </div>
       </div>
+
+      {data.metricsError && <div className="alert small">{t("Latency could not be read from the metrics store: {error}", { error: data.metricsError })}</div>}
 
       <div className="universe">
         <svg className="universe-map card" viewBox={`${geo.box.x} ${geo.box.y} ${geo.box.w} ${geo.box.h}`} role="img" aria-label={t("Map of every app and its connections")}
@@ -180,7 +221,7 @@ export function Universe() {
             return (
               <g key={s.id} className="u-system">
                 <circle cx={c.x} cy={c.y} r={c.r} fill={color} fillOpacity={0.07} stroke={color} strokeOpacity={0.45} strokeDasharray={s.kind === "app" ? undefined : "5 5"} />
-                <text x={c.x} y={c.y - c.r - 8} textAnchor="middle" className="u-system-title" fill={color}>{s.title}</text>
+                <text x={c.x} y={c.y - c.r - 8} textAnchor="middle" className="u-system-title" fill={color}>{systemTitle(s)}</text>
               </g>
             );
           })}
@@ -190,12 +231,20 @@ export function Universe() {
             const from = byId.get(e.from), to = byId.get(e.to);
             const crosses = from?.system !== to?.system;
             const dim = focus && !(e.from === focus || e.to === focus);
-            const cls = e.sources.includes("ingress") ? "u-edge ingress" : e.sources.includes("declared") ? "u-edge declared" : "u-edge env";
+            const cls = e.sources.includes("ingress") ? "u-edge ingress" : e.sources.includes("declared") ? "u-edge declared"
+              : e.sources.includes("env") ? "u-edge env" : "u-edge traced";
+            const st = edgeStyle(e);
+            const d = edgePath(a, b, e.from === "internet" ? INTERNET_R : NODE_R, NODE_R, crosses);
+            const lit = focus && (e.from === focus || e.to === focus);
             return (
-              <path key={`${e.from}>${e.to}`} className={cls} d={edgePath(a, b, e.from === "internet" ? INTERNET_R : NODE_R, NODE_R, crosses)}
-                markerEnd="url(#u-arrow)" opacity={dim ? 0.1 : 1}>
-                <title>{edgeTitle(e, byId)}</title>
-              </path>
+              <g key={`${e.from}>${e.to}`} opacity={dim ? 0.1 : 1}>
+                <path className={cls} d={d} markerEnd="url(#u-arrow)" style={{ strokeWidth: st.width, ...(st.color ? { stroke: st.color, strokeOpacity: 0.85 } : {}) }}>
+                  <title>{edgeTitle(e, byId)}</title>
+                </path>
+                {lit && e.metrics?.p50Ms ? (
+                  <text className="u-edge-label" x={(a.x + b.x) / 2} y={(a.y + b.y) / 2} textAnchor="middle">{Math.round(e.metrics.p50Ms)} ms</text>
+                ) : null}
+              </g>
             );
           })}
           {view.nodes.map((n) => {
@@ -220,7 +269,7 @@ export function Universe() {
         </svg>
 
         <aside className="universe-side card stack">
-          {sel ? <NodeDetail n={sel} view={view} byId={byId} onPick={setSelected} /> : <Legend generated={data.generated} />}
+          {sel ? <NodeDetail n={sel} view={view} byId={byId} onPick={setSelected} /> : <Legend generated={data.generated} traces={data.traces} />}
         </aside>
       </div>
     </div>
@@ -244,6 +293,7 @@ function glyph(n: UniverseNode) {
     case "postgres": return "PG";
     case "redis": return "R";
     case "workload": return "⏱";
+    case "external": return "↗";
   }
   const lang: Record<string, string> = { node: "JS", python: "Py", java: "J", go: "Go", static: "◇" };
   return (n.language && lang[n.language]) || "•";
@@ -253,7 +303,7 @@ function glyph(n: UniverseNode) {
 function edgeTitle(e: UniverseEdge, byId: Map<string, UniverseNode>) {
   const name = (id: string) => (id === "internet" ? t("Internet") : byId.get(id)?.name ?? id);
   const how = e.sources.map((s) => t(sourceLabel[s])).join(", ");
-  const extra = e.env ?? e.hosts?.join(", ");
+  const extra = [e.env ?? e.hosts?.join(", "), metricsText(e)].filter(Boolean).join(" · ");
   return `${name(e.from)} → ${name(e.to)}${extra ? ` · ${extra}` : ""} (${how})`;
 }
 
@@ -271,7 +321,8 @@ function NodeDetail({ n, view, byId, onPick }: { n: UniverseNode; view: ReturnTy
         return (
           <li key={id}>
             <button className="link" onClick={() => onPick(id)}>{id === "internet" ? t("Internet") : byId.get(id)?.name ?? id}</button>
-            <span className="small muted"> {e.env ?? e.hosts?.join(", ") ?? ""} · {e.sources.map((s) => t(sourceLabel[s])).join(", ")}</span>
+            <span className="small muted"> {[e.env ?? e.hosts?.join(", "), e.sources.map((s) => t(sourceLabel[s])).join(", ")].filter(Boolean).join(" · ")}</span>
+            {e.metrics && <div className="small">{metricsText(e)}</div>}
           </li>
         );
       })}
@@ -281,7 +332,7 @@ function NodeDetail({ n, view, byId, onPick }: { n: UniverseNode; view: ReturnTy
     <>
       <div>
         <strong className="mono">{n.name}</strong>
-        <div className="small muted">{t(kindLabel[n.kind])}{system ? ` · ${system.title}` : ""}{n.language ? ` · ${n.language}` : ""}</div>
+        <div className="small muted">{t(kindLabel[n.kind])}{system ? ` · ${systemTitle(system)}` : ""}{n.language ? ` · ${n.language}` : ""}</div>
       </div>
       {n.health && (
         <div className="row">
@@ -303,7 +354,7 @@ function NodeDetail({ n, view, byId, onPick }: { n: UniverseNode; view: ReturnTy
 }
 
 /** What the shapes and lines mean, shown while nothing is picked. */
-function Legend({ generated }: { generated: string }) {
+function Legend({ generated, traces }: { generated: string; traces: boolean }) {
   return (
     <>
       <strong>{t("How to read it")}</strong>
@@ -314,9 +365,13 @@ function Legend({ generated }: { generated: string }) {
         <li><svg width="22" height="16"><path d="M2,8 H20" className="u-edge declared" /></svg>{t("Declared in rendimiento.yaml (needs)")}</li>
         <li><svg width="22" height="16"><path d="M2,8 H20" className="u-edge env" /></svg>{t("Found in its environment variables")}</li>
         <li><svg width="22" height="16"><path d="M2,8 H20" className="u-edge ingress" /></svg>{t("From the internet, through a public address")}</li>
+        <li><svg width="22" height="16"><path d="M2,8 H20" className="u-edge traced" /></svg>{t("Seen only in traces: nobody declared it")}</li>
+        <li><svg width="22" height="16"><path d="M2,8 H20" className="u-edge declared" style={{ strokeWidth: 5 }} /></svg>{t("Thicker: more calls; red: 5% or more fail; amber: the slowest 5% take half a second or more")}</li>
       </ul>
       <p className="small muted" style={{ margin: 0 }}>
-        {t("Click a service to see what it calls and what calls it. Latency on each connection comes next, for apps that turn on tracing.")}
+        {traces
+          ? t("Click a service to see what it calls and what calls it, with calls per minute, latency and errors for apps with observe.")
+          : t("Click a service to see what it calls and what calls it. For latency on each line, the platform needs METRICS_URL and the OpenTelemetry collector add-on.")}
       </p>
       <p className="small muted" style={{ margin: 0 }}>{t("Updated {when}", { when: timeAgo(generated) })} · <Link to="/services">{t("Services")}</Link></p>
     </>

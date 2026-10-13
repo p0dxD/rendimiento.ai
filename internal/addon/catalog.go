@@ -27,6 +27,9 @@ type CatalogEntry struct {
 	ManualSync bool `json:"manualSync,omitempty"`
 	// Notes are shown before installing.
 	Notes string `json:"notes,omitempty"`
+	// Values are Helm values (YAML) the install form starts with, for
+	// settings too big for fields; the fields are merged under them.
+	Values string `json:"values,omitempty"`
 }
 
 // HelmSourceTemplate is a catalog entry's chart and default version.
@@ -79,6 +82,18 @@ var Catalog = []CatalogEntry{
 		Helm:        &HelmSourceTemplate{Repo: "https://cloudnative-pg.github.io/charts", Chart: "cloudnative-pg", Version: "0.29.1"},
 	},
 	{
+		ID: "opentelemetry-collector", Title: "OpenTelemetry Collector", Category: "monitoring", Kind: "helm", Namespace: "observa",
+		Description: "Receives traces from apps with `observe` and turns them into the service graph: calls per minute, errors and latency on every line of the Universe map.",
+		Homepage:    "https://opentelemetry.io/docs/collector/",
+		Helm:        &HelmSourceTemplate{Repo: "https://open-telemetry.github.io/opentelemetry-helm-charts", Chart: "opentelemetry-collector", Version: "0.175.1"},
+		Fields: []Field{
+			{Key: "config.exporters.prometheusremotewrite.endpoint", Label: "Metrics store remote-write URL", Type: "string",
+				Default: "http://vmsingle.monitoring.svc.cluster.local:8428/api/v1/write", Description: "Where the service graph is written: VictoriaMetrics or Prometheus with remote write on. The platform reads it back from METRICS_URL."},
+		},
+		Notes:  "After installing, set TELEMETRY_ENDPOINT on the platform to this collector (http://opentelemetry-collector.observa.svc.cluster.local:4318) and METRICS_URL to the metrics store, then add `observe: true` to an app's rendimiento.yaml. Traces themselves are not kept: only the numbers.",
+		Values: otelCollectorValues,
+	},
+	{
 		ID: "custom-helm", Title: "Any Helm chart", Category: "", Kind: "custom-helm",
 		Description: "Install a chart from any Helm repository by its URL, name and version, with your own values.",
 	},
@@ -87,3 +102,46 @@ var Catalog = []CatalogEntry{
 		Description: "Apply a folder of Kubernetes manifests (or a kustomization) from the gitops repository or another repo.",
 	},
 }
+
+// otelCollectorValues run the collector as one small Deployment that takes
+// traces over OTLP and Zipkin and keeps only the service graph and span
+// metrics, written to the metrics store; the chart's Jaeger, Prometheus
+// and logs parts are switched off.
+const otelCollectorValues = `mode: deployment
+image:
+  repository: otel/opentelemetry-collector-contrib
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { memory: 400Mi }
+ports:
+  jaeger-compact: { enabled: false }
+  jaeger-thrift: { enabled: false }
+  jaeger-grpc: { enabled: false }
+  zipkin: { enabled: true }
+config:
+  receivers:
+    jaeger: null
+    prometheus: null
+  connectors:
+    servicegraph:
+      latency_histogram_buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2500ms, 5s, 10s]
+      store: { ttl: 10s, max_items: 5000 }
+      # Calls to something without traces (a database, a Go service, an
+      # API outside the cluster) still become a line, named by these.
+      virtual_node_peer_attributes: [peer.service, db.system, db.name, server.address, net.peer.name]
+    spanmetrics:
+      histogram:
+        explicit:
+          buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2500ms, 5s, 10s]
+  service:
+    pipelines:
+      logs: null
+      traces:
+        receivers: [otlp, zipkin]
+        processors: [memory_limiter, batch]
+        exporters: [servicegraph, spanmetrics]
+      metrics:
+        receivers: [servicegraph, spanmetrics]
+        processors: [memory_limiter, batch]
+        exporters: [prometheusremotewrite]
+`

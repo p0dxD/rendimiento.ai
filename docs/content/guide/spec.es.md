@@ -69,6 +69,7 @@ tasks:
 | `sharedNamespace` | booleano | `false` | El espacio de nombres de la aplicación pertenece a otra cosa (por ejemplo, ArgoCD): debe existir, y rendimiento nunca lo crea, lo etiqueta, se adueña de él ni lo elimina. |
 | `postgres` | objeto | vea [necesidades](#postgres-and-redis) | Ajustes para `needs: [postgres]`. |
 | `redis` | objeto | vea [necesidades](#postgres-and-redis) | Ajustes para `needs: [redis]`. |
+| `observe` | booleano | `false` | Envía trazas de cada servicio, para ver la latencia en el mapa del [universo](universe.md#latency-on-every-line). Los servicios en Java, Node y Python reciben el agente de OpenTelemetry sin cambiar su código. No hace nada mientras la plataforma no tenga `TELEMETRY_ENDPOINT`. |
 
 ## Servicios {#services}
 
@@ -80,7 +81,8 @@ tasks:
 | `path` | texto | `.` | Carpeta del repositorio que se construye, relativa a la raíz. |
 | `image` | texto | ninguna | Ejecutar esta imagen lista para usar en lugar de construir (por ejemplo `postgres:15-alpine`). Sin pasos de construcción ni de pruebas. |
 | `watch` | lista de rutas | ninguna | Otras carpetas cuyos cambios también deben reconstruir este servicio (código compartido). |
-| `language` | texto | detectado | Solo informativo (se muestra en la interfaz). |
+| `language` | texto | detectado | Se muestra en la interfaz; con `observe`, elige el agente (`java`, `node`, `python`). |
+| `observe` | booleano | el `observe` de la aplicación | Activa o apaga las trazas solo de este servicio. |
 
 ### Construcción y pruebas {#build-and-test}
 

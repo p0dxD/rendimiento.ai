@@ -388,6 +388,9 @@ spec:
                         services); rendimiento provides them and injects their addresses.
                         Items are words or objects, so the CRD leaves them unstructured.
                       x-kubernetes-preserve-unknown-fields: true
+                    observe:
+                      description: Observe overrides the app's observe for this service.
+                      type: boolean
                     path:
                       type: string
                     port:

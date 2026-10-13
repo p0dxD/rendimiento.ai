@@ -31,6 +31,30 @@ A line found both ways is drawn solid. Values read from secrets are not seen, so
 - **Open app** goes to the app's page; **Open in Services** goes to the service's entry in the catalog.
 - **Refresh** rebuilds the catalog from the cluster right away (otherwise it is at most 30 seconds old, and the page reloads every minute).
 
-## What comes next
+## Latency on every line
 
-Latency, requests per minute and errors on every line, measured from traces (OpenTelemetry), for apps that turn tracing on. Java, Node and Python services will be instrumented without code changes; libraries for each language will add custom events.
+With tracing on, each line also carries what was measured: **calls per minute**, the share that **failed**, and how long they took as the caller saw them (**p50**, half were faster; **p95**, the slowest 5%). Pick the window (15 minutes, an hour, 24 hours) at the top. Lines get **thicker** with more calls, turn **red** when 5% or more fail and **amber** when the slowest 5% take half a second or more. Hovering a service shows the typical time on its lines.
+
+Lines **seen only in traces** (nobody declared them) are drawn in green: a call to a service no `needs:` mentions, a database, or an API **outside the cluster**, grouped under *Outside the cluster*.
+
+### Turning it on
+
+1. Install the **OpenTelemetry Collector** add-on (Add-ons). It receives traces and writes only the numbers, the service graph, to the metrics store; traces themselves are not kept. Set its remote-write URL to your VictoriaMetrics or Prometheus.
+2. On the platform, set `TELEMETRY_ENDPOINT` to the collector and `METRICS_URL` to the metrics store ([Settings](../reference/config.md#traces-and-the-universe)).
+3. In an app's `rendimiento.yaml`, add `observe: true` (or `observe: true` on one service). The next deploy adds tracing.
+
+What each service gets:
+
+| `language` | What rendimiento adds |
+|---|---|
+| `java` | the OpenTelemetry Java agent, loaded with `JAVA_TOOL_OPTIONS` |
+| `node` | the OpenTelemetry Node agent, loaded with `NODE_OPTIONS` (kept after the app's own options) |
+| `python` | the OpenTelemetry Python agent, on `PYTHONPATH` |
+| `go`, others, ready-made images | only the `OTEL_*` variables, for an OpenTelemetry SDK in the code |
+
+Every observed service is named `app/service` (`OTEL_SERVICE_NAME`), which is how a measured line finds its nodes. The agent is copied into the pod by a small init container; it adds memory (the Java agent the most, around 100 MB) and some start-up time, so turn it on where you want to see. A quarter of the traces are kept (`TELEMETRY_SAMPLE_RATIO`), which is plenty for averages.
+
+!!! note "Python on Alpine"
+    The Python agent is built for glibc. A service on an Alpine (musl) image may fail to load it: use a Debian-based image, or set `observe: false` on that service.
+
+A Go service is still measured from the other side: calls *to* it from an observed service are timed by the caller.
