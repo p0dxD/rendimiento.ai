@@ -851,6 +851,11 @@ export const es: Record<string, string> = {
   "{release} is ready": "{release} está lista",
   "Updating… the page reloads when the new version answers": "Actualizando… la página se recarga cuando responda la versión nueva",
   "Update": "Actualizar",
+  "make deploy is needed": "Hace falta make deploy",
+  "This version also changes the platform's manifests, which the Update button does not apply. After updating, run in your copy of rendimiento:": "Esta versión también cambia los manifiestos de la plataforma, y el botón Actualizar no los aplica. Después de actualizar, ejecute en su copia de rendimiento:",
+  "The platform's manifests changed since the last make deploy ({sha}), and the Update button does not apply them. Run in your copy of rendimiento:": "Los manifiestos de la plataforma cambiaron desde el último make deploy ({sha}), y el botón Actualizar no los aplica. Ejecute en su copia de rendimiento:",
+  "Changed:": "Cambiaron:",
+  "rendimiento cannot tell yet whether make deploy is needed: it learns which commit was applied the next time make deploy runs.": "rendimiento todavía no sabe si hace falta make deploy: sabrá qué commit se aplicó la próxima vez que se ejecute make deploy.",
   // The Universe page.
   "Universe": "Universo",
   "{apps} apps, {nodes} services and {edges} connections, seen from above.": "{apps} aplicaciones, {nodes} servicios y {edges} conexiones, vistos desde arriba.",

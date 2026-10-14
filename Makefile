@@ -69,6 +69,9 @@ railpack-image: ## the railpack CLI image build pods use (RAILPACK_IMAGE)
 # Keeps the release rendimiento updated itself to (hack/keep-image.sh).
 deploy:
 	kubectl kustomize --load-restrictor=LoadRestrictionsNone $(DEPLOY_DIR) | hack/keep-image.sh $(IMAGE) | kubectl apply -f -
+	@# The commit applied: the Environment page compares it with the newest
+	@# release and says when the manifests changed and this is needed again.
+	kubectl -n rendimiento-system annotate deploy rendimiento --overwrite rendimiento.ai/manifests=$$(git rev-parse HEAD)
 
 # The book's code reference, generated from the Go and TypeScript sources.
 # The book's image regenerates it on every build; run this to preview it.

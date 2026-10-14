@@ -173,7 +173,7 @@ With `SELF_APP` set to the app rendimiento's repository is onboarded as, the pla
 2. the Deployment restarts as above (`Recreate`), and the new process applies its migrations;
 3. the page waits until the new version answers, then reloads.
 
-`make deploy` keeps that image (`hack/keep-image.sh` puts the running digest in place of the overlay's), so changing the configuration does not take the platform back to `:latest`. It is still how `deploy/` and the overlay's changes reach the cluster; the button only changes the image.
+`make deploy` keeps that image (`hack/keep-image.sh` puts the running digest in place of the overlay's), so changing the configuration does not take the platform back to `:latest`. It is still how `deploy/` and the overlay's changes reach the cluster; the button only changes the image. To tell when that is needed, `make deploy` records the commit it applied (the `rendimiento.ai/manifests` annotation on the Deployment), and the Environment page compares it with the newest release: when a YAML file under `deploy/` changed in between, such as a CRD or the permissions, it says **make deploy is needed** and lists the files, before you update and until you run it. Changes to your private overlay are yours to apply; the page does not see them.
 
 !!! warning "If the new version does not start"
     With one replica and `Recreate` the old version is gone before the new one is ready, so a release that cannot start leaves the platform down (apps keep running). Go back with `kubectl -n rendimiento-system rollout undo deploy/rendimiento`. A rolling update that keeps the old version until the new one is ready is a later step.

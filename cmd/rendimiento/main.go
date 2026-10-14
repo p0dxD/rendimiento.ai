@@ -324,7 +324,7 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		srv.Update = &selfupdate.Updater{
 			Kube: kube, Releases: st, App: self, Build: env("SELF_BUILD", "platform"),
 			Namespace: ns, Deployment: env("SELF_DEPLOYMENT", "rendimiento"), Container: env("SELF_CONTAINER", "rendimiento"),
-			Pod: os.Getenv("HOSTNAME"),
+			Pod: os.Getenv("HOSTNAME"), Changes: holder,
 		}
 	}
 	// Uptime checks of every app's services (the Reliability tab), on the

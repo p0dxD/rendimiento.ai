@@ -666,6 +666,9 @@ export interface PlatformVersion {
     current?: PlatformRelease;
     latest?: PlatformRelease;
     available: boolean;
+    // The platform's manifests (deploy/) changed since the commit `make
+    // deploy` last applied: the Update button does not apply them.
+    manifests?: { applied?: string; changed?: string[] };
   };
 }
 
