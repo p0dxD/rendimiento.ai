@@ -41,7 +41,7 @@ Las líneas **vistas solo en las trazas** (nadie las declaró) se dibujan en ver
 
 ### Cómo activarla {#turning-it-on}
 
-1. Instale el complemento **OpenTelemetry Collector** (Complementos). Recibe las trazas y escribe solo los números, el grafo de servicios, en el almacén de métricas; las trazas mismas no se guardan. Ponga como dirección de escritura su VictoriaMetrics o Prometheus.
+1. Instale el complemento **OpenTelemetry Collector** (Complementos). Recibe las trazas y escribe solo los números, el grafo de servicios, en el almacén de métricas; las trazas mismas no se guardan. Ponga como dirección de escritura su VictoriaMetrics o Prometheus. Antes se descartan las revisiones de salud (las sondas de Kubernetes, `kube-probe/…`, y las revisiones de disponibilidad de rendimiento, `rendimiento-uptime/…`), para que no dibujen una línea desde Internet hacia cada servicio.
 2. En la plataforma, defina `TELEMETRY_ENDPOINT` con el colector y `METRICS_URL` con el almacén de métricas ([Ajustes](../reference/config.md#traces-and-the-universe)).
 3. En el `rendimiento.yaml` de una aplicación, agregue `observe: true` (o `observe: true` en un solo servicio). El siguiente despliegue agrega las trazas.
 

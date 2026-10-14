@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/p0dxD/rendimiento.ai/internal/i18n"
 	"github.com/p0dxD/rendimiento.ai/internal/renovate"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 )
@@ -48,11 +49,10 @@ func (s *Server) renovateView(r *http.Request) (*addonView, error) {
 	}
 	def := renovate.DefaultSettings()
 	v := &addonView{
-		Name:  renovate.Name,
-		Title: "Renovate",
-		Description: "Keeps dependencies up to date: opens a pull request for each update, which rendimiento builds and checks; " +
-			"patch and minor updates merge themselves once the checks pass.",
-		Enabled: enabled, Settings: set, Running: s.Renovate != nil && s.Renovate.Running(), Defaults: &def,
+		Name:        renovate.Name,
+		Title:       "Renovate",
+		Description: i18n.M("Keeps dependencies up to date: opens a pull request for each update, which rendimiento builds and checks; patch and minor updates merge themselves once the checks pass."),
+		Enabled:     enabled, Settings: set, Running: s.Renovate != nil && s.Renovate.Running(), Defaults: &def,
 		Repos: []string{}, Apps: []addonApp{}, Problems: []string{},
 		PermissionsURL: "https://github.com/settings/apps/" + s.AppName + "/permissions",
 	}
