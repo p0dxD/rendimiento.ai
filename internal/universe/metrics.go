@@ -14,7 +14,7 @@ import (
 
 // EdgeMetrics are the numbers on one line of the map, measured from traces
 // over the chosen window: how often the caller calls, how many calls fail,
-// and how long they take as the caller sees them.
+// and how long they take.
 type EdgeMetrics struct {
 	PerMinute float64 `json:"perMinute"`
 	// Errors is the share of failed calls, 0 to 1.
@@ -40,14 +40,23 @@ func (m *Metrics) Edges(ctx context.Context, window time.Duration) (map[[2]strin
 	w := promDuration(window)
 	minutes := window.Minutes()
 	out := map[[2]string]EdgeMetrics{}
-	queries := []struct {
+	type edgeQuery struct {
 		q   string
 		set func(*EdgeMetrics, float64)
-	}{
+	}
+	queries := []edgeQuery{
 		{`sum by (client, server) (increase(traces_service_graph_request_total[` + w + `]))`, func(e *EdgeMetrics, v float64) { e.PerMinute = v / minutes }},
 		{`sum by (client, server) (increase(traces_service_graph_request_failed_total[` + w + `]))`, func(e *EdgeMetrics, v float64) { e.Errors = v }},
-		{`histogram_quantile(0.5, sum by (client, server, le) (rate(traces_service_graph_request_client_seconds_bucket[` + w + `])))`, func(e *EdgeMetrics, v float64) { e.P50MS = v * 1000 }},
-		{`histogram_quantile(0.95, sum by (client, server, le) (rate(traces_service_graph_request_client_seconds_bucket[` + w + `])))`, func(e *EdgeMetrics, v float64) { e.P95MS = v * 1000 }},
+	}
+	// How long a call takes, as the caller sees it and as the callee does:
+	// the larger. A side that sends no traces (a visitor's browser, a
+	// database) is recorded with no duration, so the other side's counts.
+	for _, side := range []string{"client", "server"} {
+		hist := `sum by (client, server, le) (rate(traces_service_graph_request_` + side + `_seconds_bucket[` + w + `]))`
+		queries = append(queries,
+			edgeQuery{`histogram_quantile(0.5, ` + hist + `)`, func(e *EdgeMetrics, v float64) { e.P50MS = math.Max(e.P50MS, v*1000) }},
+			edgeQuery{`histogram_quantile(0.95, ` + hist + `)`, func(e *EdgeMetrics, v float64) { e.P95MS = math.Max(e.P95MS, v*1000) }},
+		)
 	}
 	for _, q := range queries {
 		res, err := m.query(ctx, q.q)

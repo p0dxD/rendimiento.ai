@@ -41,7 +41,7 @@ Lines **seen only in traces** (nobody declared them) are drawn in green: a call 
 
 ### Turning it on
 
-1. Install the **OpenTelemetry Collector** add-on (Add-ons). It receives traces and writes only the numbers, the service graph, to the metrics store; traces themselves are not kept. Set its remote-write URL to your VictoriaMetrics or Prometheus.
+1. Install the **OpenTelemetry Collector** add-on (Add-ons). It receives traces and writes only the numbers, the service graph, to the metrics store; traces themselves are not kept. Set its remote-write URL to your VictoriaMetrics or Prometheus. Health checks (Kubernetes' probes, `kube-probe/…`, and rendimiento's uptime checks, `rendimiento-uptime/…`) are dropped first, so they do not draw a line from Internet to every service.
 2. On the platform, set `TELEMETRY_ENDPOINT` to the collector and `METRICS_URL` to the metrics store ([Settings](../reference/config.md#traces-and-the-universe)).
 3. In an app's `rendimiento.yaml`, add `observe: true` (or `observe: true` on one service). The next deploy adds tracing.
 

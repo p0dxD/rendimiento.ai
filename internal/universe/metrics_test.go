@@ -35,10 +35,16 @@ func TestMetricsEdges(t *testing.T) {
 			promReply(w, map[[2]string]string{ui: "6"})
 		case strings.Contains(q, "request_total"):
 			promReply(w, map[[2]string]string{ui: "120", api: "30"})
-		case strings.Contains(q, "histogram_quantile(0.5,"):
-			promReply(w, map[[2]string]string{ui: "0.012", api: "NaN"})
-		case strings.Contains(q, "histogram_quantile(0.95,"):
+		// A visitor's browser sends no traces: its side has no duration,
+		// and the callee's counts.
+		case strings.Contains(q, "histogram_quantile(0.5,") && strings.Contains(q, "client_seconds"):
+			promReply(w, map[[2]string]string{ui: "0.0025", api: "NaN"})
+		case strings.Contains(q, "histogram_quantile(0.5,") && strings.Contains(q, "server_seconds"):
+			promReply(w, map[[2]string]string{ui: "0.012"})
+		case strings.Contains(q, "histogram_quantile(0.95,") && strings.Contains(q, "client_seconds"):
 			promReply(w, map[[2]string]string{ui: "0.25"})
+		case strings.Contains(q, "histogram_quantile(0.95,") && strings.Contains(q, "server_seconds"):
+			promReply(w, map[[2]string]string{ui: "0.1"})
 		default:
 			t.Errorf("unexpected query %s", q)
 		}
