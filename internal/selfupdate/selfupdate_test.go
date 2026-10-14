@@ -2,6 +2,7 @@ package selfupdate
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -112,5 +113,67 @@ func TestUpdate(t *testing.T) {
 	}
 	if a := d.Spec.Template.Annotations; a["rendimiento.ai/release"] != "2" || a["rendimiento.ai/updated-by"] != "ana" {
 		t.Errorf("annotations %v", a)
+	}
+}
+
+// compare is a fake GitHub compare: the files changed between two commits.
+type compare struct {
+	files map[[2]string][]string
+	calls int
+}
+
+func (c *compare) ChangedFiles(_ context.Context, _ int64, _, base, head string) ([]string, bool, error) {
+	c.calls++
+	return c.files[[2]string{base, head}], true, nil
+}
+
+func TestManifests(t *testing.T) {
+	ctx := context.Background()
+	u := updater(t, "registry.example.lan:5000/rendimiento-platform@sha256:aaaa")
+	gh := &compare{files: map[[2]string][]string{
+		{"c1", "c2"}: {"internal/x.go", "deploy/crds/rendimiento.ai_apps.yaml", "deploy/railpack/Dockerfile", "deploy/rbac.yaml"},
+		{"c0", "c2"}: {"web/src/x.tsx"},
+	}}
+	u.Changes = gh
+	applied := func(sha string) {
+		t.Helper()
+		var d appsv1.Deployment
+		if err := u.Kube.Get(ctx, client.ObjectKey{Namespace: "rendimiento-system", Name: "rendimiento"}, &d); err != nil {
+			t.Fatal(err)
+		}
+		d.Annotations = map[string]string{ManifestsAnnotation: sha}
+		if err := u.Kube.Update(ctx, &d); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// make deploy has not recorded a commit yet.
+	st, _ := u.Status(ctx)
+	if m := st.Manifests; m == nil || m.Applied != "" || len(m.Changed) != 0 {
+		t.Errorf("no record: %+v", m)
+	}
+
+	// The newest release changes the CRD and the permissions since then.
+	applied("c1")
+	for range 2 { // the second asks GitHub no more
+		st, _ = u.Status(ctx)
+		if m := st.Manifests; m == nil || m.Applied != "c1" || strings.Join(m.Changed, " ") != "deploy/crds/rendimiento.ai_apps.yaml deploy/rbac.yaml" {
+			t.Errorf("changed: %+v", m)
+		}
+	}
+	if gh.calls != 1 {
+		t.Errorf("asked GitHub %d times, want once", gh.calls)
+	}
+
+	// Only code changed: nothing to apply.
+	applied("c0")
+	if st, _ = u.Status(ctx); st.Manifests == nil || len(st.Manifests.Changed) != 0 {
+		t.Errorf("code only: %+v", st.Manifests)
+	}
+
+	// make deploy applied the newest release's commit.
+	applied("c2")
+	if st, _ = u.Status(ctx); st.Manifests == nil || len(st.Manifests.Changed) != 0 {
+		t.Errorf("up to date: %+v", st.Manifests)
 	}
 }

@@ -8,9 +8,10 @@ import { t } from "../i18n";
 export function EnvironmentNavLink() {
   const { data } = usePoll(() => envApi.version().catch(() => undefined), [], 5 * 60000);
   const ready = data?.status?.available && data.status.latest;
+  const deploy = !!data?.status?.manifests?.changed?.length;
   return (
-    <NavLink to="/environment" className="nav-link" title={ready ? t("A new version of rendimiento is ready") : undefined}>
-      {t("Environment")}{ready && <span className="nav-count">{t("new")}</span>}
+    <NavLink to="/environment" className="nav-link" title={ready ? t("A new version of rendimiento is ready") : deploy ? t("make deploy is needed") : undefined}>
+      {t("Environment")}{ready ? <span className="nav-count">{t("new")}</span> : deploy && <span className="nav-count">make deploy</span>}
     </NavLink>
   );
 }
@@ -39,6 +40,7 @@ export function PlatformVersion() {
 
   const st = data?.status;
   if ((error && !target) || !data?.enabled || !st) return null;
+  const manifests = st.manifests;
   const update = async (n: number) => {
     if (!confirm(t("Update rendimiento to release #{n}? It restarts: for about a minute the page and webhooks do not answer, and runs in progress start again.", { n }))) return;
     setFailed(undefined);
@@ -69,6 +71,20 @@ export function PlatformVersion() {
       )}
       <Link className="small" to={`/apps/${st.app}/releases`}>{t("Releases")}</Link>
       {failed && <span className="small" style={{ color: "var(--bad)" }}>{failed}</span>}
+      {manifests?.changed?.length ? (
+        <div className="small" style={{ flexBasis: "100%" }}>
+          <p style={{ margin: "4px 0" }}>
+            <strong>{t("make deploy is needed")}</strong>{" "}
+            {st.available
+              ? t("This version also changes the platform's manifests, which the Update button does not apply. After updating, run in your copy of rendimiento:")
+              : t("The platform's manifests changed since the last make deploy ({sha}), and the Update button does not apply them. Run in your copy of rendimiento:", { sha: (manifests.applied ?? "").slice(0, 7) })}
+          </p>
+          <pre className="file">git pull && make deploy</pre>
+          <span className="muted">{t("Changed:")} <span className="mono">{manifests.changed.join(", ")}</span></span>
+        </div>
+      ) : manifests && !manifests.applied ? (
+        <span className="small muted" style={{ flexBasis: "100%" }}>{t("rendimiento cannot tell yet whether make deploy is needed: it learns which commit was applied the next time make deploy runs.")}</span>
+      ) : null}
     </div>
   );
 }

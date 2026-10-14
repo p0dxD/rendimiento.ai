@@ -8,7 +8,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -36,6 +38,35 @@ type Updater struct {
 	// Namespace, Deployment and Container are where rendimiento runs; Pod is
 	// this process's pod (HOSTNAME), to read the image it really runs.
 	Namespace, Deployment, Container, Pod string
+	// Changes lists the files that differ between two commits of the app's
+	// repository (GitHub's compare). With it, Status says when the
+	// manifests changed since the last `make deploy`; nil skips that check.
+	Changes Changes
+
+	mu      sync.Mutex
+	changed map[[2]string][]string // two commits never change: compare once
+}
+
+// Changes is the part of the GitHub client the manifest check uses.
+type Changes interface {
+	ChangedFiles(ctx context.Context, installation int64, repo, base, head string) ([]string, bool, error)
+}
+
+// ManifestsAnnotation, on the Deployment, is the commit `make deploy`
+// last applied. The Update button only changes the image; the manifests
+// (CRDs, permissions, settings) are applied by `make deploy`.
+const ManifestsAnnotation = "rendimiento.ai/manifests"
+
+// Manifests says whether `make deploy` is needed: the files of the
+// platform's manifests (deploy/) that changed between the commit it last
+// applied and the newest release.
+type Manifests struct {
+	// Applied is the commit `make deploy` last applied ("" when it has
+	// not recorded one yet).
+	Applied string `json:"applied,omitempty"`
+	// Changed are the manifest files the newest release changed since
+	// then; when not empty, run `make deploy`.
+	Changed []string `json:"changed,omitempty"`
 }
 
 // Version is one release of the platform.
@@ -56,6 +87,9 @@ type Status struct {
 	// running.
 	Latest    *Version `json:"latest,omitempty"`
 	Available bool     `json:"available"`
+	// Manifests is nil when they could not be checked (no Changes, or
+	// GitHub did not answer).
+	Manifests *Manifests `json:"manifests,omitempty"`
 }
 
 // releases looked at for the running version: a few weeks of pushes.
@@ -65,7 +99,7 @@ const history = 50
 // the newest release holds another image.
 func (u *Updater) Status(ctx context.Context) (*Status, error) {
 	st := &Status{App: u.App}
-	versions, err := u.versions(ctx)
+	app, versions, err := u.versions(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -79,15 +113,60 @@ func (u *Updater) Status(ctx context.Context) (*Status, error) {
 	if len(versions) > 0 {
 		st.Latest = &versions[0]
 		st.Available = digest(st.Latest.Image) != st.Running
+		st.Manifests = u.manifests(ctx, app, st.Latest.SHA)
 	}
 	return st, nil
+}
+
+// manifests compares the commit `make deploy` last applied with head.
+func (u *Updater) manifests(ctx context.Context, app *store.App, head string) *Manifests {
+	if u.Changes == nil {
+		return nil
+	}
+	var d appsv1.Deployment
+	if err := u.Kube.Get(ctx, client.ObjectKey{Namespace: u.Namespace, Name: u.Deployment}, &d); err != nil {
+		return nil
+	}
+	m := &Manifests{Applied: d.Annotations[ManifestsAnnotation]}
+	if m.Applied == "" || m.Applied == head {
+		return m
+	}
+	key := [2]string{m.Applied, head}
+	u.mu.Lock()
+	files, ok := u.changed[key]
+	u.mu.Unlock()
+	if !ok {
+		all, _, err := u.Changes.ChangedFiles(ctx, app.InstallationID, app.Repo, m.Applied, head)
+		if err != nil {
+			return nil
+		}
+		for _, f := range all {
+			if isManifest(f) && !slices.Contains(files, f) {
+				files = append(files, f)
+			}
+		}
+		u.mu.Lock()
+		if u.changed == nil {
+			u.changed = map[[2]string][]string{}
+		}
+		u.changed[key] = files
+		u.mu.Unlock()
+	}
+	m.Changed = files
+	return m
+}
+
+// isManifest says whether `make deploy` applies the file: the YAML under
+// deploy/ (not, say, the Railpack image's Dockerfile).
+func isManifest(path string) bool {
+	return strings.HasPrefix(path, "deploy/") && (strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml"))
 }
 
 // Update points the Deployment at release's image. With one replica and the
 // Recreate strategy, this pod stops and the new one starts (and migrates the
 // database) within a minute; the request answers before that.
 func (u *Updater) Update(ctx context.Context, release int64, login string) (*Version, error) {
-	versions, err := u.versions(ctx)
+	_, versions, err := u.versions(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -127,17 +206,17 @@ func (u *Updater) Update(ctx context.Context, release int64, login string) (*Ver
 }
 
 // versions are the app's releases that hold a platform image, newest first.
-func (u *Updater) versions(ctx context.Context) ([]Version, error) {
+func (u *Updater) versions(ctx context.Context) (*store.App, []Version, error) {
 	app, err := u.Releases.GetApp(ctx, u.App)
 	if errors.Is(err, store.ErrNotFound) {
-		return nil, fmt.Errorf(M("%s is not an app here: rendimiento updates itself from its own repository's releases"), u.App)
+		return nil, nil, fmt.Errorf(M("%s is not an app here: rendimiento updates itself from its own repository's releases"), u.App)
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	rels, err := u.Releases.ListReleases(ctx, app.ID, history)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var out []Version
 	for _, r := range rels {
@@ -145,7 +224,7 @@ func (u *Updater) versions(ctx context.Context) ([]Version, error) {
 			out = append(out, Version{Release: r.Number, SHA: r.SHA, Image: img, At: r.CreatedAt})
 		}
 	}
-	return out, nil
+	return app, out, nil
 }
 
 // running is the digest of the image this pod runs ("" when unknown: not in

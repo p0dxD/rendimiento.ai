@@ -173,7 +173,7 @@ Con `SELF_APP` puesto en el nombre de la aplicación con la que está incorporad
 2. el Deployment se reinicia como arriba (`Recreate`) y el proceso nuevo aplica sus migraciones;
 3. la página espera a que responda la versión nueva y luego se recarga.
 
-`make deploy` conserva esa imagen (`hack/keep-image.sh` pone el resumen en ejecución en lugar del de la capa privada), así que cambiar la configuración no regresa la plataforma a `:latest`. Sigue siendo la forma de llevar al clúster los cambios de `deploy/` y de la capa privada; el botón solo cambia la imagen.
+`make deploy` conserva esa imagen (`hack/keep-image.sh` pone el resumen en ejecución en lugar del de la capa privada), así que cambiar la configuración no regresa la plataforma a `:latest`. Sigue siendo la forma de llevar al clúster los cambios de `deploy/` y de la capa privada; el botón solo cambia la imagen. Para saber cuándo hace falta, `make deploy` anota el commit que aplicó (la anotación `rendimiento.ai/manifests` del Deployment), y la página Entorno lo compara con la versión más nueva: si entre los dos cambió un archivo YAML de `deploy/`, como un CRD o los permisos, dice **Hace falta make deploy** y lista los archivos, antes de actualizar y hasta que lo ejecute. Los cambios de su capa privada los aplica usted; la página no los ve.
 
 !!! warning "Si la versión nueva no arranca"
     Con una réplica y `Recreate`, la versión anterior ya no está cuando la nueva arranca, así que una versión que no puede arrancar deja la plataforma caída (las aplicaciones siguen corriendo). Regrese con `kubectl -n rendimiento-system rollout undo deploy/rendimiento`. Una actualización gradual que conserve la versión anterior hasta que la nueva esté lista queda para un paso posterior.
