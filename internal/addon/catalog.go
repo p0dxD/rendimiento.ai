@@ -128,7 +128,7 @@ config:
     prometheus: null
   connectors:
     servicegraph:
-      latency_histogram_buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2500ms, 5s, 10s]
+      latency_histogram_buckets: [1ms, 2ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2500ms, 5s, 10s]
       store: { ttl: 10s, max_items: 5000 }
       # Calls to something without traces (a database, a Go service, an
       # API outside the cluster) still become a line, named by these.
@@ -136,7 +136,7 @@ config:
     spanmetrics:
       histogram:
         explicit:
-          buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2500ms, 5s, 10s]
+          buckets: [1ms, 2ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2500ms, 5s, 10s]
   processors:
     # Health checks (Kubernetes' probes, rendimiento's uptime checks) are
     # not traffic: without this every service gets a line from Internet.
