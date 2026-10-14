@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -399,5 +400,50 @@ func TestTestCaches(t *testing.T) {
 	}
 	if l, _ := cs.CoreV1().PersistentVolumeClaims("b").List(ctx, metav1.ListOptions{}); len(l.Items) != 0 {
 		t.Fatalf("caches left: %d", len(l.Items))
+	}
+}
+
+func TestCacheLetGoWhenItsNodeIsFull(t *testing.T) {
+	ctx := context.Background()
+	waiting := func(name, why string) *corev1.Pod {
+		return &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "b"}, Status: corev1.PodStatus{Conditions: []corev1.PodCondition{
+			{Type: corev1.PodScheduled, Status: corev1.ConditionFalse, Reason: corev1.PodReasonUnschedulable, Message: why}}}}
+	}
+	full := "0/6 nodes are available: 1 Insufficient cpu, 3 node(s) didn't match PersistentVolume's node affinity."
+	placed := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "placed", Namespace: "b"}, Spec: corev1.PodSpec{NodeName: "worker3"}}
+	cs := fake.NewSimpleClientset(waiting("stuck", full), waiting("busy", "0/6 nodes are available: 6 Insufficient cpu."), placed)
+	k := &KubeExecutor{Client: cs, Namespace: "b"}
+	k.defaults()
+
+	if why, err := k.stuckOnCache(ctx, "placed", 0); err != nil || why != "" {
+		t.Fatalf("a placed pod: %q, %v", why, err)
+	}
+	if why, err := k.stuckOnCache(ctx, "busy", 0); err != nil || why != "" {
+		t.Fatalf("a full cluster is not the cache's fault: %q, %v", why, err)
+	}
+	why, err := k.stuckOnCache(ctx, "stuck", 0)
+	if err != nil || why != full {
+		t.Fatalf("stuck on the cache's node: %q, %v", why, err)
+	}
+
+	step := Step{ID: "platform:test", App: "ai"}
+	if err := k.ensureCache(ctx, step); err != nil {
+		t.Fatal(err)
+	}
+	if err := k.dropCache(ctx, "stuck", step); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cs.CoreV1().Pods("b").Get(ctx, "stuck", metav1.GetOptions{}); err == nil {
+		t.Fatal("the waiting pod is still there")
+	}
+	if _, err := cs.CoreV1().PersistentVolumeClaims("b").Get(ctx, "cache-ai-platform", metav1.GetOptions{}); err == nil {
+		t.Fatal("the cache is still there")
+	}
+
+	// A step that never got a node says why.
+	short, cancel := context.WithTimeout(ctx, time.Millisecond)
+	defer cancel()
+	if err := k.waitStarted(short, "busy", "clone"); err == nil || !strings.Contains(err.Error(), "6 Insufficient cpu") {
+		t.Fatalf("waitStarted: %v", err)
 	}
 }

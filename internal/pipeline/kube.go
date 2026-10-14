@@ -209,14 +209,29 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 		_ = k.Client.CoreV1().Secrets(k.Namespace).Delete(bg, name, metav1.DeleteOptions{})
 	}
 	defer cleanup()
-	if err := transientRetry(ctx, func() error {
-		_, err := k.Client.CoreV1().Pods(k.Namespace).Create(ctx, pod, metav1.CreateOptions{})
-		if apierrors.IsAlreadyExists(err) {
-			return nil // an earlier attempt got through after all
-		}
-		return err
-	}); err != nil {
+	if err := k.createPod(ctx, pod); err != nil {
 		return fail("create pod: %v", err)
+	}
+	// A node-local cache ties the test to one node. When that node has no
+	// room, the cache is only a cache: let it go rather than wait the whole
+	// timeout.
+	if step.Kind == KindTest && step.Cache {
+		stuck, err := k.stuckOnCache(ctx, name, cacheWait)
+		if err != nil {
+			return fail("%v", err)
+		}
+		if stuck != "" {
+			fmt.Fprintf(w, "rendimiento: the node that keeps this test's cache has no room (%s); starting with an empty cache\n", stuck)
+			if err := k.dropCache(ctx, name, step); err != nil {
+				return fail("cache volume: %v", err)
+			}
+			if err := k.ensureCache(ctx, step); err != nil {
+				return fail("cache volume: %v", err)
+			}
+			if err := k.createPod(ctx, pod); err != nil {
+				return fail("create pod: %v", err)
+			}
+		}
 	}
 
 	var containers []string
@@ -590,6 +605,86 @@ func (k *KubeExecutor) ensureCache(ctx context.Context, step Step) error {
 	})
 }
 
+// cacheWait is how long a test with a cache waits for room on the node
+// that keeps the cache before it starts over with an empty one.
+var cacheWait = 3 * time.Minute
+
+// createPod creates the step's pod, retrying brief API errors.
+func (k *KubeExecutor) createPod(ctx context.Context, pod *corev1.Pod) error {
+	return transientRetry(ctx, func() error {
+		_, err := k.Client.CoreV1().Pods(k.Namespace).Create(ctx, pod, metav1.CreateOptions{})
+		if apierrors.IsAlreadyExists(err) {
+			return nil // an earlier attempt got through after all
+		}
+		return err
+	})
+}
+
+// unschedulable is the scheduler's reason when it found no node for the
+// pod, or "".
+func unschedulable(p *corev1.Pod) string {
+	for _, c := range p.Status.Conditions {
+		if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable {
+			return c.Message
+		}
+	}
+	return ""
+}
+
+// stuckOnCache waits up to wait for the pod to get a node. It returns the
+// scheduler's reason when the pod is still waiting because its volume is
+// on a node with no room, and "" once it has a node or waits for anything
+// else.
+func (k *KubeExecutor) stuckOnCache(ctx context.Context, pod string, wait time.Duration) (string, error) {
+	deadline := time.Now().Add(wait)
+	for {
+		p, err := k.Client.CoreV1().Pods(k.Namespace).Get(ctx, pod, metav1.GetOptions{})
+		if err != nil {
+			return "", err
+		}
+		if p.Spec.NodeName != "" {
+			return "", nil
+		}
+		if !time.Now().Before(deadline) {
+			if why := unschedulable(p); strings.Contains(why, "PersistentVolume's node affinity") {
+				return why, nil
+			}
+			return "", nil
+		}
+		select {
+		case <-ctx.Done():
+			return "", nil
+		case <-time.After(time.Second):
+		}
+	}
+}
+
+// dropCache deletes the waiting pod and the step's cache volume, and waits
+// until both are gone, so the next pod gets a new volume on whichever node
+// has room.
+func (k *KubeExecutor) dropCache(ctx context.Context, pod string, step Step) error {
+	pods := k.Client.CoreV1().Pods(k.Namespace)
+	pvcs := k.Client.CoreV1().PersistentVolumeClaims(k.Namespace)
+	if err := pods.Delete(ctx, pod, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	if err := pvcs.Delete(ctx, cacheName(step), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	for {
+		_, errPod := pods.Get(ctx, pod, metav1.GetOptions{})
+		_, errPVC := pvcs.Get(ctx, cacheName(step), metav1.GetOptions{})
+		if apierrors.IsNotFound(errPod) && apierrors.IsNotFound(errPVC) {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("the old cache was not removed in time")
+		case <-time.After(time.Second):
+		}
+	}
+}
+
 // DeleteCaches removes the cache volumes of an app's tests.
 func (k *KubeExecutor) DeleteCaches(ctx context.Context, app string) error {
 	pvcs := k.Client.CoreV1().PersistentVolumeClaims(k.Namespace)
@@ -645,6 +740,9 @@ func (k *KubeExecutor) waitStarted(ctx context.Context, pod, container string) e
 		}
 		select {
 		case <-ctx.Done():
+			if why := unschedulable(p); why != "" {
+				return fmt.Errorf("timed out waiting for container to start: no node could take it: %s", why)
+			}
 			return fmt.Errorf("timed out waiting for container to start")
 		case <-time.After(time.Second):
 		}
