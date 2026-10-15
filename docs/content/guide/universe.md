@@ -42,6 +42,7 @@ Every app lands in one barrio:
 - **Zoom** with the mouse wheel or a pinch, and **drag** to move around; the **+**, **−** and **⤢** buttons zoom in, out, and back to the whole level.
 - **Go to an app** jumps straight to an app by name.
 - **The panel** reads like a market board: every barrio, pueblo and service with its calls per minute, a small trend over the period and the change (▲▼) from its start to its end; **Needs attention** lists what is failing or slow. **Open app** goes to the app's page; **Open in Services** goes to the service's entry in the catalog.
+- **A service's moments.** Tap an observed service and the panel also lists what it does, from its traces: **its own moments** (what the [observa libraries](observa.md) mark with `tramo`, and the agent's own work), the **routes it serves** (`GET /api/moments`) and the **calls and queries it makes** (`SELECT wellness`), each with calls per minute, failures, p95 and a trend. Tap one to see its latency over the period.
 - **Refresh** rebuilds the catalog from the cluster right away (otherwise it is at most 30 seconds old, and the page reloads every minute).
 
 ## Latency on every road {#latency-on-every-line}

@@ -42,6 +42,7 @@ Cada aplicación queda en un barrio:
 - **Acerque** con la rueda del ratón o pellizcando, y **arrastre** para moverse; los botones **+**, **−** y **⤢** acercan, alejan y vuelven al nivel completo.
 - **Ir a una aplicación** lleva directo a una aplicación por su nombre.
 - **El panel** se lee como una pizarra de mercado: cada barrio, pueblo y servicio con sus llamadas por minuto, una pequeña tendencia del periodo y el cambio (▲▼) de su inicio a su final; **Pide atención** enlista lo que falla o va lento. **Abrir aplicación** lleva a la página de la aplicación; **Abrir en Servicios** lleva a su entrada en el catálogo.
+- **Los momentos de un servicio.** Toque un servicio observado y el panel enlista también lo que hace, según sus trazas: **sus propios momentos** (lo que las [bibliotecas observa](observa.md) marcan con `tramo`, y el trabajo del propio agente), las **rutas que atiende** (`GET /api/moments`) y las **llamadas y consultas que hace** (`SELECT wellness`), cada uno con llamadas por minuto, fallas, p95 y tendencia. Toque uno para ver su latencia en el periodo.
 - **Actualizar** reconstruye el catálogo desde el clúster en ese momento (si no, tiene a lo más 30 segundos, y la página se recarga cada minuto).
 
 ## La latencia en cada camino {#latency-on-every-line}

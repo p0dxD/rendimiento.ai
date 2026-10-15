@@ -131,3 +131,51 @@ func TestBuildTraced(t *testing.T) {
 		t.Fatalf("no outside system: %+v", u.Systems)
 	}
 }
+
+func TestMetricsSpans(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query().Get("query")
+		if !strings.Contains(q, `service_name="shop/api"`) || !strings.Contains(q, `span_name!~".* http (send|receive)"`) {
+			t.Errorf("selector not in query: %s", q)
+		}
+		row := func(name, kind, v string) string {
+			return fmt.Sprintf(`{"metric":{"span_name":%q,"span_kind":%q},"value":[1760000000,%q]}`, name, kind, v)
+		}
+		reply := func(rows ...string) {
+			fmt.Fprintf(w, `{"status":"success","data":{"resultType":"vector","result":[%s]}}`, strings.Join(rows, ","))
+		}
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/query_range"):
+			start, _ := strconv.ParseInt(r.URL.Query().Get("start"), 10, 64)
+			if strings.Contains(q, "calls_total") {
+				fmt.Fprintf(w, `{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"span_name":"cobrar","span_kind":"SPAN_KIND_INTERNAL"},"values":[[%d,"4"]]}]}}`, start)
+				return
+			}
+			fmt.Fprint(w, `{"status":"success","data":{"resultType":"matrix","result":[]}}`)
+		case strings.Contains(q, "STATUS_CODE_ERROR"):
+			reply(row("cobrar", "SPAN_KIND_INTERNAL", "6"))
+		case strings.Contains(q, "calls_total"):
+			reply(row("cobrar", "SPAN_KIND_INTERNAL", "120"), row("GET /pedidos", "SPAN_KIND_SERVER", "600"), row("idle", "SPAN_KIND_INTERNAL", "0"))
+		case strings.Contains(q, "histogram_quantile(0.5,"):
+			reply(row("cobrar", "SPAN_KIND_INTERNAL", "40"))
+		case strings.Contains(q, "histogram_quantile(0.95,"):
+			reply(row("cobrar", "SPAN_KIND_INTERNAL", "300"), row("GET /pedidos", "SPAN_KIND_SERVER", "NaN"))
+		default:
+			t.Errorf("unexpected query %s", q)
+		}
+	}))
+	defer srv.Close()
+
+	got, err := (&Metrics{URL: srv.URL}).Spans(context.Background(), "shop/api", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].Name != "GET /pedidos" || got[0].Kind != "server" || got[0].PerMinute != 10 || got[0].P95MS != 0 {
+		t.Fatalf("spans = %+v", got)
+	}
+	c := got[1]
+	if c.Name != "cobrar" || c.Kind != "internal" || c.PerMinute != 2 || math.Abs(c.Errors-0.05) > 1e-9 || c.P50MS != 40 || c.P95MS != 300 ||
+		len(c.Trend) != TrendPoints || c.Trend[0] != 4 {
+		t.Fatalf("cobrar = %+v", c)
+	}
+}

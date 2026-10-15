@@ -285,6 +285,13 @@ func TestUniverse(t *testing.T) {
 		u.Edges[0].From != "shop/api" || u.Edges[0].To != "shop/postgres" || u.Edges[1].From != "shop/web" || u.Edges[1].To != "shop/api" {
 		t.Fatalf("universe = %s", body)
 	}
+	// Without a metrics store, a service's spans are an empty list.
+	if r, body := e.do(t, "GET", "/api/universe/spans?service=shop/api", "", me, nil); r.StatusCode != 200 || !strings.Contains(body, `"spans":[]`) || !strings.Contains(body, `"traces":false`) {
+		t.Fatalf("spans: %d %s", r.StatusCode, body)
+	}
+	if r, _ := e.do(t, "GET", "/api/universe/spans", "", me, nil); r.StatusCode != 400 {
+		t.Fatalf("spans without a service: %d", r.StatusCode)
+	}
 }
 
 func TestUIFallback(t *testing.T) {

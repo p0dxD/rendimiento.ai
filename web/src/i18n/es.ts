@@ -859,6 +859,11 @@ export const es: Record<string, string> = {
   // The Universe page.
   "Universe": "Universo",
   "Requests": "Solicitudes",
+  "Show all {n}": "Ver los {n}",
+  "Its own moments": "Sus propios momentos",
+  "No moments of its own yet: mark them with tramo() from the observa libraries.": "Todavía no tiene momentos propios: márquelos con tramo() de las bibliotecas observa.",
+  "Routes it serves": "Rutas que atiende",
+  "Calls and queries it makes": "Llamadas y consultas que hace",
   "Not measured": "Sin medir",
   "Normal": "Normal",
   "Slow": "Lento",

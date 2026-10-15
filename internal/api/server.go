@@ -197,6 +197,7 @@ func (s *Server) Handler() http.Handler {
 	auth("GET /api/apps/{app}/runs", s.listRuns)
 	auth("POST /api/apps/{app}/runs", s.triggerRun)
 	auth("GET /api/universe", s.universe)
+	auth("GET /api/universe/spans", s.universeSpans)
 	auth("GET /api/apps/{app}/releases", s.listReleases)
 	auth("GET /api/apps/{app}/reliability", s.reliability)
 	auth("GET /api/apps/{app}/visits", s.visits)
@@ -697,6 +698,38 @@ func (s *Server) universe(w http.ResponseWriter, r *http.Request, _ string) {
 		Traces       bool   `json:"traces"`
 		MetricsError string `json:"metricsError,omitempty"`
 	}{universe.Build(in), window, s.Metrics != nil, metricsErr})
+}
+
+// universeSpans lists what one observed service does, from its traces:
+// the routes it serves, its own moments (the observa libraries' tramos)
+// and the calls it makes, each with calls per minute, errors and latency
+// over ?window=. ?service= is the service as observe names it
+// (app/service). Without metrics the list is empty.
+func (s *Server) universeSpans(w http.ResponseWriter, r *http.Request, _ string) {
+	service := r.URL.Query().Get("service")
+	if service == "" || len(service) > 200 {
+		httpError(w, http.StatusBadRequest, "service is required (app/service)")
+		return
+	}
+	window := r.URL.Query().Get("window")
+	if _, ok := universe.Windows[window]; !ok {
+		window = "1h"
+	}
+	out := struct {
+		Spans        []universe.SpanMetrics `json:"spans"`
+		Traces       bool                   `json:"traces"`
+		MetricsError string                 `json:"metricsError,omitempty"`
+	}{Spans: []universe.SpanMetrics{}, Traces: s.Metrics != nil}
+	if s.Metrics != nil {
+		spans, err := s.Metrics.Spans(r.Context(), service, universe.Windows[window])
+		if err != nil {
+			s.Log.Info("universe: metrics did not answer", "err", err)
+			out.MetricsError = err.Error()
+		} else {
+			out.Spans = spans
+		}
+	}
+	writeJSON(w, out)
 }
 
 // ---- environment ----
