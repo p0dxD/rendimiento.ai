@@ -44,7 +44,7 @@ Cada aplicación queda en un barrio:
 - **El panel** se lee como una pizarra de mercado: cada barrio, pueblo y servicio con sus llamadas por minuto, una pequeña tendencia del periodo y el cambio (▲▼) de su inicio a su final; **Pide atención** enlista lo que falla o va lento. **Abrir aplicación** lleva a la página de la aplicación; **Abrir en Servicios** lleva a su entrada en el catálogo.
 - **Actualizar** reconstruye el catálogo desde el clúster en ese momento (si no, tiene a lo más 30 segundos, y la página se recarga cada minuto).
 
-## La latencia en cada línea {#latency-on-every-line}
+## La latencia en cada camino {#latency-on-every-line}
 
 Con las trazas activadas, cada camino lleva también lo medido en el **Periodo** que se elige arriba (15 minutos, una hora, 24 horas): **llamadas por minuto**, la proporción que **falló** y cuánto tardaron (**p50**, la mitad fue más rápida; **p95**, el 5 % más lento), cada una con su tendencia a lo largo del periodo. Los caminos se vuelven **más anchos** con más llamadas, **rojos** cuando falla el 5 % o más y **ámbar** cuando el 5 % más lento tarda medio segundo o más. Por los caminos medidos van luciérnagas (de noche) o confeti (de día) del que llama al que responde: más mientras más llamadas, y más rápido mientras más rápidas sean. Si desactiva el movimiento en la barra superior, se quedan quietos.
 
@@ -65,7 +65,7 @@ Lo que recibe cada servicio:
 | `python` | el agente de OpenTelemetry para Python, en `PYTHONPATH` |
 | `go`, otros, imágenes listas | solo las variables `OTEL_*`, para un SDK de OpenTelemetry en el código |
 
-Cada servicio observado se llama `aplicación/servicio` (`OTEL_SERVICE_NAME`); así una línea medida encuentra sus nodos. Un contenedor de inicio pequeño copia el agente al pod; agrega memoria (el de Java es el que más, unos 100 MB) y algo de tiempo de arranque, así que actívelo donde quiera ver. Se conserva una cuarta parte de las trazas (`TELEMETRY_SAMPLE_RATIO`), que basta para los promedios.
+Cada servicio observado se llama `aplicación/servicio` (`OTEL_SERVICE_NAME`); así un camino medido encuentra sus casas. Un contenedor de inicio pequeño copia el agente al pod; agrega memoria (el de Java es el que más, unos 100 MB) y algo de tiempo de arranque, así que actívelo donde quiera ver. Se conserva una cuarta parte de las trazas (`TELEMETRY_SAMPLE_RATIO`), que basta para los promedios.
 
 !!! note "Python en Alpine"
     El agente de Python está hecho para glibc. Un servicio con una imagen Alpine (musl) puede no cargarlo: use una imagen basada en Debian, o ponga `observe: false` en ese servicio.

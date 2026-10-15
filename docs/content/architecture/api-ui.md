@@ -54,14 +54,15 @@ flowchart LR
 
 ## The UI
 
-A single-page app in `web/`: **React 18**, **TypeScript**, **Vite**, **react-router**, no UI framework, and one stylesheet with CSS variables for light and dark themes.
+A single-page app in `web/`: **React 19**, **TypeScript**, **Vite**, **react-router**, no UI framework, and one stylesheet with CSS variables for light and dark themes.
 
 | File | Role |
 |---|---|
 | `src/main.tsx` | Routes, top bar, sign-in gate |
 | `src/api.ts` | Every API call and response type, in one place |
 | `src/components/ui.tsx` | Shared pieces: badges, `usePoll` (load and refresh), `Switch`, the resource tree |
-| `src/pages/*.tsx` | One file per page: Dashboard, NewApp, AppPage, RunPage, Services, Addons, Installed (add-on list, catalog, detail), Environment, Setup |
+| `src/pages/*.tsx` | One file per page: Dashboard, NewApp, AppPage, RunPage, Services, Universe, Addons, Installed (add-on list, catalog, detail), Mercado, Ruta, Problems, Environment, Version, Setup |
+| `src/components/maqueta.ts` | The Universe's village, drawn on a canvas ([below](#the-universe)) |
 | `src/styles.css` | Theme tokens and components |
 
 Patterns used throughout:
@@ -69,6 +70,24 @@ Patterns used throughout:
 - **`usePoll(load, deps, intervalMs)`** fetches data and refreshes it on an interval; pages combine it with SSE where updates must be instant (logs).
 - **Types mirror the Go JSON.** `api.ts` declares interfaces matching the Go structs' JSON tags; keeping them in sync is manual today ([refactoring](../develop/refactoring.md#share-types-between-go-and-typescript)).
 - **No global state library.** Each page owns its data; there is little shared state to justify one.
+
+## The Universe
+
+The [Universe](../guide/universe.md) page joins what rendimiento knows about every app into one graph, and draws it as a village.
+
+```mermaid
+flowchart LR
+  svc["Services with observe<br/>(OpenTelemetry agent)"] -->|OTLP| col["OpenTelemetry Collector<br/>add-on: servicegraph"]
+  col -->|remote write| vm[("VictoriaMetrics")]
+  api["GET /api/universe<br/>internal/universe"] -->|"PromQL: totals and trends"| vm
+  api --> store[("Store: apps, specs,<br/>uptime checks")]
+  api --> cat["Services catalog"]
+  page["Universe page<br/>maqueta.ts"] --> api
+```
+
+- **`universe.Build`** makes the graph: a *system* per app (or per namespace for what rendimiento does not deploy), its *nodes* (services, databases, caches, jobs), and *edges* from `needs:`, from environment variables (the catalog), from Ingresses and from traces. **`barrios`** then puts every system in a barrio: the app's own `barrio:`, else the barrio of the apps it talks to most (label propagation over the edges between apps, weighted by measured calls), else the centre; non-apps go to the outskirts.
+- **`Metrics.Edges`** reads the service graph the collector writes: instant queries for the window's calls, failures and p50/p95 (the larger of the caller's and the callee's), and range queries for their trends (`TrendPoints`, 24 points). The map is still served when the metrics store does not answer.
+- **The page** (`pages/Universe.tsx`) turns the graph into what is drawn: the status of every node, pueblo and barrio, and the roads between pueblos and between barrios with their calls summed. **`components/maqueta.ts`** lays the barrios out on a grid and the pueblos inside them, draws them in isometric projection on a canvas every frame (so the fireflies move), keeps the screen position of everything drawn for taps (a road takes a tap within 12 px), places labels so they do not cover each other, and glides the camera between levels. The level and place live in the address, so the browser's back button works.
 
 ### How the UI ships
 
