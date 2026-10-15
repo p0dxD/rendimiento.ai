@@ -16,7 +16,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1138 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
 | [`internal/analytics`](#internal-analytics) | 2 | 608 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
-| [`internal/api`](#internal-api) | 16 | 3950 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 16 | 3990 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 910 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 7 | 2824 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 453 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
@@ -39,7 +39,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/spec`](#internal-spec) | 2 | 1869 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
 | [`internal/store`](#internal-store) | 16 | 3003 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/testenv`](#internal-testenv) | 1 | 23 | Package testenv is the envtest (a real API server and etcd) the controller and platform tests run against, tuned for slow machines. |
-| [`internal/universe`](#internal-universe) | 4 | 1167 | Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches. |
+| [`internal/universe`](#internal-universe) | 4 | 1356 | Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches. |
 | [`internal/uptime`](#internal-uptime) | 2 | 658 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
@@ -445,7 +445,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1456 lines</small>
+<small>1489 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -476,6 +476,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `(*Server) propose` | method | propose looks at a repository (detects its languages, ports, Dockerfiles) and answers the rendimiento.yaml it would write, without writing anything: the wizard's form starts from it. |
 | `(*Server) services` | method | services is the Services page: everything running in the cluster, apps and not, with what calls what (cached; ?refresh=1 rebuilds it). |
 | `(*Server) universe` | method | universe is the Universe page: every app from above, with its services, what they use and call, what the internet reaches, and their health. |
+| `(*Server) universeSpans` | method | universeSpans lists what one observed service does, from its traces: the routes it serves, its own moments (the observa libraries' tramos) and the calls it makes, each with calls per minute, errors and latency over ?window=. |
 | `(*Server) environment` | method | environment is the Environment page's report: what the cluster has, what rendimiento needs from it, and what is wrong (cached; ?refresh=1 checks again). |
 | `(*Server) dnsSync` | method | dnsSync re-detects the public IP now and repoints records that follow it. |
 | `(*Server) migration` | method | migration tells the wizard whether an app name matches a namespace that already runs something (so it can be migrated instead of duplicated). |
@@ -532,7 +533,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server_test.go`
 
-<small>621 lines · tests</small>
+<small>628 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2231,7 +2232,7 @@ Package universe is the view of every app from above: the services each one runs
 
 ### `internal/universe/metrics.go`
 
-<small>266 lines</small>
+<small>407 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2239,6 +2240,10 @@ Package universe is the view of every app from above: the services each one runs
 | `Metrics` | struct | Metrics reads the service graph the OpenTelemetry collector's servicegraph connector writes to a Prometheus-compatible store (VictoriaMetrics): one series per caller and callee. |
 | `(*Metrics) Edges` | method | Edges returns the numbers of every caller → callee pair seen in the window, keyed by the collector's client and server labels. |
 | `(*Metrics) trends` | method | trends fills the trend of every pair in out from range queries: calls per minute and, as for the totals, the larger latency of the two sides. |
+| `SpanMetrics` | struct | SpanMetrics are the numbers of one kind of span of a service over the window, from the collector's spanmetrics connector: a route it serves (server), a moment of its own (internal: what the observa libraries' tramo records, or the agent's own work), or a call it makes (client). |
+| `(*Metrics) Spans` | method | Spans returns the numbers of every span of service (as observe names it: app/service) seen in the window, the busiest first. |
+| `(*Metrics) spanTrends` | method | spanTrends fills the trends of the spans in out. |
+| `spanKind` | func | spanKind turns SPAN_KIND_SERVER into server. |
 | `sample` | struct | sample is one series of an instant query. |
 | `(*Metrics) query` | method | query runs an instant PromQL query and returns its series, skipping values that are not numbers (NaN from an empty histogram). |
 | `series` | struct | series is one series of a range query. |
@@ -2276,12 +2281,13 @@ Package universe is the view of every app from above: the services each one runs
 
 ### `internal/universe/metrics_test.go`
 
-<small>133 lines · tests</small>
+<small>181 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `TestMetricsEdges` | func |  |
 | `TestBuildTraced` | func |  |
+| `TestMetricsSpans` | func |  |
 
 ### `internal/universe/universe_test.go`
 
@@ -2360,7 +2366,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>944 lines</small>
+<small>960 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2440,6 +2446,7 @@ Package web embeds the built UI (npm run build → web/dist).
 | `UniverseEdge` | interface |  |
 | `Universe` | interface |  |
 | `UniverseWindow` | type |  |
+| `UniverseSpan` | interface | What one observed service does, from its traces (internal/universe.SpanMetrics): the routes it serves, its own moments, the calls it makes. |
 | `universeApi` | const |  |
 | `catalogApi` | const |  |
 | `RenovateSettings` | interface | ---- add-ons ---- |
@@ -2629,7 +2636,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>978 lines</small>
+<small>983 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2829,7 +2836,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Universe.tsx`
 
-<small>688 lines</small>
+<small>745 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2865,6 +2872,8 @@ Package web embeds the built UI (npm run build → web/dist).
 | `BarrioPanel` | component |  |
 | `SystemPanel` | component |  |
 | `NodePanel` | component |  |
+| `spanStatus` | const |  |
+| `Spans` | component |  |
 | `nodeName` | function |  |
 | `EdgeRows` | component |  |
 | `EdgeList` | component |  |

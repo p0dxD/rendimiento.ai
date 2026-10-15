@@ -21,6 +21,12 @@ Every function also has an English name: `start`, `span`, `event`, `call` / `hea
 - **Flags** are read from `RENDIMIENTO_FLAG_<NAME>` (`1`, `true`, `on`, `yes`, `sí`) and recorded as `rendimiento.flag.<name>` on the current span, so a trace says which side it took. This is the hook future A/B tests and canary releases will set.
 - **Starting**: inside the cluster with `observe`, the platform's agent already traces and `iniciar()` does nothing. Elsewhere (your laptop, a service without the agent) it starts the OpenTelemetry SDK when it is installed and `OTEL_EXPORTER_OTLP_ENDPOINT` is set; without either, every helper still works and records nothing.
 
+## Where you see what they record
+
+The collector turns every span into numbers (its `spanmetrics`), and the [Universe](universe.md#using-it) shows them: tap a service and its panel lists **its own moments**, one row per `tramo` name, with calls per minute, failures, p50/p95 and a trend over the period; a failed `tramo` counts as a failure.
+
+**Events** and **flags** are recorded in the traces too, but rendimiento keeps only the numbers, not the traces themselves, so today they cannot be seen: they show up once traces are kept and a request can be followed step by step (the *request waterfall* on the [roadmap](../future/roadmap.md)). Name your tramos after the moment (`cobrar`, `generar-reporte`), not after a value (`cobrar-pedido-42`): each different name is a row of its own.
+
 ## Node
 
 npm cannot install a folder of a git repository, so until it is published, install it from a copy:

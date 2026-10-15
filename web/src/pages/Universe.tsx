@@ -6,7 +6,7 @@
 // reads like a market board: calls per minute, a small trend, latency.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { timeAgo, universeApi, type Universe as UniverseData, type UniverseBarrio, type UniverseEdge, type UniverseNode, type UniverseSystem, type UniverseWindow } from "../api";
+import { timeAgo, universeApi, type Universe as UniverseData, type UniverseBarrio, type UniverseEdge, type UniverseNode, type UniverseSpan, type UniverseSystem, type UniverseWindow } from "../api";
 import { Maqueta, ms, rate, worst, type MapModel, type MapRoad, type Pick, type Status } from "../components/maqueta";
 import { ErrorBox, usePoll } from "../components/ui";
 import { t, tn } from "../i18n";
@@ -311,7 +311,7 @@ export function Universe() {
           <div className="u-hint small"><span>{hint}</span></div>
         </div>
         <aside className="universe-side card stack" aria-live="polite">
-          <Panel world={world} data={data} level={level} barrio={here} town={town} sel={sel} setSel={setSel} go={go} goApp={goApp} />
+          <Panel world={world} data={data} win={win} level={level} barrio={here} town={town} sel={sel} setSel={setSel} go={go} goApp={goApp} />
         </aside>
       </div>
 
@@ -336,12 +336,12 @@ export function Universe() {
 
 type Go = (to: { barrio?: string; pueblo?: string; sel?: Pick }) => void;
 
-function Panel({ world, data, level, barrio, town, sel, setSel, go, goApp }: {
-  world: World; data: UniverseData; level: string; barrio?: BarrioInfo; town?: SystemInfo;
+function Panel({ world, data, win, level, barrio, town, sel, setSel, go, goApp }: {
+  world: World; data: UniverseData; win: UniverseWindow; level: string; barrio?: BarrioInfo; town?: SystemInfo;
   sel?: Pick; setSel: (p?: Pick) => void; go: Go; goApp: (id: string) => void;
 }) {
   if (sel?.kind === "pueblo" && world.systems.has(sel.id)) return <SystemPanel s={world.systems.get(sel.id)!} world={world} enter={() => go({ barrio: world.systems.get(sel.id)!.barrio, pueblo: sel.id })} goApp={goApp} />;
-  if (sel?.kind === "node" && world.nodes.has(sel.id)) return <NodePanel n={world.nodes.get(sel.id)!} world={world} setSel={setSel} />;
+  if (sel?.kind === "node" && world.nodes.has(sel.id)) return <NodePanel n={world.nodes.get(sel.id)!} world={world} setSel={setSel} traces={data.traces} win={win} />;
   if (sel?.kind === "road" && world.edges.has(sel.id)) return <EdgePanel e={world.edges.get(sel.id)!} world={world} goApp={goApp} />;
   if (sel?.kind === "road" && world.roads.has(sel.id)) return <RoadPanel r={world.roads.get(sel.id)!} world={world} setSel={setSel} goApp={goApp} />;
   if (sel?.kind === "sign" && town) {
@@ -571,7 +571,7 @@ function SystemPanel({ s, world, inside, enter, goApp, setSel }: {
   );
 }
 
-function NodePanel({ n, world, setSel }: { n: UniverseNode & Numbers; world: World; setSel: (p?: Pick) => void }) {
+function NodePanel({ n, world, setSel, traces, win }: { n: UniverseNode & Numbers; world: World; setSel: (p?: Pick) => void; traces: boolean; win: UniverseWindow }) {
   const calls = [...world.edges.values()].filter((e) => e.from === n.id), by = [...world.edges.values()].filter((e) => e.to === n.id);
   return (
     <>
@@ -593,9 +593,66 @@ function NodePanel({ n, world, setSel }: { n: UniverseNode & Numbers; world: Wor
       {n.catalog && <div className="small muted">{t("{ready} of {pods} pods ready", { ready: n.ready, pods: n.pods })}</div>}
       {n.public?.map((u) => <a key={u} className="small" href={u} target="_blank" rel="noreferrer">{u}</a>)}
       <div><h3 className="u-h">{t("Latency")}</h3><Latency n={n} /></div>
+      {traces && (n.kind === "service" || n.kind === "workload") && <Spans service={n.id} win={win} />}
       {by.length > 0 && <EdgeRows title={t("Called by")} edges={by} world={world} side="in" setSel={setSel} />}
       {calls.length > 0 && <EdgeRows title={t("Calls")} edges={calls} world={world} side="out" setSel={setSel} />}
       {n.catalog && <Link className="small" to={`/services/${n.id}`}>{t("Open in Services")}</Link>}
+    </>
+  );
+}
+
+const spanStatus = (s: UniverseSpan): Status => (s.errors >= 0.05 ? "bad" : (s.p95Ms ?? 0) >= 500 ? "slow" : "ok");
+const spanGroups: { kinds: UniverseSpan["kind"][]; title: string; empty?: string }[] = [
+  { kinds: ["internal"], title: "Its own moments", empty: "No moments of its own yet: mark them with tramo() from the observa libraries." },
+  { kinds: ["server"], title: "Routes it serves" },
+  { kinds: ["client", "producer", "consumer"], title: "Calls and queries it makes" },
+];
+
+/**
+ * What a service does, from its traces: its own moments (the observa
+ * libraries' tramos), the routes it serves and the calls it makes. A row
+ * opens its latency over the period.
+ */
+function Spans({ service, win }: { service: string; win: UniverseWindow }) {
+  const [spans, setSpans] = useState<UniverseSpan[]>();
+  const [failed, setFailed] = useState<string>();
+  const [open, setOpen] = useState<string>();
+  const [all, setAll] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    let live = true;
+    setSpans(undefined); setFailed(undefined); setOpen(undefined); setAll({});
+    universeApi.spans(service, win)
+      .then((r) => { if (!live) return; setSpans(r.spans); if (r.metricsError) setFailed(r.metricsError); })
+      .catch((e: Error) => live && setFailed(e.message));
+    return () => { live = false; };
+  }, [service, win]);
+  if (failed && !spans?.length) return <p className="small muted" style={{ margin: 0 }}>{t("Latency could not be read from the metrics store: {error}", { error: failed })}</p>;
+  if (!spans) return <p className="small muted" style={{ margin: 0 }}>{t("Loading…")}</p>;
+  return (
+    <>
+      {spanGroups.map((g) => {
+        const list = spans.filter((s) => g.kinds.includes(s.kind));
+        if (!list.length && !g.empty) return null;
+        const shown = all[g.title] ? list : list.slice(0, 6);
+        return (
+          <div key={g.title}>
+            <h3 className="u-h">{t(g.title)}</h3>
+            {!list.length && <p className="small muted" style={{ margin: 0 }}>{g.empty && t(g.empty)}</p>}
+            <div className="u-ticks">
+              {shown.map((s) => {
+                const k = s.kind + ":" + s.name, nums: Numbers = { perMinute: s.perMinute, errors: s.errors, p50: s.p50Ms, p95: s.p95Ms, trend: s.trend, p50Trend: s.p50Trend, p95Trend: s.p95Trend, status: spanStatus(s) };
+                return (
+                  <div key={k}>
+                    <Tick name={s.name} sub={[s.p95Ms ? `p95 ${ms(s.p95Ms)}` : "", s.errors > 0 ? t("{pct} failing", { pct: pct(s.errors) }) : ""].filter(Boolean).join(" · ")} n={nums} onClick={() => setOpen(open === k ? undefined : k)} />
+                    {open === k && <div className="u-open"><Latency n={nums} /></div>}
+                  </div>
+                );
+              })}
+            </div>
+            {list.length > shown.length && <button className="link small" onClick={() => setAll({ ...all, [g.title]: true })}>{t("Show all {n}", { n: list.length })}</button>}
+          </div>
+        );
+      })}
     </>
   );
 }

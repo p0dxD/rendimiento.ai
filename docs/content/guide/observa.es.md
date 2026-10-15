@@ -21,6 +21,12 @@ Cada función tiene también un nombre en inglés: `start`, `span`, `event`, `ca
 - **Las banderas** se leen de `RENDIMIENTO_FLAG_<NOMBRE>` (`1`, `true`, `on`, `yes`, `sí`) y se registran como `rendimiento.flag.<nombre>` en el tramo actual, así una traza dice qué lado tomó. Es el gancho que usarán las pruebas A/B y las versiones canario.
 - **Iniciar**: dentro del clúster con `observe`, el agente de la plataforma ya traza e `iniciar()` no hace nada. En otro lado (su computadora, un servicio sin el agente) inicia el SDK de OpenTelemetry cuando está instalado y `OTEL_EXPORTER_OTLP_ENDPOINT` está definido; sin ellos, cada función sigue sirviendo y no registra nada.
 
+## Dónde se ve lo que registran {#where-you-see-what-they-record}
+
+El colector convierte cada tramo en números (su `spanmetrics`), y el [universo](universe.md#using-it) los muestra: toque un servicio y su panel enlista **sus propios momentos**, una fila por cada nombre de `tramo`, con llamadas por minuto, fallas, p50/p95 y la tendencia del periodo; un `tramo` que falla cuenta como falla.
+
+**Los eventos** y **las banderas** también quedan en las trazas, pero rendimiento solo guarda los números, no las trazas, así que hoy no se pueden ver: aparecerán cuando se guarden las trazas y se pueda seguir una solicitud paso a paso (la *cascada de una solicitud* en la [hoja de ruta](../future/roadmap.md)). Nombre sus tramos por el momento (`cobrar`, `generar-reporte`), no por un valor (`cobrar-pedido-42`): cada nombre distinto es una fila aparte.
+
 ## Node {#node}
 
 npm no puede instalar una carpeta de un repositorio de git, así que mientras no se publique, instálela desde una copia:

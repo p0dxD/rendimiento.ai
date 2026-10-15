@@ -781,9 +781,25 @@ export interface Universe {
 
 export type UniverseWindow = "15m" | "1h" | "24h";
 
+// What one observed service does, from its traces (internal/universe.SpanMetrics):
+// the routes it serves, its own moments, the calls it makes.
+export interface UniverseSpan {
+  name: string;
+  kind: "server" | "internal" | "client" | "producer" | "consumer";
+  perMinute: number;
+  errors: number;
+  p50Ms?: number;
+  p95Ms?: number;
+  trend?: number[];
+  p50Trend?: number[];
+  p95Trend?: number[];
+}
+
 export const universeApi = {
   get: (window: UniverseWindow, refresh = false) =>
     request<Universe>("GET", `/api/universe?window=${window}${refresh ? "&refresh=1" : ""}`),
+  spans: (service: string, window: UniverseWindow) =>
+    request<{ spans: UniverseSpan[]; traces: boolean; metricsError?: string }>("GET", `/api/universe/spans?service=${encodeURIComponent(service)}&window=${window}`),
 };
 
 export const catalogApi = {

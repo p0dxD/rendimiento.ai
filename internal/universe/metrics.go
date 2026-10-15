@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -149,6 +150,146 @@ func (m *Metrics) trends(ctx context.Context, window time.Duration, now time.Tim
 		}
 	}
 	return nil
+}
+
+// SpanMetrics are the numbers of one kind of span of a service over the
+// window, from the collector's spanmetrics connector: a route it serves
+// (server), a moment of its own (internal: what the observa libraries'
+// tramo records, or the agent's own work), or a call it makes (client).
+type SpanMetrics struct {
+	Name string `json:"name"`
+	// Kind is server, internal, client, producer or consumer.
+	Kind      string  `json:"kind"`
+	PerMinute float64 `json:"perMinute"`
+	// Errors is the share of spans that ended in error, 0 to 1.
+	Errors   float64   `json:"errors"`
+	P50MS    float64   `json:"p50Ms,omitempty"`
+	P95MS    float64   `json:"p95Ms,omitempty"`
+	Trend    []float64 `json:"trend,omitempty"`
+	P50Trend []float64 `json:"p50Trend,omitempty"`
+	P95Trend []float64 `json:"p95Trend,omitempty"`
+}
+
+// MaxSpans is how many spans of a service Spans returns, the busiest first.
+const MaxSpans = 40
+
+// noiseSpans are spans the agents make that say nothing to a person: the
+// ASGI middleware's "GET /x http send" and "… http receive" pieces of
+// every request (health checks included).
+const noiseSpans = `.* http (send|receive)`
+
+// Spans returns the numbers of every span of service (as observe names
+// it: app/service) seen in the window, the busiest first.
+func (m *Metrics) Spans(ctx context.Context, service string, window time.Duration) ([]SpanMetrics, error) {
+	w := promDuration(window)
+	minutes := window.Minutes()
+	sel := fmt.Sprintf(`service_name=%q, span_name!~%q`, service, noiseSpans)
+	type key [2]string
+	got := map[key]*SpanMetrics{}
+	at := func(l map[string]string) *SpanMetrics {
+		k := key{l["span_name"], l["span_kind"]}
+		if got[k] == nil {
+			got[k] = &SpanMetrics{Name: k[0], Kind: spanKind(k[1])}
+		}
+		return got[k]
+	}
+	calls, err := m.query(ctx, `sum by (span_name, span_kind) (increase(traces_span_metrics_calls_total{`+sel+`}[`+w+`]))`)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range calls {
+		at(r.labels).PerMinute = r.value / minutes
+	}
+	type spanQuery struct {
+		q   string
+		set func(*SpanMetrics, float64)
+	}
+	hist := `sum by (span_name, span_kind, le) (rate(traces_span_metrics_duration_milliseconds_bucket{` + sel + `}[` + w + `]))`
+	for _, q := range []spanQuery{
+		{`sum by (span_name, span_kind) (increase(traces_span_metrics_calls_total{` + sel + `, status_code="STATUS_CODE_ERROR"}[` + w + `]))`, func(s *SpanMetrics, v float64) { s.Errors = v }},
+		{`histogram_quantile(0.5, ` + hist + `)`, func(s *SpanMetrics, v float64) { s.P50MS = v }},
+		{`histogram_quantile(0.95, ` + hist + `)`, func(s *SpanMetrics, v float64) { s.P95MS = v }},
+	} {
+		res, err := m.query(ctx, q.q)
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range res {
+			if s := got[key{r.labels["span_name"], r.labels["span_kind"]}]; s != nil {
+				q.set(s, r.value)
+			}
+		}
+	}
+	out := make([]SpanMetrics, 0, len(got))
+	for _, s := range got {
+		if s.PerMinute <= 0 {
+			continue
+		}
+		if calls := s.PerMinute * minutes; calls > 0 {
+			s.Errors = math.Min(1, s.Errors/calls)
+		}
+		out = append(out, *s)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].PerMinute != out[j].PerMinute {
+			return out[i].PerMinute > out[j].PerMinute
+		}
+		return out[i].Name < out[j].Name
+	})
+	if len(out) > MaxSpans {
+		out = out[:MaxSpans]
+	}
+	// The trends make the small charts; the list works without them.
+	_ = m.spanTrends(ctx, sel, window, time.Now(), out)
+	return out, nil
+}
+
+// spanTrends fills the trends of the spans in out.
+func (m *Metrics) spanTrends(ctx context.Context, sel string, window time.Duration, now time.Time, out []SpanMetrics) error {
+	step := window / TrendPoints
+	end := now.Truncate(time.Minute)
+	start := end.Add(-step * (TrendPoints - 1))
+	r := promDuration(max(step, 2*time.Minute))
+	index := map[[2]string]int{}
+	for i, s := range out {
+		index[[2]string{s.Name, s.Kind}] = i
+	}
+	hist := `sum by (span_name, span_kind, le) (rate(traces_span_metrics_duration_milliseconds_bucket{` + sel + `}[` + r + `]))`
+	type trendQuery struct {
+		q   string
+		get func(*SpanMetrics) *[]float64
+	}
+	for _, q := range []trendQuery{
+		{`sum by (span_name, span_kind) (rate(traces_span_metrics_calls_total{` + sel + `}[` + r + `])) * 60`, func(s *SpanMetrics) *[]float64 { return &s.Trend }},
+		{`histogram_quantile(0.5, ` + hist + `)`, func(s *SpanMetrics) *[]float64 { return &s.P50Trend }},
+		{`histogram_quantile(0.95, ` + hist + `)`, func(s *SpanMetrics) *[]float64 { return &s.P95Trend }},
+	} {
+		res, err := m.queryRange(ctx, q.q, start, end, step)
+		if err != nil {
+			return err
+		}
+		for _, row := range res {
+			i, ok := index[[2]string{row.labels["span_name"], spanKind(row.labels["span_kind"])}]
+			if !ok {
+				continue
+			}
+			list := q.get(&out[i])
+			if *list == nil {
+				*list = make([]float64, TrendPoints)
+			}
+			for _, p := range row.points {
+				if j := int(math.Round(float64(p.at.Sub(start)) / float64(step))); j >= 0 && j < TrendPoints {
+					(*list)[j] = p.value
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// spanKind turns SPAN_KIND_SERVER into server.
+func spanKind(k string) string {
+	return strings.ToLower(strings.TrimPrefix(k, "SPAN_KIND_"))
 }
 
 // sample is one series of an instant query.
