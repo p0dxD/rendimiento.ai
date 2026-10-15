@@ -48,6 +48,10 @@ type Spec struct {
 	// get the OTEL_* variables for their own SDK. A service's own observe
 	// wins.
 	Observe bool `json:"observe,omitempty"`
+	// Barrio groups the app with others on the Universe map: a team or a
+	// domain ("pagos", "clientes"). Apps without one are grouped by what
+	// they call.
+	Barrio string `json:"barrio,omitempty"`
 }
 
 // Observed reports whether svc sends traces: its own observe, else the app's.
@@ -755,11 +759,13 @@ var sizes = map[Size]Resources{
 func (s Size) Resources() Resources { return sizes[s] }
 
 var (
-	dnsLabel  = regexp.MustCompile(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`)
-	hostname  = regexp.MustCompile(`^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)+[a-z]{2,}$`)
-	envKey    = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-	quantity  = regexp.MustCompile(`^[0-9]+(Mi|Gi|Ti)$`)
-	claimName = regexp.MustCompile(`^[a-z0-9]([-.a-z0-9]{0,251}[a-z0-9])?$`)
+	dnsLabel = regexp.MustCompile(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`)
+	// barrioName allows accents and spaces: it is shown, not used as a name in the cluster.
+	barrioName = regexp.MustCompile(`^[\p{L}\p{N}][\p{L}\p{N} _-]{0,39}$`)
+	hostname   = regexp.MustCompile(`^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)+[a-z]{2,}$`)
+	envKey     = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+	quantity   = regexp.MustCompile(`^[0-9]+(Mi|Gi|Ti)$`)
+	claimName  = regexp.MustCompile(`^[a-z0-9]([-.a-z0-9]{0,251}[a-z0-9])?$`)
 	// Secret keys may contain dots (practice.json), unlike DNS labels.
 	secretKey = regexp.MustCompile(`^[-._a-zA-Z0-9]+$`)
 )
@@ -1022,6 +1028,9 @@ func (s *Spec) Validate() error {
 	errs = append(errs, s.validateTasks()...)
 	if v := s.Verify; v != nil && v.Window != 0 && (v.Window < 60 || v.Window > 3600) {
 		errs = append(errs, fmt.Errorf("verify.window %d must be between 60 and 3600 seconds", v.Window))
+	}
+	if s.Barrio != "" && !barrioName.MatchString(s.Barrio) {
+		errs = append(errs, fmt.Errorf("barrio %q must be 1 to 40 letters, digits, spaces or dashes", s.Barrio))
 	}
 	return errors.Join(errs...)
 }

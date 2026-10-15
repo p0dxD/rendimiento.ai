@@ -2,6 +2,7 @@ package universe
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -113,6 +114,44 @@ func TestBuildWithoutCatalog(t *testing.T) {
 	u := Build(Input{Apps: []*store.App{a}})
 	if len(u.Nodes) != 1 || u.Nodes[0].ID != "hello/web" || len(u.Edges) != 0 || len(u.Systems) != 1 {
 		t.Fatalf("universe = %+v", u)
+	}
+}
+
+func TestBarrios(t *testing.T) {
+	svc := func(name string, calls ...string) spec.Service {
+		s := spec.Service{Name: name}
+		for _, c := range calls {
+			s.Needs = append(s.Needs, spec.Need{Kind: spec.NeedService, Service: c})
+		}
+		return s
+	}
+	apps := []*store.App{
+		{ID: 1, Name: "tienda", Spec: spec.Spec{Barrio: "Pagos", Services: []spec.Service{svc("web")}}},
+		// No barrio, but calls an app in Pagos: joins it.
+		{ID: 2, Name: "cobros", Spec: spec.Spec{Services: []spec.Service{svc("api", "tienda/web")}}},
+		// Two apps that only call each other: a barrio of their own, named after the bigger one.
+		{ID: 3, Name: "envios", Spec: spec.Spec{Services: []spec.Service{svc("api", "rutas/api"), svc("worker")}}},
+		{ID: 4, Name: "rutas", Spec: spec.Spec{Services: []spec.Service{svc("api")}}},
+		// Calls only something rendimiento does not deploy: the centre.
+		{ID: 5, Name: "blog", Spec: spec.Spec{Services: []spec.Service{svc("web", "ai/ollama")}}},
+	}
+	u := Build(Input{Apps: apps})
+	in := map[string]string{}
+	for _, s := range u.Systems {
+		in[s.ID] = s.Barrio
+	}
+	want := map[string]string{"tienda": "barrio:pagos", "cobros": "barrio:pagos", "envios": "auto:envios", "rutas": "auto:envios", "blog": BarrioCentre, "ai": BarrioOutskirts}
+	for id, b := range want {
+		if in[id] != b {
+			t.Errorf("%s is in %q, want %q", id, in[id], b)
+		}
+	}
+	got := []string{}
+	for _, b := range u.Barrios {
+		got = append(got, b.ID+"="+b.Title+"/"+b.Kind)
+	}
+	if strings.Join(got, " ") != "barrio:pagos=Pagos/declared auto:envios=envios/auto centre=Centre/centre outskirts=Outskirts/outskirts" {
+		t.Fatalf("barrios = %v", got)
 	}
 }
 

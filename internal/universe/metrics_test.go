@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +28,16 @@ func TestMetricsEdges(t *testing.T) {
 	ui, api := [2]string{"wellness/ui", "wellness/api"}, [2]string{"wellness/api", "api.openweathermap.org"}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query().Get("query")
+		if strings.HasSuffix(r.URL.Path, "/query_range") {
+			// Trends: calls per minute climb on ui → api; latency is not asked about here.
+			start, _ := strconv.ParseInt(r.URL.Query().Get("start"), 10, 64)
+			if strings.Contains(q, "request_total") && strings.Contains(q, "[2m30s]") || strings.Contains(q, "request_total") && strings.Contains(q, "[2m]") {
+				fmt.Fprintf(w, `{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"client":"wellness/ui","server":"wellness/api"},"values":[[%d,"1"],[%d,"3"]]}]}}`, start, start+150)
+				return
+			}
+			fmt.Fprint(w, `{"status":"success","data":{"resultType":"matrix","result":[]}}`)
+			return
+		}
 		if !strings.Contains(q, "[1h]") {
 			t.Errorf("window not in query: %s", q)
 		}
@@ -57,6 +68,9 @@ func TestMetricsEdges(t *testing.T) {
 	}
 	if e := got[ui]; e.PerMinute != 2 || math.Abs(e.Errors-0.05) > 1e-9 || e.P50MS != 12 || e.P95MS != 250 {
 		t.Fatalf("ui → api = %+v", e)
+	}
+	if e := got[ui]; len(e.Trend) != TrendPoints || e.Trend[0] != 1 || e.Trend[1] != 3 || e.Trend[2] != 0 || e.P95Trend != nil {
+		t.Fatalf("ui → api trend = %v, p95 %v", e.Trend, e.P95Trend)
 	}
 	if e := got[api]; e.PerMinute != 0.5 || e.P50MS != 0 || e.Errors != 0 {
 		t.Fatalf("api → weather = %+v", e)

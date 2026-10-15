@@ -70,6 +70,7 @@ tasks:
 | `postgres` | objeto | vea [necesidades](#postgres-and-redis) | Ajustes para `needs: [postgres]`. |
 | `redis` | objeto | vea [necesidades](#postgres-and-redis) | Ajustes para `needs: [redis]`. |
 | `observe` | booleano | `false` | Envía trazas de cada servicio, para ver la latencia en el mapa del [universo](universe.md#latency-on-every-line). Los servicios en Java, Node y Python reciben el agente de OpenTelemetry sin cambiar su código. No hace nada mientras la plataforma no tenga `TELEMETRY_ENDPOINT`. |
+| `barrio` | texto | se agrupa por lo que llama | El barrio en el que se dibuja la aplicación en el mapa del [universo](universe.md#barrios): un equipo o un dominio (`Pagos`, `Clientes`). Letras, dígitos, espacios y guiones, hasta 40. |
 
 ## Servicios {#services}
 

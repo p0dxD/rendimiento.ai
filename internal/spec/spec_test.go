@@ -57,6 +57,7 @@ func TestValidateErrors(t *testing.T) {
 		"services:\n  - name: a\n    volume: {size: 1Gi, mount: /d}\n    secretFiles: [{secret: s, mount: /d}]": "already used",
 		"services:\n  - name: a\n    volume: {mount: /d}":                                                       "5Gi",
 		"services:\n  - name: a\n    volume: {existingClaim: Bad_Claim, mount: /d}":                             "valid claim name",
+		"barrio: \"!pagos\"\nservices:\n  - name: a":                                                            "barrio",
 	}
 	for in, want := range cases {
 		_, err := Parse([]byte(in))

@@ -10,36 +10,36 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 
 | Package | Files | Lines | What it is |
 |---|---|---|---|
-| [`api/v1alpha1`](#api-v1alpha1) | 3 | 294 | Package v1alpha1 contains the App API: one App per deployed application. |
+| [`api/v1alpha1`](#api-v1alpha1) | 3 | 297 | Package v1alpha1 contains the App API: one App per deployed application. |
 | [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 525 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
-| [`internal/addon`](#internal-addon) | 5 | 1125 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
+| [`internal/addon`](#internal-addon) | 5 | 1138 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
 | [`internal/analytics`](#internal-analytics) | 2 | 608 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
 | [`internal/api`](#internal-api) | 16 | 3950 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/catalog`](#internal-catalog) | 2 | 910 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
-| [`internal/controller`](#internal-controller) | 7 | 2773 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
+| [`internal/controller`](#internal-controller) | 7 | 2824 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 453 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
 | [`internal/dns`](#internal-dns) | 4 | 779 | Package dns manages the public DNS record for each app domain. |
 | [`internal/environment`](#internal-environment) | 6 | 1641 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
 | [`internal/events`](#internal-events) | 2 | 80 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 282 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1339 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/i18n`](#internal-i18n) | 3 | 768 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
+| [`internal/i18n`](#internal-i18n) | 3 | 793 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 309 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
 | [`internal/mercado`](#internal-mercado) | 4 | 937 | Package mercado makes web pages for people who don't write code. |
 | [`internal/notify`](#internal-notify) | 2 | 450 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
-| [`internal/pipeline`](#internal-pipeline) | 7 | 1936 | Package pipeline plans and executes CI runs. |
-| [`internal/platform`](#internal-platform) | 8 | 3302 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
+| [`internal/pipeline`](#internal-pipeline) | 7 | 2080 | Package pipeline plans and executes CI runs. |
+| [`internal/platform`](#internal-platform) | 8 | 3303 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/problems`](#internal-problems) | 2 | 289 | Package problems keeps the platform's own warnings and errors for the Problems page: a slog handler passes every record on to the real log and also queues warnings and errors; a Recorder stores them, folding repeats of the same problem into one row with a count. |
 | [`internal/render`](#internal-render) | 5 | 1438 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 808 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
 | [`internal/ruta`](#internal-ruta) | 2 | 938 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
-| [`internal/selfupdate`](#internal-selfupdate) | 2 | 291 | Package selfupdate moves rendimiento to an image it built and tested itself: its own repository's builds: entry (SELF_APP), released like any app's. |
-| [`internal/spec`](#internal-spec) | 2 | 1859 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
+| [`internal/selfupdate`](#internal-selfupdate) | 2 | 433 | Package selfupdate moves rendimiento to an image it built and tested itself: its own repository's builds: entry (SELF_APP), released like any app's. |
+| [`internal/spec`](#internal-spec) | 2 | 1869 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
 | [`internal/store`](#internal-store) | 16 | 3003 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/testenv`](#internal-testenv) | 1 | 23 | Package testenv is the envtest (a real API server and etcd) the controller and platform tests run against, tuned for slow machines. |
-| [`internal/universe`](#internal-universe) | 4 | 816 | Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches. |
+| [`internal/universe`](#internal-universe) | 4 | 1167 | Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches. |
 | [`internal/uptime`](#internal-uptime) | 2 | 658 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
@@ -71,7 +71,7 @@ Package v1alpha1 contains the App API: one App per deployed application.
 
 ### `api/v1alpha1/app_types.go`
 
-<small>103 lines</small>
+<small>106 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -150,7 +150,7 @@ Package addon renders add-ons (Helm charts or kustomize folders in git) into Kub
 
 ### `internal/addon/catalog.go`
 
-<small>147 lines</small>
+<small>160 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -656,7 +656,7 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 
 ### `internal/controller/app_controller.go`
 
-<small>665 lines</small>
+<small>666 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -708,7 +708,7 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 
 ### `internal/controller/app_controller_test.go`
 
-<small>877 lines · tests</small>
+<small>927 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -725,6 +725,7 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 | `TestSharedNamespace` | func | jobsentry: the namespace belongs to ArgoCD (linguistic-ai stays there); rendimiento runs its services in it without touching the namespace. |
 | `TestAppNeeds` | func |  |
 | `TestAppLANURL` | func |  |
+| `TestAppObserve` | func | The app-wide observe goes through the API server (the CRD must keep it) and reaches the rendered pods. |
 
 ## `internal/detect` {#internal-detect}
 
@@ -1125,7 +1126,7 @@ Package i18n translates the platform's messages for people: the API's answers to
 
 ### `internal/i18n/es.go`
 
-<small>443 lines</small>
+<small>468 lines</small>
 
 ### `internal/i18n/i18n.go`
 
@@ -1299,7 +1300,7 @@ Package pipeline plans and executes CI runs.
 
 ### `internal/pipeline/kube.go`
 
-<small>746 lines</small>
+<small>844 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1314,6 +1315,10 @@ Package pipeline plans and executes CI runs.
 | `(*KubeExecutor) testPostgres` | method | testPostgres is the database of a test with postgres: true: a sidecar (an init container that keeps running) that the tests start after, once it accepts connections, and that stops when they end. |
 | `cacheName` | func | cacheName is the volume kept between runs of a test step: one per app and step, e.g. |
 | `(*KubeExecutor) ensureCache` | method | ensureCache creates the step's cache volume the first time it runs. |
+| `(*KubeExecutor) createPod` | method | createPod creates the step's pod, retrying brief API errors. |
+| `unschedulable` | func | unschedulable is the scheduler's reason when it found no node for the pod, or "". |
+| `(*KubeExecutor) stuckOnCache` | method | stuckOnCache waits up to wait for the pod to get a node. |
+| `(*KubeExecutor) dropCache` | method | dropCache deletes the waiting pod and the step's cache volume, and waits until both are gone, so the next pod gets a new volume on whichever node has room. |
 | `(*KubeExecutor) DeleteCaches` | method | DeleteCaches removes the cache volumes of an app's tests. |
 | `sortedEnv` | func | sortedEnv turns a map into environment variables in a fixed order, so the same step always makes the same pod. |
 | `(*KubeExecutor) waitStarted` | method | waitStarted blocks until the container is running or has terminated, failing fast on image pull errors. |
@@ -1381,7 +1386,7 @@ Package pipeline plans and executes CI runs.
 
 ### `internal/pipeline/run_test.go`
 
-<small>403 lines · tests</small>
+<small>449 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1398,6 +1403,7 @@ Package pipeline plans and executes CI runs.
 | `TestPlanBuilds` | func |  |
 | `TestTestPod` | func |  |
 | `TestTestCaches` | func |  |
+| `TestCacheLetGoWhenItsNodeIsFull` | func |  |
 
 ### `internal/pipeline/task_test.go`
 
@@ -1416,7 +1422,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/platform.go`
 
-<small>1110 lines</small>
+<small>1111 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1812,15 +1818,19 @@ Package selfupdate moves rendimiento to an image it built and tested itself: its
 
 ### `internal/selfupdate/selfupdate.go`
 
-<small>175 lines</small>
+<small>254 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `Releases` | interface | Releases is what the updater reads from the store. |
 | `Updater` | struct |  |
+| `Changes` | interface | Changes is the part of the GitHub client the manifest check uses. |
+| `Manifests` | struct | Manifests says whether `make deploy` is needed: the files of the platform's manifests (deploy/) that changed between the commit it last applied and the newest release. |
 | `Version` | struct | Version is one release of the platform. |
 | `Status` | struct |  |
 | `(*Updater) Status` | method | Status says which release runs (by the pod's image digest) and whether the newest release holds another image. |
+| `(*Updater) manifests` | method | manifests compares the commit `make deploy` last applied with head. |
+| `isManifest` | func | isManifest says whether `make deploy` applies the file: the YAML under deploy/ (not, say, the Railpack image's Dockerfile). |
 | `(*Updater) Update` | method | Update points the Deployment at release's image. |
 | `(*Updater) versions` | method | versions are the app's releases that hold a platform image, newest first. |
 | `(*Updater) running` | method | running is the digest of the image this pod runs ("" when unknown: not in a pod, or the image is still being pulled). |
@@ -1828,12 +1838,13 @@ Package selfupdate moves rendimiento to an image it built and tested itself: its
 
 ### `internal/selfupdate/selfupdate_test.go`
 
-<small>116 lines · tests</small>
+<small>179 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `TestStatus` | func |  |
 | `TestUpdate` | func |  |
+| `TestManifests` | func |  |
 
 ## `internal/spec` {#internal-spec}
 
@@ -1841,7 +1852,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 
 ### `internal/spec/spec.go`
 
-<small>1381 lines</small>
+<small>1390 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1912,7 +1923,7 @@ Package spec defines rendimiento.yaml, the only file an app repo needs.
 
 ### `internal/spec/spec_test.go`
 
-<small>478 lines · tests</small>
+<small>479 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2220,30 +2231,37 @@ Package universe is the view of every app from above: the services each one runs
 
 ### `internal/universe/metrics.go`
 
-<small>138 lines</small>
+<small>266 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `EdgeMetrics` | struct | EdgeMetrics are the numbers on one line of the map, measured from traces over the chosen window: how often the caller calls, how many calls fail, and how long they take as the caller sees them. |
+| `EdgeMetrics` | struct | EdgeMetrics are the numbers on one line of the map, measured from traces over the chosen window: how often the caller calls, how many calls fail, and how long they take. |
 | `Metrics` | struct | Metrics reads the service graph the OpenTelemetry collector's servicegraph connector writes to a Prometheus-compatible store (VictoriaMetrics): one series per caller and callee. |
 | `(*Metrics) Edges` | method | Edges returns the numbers of every caller → callee pair seen in the window, keyed by the collector's client and server labels. |
+| `(*Metrics) trends` | method | trends fills the trend of every pair in out from range queries: calls per minute and, as for the totals, the larger latency of the two sides. |
 | `sample` | struct | sample is one series of an instant query. |
 | `(*Metrics) query` | method | query runs an instant PromQL query and returns its series, skipping values that are not numbers (NaN from an empty histogram). |
+| `series` | struct | series is one series of a range query. |
+| `point` | struct |  |
+| `(*Metrics) queryRange` | method | queryRange runs a PromQL range query, skipping values that are not numbers. |
+| `(*Metrics) get` | method | get fetches a path of the metrics API and decodes its JSON into body. |
 | `promDuration` | func | promDuration writes a window the way PromQL reads it (15m, 1h, 24h). |
 
 ### `internal/universe/universe.go`
 
-<small>439 lines</small>
+<small>603 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `Universe` | struct | Universe is every system, its nodes and the edges between them. |
+| `Universe` | struct | Universe is every system, its nodes and the edges between them, and the barrios the systems are grouped in. |
 | `System` | struct | System is a group of nodes: one app, one add-on, or one namespace. |
+| `Barrio` | struct | Barrio is a group of systems on the map, so a cluster with many apps can be seen a group at a time. |
 | `Node` | struct | Node is a service, a database or cache, a workload that only calls others (a cron job), or the internet. |
 | `Health` | struct | Health is the latest uptime checks of a service. |
 | `Edge` | struct | Edge is one node calling another. |
 | `Input` | struct | Input is what the universe is made from. |
 | `Build` | func | Build joins the apps, the catalog and the uptime checks into one graph. |
+| `barrios` | func | barrios puts every system in a barrio: the one its app declares; else, for an app that calls other apps or is called by them, the barrio of the apps it talks to most (label propagation, weighted by calls per minute where traces measured them); else the centre. |
 | `(*builder) traced` | method | traced adds the numbers measured from traces to the edges they belong to, and the calls only traces know about (to a service nobody declared, or outside the cluster) as edges of their own. |
 | `(*builder) resolve` | method | resolve finds the node a collector name stands for: "app/service" (what observe names services), "user" (a call from outside, the internet), a cluster address (api.wellness.svc.cluster.local:8000, api.wellness), a short name in the caller's system (api:8000), or a database the caller's app runs (postgresql, redis). |
 | `systemKind` | func | systemKind is the kind of system a catalog entry belongs to. |
@@ -2258,7 +2276,7 @@ Package universe is the view of every app from above: the services each one runs
 
 ### `internal/universe/metrics_test.go`
 
-<small>113 lines · tests</small>
+<small>133 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2267,12 +2285,13 @@ Package universe is the view of every app from above: the services each one runs
 
 ### `internal/universe/universe_test.go`
 
-<small>126 lines · tests</small>
+<small>165 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `TestBuild` | func |  |
 | `TestBuildWithoutCatalog` | func |  |
+| `TestBarrios` | func |  |
 
 ## `internal/uptime` {#internal-uptime}
 
@@ -2341,7 +2360,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>929 lines</small>
+<small>944 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2416,6 +2435,7 @@ Package web embeds the built UI (npm run build → web/dist).
 | `CatalogEntry` | interface |  |
 | `Catalog` | interface |  |
 | `UniverseSystem` | interface | ---- universe ---- Every app from above: systems (apps, add-ons, namespaces), their nodes, and what calls what (see internal/universe). |
+| `UniverseBarrio` | interface | A group of systems on the map: named in rendimiento.yaml (declared), found from what the apps call (auto), the apps that call no other app (centre), or what rendimiento does not deploy (outskirts). |
 | `UniverseNode` | interface |  |
 | `UniverseEdge` | interface |  |
 | `Universe` | interface |  |
@@ -2469,6 +2489,52 @@ Package web embeds the built UI (npm run build → web/dist).
 | `tiles` | function |  |
 | `Spark` | component | Twelve weeks as a line; gaps where a week has no data; a dot on the last. |
 | `DeliveryPanel` | component | The dashboard's delivery health: the numbers of the last 30 days and a chart of twelve weeks. |
+
+### `web/src/components/maqueta.ts`
+
+<small>783 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Status` | type |  |
+| `NodeKind` | type |  |
+| `MapNode` | interface |  |
+| `MapPueblo` | interface |  |
+| `MapBarrio` | interface |  |
+| `MapRoad` | interface | A road between two barrios, pueblos or nodes ("internet" for visitors). |
+| `MapModel` | interface |  |
+| `Level` | type |  |
+| `HitKind` | type |  |
+| `Pick` | interface |  |
+| `MapView` | interface |  |
+| `RANK` | const |  |
+| `worst` | const |  |
+| `rate` | function | Calls per minute, short: "12/min", "1.2k/min". |
+| `ms` | const |  |
+| `still` | const | True when the page should hold still (the switch in the top bar, or the device setting). |
+| `isNight` | function | True at night: chosen in the top bar, or following a dark device. |
+| `DAY` | const | The village's own colors, by day and by night; the rest comes from the page's tokens. |
+| `NIGHT` | const |  |
+| `Palette` | type |  |
+| `P` | interface |  |
+| `Box` | interface |  |
+| `Cam` | interface |  |
+| `Road3` | interface |  |
+| `PlacedBarrio` | interface |  |
+| `PlacedPueblo` | interface |  |
+| `Inside` | interface |  |
+| `Hit` | type |  |
+| `Label` | interface |  |
+| `iso` | const |  |
+| `clamp` | const |  |
+| `hash` | function |  |
+| `qpt` | const |  |
+| `roadGeom` | function |  |
+| `roadWidth` | const |  |
+| `INTERNET_AT` | const |  |
+| `badge` | function | The letters on a house: its language, like the Services page. |
+| `distSeg` | function |  |
+| `inPoly` | function |  |
 
 ### `web/src/components/marca.tsx`
 
@@ -2563,7 +2629,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>897 lines</small>
+<small>978 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2650,7 +2716,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Installed.tsx`
 
-<small>414 lines</small>
+<small>420 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2763,33 +2829,51 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Universe.tsx`
 
-<small>379 lines</small>
+<small>688 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `colorOf` | function | A stable palette color for a system name. |
-| `kindOrder` | const |  |
-| `systemOrder` | const |  |
-| `Circle` | interface |  |
-| `Layout` | interface |  |
-| `layout` | function |  |
-| `edgePath` | function | A line from a to b, curved when it crosses between systems, stopping at the node's edge. |
-| `healthColor` | function | The color a node's ring takes from its latest checks: up, down, or not checked. |
 | `kindLabel` | const |  |
 | `sourceLabel` | const |  |
-| `systemTitle` | const | A system's title; the one for calls outside the cluster is translated. |
-| `metricsText` | function | "2.5/min · p50 12 ms · p95 250 ms · 5% errors", or "" without numbers. |
-| `edgeStyle` | function | How a measured line looks: thicker with more calls, red with errors, amber when slow. |
+| `statusLabel` | const |  |
+| `Numbers` | interface | Numbers for anything on the map: its calls, how they went, and their trends. |
+| `Road` | interface | A road between pueblos or barrios: the calls it is made of. |
+| `edgeId` | const |  |
+| `edgeStatus` | function | How a measured call is doing: red with errors, amber when slow. |
+| `combine` | function | The numbers of several calls together: summed calls, the worst latency at each point. |
+| `SystemInfo` | type | An app (or a namespace) with its numbers and the calls that touch it. |
+| `BarrioInfo` | type | A barrio with its apps, and the numbers of what comes into it. |
+| `World` | interface | Everything the map and the panel need, made once per answer and filter. |
+| `build` | function |  |
+| `barrioTitle` | function | A barrio's name: its own, or what it is. |
+| `systemTitle` | const |  |
 | `Universe` | component | The Universe page. |
-| `visible` | function | The systems, nodes and edges the filters leave on the map. |
-| `glyph` | function | The letter or sign inside a node: the language, or what it is. |
-| `edgeTitle` | function | "wellness/ui → wellness/api (API_URL; declared in rendimiento.yaml)" |
-| `NodeDetail` | component | The side panel for a picked node: what it is, its health, what it calls and what calls it. |
-| `Legend` | component | What the shapes and lines mean, shown while nothing is picked. |
+| `Go` | type | ---- the panel ---- |
+| `Panel` | component |  |
+| `Figures` | component |  |
+| `pct` | const |  |
+| `figures` | const |  |
+| `Badge` | const |  |
+| `Spark` | component | A tiny chart with an area, for the ticker rows. |
+| `Change` | component | The change across the period: the last quarter against the first. |
+| `Tick` | component |  |
+| `Latency` | component | Latency over the period: p95 solid, p50 dashed. |
+| `Sankey` | component | What comes into an app on the left and what leaves on the right, as ribbons. |
+| `RegionPanel` | component |  |
+| `barrioKind` | function |  |
+| `Attention` | component |  |
+| `BarrioPanel` | component |  |
+| `SystemPanel` | component |  |
+| `NodePanel` | component |  |
+| `nodeName` | function |  |
+| `EdgeRows` | component |  |
+| `EdgeList` | component |  |
+| `EdgePanel` | component |  |
+| `RoadPanel` | component |  |
 
 ### `web/src/pages/Version.tsx`
 
-<small>74 lines</small>
+<small>90 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
