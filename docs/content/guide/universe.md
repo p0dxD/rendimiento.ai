@@ -44,7 +44,7 @@ Every app lands in one barrio:
 - **The panel** reads like a market board: every barrio, pueblo and service with its calls per minute, a small trend over the period and the change (▲▼) from its start to its end; **Needs attention** lists what is failing or slow. **Open app** goes to the app's page; **Open in Services** goes to the service's entry in the catalog.
 - **Refresh** rebuilds the catalog from the cluster right away (otherwise it is at most 30 seconds old, and the page reloads every minute).
 
-## Latency on every line
+## Latency on every road {#latency-on-every-line}
 
 With tracing on, each road also carries what was measured over the **Period** chosen at the top (15 minutes, an hour, 24 hours): **calls per minute**, the share that **failed**, and how long they took (**p50**, half were faster; **p95**, the slowest 5%), each with its trend across the period. Roads get **wider** with more calls, turn **red** when 5% or more fail and **amber** when the slowest 5% take half a second or more. Fireflies (by night) or confetti (by day) run along measured roads from the caller to the callee: more of them for more calls, faster for quicker calls. Turn movement off in the top bar and they hold still.
 
@@ -65,7 +65,7 @@ What each service gets:
 | `python` | the OpenTelemetry Python agent, on `PYTHONPATH` |
 | `go`, others, ready-made images | only the `OTEL_*` variables, for an OpenTelemetry SDK in the code |
 
-Every observed service is named `app/service` (`OTEL_SERVICE_NAME`), which is how a measured line finds its nodes. The agent is copied into the pod by a small init container; it adds memory (the Java agent the most, around 100 MB) and some start-up time, so turn it on where you want to see. A quarter of the traces are kept (`TELEMETRY_SAMPLE_RATIO`), which is plenty for averages.
+Every observed service is named `app/service` (`OTEL_SERVICE_NAME`), which is how a measured road finds its houses. The agent is copied into the pod by a small init container; it adds memory (the Java agent the most, around 100 MB) and some start-up time, so turn it on where you want to see. A quarter of the traces are kept (`TELEMETRY_SAMPLE_RATIO`), which is plenty for averages.
 
 !!! note "Python on Alpine"
     The Python agent is built for glibc. A service on an Alpine (musl) image may fail to load it: use a Debian-based image, or set `observe: false` on that service.

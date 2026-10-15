@@ -14,13 +14,14 @@ Items are ordered by value per effort for this cluster first, and for other user
 | Item | Why |
 |---|---|
 | **Off-site backups**: copy Garage's backup bucket to a cloud bucket (Cloudflare R2, Backblaze B2) | the backups survive losing the whole cluster |
+| **The Universe in 3D**: the same village with depth, to fly over and into | a view to show off, once the flat one is settled |
+| **Request waterfall**: keep traces (Tempo or Jaeger) and show one request through every service, Zipkin-style, from a road on the Universe | see where a slow request spends its time |
 | **Canary and A/B releases** with ingress-nginx canary weights | ship to 10% first; automatic rollback on errors |
 | **Plugin contract**: a container that takes JSON in and returns a JSON verdict, at hooks *pre-deploy*, *post-deploy* and *analysis* | k6 performance gates, chaos experiments (Chaos Mesh), AI checks, all without changing the core |
 | **AI generator** behind `generate.Generator` | better `rendimiento.yaml` and Dockerfiles for unusual repos |
 | **Secrets from an external store** (SOPS in git, Vault, 1Password) | secrets become reproducible and auditable |
 | **Roles and audit log** | more than one person can use it safely |
 | **HA platform** (leader election, `LISTEN/NOTIFY` events) | no downtime on node loss; see [Scaling](scaling.md#live-updates-across-replicas) |
-| **Scheduled jobs** (`cron:` in the spec, rendered as CronJobs) | replaces the last hand-written CronJobs |
 
 ## Long term
 
@@ -33,6 +34,8 @@ Items are ordered by value per effort for this cluster first, and for other user
 
 ## Done
 
+- The Universe: every app from above as a village of barrios and pueblos, roads with calls, failures and latency measured from traces (`observe:` and the OpenTelemetry Collector add-on), and the **observa** libraries for Node, Python and Java (2026-10-14)
+- Scheduled jobs: `jobs:` in the spec, rendered as CronJobs
 - Repo → live HTTPS URL; GitHub App, onboarding pull requests, detection and templates
 - CI on a BuildKit pool across the workers with a registry cache; Railpack Dockerfile-less builds
 - The App controller: adoption, pruning, self-healing, rollback, DNS, GPU workloads, LAN IPs

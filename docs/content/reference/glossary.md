@@ -9,6 +9,9 @@
 **App**
 : One onboarded repository and everything deployed from it. Also the `App` custom resource.
 
+**Barrio**
+: A group of apps on the [Universe](../guide/universe.md#barrios) map: named with `barrio:` in `rendimiento.yaml`, or found from what the apps call.
+
 **BuildKit**
 : The build engine behind `docker build`. rendimiento runs a pool of BuildKit daemons (`buildkitd`) and sends each image to one of them.
 
@@ -51,6 +54,9 @@
 **Prune**
 : Deleting objects that are no longer desired.
 
+**Pueblo**
+: An app on the [Universe](../guide/universe.md) map, drawn as a cluster of houses, one per service.
+
 **Railpack**
 : Builds an image from source without a Dockerfile, by detecting the language.
 
@@ -80,3 +86,6 @@
 
 **Spec**
 : `rendimiento.yaml`: an app's services, builds, tests, domains, needs and so on.
+
+**Universe**
+: The page that shows every app from above, with what calls what and how long it takes ([guide](../guide/universe.md)).

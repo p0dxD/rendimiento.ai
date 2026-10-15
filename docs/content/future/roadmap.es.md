@@ -14,13 +14,14 @@ Las tareas están ordenadas por valor según el esfuerzo, primero para este clú
 | Tarea | Por qué |
 |---|---|
 | **Respaldos fuera de casa**: copiar la cubeta de respaldos de Garage a una cubeta en la nube (Cloudflare R2, Backblaze B2) | los respaldos sobreviven a perder todo el clúster |
+| **El universo en 3D**: el mismo pueblo con profundidad, para sobrevolarlo y entrar | una vista para lucir, cuando la plana esté asentada |
+| **Cascada de una solicitud**: guardar las trazas (Tempo o Jaeger) y mostrar una solicitud a través de cada servicio, al estilo Zipkin, desde un camino del universo | ver en qué se le va el tiempo a una solicitud lenta |
 | **Versiones canario y A/B** con los pesos canario de ingress-nginx | publicar primero al 10 %; reversión automática ante errores |
 | **Contrato de extensiones**: un contenedor que recibe JSON y devuelve un veredicto en JSON, en los ganchos *antes del despliegue*, *después del despliegue* y *análisis* | compuertas de rendimiento con k6, experimentos de caos (Chaos Mesh), revisiones con IA, todo sin cambiar el núcleo |
 | **Generador con IA** detrás de `generate.Generator` | mejores `rendimiento.yaml` y Dockerfiles para repositorios poco comunes |
 | **Secretos desde un almacén externo** (SOPS en git, Vault, 1Password) | los secretos se vuelven reproducibles y auditables |
 | **Roles y bitácora de auditoría** | más de una persona lo puede usar sin riesgo |
 | **Plataforma de alta disponibilidad** (elección de líder, eventos con `LISTEN/NOTIFY`) | sin caídas al perder un nodo; vea [Escalar](scaling.md#live-updates-across-replicas) |
-| **Tareas programadas** (`cron:` en la especificación, generadas como CronJobs) | reemplaza los últimos CronJobs escritos a mano |
 
 ## A largo plazo {#long-term}
 
@@ -33,6 +34,8 @@ Las tareas están ordenadas por valor según el esfuerzo, primero para este clú
 
 ## Hecho {#done}
 
+- El universo: todas las aplicaciones desde arriba como un pueblo de barrios, caminos con llamadas, fallas y latencia medidas desde las trazas (`observe:` y el complemento del colector de OpenTelemetry), y las bibliotecas **observa** para Node, Python y Java (2026-10-14)
+- Tareas programadas: `jobs:` en la especificación, generadas como CronJobs
 - Repositorio → URL HTTPS en vivo; aplicación de GitHub, solicitudes de incorporación, detección y plantillas
 - Integración continua en un grupo de BuildKit repartido en los nodos trabajadores, con caché en el registro; construcciones sin Dockerfile con Railpack
 - El controlador de aplicaciones: adopción, poda, autorreparación, reversión, DNS, cargas con GPU, IP de la red local

@@ -11,7 +11,7 @@ How to use rendimiento's features, one chapter per area:
 - **[Notifications](notifications.md)**: emails about failed builds, rolled-back releases, outages and recoveries.
 - **[La Ruta](ruta.md)**: the platform's memory, for people and AI agents: decisions, manuals, to-dos, handovers and lived stories, reachable over MCP.
 - **[Needs and the services catalog](needs.md)**: databases, caches and other services, wired in without configuration.
-- **[The Universe](universe.md)**: every app from above: its services, what they use and call, and what the internet reaches.
+- **[The Universe](universe.md)**: every app from above, as a village: barrios of apps, the roads between them with their calls and latency, and each app's services inside.
 - **[Libraries](observa.md)**: rendimiento for Node, Python and Java: the business moments, events and flags on the traces.
 - **[Add-ons](addons.md)**: installing and adopting cluster software from Helm charts and git.
 - **[Renovate](renovate.md)**: dependency updates.

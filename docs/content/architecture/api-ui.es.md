@@ -54,14 +54,15 @@ flowchart LR
 
 ## La interfaz {#the-ui}
 
-Una aplicación de una sola página en `web/`: **React 18**, **TypeScript**, **Vite**, **react-router**, sin marco de interfaz, y una sola hoja de estilos con variables de CSS para los temas de día y de noche.
+Una aplicación de una sola página en `web/`: **React 19**, **TypeScript**, **Vite**, **react-router**, sin marco de interfaz, y una sola hoja de estilos con variables de CSS para los temas de día y de noche.
 
 | Archivo | Papel |
 |---|---|
 | `src/main.tsx` | Las rutas, la barra superior y la puerta de inicio de sesión |
 | `src/api.ts` | Cada llamada a la API y cada tipo de respuesta, en un solo lugar |
 | `src/components/ui.tsx` | Piezas compartidas: insignias, `usePoll` (cargar y refrescar), `Switch`, el árbol de recursos |
-| `src/pages/*.tsx` | Un archivo por página: Dashboard, NewApp, AppPage, RunPage, Services, Addons, Installed (lista de complementos, catálogo y detalle), Environment, Setup |
+| `src/pages/*.tsx` | Un archivo por página: Dashboard, NewApp, AppPage, RunPage, Services, Universe, Addons, Installed (lista de complementos, catálogo y detalle), Mercado, Ruta, Problems, Environment, Version, Setup |
+| `src/components/maqueta.ts` | El pueblo del universo, dibujado en un lienzo ([abajo](#the-universe)) |
 | `src/styles.css` | Los valores del tema y los componentes |
 
 Patrones que se usan en todas partes:
@@ -69,6 +70,24 @@ Patrones que se usan en todas partes:
 - **`usePoll(load, deps, intervalMs)`** obtiene los datos y los refresca cada cierto tiempo; las páginas lo combinan con eventos enviados por el servidor cuando las actualizaciones deben ser instantáneas (los registros).
 - **Los tipos reflejan el JSON de Go.** `api.ts` declara interfaces que coinciden con las etiquetas JSON de las estructuras de Go; mantenerlas al día es manual por ahora ([reestructuración](../develop/refactoring.md#share-types-between-go-and-typescript)).
 - **Sin biblioteca de estado global.** Cada página es dueña de sus datos; hay poco estado compartido como para justificar una.
+
+## El universo {#the-universe}
+
+La página del [universo](../guide/universe.md) junta en un solo grafo lo que rendimiento sabe de cada aplicación, y lo dibuja como un pueblo.
+
+```mermaid
+flowchart LR
+  svc["Servicios con observe<br/>(agente de OpenTelemetry)"] -->|OTLP| col["Colector de OpenTelemetry<br/>complemento: servicegraph"]
+  col -->|escritura remota| vm[("VictoriaMetrics")]
+  api["GET /api/universe<br/>internal/universe"] -->|"PromQL: totales y tendencias"| vm
+  api --> store[("Almacén: aplicaciones,<br/>especificaciones, revisiones")]
+  api --> cat["Catálogo de servicios"]
+  page["Página del universo<br/>maqueta.ts"] --> api
+```
+
+- **`universe.Build`** arma el grafo: un *sistema* por aplicación (o por espacio de nombres para lo que rendimiento no despliega), sus *nodos* (servicios, bases de datos, cachés, tareas) y *conexiones* que salen de `needs:`, de las variables de entorno (el catálogo), de los Ingress y de las trazas. Después, **`barrios`** pone cada sistema en un barrio: el `barrio:` de la aplicación; si no tiene, el de las aplicaciones con las que más habla (propagación de etiquetas sobre las conexiones entre aplicaciones, con más peso para las llamadas medidas); si no, el centro. Lo que no es aplicación va a las afueras.
+- **`Metrics.Edges`** lee el grafo de servicios que escribe el colector: consultas instantáneas para las llamadas, fallas y p50/p95 del periodo (el mayor entre lo que mide quien llama y quien responde), y consultas de rango para sus tendencias (`TrendPoints`, 24 puntos). El mapa se sirve aunque el almacén de métricas no responda.
+- **La página** (`pages/Universe.tsx`) convierte el grafo en lo que se dibuja: el estado de cada nodo, pueblo y barrio, y los caminos entre pueblos y entre barrios con sus llamadas sumadas. **`components/maqueta.ts`** acomoda los barrios en una cuadrícula y los pueblos dentro de ellos; los dibuja en proyección isométrica en un lienzo en cada cuadro (por eso se mueven las luciérnagas); guarda la posición en pantalla de todo lo dibujado para los toques (un camino responde a un toque a 12 px); coloca las etiquetas sin que se encimen, y desliza la cámara entre niveles. El nivel y el lugar viven en la dirección, así que el botón de atrás del navegador funciona.
 
 ### Cómo se entrega la interfaz {#how-the-ui-ships}
 

@@ -14,6 +14,9 @@ Cada término lleva entre paréntesis la palabra en inglés que verá en el cód
 **Archivo de referencia** (*golden file*)
 : Una salida esperada guardada (`testdata/*.golden.yaml`) contra la que se compara una prueba.
 
+**Barrio**
+: Un grupo de aplicaciones en el mapa del [universo](../guide/universe.md#barrios): con el nombre de `barrio:` en `rendimiento.yaml`, o encontrado por lo que se llaman entre sí.
+
 **BuildKit**
 : El motor de construcción detrás de `docker build`. rendimiento corre un grupo de demonios de BuildKit (`buildkitd`) y manda cada imagen a uno de ellos.
 
@@ -65,6 +68,9 @@ Cada término lleva entre paréntesis la palabra en inglés que verá en el cód
 **Podar** (*prune*)
 : Borrar los objetos que ya no se desean.
 
+**Pueblo**
+: Una aplicación en el mapa del [universo](../guide/universe.md), dibujada como un grupo de casas, una por servicio.
+
 **Railpack**
 : Construye una imagen a partir del código fuente sin Dockerfile, detectando el lenguaje.
 
@@ -82,6 +88,9 @@ Cada término lleva entre paréntesis la palabra en inglés que verá en el cód
 
 **Tarea programada** (*job*)
 : Un comando que corre según un horario, como CronJob de Kubernetes (`jobs:` en `rendimiento.yaml`).
+
+**Universo**
+: La página que muestra todas las aplicaciones desde arriba, con quién llama a quién y cuánto tarda ([guía](../guide/universe.md)).
 
 **Versión** (*release*)
 : Un conjunto numerado de huellas de imagen, una por servicio, producido por una ejecución exitosa en la rama principal. Revertir significa cambiarse a una versión anterior.
