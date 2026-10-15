@@ -42,8 +42,10 @@ const (
 	SystemInfra = "infrastructure"
 )
 
-// Universe is every system, its nodes and the edges between them.
+// Universe is every system, its nodes and the edges between them, and the
+// barrios the systems are grouped in.
 type Universe struct {
+	Barrios   []Barrio  `json:"barrios"`
 	Systems   []System  `json:"systems"`
 	Nodes     []Node    `json:"nodes"`
 	Edges     []Edge    `json:"edges"`
@@ -58,6 +60,29 @@ type System struct {
 	// App is set for rendimiento apps, for the link to the app's page.
 	App  string `json:"app,omitempty"`
 	Repo string `json:"repo,omitempty"`
+	// Barrio is the ID of the barrio the system is in.
+	Barrio string `json:"barrio"`
+}
+
+// Kinds of barrios.
+const (
+	// BarrioDeclared is named by the apps' rendimiento.yaml (barrio:).
+	BarrioDeclared = "declared"
+	// BarrioAuto is apps without a barrio that call each other.
+	BarrioAuto = "auto"
+	// BarrioCentre is the apps that call no other app and declare no barrio.
+	BarrioCentre = "centre"
+	// BarrioOutskirts is everything rendimiento does not deploy: add-ons,
+	// what was deployed another way, calls outside the cluster.
+	BarrioOutskirts = "outskirts"
+)
+
+// Barrio is a group of systems on the map, so a cluster with many apps
+// can be seen a group at a time.
+type Barrio struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Kind  string `json:"kind"`
 }
 
 // Node is a service, a database or cache, a workload that only calls
@@ -121,10 +146,12 @@ type Input struct {
 func Build(in Input) Universe {
 	b := builder{nodes: map[string]*Node{}, systems: map[string]*System{}, edges: map[[2]string]*Edge{}}
 	appByID := map[int64]*store.App{}
+	declared := map[string]string{}
 
 	// The apps and what their rendimiento.yaml declares.
 	for _, a := range in.Apps {
 		appByID[a.ID] = a
+		declared[a.Name] = a.Spec.Barrio
 		b.system(System{ID: a.Name, Title: a.Name, Kind: SystemApp, App: a.Name, Repo: a.Repo})
 		for _, svc := range a.Spec.Services {
 			n := b.node(a.Name+"/"+svc.Name, svc.Name, a.Name)
@@ -225,7 +252,144 @@ func Build(in Input) Universe {
 		}
 		return u.Edges[i].To < u.Edges[j].To
 	})
+	u.Barrios = barrios(u.Systems, u.Nodes, u.Edges, declared)
 	return u
+}
+
+// barrios puts every system in a barrio: the one its app declares; else,
+// for an app that calls other apps or is called by them, the barrio of
+// the apps it talks to most (label propagation, weighted by calls per
+// minute where traces measured them); else the centre. What is not a
+// rendimiento app goes to the outskirts. It sets each system's Barrio and
+// returns the barrios in use: declared, found, centre, outskirts.
+func barrios(systems []System, nodes []Node, edges []Edge, declared map[string]string) []Barrio {
+	systemOf := map[string]string{}
+	for _, n := range nodes {
+		systemOf[n.ID] = n.System
+	}
+	isApp := map[string]bool{}
+	for _, s := range systems {
+		isApp[s.ID] = s.Kind == SystemApp
+	}
+	size := map[string]int{}
+	for _, n := range nodes {
+		size[n.System]++
+	}
+	// How much each pair of apps talks.
+	weight := map[string]map[string]float64{}
+	link := func(a, b string, w float64) {
+		if weight[a] == nil {
+			weight[a] = map[string]float64{}
+		}
+		weight[a][b] += w
+	}
+	for _, e := range edges {
+		a, b := systemOf[e.From], systemOf[e.To]
+		if a == b || !isApp[a] || !isApp[b] {
+			continue
+		}
+		w := 1.0
+		if e.Metrics != nil {
+			w += e.Metrics.PerMinute
+		}
+		link(a, b, w)
+		link(b, a, w)
+	}
+
+	label := map[string]string{}
+	found := map[string]Barrio{}
+	var free []string
+	for _, s := range systems {
+		if !isApp[s.ID] {
+			continue
+		}
+		if d := strings.TrimSpace(declared[s.ID]); d != "" {
+			id := "barrio:" + strings.ToLower(d)
+			label[s.ID] = id
+			if _, ok := found[id]; !ok {
+				found[id] = Barrio{ID: id, Title: d, Kind: BarrioDeclared}
+			}
+			continue
+		}
+		if len(weight[s.ID]) > 0 {
+			label[s.ID] = "auto:" + s.ID
+			free = append(free, s.ID) // systems are sorted, so this is too
+		}
+	}
+	for round := 0; round < 10; round++ {
+		changed := false
+		for _, id := range free {
+			score := map[string]float64{}
+			for other, w := range weight[id] {
+				if l := label[other]; l != "" {
+					score[l] += w
+				}
+			}
+			best, top := label[id], score[label[id]]
+			for l, w := range score {
+				if w > top || (w == top && l < best) {
+					best, top = l, w
+				}
+			}
+			if best != label[id] {
+				label[id], changed = best, true
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+	// A found barrio is named after its biggest app.
+	members := map[string][]string{}
+	for _, id := range free {
+		members[label[id]] = append(members[label[id]], id)
+	}
+	for l, ids := range members {
+		if !strings.HasPrefix(l, "auto:") {
+			continue
+		}
+		name := ids[0]
+		for _, id := range ids[1:] {
+			if size[id] > size[name] {
+				name = id
+			}
+		}
+		id := "auto:" + name
+		for _, m := range ids {
+			label[m] = id
+		}
+		found[id] = Barrio{ID: id, Title: name, Kind: BarrioAuto}
+	}
+
+	centre, outskirts := false, false
+	for i := range systems {
+		s := &systems[i]
+		switch {
+		case !isApp[s.ID]:
+			s.Barrio, outskirts = BarrioOutskirts, true
+		case label[s.ID] != "":
+			s.Barrio = label[s.ID]
+		default:
+			s.Barrio, centre = BarrioCentre, true
+		}
+	}
+	out := make([]Barrio, 0, len(found)+2)
+	for _, b := range found {
+		out = append(out, b)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Kind != out[j].Kind {
+			return out[i].Kind == BarrioDeclared
+		}
+		return out[i].Title < out[j].Title
+	})
+	if centre {
+		out = append(out, Barrio{ID: BarrioCentre, Title: "Centre", Kind: BarrioCentre})
+	}
+	if outskirts {
+		out = append(out, Barrio{ID: BarrioOutskirts, Title: "Outskirts", Kind: BarrioOutskirts})
+	}
+	return out
 }
 
 // traced adds the numbers measured from traces to the edges they belong

@@ -6,38 +6,49 @@ No hace falta configurar nada: el mapa se arma con lo que rendimiento ya sabe.
 
 ## Qué hay en el mapa {#what-is-on-the-map}
 
-- **Los sistemas** son los círculos grandes: uno por cada aplicación de rendimiento (borde continuo). Con **Desplegado de otra forma** activado, también aparecen las aplicaciones de ArgoCD, Helm o `kubectl` y los complementos (borde punteado), uno por espacio de nombres. **Los internos del clúster** (ingress, cert-manager, monitoreo…) se ocultan, salvo que una aplicación los llame o usted los active.
-- **Los nodos** son lo que corre dentro de cada sistema:
-    - un **círculo** es un servicio; las letras de adentro son su lenguaje (`JS`, `Py`, `J`, `Go`);
-    - un **cuadrado** es una base de datos o caché que la aplicación corre por sus `needs` (`PG`, `R`);
-    - un **círculo punteado** es una tarea o proceso que solo llama a otros (una tarea programada).
-- **El anillo** de cada servicio es su última [revisión de disponibilidad](reliability.md): verde cuando pasaron todas las revisiones de los últimos 15 minutos, rojo cuando una falló, gris cuando no se ha revisado.
-- **Internet** está en el centro, con una línea hacia cada servicio que tiene una dirección pública.
+El mapa es una maqueta de pueblo vista desde un cerro, en ángulo:
 
-## De dónde salen las líneas {#where-the-lines-come-from}
+- **Los barrios** son las placas elevadas: grupos de aplicaciones (vea [Barrios](#barrios) más abajo). De lejos solo se ven los barrios y los caminos grandes entre ellos, así que un clúster con muchas aplicaciones se sigue leyendo bien.
+- **Los pueblos** son las aplicaciones de un barrio. Cada uno es un grupo de casas encaladas con un guardapolvo del color de su barrio: más casas, más servicios; un **pozo** cuando corre una base de datos y un **cántaro** cuando corre una caché. Con **Desplegado de otra forma** activado también aparecen, en *Las afueras*, las aplicaciones de ArgoCD, Helm o `kubectl`, los complementos y las llamadas fuera del clúster. **Los internos del clúster** (ingress, cert-manager, monitoreo…) se ocultan, salvo que una aplicación los llame o usted los active.
+- **El anillo** en el suelo alrededor de un pueblo o una casa es su salud: verde cuando pasaron sus últimas [revisiones de disponibilidad](reliability.md) y sus llamadas van bien, **rojo** cuando falló una revisión o falla el 5 % o más de sus llamadas, **ámbar** cuando va lento, gris cuando no se ha revisado ni medido nada.
+- **Los caminos** son las conexiones: desde el arco de **Internet** hacia cada servicio con dirección pública, y entre aplicaciones. Una flecha en cada camino apunta del que llama al que responde.
 
-| Línea | Origen | Ejemplo |
+Dentro de un pueblo, cada **casa** es un servicio, con su lenguaje en una insignia (`JS`, `Py`, `Jv`, `Go`); una casa alta es una tarea o proceso que solo llama a otros. Las llamadas de otras aplicaciones y de internet entran por el **arco**, y las llamadas a otras aplicaciones salen por **letreros** con su nombre.
+
+## De dónde salen los caminos {#where-the-roads-come-from}
+
+| Camino | Origen | Ejemplo |
 |---|---|---|
-| continua | una entrada `needs:` en el `rendimiento.yaml` de quien llama | `needs: [postgres]`, `needs: [{service: api}]` |
-| punteada | una variable de entorno de quien llama que apunta al servicio (la misma detección del [catálogo de servicios](needs.md)) | `API_URL=http://api.wellness.svc.cluster.local` |
-| de puntos, desde Internet | una dirección pública (un Ingress) dirigida al servicio | `https://wellness.example.com` |
+| declarado | una entrada `needs:` en el `rendimiento.yaml` de quien llama | `needs: [postgres]`, `needs: [{service: api}]` |
+| encontrado en su entorno | una variable de entorno de quien llama que apunta al servicio (la misma detección del [catálogo de servicios](needs.md)) | `API_URL=http://api.wellness.svc.cluster.local` |
+| dirección pública | un Ingress dirigido al servicio, desde el arco de Internet | `https://wellness.example.com` |
+| visto en trazas | una llamada medida por el [colector](#latency-on-every-line) que nadie declaró | una llamada a `api.openweathermap.org` |
 
-Una línea que se encuentra de las dos formas se dibuja continua. Los valores que se leen de secretos no se ven, así que una conexión cuya dirección solo está en un secreto aparece únicamente cuando se declara con `needs:`. Declarar las necesidades completa el mapa.
+Un camino que nadie ha medido es una **vereda punteada**; uno medido está empedrado y lleva tráfico (vea abajo). El panel dice cómo se sabe de cada camino. Los valores que se leen de secretos no se ven, así que una conexión cuya dirección solo está en un secreto aparece únicamente cuando se declara con `needs:` o se mide. Declarar las necesidades completa el mapa.
+
+## Barrios {#barrios}
+
+Cada aplicación queda en un barrio:
+
+1. **El suyo**, cuando su `rendimiento.yaml` lo dice: `barrio: Pagos` (letras, dígitos, espacios y guiones, hasta 40; los acentos se permiten). Úselo para un equipo o un dominio.
+2. Si no, **el barrio de las aplicaciones con las que más habla**: las aplicaciones que se llaman entre sí terminan juntas, con el nombre de la más grande (*Barrio de stockpulse*). El tráfico medido cuenta más que una conexión declarada, así que ganan los vecinos más ocupados.
+3. Las aplicaciones que no llaman a ninguna otra van a **el centro**.
+4. Lo que rendimiento no despliega (complementos, lo desplegado de otra forma, las llamadas fuera del clúster) está en **las afueras**.
 
 ## Cómo usarlo {#using-it}
 
-- **Haga zoom** con la rueda del ratón o pellizcando, y **arrastre** para moverse; los botones **+**, **−** y **⤢** de la esquina acercan, alejan y vuelven a la vista completa.
-- **Zoom a aplicaciones**: las fichas sobre el mapa eligen una o varias aplicaciones (u otros sistemas); el mapa se desliza hacia ellas y atenúa lo demás. **Todo** vuelve al mapa completo. Un doble clic en el círculo de una aplicación, o **Zoom a …** en el panel lateral, elige solo esa. La elección queda en la dirección (`?apps=wellness,jobsentry`), así que una vista se puede guardar o compartir.
-- **Pase el cursor** sobre un nodo para iluminar sus conexiones; lo demás se atenúa.
-- **Haga clic** en un nodo para fijarlo. El panel lateral muestra qué es, su salud y sus pods, sus direcciones públicas, **Llama a** (lo que usa) y **La llaman** (quién lo usa), cada una con la variable o dirección y de dónde sale la línea. Haga clic en un nombre de esas listas para ir a ese nodo.
-- **Abrir aplicación** lleva a la página de la aplicación; **Abrir en Servicios** lleva a su entrada en el catálogo.
+- **Tres niveles.** La **región** muestra los barrios; toque uno para acercarse. En un **barrio**, toque un pueblo para ver en el panel lo que entra y lo que sale; tóquelo dos veces, o use **Entrar al pueblo**, para entrar. Dentro del **pueblo**, toque una casa, el pozo o un camino. **Esc** sube un nivel, y la ruta sobre el mapa (*Región › El centro › wellness*) regresa a cualquiera de ellos. El lugar queda en la dirección (`?barrio=centre&pueblo=wellness`), así que una vista se puede guardar o compartir.
+- **Toque un camino** para ver lo que pasa por él: llamadas por minuto, fallas, p50 y p95 con una gráfica del periodo, cómo se sabe de él y botones para ir a cualquiera de sus extremos. Un camino entre barrios enlista las conexiones que lo forman. Los caminos responden a un toque aunque el dedo quede un poco al lado.
+- **Acerque** con la rueda del ratón o pellizcando, y **arrastre** para moverse; los botones **+**, **−** y **⤢** acercan, alejan y vuelven al nivel completo.
+- **Ir a una aplicación** lleva directo a una aplicación por su nombre.
+- **El panel** se lee como una pizarra de mercado: cada barrio, pueblo y servicio con sus llamadas por minuto, una pequeña tendencia del periodo y el cambio (▲▼) de su inicio a su final; **Pide atención** enlista lo que falla o va lento. **Abrir aplicación** lleva a la página de la aplicación; **Abrir en Servicios** lleva a su entrada en el catálogo.
 - **Actualizar** reconstruye el catálogo desde el clúster en ese momento (si no, tiene a lo más 30 segundos, y la página se recarga cada minuto).
 
 ## La latencia en cada línea {#latency-on-every-line}
 
-Con las trazas activadas, cada línea lleva también lo medido: **llamadas por minuto**, la proporción que **falló** y cuánto tardaron según quien llama (**p50**, la mitad fue más rápida; **p95**, el 5% más lento). Elija el periodo (15 minutos, una hora, 24 horas) arriba. Las líneas se vuelven **más gruesas** con más llamadas, **rojas** cuando falla el 5% o más y **ámbar** cuando el 5% más lento tarda medio segundo o más. Al pasar el cursor por un servicio se ve el tiempo típico de sus líneas.
+Con las trazas activadas, cada camino lleva también lo medido en el **Periodo** que se elige arriba (15 minutos, una hora, 24 horas): **llamadas por minuto**, la proporción que **falló** y cuánto tardaron (**p50**, la mitad fue más rápida; **p95**, el 5 % más lento), cada una con su tendencia a lo largo del periodo. Los caminos se vuelven **más anchos** con más llamadas, **rojos** cuando falla el 5 % o más y **ámbar** cuando el 5 % más lento tarda medio segundo o más. Por los caminos medidos van luciérnagas (de noche) o confeti (de día) del que llama al que responde: más mientras más llamadas, y más rápido mientras más rápidas sean. Si desactiva el movimiento en la barra superior, se quedan quietos.
 
-Las líneas **vistas solo en las trazas** (nadie las declaró) se dibujan en verde: una llamada a un servicio que ningún `needs:` menciona, a una base de datos o a una API **fuera del clúster**, agrupadas en *Fuera del clúster*.
+Las llamadas **vistas solo en las trazas** (nadie las declaró) tienen sus propios caminos: una llamada a un servicio que ningún `needs:` menciona, a una base de datos o a una API **fuera del clúster**, agrupadas en *Fuera del clúster*, en las afueras.
 
 ### Cómo activarla {#turning-it-on}
 

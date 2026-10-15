@@ -1,123 +1,15 @@
-// The Universe page: every app from above. Each system (an app, an add-on,
-// a namespace deployed another way) is a circle holding its services,
-// databases and jobs; lines are what calls what, and the internet sits in
-// the middle with lines to every public address.
+// The Universe page: every app from above, as a model village. Apps are
+// pueblos grouped in barrios (rendimiento.yaml's barrio:, or found from
+// what they call); from afar only the barrios and the big roads between
+// them show, a barrio shows its pueblos and what goes in and out of them,
+// and inside a pueblo every service is a house. The panel beside the map
+// reads like a market board: calls per minute, a small trend, latency.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { timeAgo, universeApi, type Universe as UniverseData, type UniverseEdge, type UniverseNode, type UniverseSystem, type UniverseWindow } from "../api";
-import { usePanZoom, type Box } from "../components/panzoom";
+import { Link, useSearchParams } from "react-router-dom";
+import { timeAgo, universeApi, type Universe as UniverseData, type UniverseBarrio, type UniverseEdge, type UniverseNode, type UniverseSystem, type UniverseWindow } from "../api";
+import { Maqueta, ms, rate, worst, type MapModel, type MapRoad, type Pick, type Status } from "../components/maqueta";
 import { ErrorBox, usePoll } from "../components/ui";
-import { t } from "../i18n";
-
-const NODE_R = 15;
-const INTERNET_R = 26;
-
-// Colors for systems, from the Cotija palette; each system keeps one by its name.
-const palette = ["var(--cempasuchil)", "var(--anil)", "var(--nopal)", "var(--rosa)", "var(--teja)", "var(--maiz)", "var(--terciopelo)", "var(--grana)"];
-
-/** A stable palette color for a system name. */
-function colorOf(id: string) {
-  let h = 0;
-  for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return palette[h % palette.length];
-}
-
-const kindOrder: Record<UniverseNode["kind"], number> = { service: 0, workload: 1, postgres: 2, redis: 3, external: 4, internet: 5 };
-const systemOrder: Record<UniverseSystem["kind"], number> = { app: 0, addon: 1, other: 2, infrastructure: 3 };
-
-interface Circle { x: number; y: number; r: number }
-
-interface Layout {
-  systems: Map<string, Circle>;
-  nodes: Map<string, { x: number; y: number }>;
-  box: { x: number; y: number; w: number; h: number };
-}
-
-/**
- * Places each system as a circle with its nodes on a ring inside, and the
- * systems around the internet node on a golden-angle spiral, the biggest
- * nearest the middle. The same universe always gets the same layout.
- */
-function layout(systems: UniverseSystem[], nodes: UniverseNode[], hasInternet: boolean): Layout {
-  const members = new Map<string, UniverseNode[]>();
-  for (const n of nodes) {
-    if (n.kind === "internet" || !n.system) continue;
-    members.set(n.system, [...(members.get(n.system) ?? []), n]);
-  }
-  const sized = systems
-    .filter((s) => members.has(s.id))
-    .map((s) => {
-      const list = members.get(s.id)!.sort((a, b) => kindOrder[a.kind] - kindOrder[b.kind] || a.name.localeCompare(b.name));
-      const ring = list.length <= 1 ? 0 : Math.max(38, (list.length * 58) / (2 * Math.PI));
-      return { s, list, ring, r: ring + NODE_R + 30 };
-    })
-    .sort((a, b) => systemOrder[a.s.kind] - systemOrder[b.s.kind] || b.list.length - a.list.length || a.s.id.localeCompare(b.s.id));
-
-  const placed: Circle[] = hasInternet ? [{ x: 0, y: 0, r: INTERNET_R + 40 }] : [];
-  const out: Layout = { systems: new Map(), nodes: new Map(), box: { x: 0, y: 0, w: 0, h: 0 } };
-  const golden = Math.PI * (3 - Math.sqrt(5));
-  let k = 0;
-  for (const { s, list, ring, r } of sized) {
-    let c: Circle = { x: 0, y: 0, r };
-    // Walk out along the spiral until the circle fits without touching another.
-    for (let step = 0; ; step++, k++) {
-      const dist = placed.length === 0 ? 0 : 30 * Math.sqrt(k + 1) + step * 4;
-      c = { x: Math.cos(k * golden) * dist, y: Math.sin(k * golden) * dist, r };
-      if (placed.every((p) => Math.hypot(p.x - c.x, p.y - c.y) >= p.r + c.r + 18)) break;
-    }
-    placed.push(c);
-    out.systems.set(s.id, c);
-    list.forEach((n, i) => {
-      const a = (2 * Math.PI * i) / list.length - Math.PI / 2;
-      out.nodes.set(n.id, { x: c.x + Math.cos(a) * ring, y: c.y + Math.sin(a) * ring });
-    });
-  }
-  if (hasInternet) out.nodes.set("internet", { x: 0, y: 0 });
-
-  let [x0, y0, x1, y1] = [-INTERNET_R, -INTERNET_R, INTERNET_R, INTERNET_R];
-  for (const c of placed) {
-    x0 = Math.min(x0, c.x - c.r); y0 = Math.min(y0, c.y - c.r - 22);
-    x1 = Math.max(x1, c.x + c.r); y1 = Math.max(y1, c.y + c.r);
-  }
-  const pad = 24;
-  out.box = { x: x0 - pad, y: y0 - pad, w: x1 - x0 + 2 * pad, h: y1 - y0 + 2 * pad };
-  return out;
-}
-
-/** A line from a to b, curved when it crosses between systems, stopping at the node's edge. */
-function edgePath(a: { x: number; y: number }, b: { x: number; y: number }, ra: number, rb: number, curve: boolean) {
-  const dx = b.x - a.x, dy = b.y - a.y;
-  const len = Math.hypot(dx, dy) || 1;
-  const ux = dx / len, uy = dy / len;
-  const sx = a.x + ux * ra, sy = a.y + uy * ra;
-  const ex = b.x - ux * (rb + 3), ey = b.y - uy * (rb + 3);
-  if (!curve) return `M${sx},${sy} L${ex},${ey}`;
-  const bend = Math.min(60, len * 0.15);
-  const cx = (sx + ex) / 2 - uy * bend, cy = (sy + ey) / 2 + ux * bend;
-  return `M${sx},${sy} Q${cx},${cy} ${ex},${ey}`;
-}
-
-/** The color a node's ring takes from its latest checks: up, down, or not checked. */
-function healthColor(n: UniverseNode) {
-  if (!n.health) return "var(--muted)";
-  return n.health.up ? "var(--ok)" : "var(--bad)";
-}
-
-const kindLabel: Record<UniverseNode["kind"], string> = {
-  service: "Service",
-  workload: "Job or worker",
-  postgres: "PostgreSQL",
-  redis: "Redis",
-  external: "Outside the cluster",
-  internet: "Internet",
-};
-
-const sourceLabel: Record<UniverseEdge["sources"][number], string> = {
-  declared: "declared in rendimiento.yaml",
-  env: "found in its environment",
-  ingress: "public address",
-  traced: "seen in traces",
-};
+import { t, tn } from "../i18n";
 
 const windows: { id: UniverseWindow; label: string }[] = [
   { id: "15m", label: "Last 15 minutes" },
@@ -125,30 +17,162 @@ const windows: { id: UniverseWindow; label: string }[] = [
   { id: "24h", label: "Last 24 hours" },
 ];
 
-/** A system's title; the one for calls outside the cluster is translated. */
+const kindLabel: Record<UniverseNode["kind"], string> = {
+  service: "Service", workload: "Job or worker", postgres: "PostgreSQL", redis: "Redis", external: "Outside the cluster", internet: "Internet",
+};
+const sourceLabel: Record<UniverseEdge["sources"][number], string> = {
+  declared: "declared in rendimiento.yaml", env: "found in its environment", ingress: "public address", traced: "seen in traces",
+};
+const statusLabel: Record<Status, string> = { none: "Not measured", ok: "Normal", slow: "Slow", bad: "Failing" };
+
+/** Numbers for anything on the map: its calls, how they went, and their trends. */
+interface Numbers { perMinute: number; errors: number; p50?: number; p95?: number; trend?: number[]; p50Trend?: number[]; p95Trend?: number[]; status: Status }
+/** A road between pueblos or barrios: the calls it is made of. */
+interface Road extends Numbers { id: string; from: string; to: string; parts: UniverseEdge[] }
+
+const edgeId = (e: UniverseEdge) => `${e.from}>${e.to}`;
+
+/** How a measured call is doing: red with errors, amber when slow. */
+function edgeStatus(e: UniverseEdge): Status {
+  const m = e.metrics;
+  if (!m) return "none";
+  if (m.errors >= 0.05) return "bad";
+  if ((m.p95Ms ?? 0) >= 500) return "slow";
+  return "ok";
+}
+
+/** The numbers of several calls together: summed calls, the worst latency at each point. */
+function combine(edges: UniverseEdge[]): Numbers {
+  const measured = edges.filter((e) => e.metrics);
+  const perMinute = measured.reduce((s, e) => s + e.metrics!.perMinute, 0);
+  const sum = (k: "trend") => {
+    const lists = measured.map((e) => e.metrics![k]).filter((l): l is number[] => !!l);
+    return lists.length ? lists[0].map((_, i) => lists.reduce((s, l) => s + (l[i] ?? 0), 0)) : undefined;
+  };
+  const top = (k: "p50Trend" | "p95Trend") => {
+    const lists = measured.map((e) => e.metrics![k]).filter((l): l is number[] => !!l);
+    return lists.length ? lists[0].map((_, i) => Math.max(...lists.map((l) => l[i] ?? 0))) : undefined;
+  };
+  const max = (k: "p50Ms" | "p95Ms") => (measured.some((e) => e.metrics![k]) ? Math.max(...measured.map((e) => e.metrics![k] ?? 0)) : undefined);
+  return {
+    perMinute,
+    errors: perMinute ? measured.reduce((s, e) => s + e.metrics!.errors * e.metrics!.perMinute, 0) / perMinute : 0,
+    p50: max("p50Ms"), p95: max("p95Ms"),
+    trend: sum("trend"), p50Trend: top("p50Trend"), p95Trend: top("p95Trend"),
+    status: worst(edges.map(edgeStatus)),
+  };
+}
+
+/** An app (or a namespace) with its numbers and the calls that touch it. */
+type SystemInfo = UniverseSystem & Numbers & { nodes: UniverseNode[]; inside: UniverseEdge[]; ins: UniverseEdge[]; outs: UniverseEdge[]; slowest?: number };
+/** A barrio with its apps, and the numbers of what comes into it. */
+type BarrioInfo = UniverseBarrio & Numbers & { systems: SystemInfo[]; tone: number };
+
+/** Everything the map and the panel need, made once per answer and filter. */
+interface World {
+  model: MapModel;
+  barrios: Map<string, BarrioInfo>;
+  systems: Map<string, SystemInfo>;
+  nodes: Map<string, UniverseNode & Numbers>;
+  edges: Map<string, UniverseEdge>;
+  roads: Map<string, Road>;
+  systemOf: Map<string, string>;
+  fromInternet: UniverseEdge[];
+}
+
+function build(u: UniverseData, showOther: boolean, showInfra: boolean): World {
+  const keep = new Set(u.systems.filter((s) => s.kind === "app" || (showOther && (s.kind === "other" || s.kind === "addon")) || (showInfra && s.kind === "infrastructure")).map((s) => s.id));
+  const nodesIn = u.nodes.filter((n) => n.kind !== "internet" && n.system && keep.has(n.system));
+  const systemOf = new Map(nodesIn.map((n) => [n.id, n.system!]));
+  const visible = (id: string) => id === "internet" || systemOf.has(id);
+  const edgeList = u.edges.filter((e) => visible(e.from) && visible(e.to));
+  const edges = new Map(edgeList.map((e) => [edgeId(e), e]));
+
+  // A service is down when its checks fail; otherwise it is as good as the calls it answers.
+  const nodes = new Map<string, UniverseNode & Numbers>();
+  for (const n of nodesIn) {
+    const ins = edgeList.filter((e) => e.to === n.id);
+    const nums = combine(ins);
+    let status = nums.status;
+    if (n.health && !n.health.up) status = "bad";
+    else if (status === "none" && n.health?.up) status = "ok";
+    nodes.set(n.id, { ...n, ...nums, status });
+  }
+
+  const systems: World["systems"] = new Map();
+  for (const s of u.systems) {
+    if (!keep.has(s.id)) continue;
+    const members = nodesIn.filter((n) => n.system === s.id);
+    if (!members.length) continue;
+    const ids = new Set(members.map((n) => n.id));
+    const ins = edgeList.filter((e) => ids.has(e.to) && !ids.has(e.from));
+    const outs = edgeList.filter((e) => ids.has(e.from) && !ids.has(e.to));
+    const inside = edgeList.filter((e) => ids.has(e.from) && ids.has(e.to));
+    // An app's calls are the ones that come from outside it; an app nobody
+    // calls shows what its services do.
+    let nums = combine(ins);
+    if (!nums.perMinute) nums = { ...combine(inside.filter((e) => nodes.get(e.to)?.kind === "service")), status: nums.status };
+    const status = worst([nums.status, ...members.map((n) => nodes.get(n.id)!.status)]);
+    // The slowest call that touches it, for "needs attention".
+    const slowest = Math.max(0, ...[...ins, ...inside].map((e) => e.metrics?.p95Ms ?? 0)) || undefined;
+    systems.set(s.id, { ...s, ...nums, status, nodes: members, inside, ins, outs, slowest });
+  }
+
+  // Roads between pueblos, and between barrios.
+  const roads = new Map<string, Road>();
+  const add = (from: string, to: string, e: UniverseEdge) => {
+    const id = `${from}>${to}`;
+    const r = roads.get(id) ?? { id, from, to, parts: [], ...combine([]) };
+    r.parts.push(e);
+    roads.set(id, r);
+  };
+  const barrioOf = new Map([...systems.values()].map((s) => [s.id, s.barrio]));
+  for (const e of edgeList) {
+    const fs = e.from === "internet" ? "internet" : systemOf.get(e.from)!, ts = systemOf.get(e.to)!;
+    if (fs === ts) continue;
+    add(fs, ts, e);
+    const fb = fs === "internet" ? "internet" : barrioOf.get(fs)!, tb = barrioOf.get(ts)!;
+    if (fb !== tb) add("b:" + fb, "b:" + tb, e);
+  }
+  for (const r of roads.values()) Object.assign(r, combine(r.parts));
+  const puebloRoads: MapRoad[] = [], barrioRoads: MapRoad[] = [];
+  for (const r of roads.values()) {
+    const mr: MapRoad = { id: r.id, from: r.from.replace(/^b:/, ""), to: r.to.replace(/^b:/, ""), perMinute: r.perMinute, p50: r.p50, status: r.status };
+    (r.id.startsWith("b:") ? barrioRoads : puebloRoads).push(mr);
+  }
+
+  const barrios: World["barrios"] = new Map();
+  let tone = 0;
+  for (const b of u.barrios ?? []) {
+    const list = [...systems.values()].filter((s) => s.barrio === b.id).sort((a, z) => z.perMinute - a.perMinute || z.nodes.length - a.nodes.length || a.id.localeCompare(z.id));
+    if (!list.length) continue;
+    const ins = edgeList.filter((e) => barrioOf.get(systemOf.get(e.to)!) === b.id && (e.from === "internet" || barrioOf.get(systemOf.get(e.from)!) !== b.id));
+    const nums = combine(ins);
+    barrios.set(b.id, { ...b, ...nums, perMinute: nums.perMinute || list.reduce((s, x) => s + x.perMinute, 0), status: worst(list.map((s) => s.status)), systems: list, tone: b.kind === "outskirts" ? -1 : b.kind === "centre" ? 4 : tone++ });
+  }
+  const model: MapModel = {
+    barrios: [...barrios.values()].map((b) => ({
+      id: b.id, title: barrioTitle(b), tone: b.tone, status: b.status, perMinute: b.perMinute,
+      pueblos: b.systems.map((s) => ({
+        id: s.id, title: systemTitle(s), status: s.status, perMinute: s.perMinute, p95: s.p95,
+        nodes: s.nodes.map((n) => ({ id: n.id, name: n.name, kind: n.kind, lang: n.language, status: nodes.get(n.id)!.status })),
+      })),
+    })),
+    barrioRoads, puebloRoads,
+    nodeRoads: edgeList.map((e) => ({ id: edgeId(e), from: e.from, to: e.to, perMinute: e.metrics?.perMinute ?? 0, p50: e.metrics?.p50Ms, status: edgeStatus(e) })),
+    puebloOf: systemOf,
+  };
+  return { model, barrios, systems, nodes, edges, roads, systemOf, fromInternet: edgeList.filter((e) => e.from === "internet") };
+}
+
+/** A barrio's name: its own, or what it is. */
+function barrioTitle(b: UniverseBarrio) {
+  if (b.kind === "centre") return t("Town centre");
+  if (b.kind === "outskirts") return t("Outskirts");
+  if (b.kind === "auto") return t("{name}'s barrio", { name: b.title });
+  return b.title;
+}
 const systemTitle = (s: UniverseSystem) => (s.id === "outside" ? t("Outside the cluster") : s.title);
-
-/** "2.5/min · p50 12 ms · p95 250 ms · 5% errors", or "" without numbers. */
-function metricsText(e: UniverseEdge) {
-  const m = e.metrics;
-  if (!m) return "";
-  const rate = m.perMinute >= 10 ? Math.round(m.perMinute) : Math.round(m.perMinute * 10) / 10;
-  const parts = [t("{n}/min", { n: rate })];
-  if (m.p50Ms) parts.push(t("p50 {ms} ms", { ms: Math.round(m.p50Ms) }));
-  if (m.p95Ms) parts.push(t("p95 {ms} ms", { ms: Math.round(m.p95Ms) }));
-  if (m.errors > 0) parts.push(t("{pct}% errors", { pct: Math.round(m.errors * 1000) / 10 }));
-  return parts.join(" · ");
-}
-
-/** How a measured line looks: thicker with more calls, red with errors, amber when slow. */
-function edgeStyle(e: UniverseEdge): { width: number; color?: string } {
-  const m = e.metrics;
-  if (!m) return { width: 1.6 };
-  const width = 1.6 + Math.min(4.4, Math.log2(1 + m.perMinute));
-  if (m.errors >= 0.05) return { width, color: "var(--bad)" };
-  if ((m.p95Ms ?? 0) >= 500) return { width, color: "var(--warn)" };
-  return { width };
-}
 
 /** The Universe page. */
 export function Universe() {
@@ -156,85 +180,112 @@ export function Universe() {
   const { data, error, setData } = usePoll(() => universeApi.get(win), [win], 60000);
   const [showOther, setShowOther] = useState(true);
   const [showInfra, setShowInfra] = useState(false);
-  const [selected, setSelected] = useState<string>();
-  const [hover, setHover] = useState<string>();
   const [refreshing, setRefreshing] = useState(false);
-
-  const view = useMemo(() => (data ? visible(data, showOther, showInfra) : undefined), [data, showOther, showInfra]);
-  const geo = useMemo(() => view && layout(view.systems, view.nodes, view.nodes.some((n) => n.kind === "internet")), [view]);
-
-  // Systems picked to zoom to (?apps=a,b, so the view can be shared).
+  const [sel, setSel] = useState<Pick>();
+  const [search, setSearch] = useState("");
+  // Where the map is (?barrio=…&pueblo=…), so a view can be shared.
   const [params, setParams] = useSearchParams();
-  const zoomed = useMemo(() => (params.get("apps") ?? "").split(",").filter(Boolean), [params]);
-  const setZoomed = (ids: string[]) => {
-    const next = new URLSearchParams(params);
-    if (ids.length) next.set("apps", ids.join(","));
-    else next.delete("apps");
-    setParams(next, { replace: true });
-  };
-  const [svgEl, setSvgEl] = useState<SVGSVGElement | null>(null);
-  const home = geo?.box ?? { x: 0, y: 0, w: 100, h: 100 };
-  const pz = usePanZoom(svgEl, home);
-  // The box around the zoomed systems, or the whole map.
-  const target = useMemo((): Box | undefined => {
-    if (!geo) return undefined;
-    const circles = zoomed.map((id) => geo.systems.get(id)).filter((c): c is NonNullable<typeof c> => !!c);
-    if (!circles.length) return geo.box;
-    const x0 = Math.min(...circles.map((c) => c.x - c.r)), x1 = Math.max(...circles.map((c) => c.x + c.r));
-    const y0 = Math.min(...circles.map((c) => c.y - c.r - 22)), y1 = Math.max(...circles.map((c) => c.y + c.r));
-    const pad = 30;
-    return { x: x0 - pad, y: y0 - pad, w: x1 - x0 + 2 * pad, h: y1 - y0 + 2 * pad };
-  }, [geo, zoomed]);
-  // Glide there when the picked systems or the filters change, not on every
-  // minute's refresh of the same map.
-  const targetKey = target ? `${zoomed.join(",")}|${Math.round(home.w)}x${Math.round(home.h)}` : "";
-  const fitted = useRef("");
-  useEffect(() => {
-    if (!target || fitted.current === targetKey) return;
-    fitted.current = targetKey;
-    pz.fit(target);
-  }, [targetKey, target, pz]);
+  const barrio = params.get("barrio") ?? undefined, pueblo = params.get("pueblo") ?? undefined;
+  const level = pueblo ? "pueblo" : barrio ? "barrio" : "region";
 
-  const focus = hover ?? selected;
-  const near = useMemo(() => {
-    const s = new Set<string>();
-    if (!focus || !view) return s;
-    s.add(focus);
-    for (const e of view.edges) {
-      if (e.from === focus) s.add(e.to);
-      if (e.to === focus) s.add(e.from);
+  const world = useMemo(() => (data ? build(data, showOther, showInfra) : undefined), [data, showOther, showInfra]);
+
+  const go = (to: { barrio?: string; pueblo?: string; sel?: Pick }) => {
+    const next = new URLSearchParams(params);
+    for (const k of ["barrio", "pueblo"] as const) {
+      if (to[k]) next.set(k, to[k]!);
+      else next.delete(k);
     }
-    return s;
-  }, [focus, view]);
+    setParams(next, { replace: false });
+    setSel(to.sel);
+  };
+  const goApp = (id: string) => {
+    const s = world?.systems.get(id);
+    if (s) go({ barrio: s.barrio, sel: { kind: "pueblo", id } });
+  };
+  const goRef = useRef(go);
+  goRef.current = go;
+
+  // The canvas.
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const maqueta = useRef<Maqueta>(null);
+  const onPick = useRef<(p: Pick | null, twice: boolean) => void>(() => {});
+  onPick.current = (p, twice) => {
+    if (!p) return setSel(undefined);
+    if (level === "region") {
+      if (p.kind === "barrio") return go({ barrio: p.id });
+      if (p.kind === "pueblo") return goApp(p.id);
+      return setSel(p);
+    }
+    if (level === "barrio") {
+      if (p.kind === "pueblo") return twice ? go({ barrio, pueblo: p.id }) : setSel(p);
+      if (p.kind === "barrio") return p.id === barrio ? setSel(undefined) : go({ barrio: p.id });
+      return setSel(p);
+    }
+    setSel(p);
+  };
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    const m = new Maqueta(canvasRef.current, (p, twice) => onPick.current(p, twice));
+    maqueta.current = m;
+    return () => m.destroy();
+  }, [world !== undefined]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (world && maqueta.current) maqueta.current.set(world.model, { level, barrio, pueblo, sel });
+  }, [world, level, barrio, pueblo, sel]);
+
+  // Esc goes up a level.
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || (e.target as HTMLElement).matches?.("input, select, textarea")) return;
+      if (sel) return setSel(undefined);
+      if (pueblo) return goRef.current({ barrio, sel: { kind: "pueblo", id: pueblo } });
+      if (barrio) return goRef.current({});
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [sel, barrio, pueblo]);
 
   if (error && !data) return <ErrorBox error={error} />;
-  if (!data || !view || !geo) return <div className="empty">{t("Loading…")}</div>;
+  if (!data || !world) return <div className="empty">{t("Loading…")}</div>;
 
-  const byId = new Map(view.nodes.map((n) => [n.id, n]));
-  const sel = selected ? byId.get(selected) : undefined;
   const apps = data.systems.filter((s) => s.kind === "app").length;
-  const zoomSet = new Set(zoomed);
-  // With systems picked, the others fade so the picked ones stand out.
-  const faded = (system?: string) => zoomSet.size > 0 && !(system && zoomSet.has(system));
-  const toggleZoom = (id: string) => setZoomed(zoomSet.has(id) ? zoomed.filter((z) => z !== id) : [...zoomed, id]);
+  const here = barrio ? world.barrios.get(barrio) : undefined;
+  const town = pueblo ? world.systems.get(pueblo) : undefined;
+  const hint = level === "region" ? t("Tap a barrio to come closer.")
+    : level === "barrio" ? t("Tap a pueblo to see what comes in and goes out; tap it twice to go in.")
+    : t("Tap a house, the well or a road. Esc to leave the pueblo.");
 
   return (
     <div className="stack">
-      <div className="row between">
+      <div className="row between u-head">
         <div>
           <h1>{t("Universe")}</h1>
           <p className="muted" style={{ margin: 0 }}>
-            {t("{apps} apps, {nodes} services and {edges} connections, seen from above.", { apps, nodes: data.nodes.filter((n) => n.kind !== "internet").length, edges: data.edges.length })}
+            {t("{apps} apps in {barrios} barrios, seen from the hill.", { apps, barrios: world.barrios.size })}
           </p>
         </div>
-        <div className="row">
+        <div className="row u-controls">
           <label className="row small"><input type="checkbox" checked={showOther} onChange={(e) => setShowOther(e.target.checked)} /> {t("Deployed another way")}</label>
           <label className="row small"><input type="checkbox" checked={showInfra} onChange={(e) => setShowInfra(e.target.checked)} /> {t("Cluster internals")}</label>
           {data.traces && (
-            <select value={win} onChange={(e) => setWin(e.target.value as UniverseWindow)} aria-label={t("Window for the measured numbers")}>
-              {windows.map((w) => <option key={w.id} value={w.id}>{t(w.label)}</option>)}
-            </select>
+            <label className="u-field">
+              <span>{t("Period")}</span>
+              <select value={win} onChange={(e) => setWin(e.target.value as UniverseWindow)}>
+                {windows.map((w) => <option key={w.id} value={w.id}>{t(w.label)}</option>)}
+              </select>
+            </label>
           )}
+          <label className="u-field">
+            <span>{t("Go to an app")}</span>
+            <input list="u-apps" value={search} placeholder={t("Name")} onChange={(e) => {
+              const v = e.target.value;
+              setSearch(v);
+              const s = [...world.systems.values()].find((x) => x.id === v.trim().toLowerCase());
+              if (s) { goApp(s.id); setSearch(""); }
+            }} />
+            <datalist id="u-apps">{[...world.systems.keys()].sort().map((id) => <option key={id} value={id} />)}</datalist>
+          </label>
           <button disabled={refreshing} onClick={() => { setRefreshing(true); universeApi.get(win, true).then(setData).finally(() => setRefreshing(false)); }}>
             {refreshing ? t("Refreshing…") : t("Refresh")}
           </button>
@@ -243,199 +294,395 @@ export function Universe() {
 
       {data.metricsError && <div className="alert small">{t("Latency could not be read from the metrics store: {error}", { error: data.metricsError })}</div>}
 
-      <div className="u-chips row" role="group" aria-label={t("Zoom to apps")}>
-        <span className="small muted">{t("Zoom to:")}</span>
-        <button className={`chip-btn ${zoomSet.size === 0 ? "on" : ""}`} onClick={() => setZoomed([])}>{t("Everything")}</button>
-        {view.systems.filter((s) => s.kind !== "infrastructure" || showInfra).map((s) => (
-          <button key={s.id} className={`chip-btn ${zoomSet.has(s.id) ? "on" : ""}`} aria-pressed={zoomSet.has(s.id)} onClick={() => toggleZoom(s.id)}>
-            <i className="u-chip-dot" style={{ background: colorOf(s.id) }} />{systemTitle(s)}
-          </button>
-        ))}
-      </div>
+      <nav className="u-crumbs" aria-label={t("Where you are")}>
+        {level === "region" ? <span>{t("Region")}</span> : <button className="link" onClick={() => go({})}>{t("Region")}</button>}
+        {here && <><span className="muted">›</span>{level === "barrio" && !sel ? <span>{barrioTitle(here)}</span> : <button className="link" onClick={() => go({ barrio })}>{barrioTitle(here)}</button>}</>}
+        {town && <><span className="muted">›</span>{sel ? <button className="link" onClick={() => setSel(undefined)}>{systemTitle(town)}</button> : <span>{systemTitle(town)}</span>}</>}
+      </nav>
 
       <div className="universe">
-        <div className="universe-frame">
-        <svg ref={setSvgEl} className="universe-map card" viewBox={pz.viewBox} role="img" aria-label={t("Map of every app and its connections")}
-          onClick={() => { if (!pz.dragged()) setSelected(undefined); }}>
-          <defs>
-            <marker id="u-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
-            </marker>
-          </defs>
-          {view.systems.map((s) => {
-            const c = geo.systems.get(s.id);
-            if (!c) return null;
-            const color = colorOf(s.id);
-            return (
-              <g key={s.id} className="u-system" opacity={faded(s.id) ? 0.3 : 1}
-                onDoubleClick={(ev) => { ev.stopPropagation(); setZoomed([s.id]); }}>
-                <circle cx={c.x} cy={c.y} r={c.r} fill={color} fillOpacity={0.07} stroke={color} strokeOpacity={0.45} strokeDasharray={s.kind === "app" ? undefined : "5 5"} />
-                <text x={c.x} y={c.y - c.r - 8} textAnchor="middle" className="u-system-title" fill={color}>{systemTitle(s)}</text>
-              </g>
-            );
-          })}
-          {view.edges.map((e) => {
-            const a = geo.nodes.get(e.from), b = geo.nodes.get(e.to);
-            if (!a || !b) return null;
-            const from = byId.get(e.from), to = byId.get(e.to);
-            const crosses = from?.system !== to?.system;
-            const dim = (focus && !(e.from === focus || e.to === focus)) || (faded(from?.system) && faded(to?.system));
-            const cls = e.sources.includes("ingress") ? "u-edge ingress" : e.sources.includes("declared") ? "u-edge declared"
-              : e.sources.includes("env") ? "u-edge env" : "u-edge traced";
-            const st = edgeStyle(e);
-            const d = edgePath(a, b, e.from === "internet" ? INTERNET_R : NODE_R, NODE_R, crosses);
-            const lit = focus && (e.from === focus || e.to === focus);
-            return (
-              <g key={`${e.from}>${e.to}`} opacity={dim ? 0.1 : 1}>
-                <path className={cls} d={d} markerEnd="url(#u-arrow)" style={{ strokeWidth: st.width, ...(st.color ? { stroke: st.color, strokeOpacity: 0.85 } : {}) }}>
-                  <title>{edgeTitle(e, byId)}</title>
-                </path>
-                {lit && e.metrics?.p50Ms ? (
-                  <text className="u-edge-label" x={(a.x + b.x) / 2} y={(a.y + b.y) / 2} textAnchor="middle">{Math.round(e.metrics.p50Ms)} ms</text>
-                ) : null}
-              </g>
-            );
-          })}
-          {view.nodes.map((n) => {
-            const p = geo.nodes.get(n.id);
-            if (!p) return null;
-            const dim = (focus && !near.has(n.id)) || (n.kind !== "internet" && faded(n.system));
-            const r = n.kind === "internet" ? INTERNET_R : NODE_R;
-            return (
-              <g key={n.id} className={`u-node ${n.kind}${n.id === selected ? " selected" : ""}`} transform={`translate(${p.x},${p.y})`} opacity={dim ? 0.25 : 1}
-                onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(undefined)}
-                onClick={(ev) => { ev.stopPropagation(); if (!pz.dragged()) setSelected(n.id === selected ? undefined : n.id); }}
-                tabIndex={0} role="button" aria-label={n.name}
-                onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setSelected(n.id); } }}>
-                {n.kind === "postgres" || n.kind === "redis"
-                  ? <rect x={-r} y={-r} width={2 * r} height={2 * r} rx={5} stroke={healthColor(n)} />
-                  : <circle r={r} stroke={n.kind === "internet" ? "var(--anil)" : healthColor(n)} strokeDasharray={n.kind === "workload" ? "3 3" : undefined} />}
-                <text className="u-glyph" textAnchor="middle" dy="0.35em">{glyph(n)}</text>
-                {n.kind !== "internet" && <text className="u-label" textAnchor="middle" y={r + 13}>{n.name}</text>}
-              </g>
-            );
-          })}
-        </svg>
-        <div className="u-zoom" role="group" aria-label={t("Zoom")}>
-          <button onClick={() => pz.zoom(1 / 1.5)} title={t("Zoom in")} aria-label={t("Zoom in")}>+</button>
-          <button onClick={() => pz.zoom(1.5)} title={t("Zoom out")} aria-label={t("Zoom out")}>−</button>
-          <button onClick={() => target && pz.fit(target)} title={zoomSet.size ? t("Back to the picked apps") : t("See everything")} aria-label={t("Fit")}>⤢</button>
+        <div className="u-stage">
+          <canvas ref={canvasRef} className="u-canvas" role="img" aria-label={t("Map of every app as a village")} />
+          <div className="u-zoom" role="group" aria-label={t("Zoom")}>
+            <button onClick={() => maqueta.current?.zoom(1.3)} title={t("Zoom in")} aria-label={t("Zoom in")}>+</button>
+            <button onClick={() => maqueta.current?.zoom(1 / 1.3)} title={t("Zoom out")} aria-label={t("Zoom out")}>−</button>
+            <button onClick={() => maqueta.current?.fit()} title={t("Fit")} aria-label={t("Fit")}>⤢</button>
+          </div>
+          <div className="u-hint small"><span>{hint}</span></div>
         </div>
-        </div>
-
-        <aside className="universe-side card stack">
-          {sel ? <NodeDetail n={sel} view={view} byId={byId} onPick={setSelected} onZoom={(id) => setZoomed([id])} />
-            : <Legend generated={data.generated} traces={data.traces} />}
+        <aside className="universe-side card stack" aria-live="polite">
+          <Panel world={world} data={data} level={level} barrio={here} town={town} sel={sel} setSel={setSel} go={go} goApp={goApp} />
         </aside>
       </div>
+
+      <details className="card u-legend">
+        <summary><strong>{t("How to read it")}</strong></summary>
+        <ul className="small">
+          <li>{t("Barrio: the apps of one team or domain (barrio: in rendimiento.yaml), or grouped by what they call. From afar you see the barrios and the big roads between them.")}</li>
+          <li>{t("Pueblo: an app. More houses, more services; the ring on the ground is its health (green up, red down or failing, amber slow, gray not checked).")}</li>
+          <li>{t("Road: a connection. Wider, more calls. Fireflies go from the caller to the callee; the faster they move, the lower the latency. A dashed footpath is a connection nobody measured.")}</li>
+          <li>{t("Red: 5% or more of the calls fail; amber: the slowest 5% take half a second or more.")}</li>
+          <li>{t("Inside a pueblo: houses are services, the well is the database and the jar the cache. Calls from outside come in through the arch; calls to other apps leave by the signposts.")}</li>
+          <li>{t("Scroll or pinch to zoom, drag to move, Esc to go up a level.")}</li>
+        </ul>
+        {!data.traces && <p className="small muted">{t("For latency on each road, the platform needs METRICS_URL and the OpenTelemetry collector add-on.")}</p>}
+        <p className="small muted" style={{ margin: 0 }}>{t("Updated {when}", { when: timeAgo(data.generated) })} · <Link to="/services">{t("Services")}</Link></p>
+      </details>
     </div>
   );
 }
 
-/** The systems, nodes and edges the filters leave on the map. */
-function visible(u: UniverseData, showOther: boolean, showInfra: boolean) {
-  const keep = new Set(u.systems.filter((s) => s.kind === "app" || (showOther && (s.kind === "other" || s.kind === "addon")) || (showInfra && s.kind === "infrastructure")).map((s) => s.id));
-  let nodes = u.nodes.filter((n) => n.kind === "internet" || (n.system && keep.has(n.system)));
-  const ids = new Set(nodes.map((n) => n.id));
-  const edges = u.edges.filter((e) => ids.has(e.from) && ids.has(e.to));
-  if (!edges.some((e) => e.from === "internet")) nodes = nodes.filter((n) => n.kind !== "internet");
-  return { systems: u.systems.filter((s) => keep.has(s.id)), nodes, edges };
-}
+// ---- the panel ----
 
-/** The letter or sign inside a node: the language, or what it is. */
-function glyph(n: UniverseNode) {
-  switch (n.kind) {
-    case "internet": return "🌐";
-    case "postgres": return "PG";
-    case "redis": return "R";
-    case "workload": return "⏱";
-    case "external": return "↗";
-  }
-  const lang: Record<string, string> = { node: "JS", python: "Py", java: "J", go: "Go", static: "◇" };
-  return (n.language && lang[n.language]) || "•";
-}
+type Go = (to: { barrio?: string; pueblo?: string; sel?: Pick }) => void;
 
-/** "wellness/ui → wellness/api (API_URL; declared in rendimiento.yaml)" */
-function edgeTitle(e: UniverseEdge, byId: Map<string, UniverseNode>) {
-  const name = (id: string) => (id === "internet" ? t("Internet") : byId.get(id)?.name ?? id);
-  const how = e.sources.map((s) => t(sourceLabel[s])).join(", ");
-  const extra = [e.env ?? e.hosts?.join(", "), metricsText(e)].filter(Boolean).join(" · ");
-  return `${name(e.from)} → ${name(e.to)}${extra ? ` · ${extra}` : ""} (${how})`;
-}
-
-/** The side panel for a picked node: what it is, its health, what it calls and what calls it. */
-function NodeDetail({ n, view, byId, onPick, onZoom }: {
-  n: UniverseNode; view: ReturnType<typeof visible>; byId: Map<string, UniverseNode>; onPick: (id: string) => void; onZoom: (system: string) => void;
+function Panel({ world, data, level, barrio, town, sel, setSel, go, goApp }: {
+  world: World; data: UniverseData; level: string; barrio?: BarrioInfo; town?: SystemInfo;
+  sel?: Pick; setSel: (p?: Pick) => void; go: Go; goApp: (id: string) => void;
 }) {
-  const navigate = useNavigate();
-  const system = view.systems.find((s) => s.id === n.system);
-  const calls = view.edges.filter((e) => e.from === n.id);
-  const calledBy = view.edges.filter((e) => e.to === n.id);
-  const page = system?.kind === "app" && system.app ? `/apps/${system.app}` : n.catalog ? `/services/${n.id}` : undefined;
-  const list = (edges: UniverseEdge[], other: (e: UniverseEdge) => string) => (
-    <ul className="u-list">
-      {edges.map((e) => {
-        const id = other(e);
-        return (
-          <li key={id}>
-            <button className="link" onClick={() => onPick(id)}>{id === "internet" ? t("Internet") : byId.get(id)?.name ?? id}</button>
-            <span className="small muted"> {[e.env ?? e.hosts?.join(", "), e.sources.map((s) => t(sourceLabel[s])).join(", ")].filter(Boolean).join(" · ")}</span>
-            {e.metrics && <div className="small">{metricsText(e)}</div>}
-          </li>
-        );
-      })}
-    </ul>
+  if (sel?.kind === "pueblo" && world.systems.has(sel.id)) return <SystemPanel s={world.systems.get(sel.id)!} world={world} enter={() => go({ barrio: world.systems.get(sel.id)!.barrio, pueblo: sel.id })} goApp={goApp} />;
+  if (sel?.kind === "node" && world.nodes.has(sel.id)) return <NodePanel n={world.nodes.get(sel.id)!} world={world} setSel={setSel} />;
+  if (sel?.kind === "road" && world.edges.has(sel.id)) return <EdgePanel e={world.edges.get(sel.id)!} world={world} goApp={goApp} />;
+  if (sel?.kind === "road" && world.roads.has(sel.id)) return <RoadPanel r={world.roads.get(sel.id)!} world={world} setSel={setSel} goApp={goApp} />;
+  if (sel?.kind === "sign" && town) {
+    const outs = town.outs.filter((e) => (e.to === "internet" ? "internet" : world.systemOf.get(e.to)) === sel.id);
+    return <EdgeList title={t("Calls to {name}", { name: sel.id })} edges={outs} world={world} side="out" setSel={setSel} after={sel.id !== "internet" && <button onClick={() => goApp(sel.id)}>{t("Go to {name}", { name: sel.id })}</button>} />;
+  }
+  if (sel?.kind === "arch" && town) return <EdgeList title={t("What comes into {name}", { name: systemTitle(town) })} edges={town.ins} world={world} side="in" setSel={setSel} empty={t("Nobody calls it: it only works outward.")} />;
+  if (sel?.kind === "internet") return <EdgeList title={t("Internet")} lead={t("What comes through the public addresses.")} edges={world.fromInternet} world={world} side="out" setSel={setSel} />;
+  if (sel?.kind === "barrio" && world.barrios.has(sel.id)) return <BarrioPanel b={world.barrios.get(sel.id)!} goApp={goApp} />;
+  if (level === "pueblo" && town) return <SystemPanel s={town} world={world} inside goApp={goApp} setSel={setSel} />;
+  if (level === "barrio" && barrio) return <BarrioPanel b={barrio} goApp={goApp} />;
+  return <RegionPanel world={world} data={data} go={go} goApp={goApp} />;
+}
+
+function Figures({ list }: { list: [string, string, Status?][] }) {
+  return <div className="u-figures">{list.map(([k, v, s]) => <div key={k}><small>{k}</small><b className={s && s !== "none" ? `u-${s}` : ""}>{v}</b></div>)}</div>;
+}
+const pct = (f: number) => `${Math.round(f * 1000) / 10}%`;
+const figures = (n: Numbers): [string, string, Status?][] => [
+  [t("Requests"), n.perMinute ? rate(n.perMinute) : "—"],
+  [t("Failing"), n.perMinute ? pct(n.errors) : "—", n.errors >= 0.05 ? "bad" : undefined],
+  ["p50", n.p50 ? ms(n.p50) : "—"],
+  ["p95", n.p95 ? ms(n.p95) : "—", n.p95 && n.p95 >= 500 ? "slow" : undefined],
+];
+const Badge = ({ s }: { s: Status }) => <span className={`u-status u-${s}`}>{t(statusLabel[s])}</span>;
+
+/** A tiny chart with an area, for the ticker rows. */
+function Spark({ values, status }: { values?: number[]; status: Status }) {
+  if (!values || values.length < 2 || !values.some((v) => v > 0)) return <span className="u-spark" />;
+  const w = 76, h = 26, max = Math.max(...values) * 1.1 || 1;
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * w, h - 2 - (v / max) * (h - 4)]);
+  const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join("");
+  const last = pts[pts.length - 1];
+  return (
+    <svg className={`u-spark u-${status}`} viewBox={`0 0 ${w} ${h}`} width={w} height={h} aria-hidden="true">
+      <path d={`${d}L${w} ${h}L0 ${h}Z`} className="area" />
+      <path d={d} className="line" />
+      <circle cx={last[0]} cy={last[1]} r="2.4" />
+    </svg>
   );
+}
+
+/** The change across the period: the last quarter against the first. */
+function Change({ values }: { values?: number[] }) {
+  if (!values || values.length < 8) return null;
+  const q = Math.floor(values.length / 4), avg = (l: number[]) => l.reduce((s, v) => s + v, 0) / l.length;
+  const a = avg(values.slice(0, q)), b = avg(values.slice(-q));
+  if (!a) return null;
+  const d = ((b - a) / a) * 100;
+  return <small className={d >= 0 ? "u-up" : "u-down"}>{d >= 0 ? "▲" : "▼"} {Math.abs(Math.round(d * 10) / 10)}%</small>;
+}
+
+function Tick({ name, sub, n, onClick }: { name: string; sub: string; n: Numbers; onClick: () => void }) {
+  return (
+    <button className="u-tick" type="button" onClick={onClick}>
+      <span className={`u-dot u-${n.status}`} />
+      <span className="u-tn">{name}<small>{sub}</small></span>
+      <Spark values={n.trend} status={n.status} />
+      <span className="u-tv">{n.perMinute ? rate(n.perMinute) : "—"}<Change values={n.trend} /></span>
+    </button>
+  );
+}
+
+/** Latency over the period: p95 solid, p50 dashed. */
+function Latency({ n }: { n: Numbers }) {
+  const p95 = n.p95Trend, p50 = n.p50Trend;
+  if (!p95 || !p95.some((v) => v > 0)) return <p className="small muted" style={{ margin: 0 }}>{t("No measured calls in this period.")}</p>;
+  const w = 320, h = 140, l = 48, r = 8, top = 10, b = 20, max = Math.max(...p95) * 1.15 || 1;
+  const X = (i: number) => l + (i / (p95.length - 1)) * (w - l - r), Y = (v: number) => top + (1 - v / max) * (h - top - b);
+  const line = (vals: number[]) => vals.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join("");
   return (
     <>
+      <svg className={`u-chart u-${n.status}`} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={t("Latency")}>
+        {[0, 0.5, 1].map((f) => (
+          <g key={f}><line x1={l} x2={w - r} y1={Y(max * f)} y2={Y(max * f)} className="grid" /><text x={l - 6} y={Y(max * f) + 4} textAnchor="end">{ms(max * f)}</text></g>
+        ))}
+        <path d={`${line(p95)}L${X(p95.length - 1)} ${Y(0)}L${X(0)} ${Y(0)}Z`} className="area" />
+        <path d={line(p95)} className="p95" />
+        {p50 && <path d={line(p50)} className="p50" />}
+        <text x={l} y={h - 5}>{t("start of the period")}</text>
+        <text x={w - r} y={h - 5} textAnchor="end">{t("now")}</text>
+      </svg>
+      <p className="small muted" style={{ margin: 0 }}>{t("Solid line: p95. Dashed: p50.")}</p>
+    </>
+  );
+}
+
+/** What comes into an app on the left and what leaves on the right, as ribbons. */
+function Sankey({ s, world, goApp }: { s: SystemInfo; world: World; goApp: (id: string) => void }) {
+  const group = (edges: UniverseEdge[], other: (e: UniverseEdge) => string) => {
+    const m = new Map<string, UniverseEdge[]>();
+    for (const e of edges) m.set(other(e), [...(m.get(other(e)) ?? []), e]);
+    return [...m.entries()].map(([id, es]) => ({ id, ...combine(es) })).sort((a, b) => b.perMinute - a.perMinute || a.id.localeCompare(b.id));
+  };
+  const sys = (id: string) => (id === "internet" ? "internet" : world.systemOf.get(id) ?? id);
+  const ins = group(s.ins, (e) => sys(e.from)), outs = group(s.outs, (e) => sys(e.to));
+  if (!ins.length && !outs.length) return <p className="small muted" style={{ margin: 0 }}>{t("No known connections.")}</p>;
+  const w = 320, rows = Math.max(ins.length, outs.length, 1), H = Math.max(110, rows * 34 + 10);
+  // Unmeasured connections still get a thin ribbon.
+  const weight = (x: Numbers) => x.perMinute || 0;
+  const total = Math.max(ins.reduce((a, x) => a + weight(x), 0), outs.reduce((a, x) => a + weight(x), 0), 1);
+  const k = (H * 0.55) / total, thick = (x: Numbers) => Math.max(3, weight(x) * k);
+  const xL = 96, xC = 156, xR = 216, cw = 8;
+  const cIn = ins.reduce((a, x) => a + thick(x), 0), cOut = outs.reduce((a, x) => a + thick(x), 0), cH = Math.max(cIn, cOut, 20), cy0 = (H - cH) / 2;
+  const band = (x1: number, y1: number, x2: number, y2: number, th: number) => {
+    const mx = (x1 + x2) / 2;
+    return `M${x1} ${y1}C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}L${x2} ${y2 + th}C${mx} ${y2 + th} ${mx} ${y1 + th} ${x1} ${y1 + th}Z`;
+  };
+  const name = (id: string) => (id === "internet" ? t("Internet") : id);
+  const side = (list: typeof ins, left: boolean) => {
+    const step = (H - 12) / Math.max(1, list.length);
+    let y = 6, cy = cy0 + (cH - (left ? cIn : cOut)) / 2;
+    return list.map((x) => {
+      const th = thick(x), ny = y + (step - th) / 2, c = cy;
+      y += step; cy += th;
+      const go = () => x.id !== "internet" && goApp(x.id);
+      return (
+        <g key={(left ? "in:" : "out:") + x.id} className={`u-band u-${x.status}`} onClick={go}>
+          <path d={left ? band(xL + 6, ny, xC, c, th) : band(xC + cw, c, xR, ny, th)} />
+          <rect x={left ? xL : xR} y={ny} width={6} height={th} rx={2} />
+          <text x={left ? xL - 6 : xR + 12} y={ny + th / 2} textAnchor={left ? "end" : "start"} dominantBaseline="middle">
+            {name(x.id)}
+            <tspan x={left ? xL - 6 : xR + 12} dy="12" className="num">{x.perMinute ? rate(x.perMinute) : t("not measured")}</tspan>
+          </text>
+        </g>
+      );
+    });
+  };
+  return (
+    <svg className="u-sankey" viewBox={`0 0 ${w} ${H}`} role="img" aria-label={t("What comes in and what goes out")}>
+      {side(ins, true)}
+      {side(outs, false)}
+      <rect x={xC} y={cy0} width={cw} height={cH} rx={3} className="center" />
+      {!ins.length && <text x={xL} y={H / 2} textAnchor="end" className="num">{t("nobody comes in")}</text>}
+      {!outs.length && <text x={xR} y={H / 2} className="num">{t("calls no other app")}</text>}
+    </svg>
+  );
+}
+
+function RegionPanel({ world, data, go, goApp }: { world: World; data: UniverseData; go: Go; goApp: (id: string) => void }) {
+  const fromNet = combine(world.fromInternet);
+  const attention = [...world.systems.values()].filter((s) => s.status === "slow" || s.status === "bad").sort((a, b) => (a.status === "bad" ? -1 : 1) - (b.status === "bad" ? -1 : 1));
+  return (
+    <>
+      <div><h2 className="u-title">{t("The whole region")}</h2><p className="small muted" style={{ margin: 0 }}>{t("Tap a barrio to come closer, or a road to see what goes between them.")}</p></div>
+      <Figures list={[[t("From the internet"), fromNet.perMinute ? rate(fromNet.perMinute) : "—"], [t("Failing"), fromNet.perMinute ? pct(fromNet.errors) : "—", fromNet.errors >= 0.05 ? "bad" : undefined], [t("Pueblos"), String(world.systems.size)], [t("Connections"), String(data.edges.length)]]} />
+      <Attention list={attention} goApp={goApp} />
       <div>
-        <strong className="mono">{n.name}</strong>
-        <div className="small muted">{t(kindLabel[n.kind])}{system ? ` · ${systemTitle(system)}` : ""}{n.language ? ` · ${n.language}` : ""}</div>
-      </div>
-      {n.health && (
-        <div className="row">
-          <span className={`badge ${n.health.up ? "ok" : "bad"}`}>{n.health.up ? t("Up") : t("Down")}</span>
-          {!!n.health.insideMs && <span className="small">{t("inside {ms} ms", { ms: n.health.insideMs })}</span>}
-          {!!n.health.publicMs && <span className="small">{t("public {ms} ms", { ms: n.health.publicMs })}</span>}
-          <span className="small muted">{timeAgo(n.health.at)}</span>
+        <h3 className="u-h">{t("Barrios")}</h3>
+        <div className="u-ticks">
+          {[...world.barrios.values()].map((b) => <Tick key={b.id} name={barrioTitle(b)} sub={barrioKind(b)} n={b} onClick={() => go({ barrio: b.id })} />)}
         </div>
-      )}
-      {n.health?.error && <div className="small" style={{ color: "var(--bad)" }}>{n.health.error}</div>}
-      {n.kind !== "internet" && n.catalog && <div className="small muted">{t("{ready} of {pods} pods ready", { ready: n.ready, pods: n.pods })}</div>}
-      {n.public?.map((u) => <a key={u} className="small" href={u} target="_blank" rel="noreferrer">{u}</a>)}
-      {calls.length > 0 && <div><strong className="small">{t("Calls")}</strong>{list(calls, (e) => e.to)}</div>}
-      {calledBy.length > 0 && <div><strong className="small">{t("Called by")}</strong>{list(calledBy, (e) => e.from)}</div>}
-      {calls.length === 0 && calledBy.length === 0 && <div className="small muted">{t("No known connections.")}</div>}
-      <div className="row">
-        {page && <button onClick={() => navigate(page)}>{system?.kind === "app" ? t("Open app") : t("Open in Services")}</button>}
-        {system && <button onClick={() => onZoom(system.id)}>{t("Zoom to {name}", { name: systemTitle(system) })}</button>}
+      </div>
+      <p className="small muted" style={{ margin: 0 }}>{t("The change (▲▼) compares the end of the period with its start.")}</p>
+    </>
+  );
+}
+
+function barrioKind(b: BarrioInfo) {
+  const n = t("{n} apps", { n: b.systems.length });
+  if (b.kind === "centre") return `${n} · ${t("call no other app")}`;
+  if (b.kind === "outskirts") return `${n} · ${t("not deployed by rendimiento")}`;
+  if (b.kind === "auto") return `${n} · ${t("grouped by what they call")}`;
+  return n;
+}
+
+function Attention({ list, goApp }: { list: SystemInfo[]; goApp: (id: string) => void }) {
+  return (
+    <div>
+      <h3 className="u-h">{t("Needs attention")}</h3>
+      {list.length ? (
+        <div className="row u-chips">
+          {list.map((s) => (
+            <button key={s.id} className={`u-chip u-${s.status}`} onClick={() => goApp(s.id)}>
+              {systemTitle(s)} · {s.status === "bad" ? (s.errors >= 0.05 ? t("{pct} failing", { pct: pct(s.errors) }) : t("Down")) : `p95 ${ms(s.slowest ?? s.p95 ?? 0)}`}
+            </button>
+          ))}
+        </div>
+      ) : <p className="small muted" style={{ margin: 0 }}>{t("Nothing needs attention in this period.")}</p>}
+    </div>
+  );
+}
+
+function BarrioPanel({ b, goApp }: { b: BarrioInfo; goApp: (id: string) => void }) {
+  return (
+    <>
+      <div><h2 className="u-title">{barrioTitle(b)}</h2><p className="small muted" style={{ margin: 0 }}>{barrioKind(b)}. {t("Tap a pueblo to see what comes in and goes out; tap it twice to go in.")}</p></div>
+      <Figures list={[[t("Coming in from outside"), b.perMinute ? rate(b.perMinute) : "—"], [t("Failing"), b.perMinute ? pct(b.errors) : "—", b.errors >= 0.05 ? "bad" : undefined], ["p50", b.p50 ? ms(b.p50) : "—"], [t("Slowest p95"), b.p95 ? ms(b.p95) : "—", b.p95 && b.p95 >= 500 ? "slow" : undefined]]} />
+      <Attention list={b.systems.filter((s) => s.status === "slow" || s.status === "bad")} goApp={goApp} />
+      <div>
+        <h3 className="u-h">{t("Pueblos")}</h3>
+        <div className="u-ticks">
+          {b.systems.map((s) => <Tick key={s.id} name={systemTitle(s)} sub={t("{n} services", { n: s.nodes.length })} n={s} onClick={() => goApp(s.id)} />)}
+        </div>
       </div>
     </>
   );
 }
 
-/** What the shapes and lines mean, shown while nothing is picked. */
-function Legend({ generated, traces }: { generated: string; traces: boolean }) {
+function SystemPanel({ s, world, inside, enter, goApp, setSel }: {
+  s: SystemInfo; world: World; inside?: boolean; enter?: () => void; goApp: (id: string) => void; setSel?: (p?: Pick) => void;
+}) {
+  const page = s.kind === "app" && s.app ? `/apps/${s.app}` : undefined;
   return (
     <>
-      <strong>{t("How to read it")}</strong>
-      <ul className="u-legend small">
-        <li><svg width="22" height="16"><circle cx="11" cy="8" r="6" className="u-key" stroke="var(--ok)" /></svg>{t("A service; the ring is its latest uptime check (green up, red down, gray not checked)")}</li>
-        <li><svg width="22" height="16"><rect x="5" y="2" width="12" height="12" rx="3" className="u-key" stroke="var(--muted)" /></svg>{t("A database or cache the app runs")}</li>
-        <li><svg width="22" height="16"><circle cx="11" cy="8" r="6" className="u-key" stroke="var(--muted)" strokeDasharray="3 3" /></svg>{t("A job or worker that only calls others")}</li>
-        <li><svg width="22" height="16"><path d="M2,8 H20" className="u-edge declared" /></svg>{t("Declared in rendimiento.yaml (needs)")}</li>
-        <li><svg width="22" height="16"><path d="M2,8 H20" className="u-edge env" /></svg>{t("Found in its environment variables")}</li>
-        <li><svg width="22" height="16"><path d="M2,8 H20" className="u-edge ingress" /></svg>{t("From the internet, through a public address")}</li>
-        <li><svg width="22" height="16"><path d="M2,8 H20" className="u-edge traced" /></svg>{t("Seen only in traces: nobody declared it")}</li>
-        <li><svg width="22" height="16"><path d="M2,8 H20" className="u-edge declared" style={{ strokeWidth: 5 }} /></svg>{t("Thicker: more calls; red: 5% or more fail; amber: the slowest 5% take half a second or more")}</li>
-      </ul>
-      <p className="small muted" style={{ margin: 0 }}>{t("Scroll or pinch to zoom, drag to move, double-click an app to zoom to it.")}</p>
-      <p className="small muted" style={{ margin: 0 }}>
-        {traces
-          ? t("Click a service to see what it calls and what calls it, with calls per minute, latency and errors for apps with observe.")
-          : t("Click a service to see what it calls and what calls it. For latency on each line, the platform needs METRICS_URL and the OpenTelemetry collector add-on.")}
-      </p>
-      <p className="small muted" style={{ margin: 0 }}>{t("Updated {when}", { when: timeAgo(generated) })} · <Link to="/services">{t("Services")}</Link></p>
+      <div>
+        <h3 className="u-h">{t(s.kind === "app" ? "App" : "Deployed another way")}</h3>
+        <h2 className="u-title">{systemTitle(s)}</h2>
+        <Badge s={s.status} />
+      </div>
+      <Figures list={figures(s)} />
+      <div className="row">
+        {!inside && enter && <button className="primary" onClick={enter}>{t("Go into the pueblo")}</button>}
+        {page && <Link className="button" to={page}>{t("Open app")}</Link>}
+      </div>
+      <div><h3 className="u-h">{t("What comes in and what goes out")}</h3><Sankey s={s} world={world} goApp={goApp} /></div>
+      {inside && setSel && (
+        <div>
+          <h3 className="u-h">{t("Services")}</h3>
+          <div className="u-ticks">
+            {s.nodes.map((n) => { const nn = world.nodes.get(n.id)!; return <Tick key={n.id} name={n.name} sub={t(kindLabel[n.kind])} n={nn} onClick={() => setSel({ kind: "node", id: n.id })} />; })}
+          </div>
+        </div>
+      )}
+      <div><h3 className="u-h">{t("Latency of what comes in")}</h3><Latency n={s} /></div>
+    </>
+  );
+}
+
+function NodePanel({ n, world, setSel }: { n: UniverseNode & Numbers; world: World; setSel: (p?: Pick) => void }) {
+  const calls = [...world.edges.values()].filter((e) => e.from === n.id), by = [...world.edges.values()].filter((e) => e.to === n.id);
+  return (
+    <>
+      <div>
+        <h3 className="u-h">{t(kindLabel[n.kind])}{n.system ? ` · ${n.system}` : ""}{n.language ? ` · ${n.language}` : ""}</h3>
+        <h2 className="u-title">{n.name}</h2>
+        <Badge s={n.status} />
+      </div>
+      {n.health && (
+        <div className="row small">
+          <span className={`badge ${n.health.up ? "ok" : "bad"}`}>{n.health.up ? t("Up") : t("Down")}</span>
+          {!!n.health.insideMs && <span>{t("inside {ms} ms", { ms: n.health.insideMs })}</span>}
+          {!!n.health.publicMs && <span>{t("public {ms} ms", { ms: n.health.publicMs })}</span>}
+          <span className="muted">{timeAgo(n.health.at)}</span>
+        </div>
+      )}
+      {n.health?.error && <div className="small" style={{ color: "var(--bad)" }}>{n.health.error}</div>}
+      <Figures list={figures(n)} />
+      {n.catalog && <div className="small muted">{t("{ready} of {pods} pods ready", { ready: n.ready, pods: n.pods })}</div>}
+      {n.public?.map((u) => <a key={u} className="small" href={u} target="_blank" rel="noreferrer">{u}</a>)}
+      <div><h3 className="u-h">{t("Latency")}</h3><Latency n={n} /></div>
+      {by.length > 0 && <EdgeRows title={t("Called by")} edges={by} world={world} side="in" setSel={setSel} />}
+      {calls.length > 0 && <EdgeRows title={t("Calls")} edges={calls} world={world} side="out" setSel={setSel} />}
+      {n.catalog && <Link className="small" to={`/services/${n.id}`}>{t("Open in Services")}</Link>}
+    </>
+  );
+}
+
+function nodeName(id: string, world: World) {
+  if (id === "internet") return t("Internet");
+  const n = world.nodes.get(id);
+  return n?.system ? `${n.system}/${n.name}` : n?.name ?? id;
+}
+
+function EdgeRows({ title, edges, world, side, setSel }: { title: string; edges: UniverseEdge[]; world: World; side: "in" | "out" | "both"; setSel: (p?: Pick) => void }) {
+  return (
+    <div>
+      <h3 className="u-h">{title}</h3>
+      <div className="u-ticks">
+        {edges.map((e) => {
+          const nums = combine([e]);
+          const name = side === "both" ? `${nodeName(e.from, world)} → ${nodeName(e.to, world)}` : nodeName(side === "in" ? e.from : e.to, world);
+          return <Tick key={edgeId(e)} name={name} sub={nums.p95 ? `p95 ${ms(nums.p95)}` : e.sources.map((s) => t(sourceLabel[s])).join(", ")} n={nums} onClick={() => setSel({ kind: "road", id: edgeId(e) })} />;
+        })}
+      </div>
+    </div>
+  );
+}
+
+function EdgeList({ title, lead, edges, world, side, setSel, empty, after }: {
+  title: string; lead?: string; edges: UniverseEdge[]; world: World; side: "in" | "out"; setSel: (p?: Pick) => void; empty?: string; after?: React.ReactNode;
+}) {
+  const nums = combine(edges);
+  return (
+    <>
+      <div><h2 className="u-title">{title}</h2>{lead && <p className="small muted" style={{ margin: 0 }}>{lead}</p>}</div>
+      {edges.length ? <><Figures list={figures(nums)} /><EdgeRows title={t("Connections")} edges={edges} world={world} side={side} setSel={setSel} /></> : <p className="small muted">{empty}</p>}
+      {after && <div className="row">{after}</div>}
+    </>
+  );
+}
+
+function EdgePanel({ e, world, goApp }: { e: UniverseEdge; world: World; goApp: (id: string) => void }) {
+  const nums = combine([e]);
+  const fs = e.from === "internet" ? undefined : world.systemOf.get(e.from), ts = world.systemOf.get(e.to);
+  return (
+    <>
+      <div>
+        <h3 className="u-h">{t("Road")}</h3>
+        <h2 className="u-title">{nodeName(e.from, world)} → {nodeName(e.to, world)}</h2>
+        <Badge s={nums.status} />
+      </div>
+      <Figures list={figures(nums)} />
+      <div className="small">
+        <div><span className="muted">{t("How it is known")}:</span> {e.sources.map((s) => t(sourceLabel[s])).join(", ")}</div>
+        {e.env && <div><span className="muted">{t("Address in")}</span> <code>{e.env}</code></div>}
+        {e.hosts?.map((h) => <div key={h}><a href={h} target="_blank" rel="noreferrer">{h}</a></div>)}
+      </div>
+      <div><h3 className="u-h">{t("Latency")}</h3><Latency n={nums} /></div>
+      <div className="row">
+        {fs && fs !== ts && <button onClick={() => goApp(fs)}>{t("Go to {name}", { name: fs })}</button>}
+        {ts && <button onClick={() => goApp(ts)}>{t("Go to {name}", { name: ts })}</button>}
+      </div>
+    </>
+  );
+}
+
+function RoadPanel({ r, world, setSel, goApp }: { r: Road; world: World; setSel: (p?: Pick) => void; goApp: (id: string) => void }) {
+  const between = r.id.startsWith("b:");
+  const name = (id: string) => {
+    const k = id.replace(/^b:/, "");
+    if (k === "internet") return t("Internet");
+    const b = world.barrios.get(k);
+    return between && b ? barrioTitle(b) : k;
+  };
+  return (
+    <>
+      <div>
+        <h3 className="u-h">{between ? t("Road between barrios") : t("Road")}</h3>
+        <h2 className="u-title">{name(r.from)} → {name(r.to)}</h2>
+        <Badge s={r.status} />
+      </div>
+      <Figures list={figures(r)} />
+      <div><h3 className="u-h">{t("Latency")}</h3><Latency n={r} /></div>
+      <EdgeRows title={tn(r.parts.length, "Made of {n} connection", "Made of {n} connections")} edges={r.parts} world={world} side="both" setSel={setSel} />
+      {!between && (
+        <div className="row">
+          {r.from !== "internet" && <button onClick={() => goApp(r.from)}>{t("Go to {name}", { name: r.from })}</button>}
+          <button onClick={() => goApp(r.to)}>{t("Go to {name}", { name: r.to })}</button>
+        </div>
+      )}
     </>
   );
 }

@@ -729,6 +729,16 @@ export interface UniverseSystem {
   kind: "app" | "addon" | "other" | "infrastructure";
   app?: string;
   repo?: string;
+  barrio: string;
+}
+
+// A group of systems on the map: named in rendimiento.yaml (declared),
+// found from what the apps call (auto), the apps that call no other app
+// (centre), or what rendimiento does not deploy (outskirts).
+export interface UniverseBarrio {
+  id: string;
+  title: string;
+  kind: "declared" | "auto" | "centre" | "outskirts";
 }
 
 export interface UniverseNode {
@@ -752,10 +762,12 @@ export interface UniverseEdge {
   env?: string;
   hosts?: string[];
   // Measured from traces over the window (services with observe).
-  metrics?: { perMinute: number; errors: number; p50Ms?: number; p95Ms?: number };
+  // The trends span the window, oldest first (calls per minute; latency in ms).
+  metrics?: { perMinute: number; errors: number; p50Ms?: number; p95Ms?: number; trend?: number[]; p50Trend?: number[]; p95Trend?: number[] };
 }
 
 export interface Universe {
+  barrios: UniverseBarrio[];
   systems: UniverseSystem[];
   nodes: UniverseNode[];
   edges: UniverseEdge[];

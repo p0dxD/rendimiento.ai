@@ -6,38 +6,49 @@ No setup is needed: the map is made from what rendimiento already knows.
 
 ## What is on the map
 
-- **Systems** are the big circles: one per rendimiento app (solid border). With **Deployed another way** on, apps from ArgoCD, Helm or `kubectl` and add-ons appear too (dashed border), one per namespace. **Cluster internals** (ingress, cert-manager, monitoring…) are hidden unless an app calls them or you turn them on.
-- **Nodes** are what runs inside each system:
-    - a **circle** is a service; the letters inside are its language (`JS`, `Py`, `J`, `Go`);
-    - a **square** is a database or cache the app runs for its `needs` (`PG`, `R`);
-    - a **dashed circle** is a job or worker that only calls others (a cron job).
-- **The ring** of each service is its latest [uptime check](reliability.md): green when every check passed in the last 15 minutes, red when one failed, gray when it has not been checked.
-- **Internet** sits in the middle, with a line to every service that has a public address.
+The map is a model village, seen from a hill at an angle:
 
-## Where the lines come from
+- **Barrios** are the raised plates: groups of apps (see [Barrios](#barrios) below). From afar you see only the barrios and the big roads between them, so a cluster with many apps stays readable.
+- **Pueblos** are the apps inside a barrio. Each one is a cluster of whitewashed houses with a band (*guardapolvo*) in its barrio's color: more houses for more services, a **well** when it runs a database, a **clay jar** when it runs a cache. With **Deployed another way** on, apps from ArgoCD, Helm or `kubectl`, add-ons and calls outside the cluster show up too, in the *Outskirts*. **Cluster internals** (ingress, cert-manager, monitoring…) are hidden unless an app calls them or you turn them on.
+- **The ring** on the ground around a pueblo or a house is its health: green when its latest [uptime checks](reliability.md) passed and its calls are fine, **red** when a check failed or 5% or more of its calls fail, **amber** when it is slow, gray when nothing was checked or measured.
+- **Roads** are connections: from the **Internet**'s arch to every service with a public address, and between apps. A chevron on each road points from the caller to the callee.
 
-| Line | Source | Example |
+Inside a pueblo, each **house** is a service, with its language on a badge (`JS`, `Py`, `Jv`, `Go`); a tall house is a job or worker that only calls others. Calls from other apps and from the internet come in through the **arch**, and calls to other apps leave by **signposts** named after them.
+
+## Where the roads come from
+
+| Road | Source | Example |
 |---|---|---|
-| solid | a `needs:` entry in the caller's `rendimiento.yaml` | `needs: [postgres]`, `needs: [{service: api}]` |
-| dashed | an environment variable of the caller that points at the service (the same detection as the [services catalog](needs.md)) | `API_URL=http://api.wellness.svc.cluster.local` |
-| dotted, from Internet | a public address (an Ingress) routed to the service | `https://wellness.example.com` |
+| declared | a `needs:` entry in the caller's `rendimiento.yaml` | `needs: [postgres]`, `needs: [{service: api}]` |
+| found in the environment | an environment variable of the caller that points at the service (the same detection as the [services catalog](needs.md)) | `API_URL=http://api.wellness.svc.cluster.local` |
+| public address | an Ingress routed to the service, from the Internet's arch | `https://wellness.example.com` |
+| seen in traces | a call measured by the [collector](#latency-on-every-line) that nobody declared | a call to `api.openweathermap.org` |
 
-A line found both ways is drawn solid. Values read from secrets are not seen, so a connection whose address lives only in a secret shows up only when it is declared with `needs:`. Declaring needs makes the map complete.
+A road nobody has measured is a **dashed footpath**; a measured one is paved, with traffic on it (see below). The panel says how each road is known. Values read from secrets are not seen, so a connection whose address lives only in a secret shows up only when it is declared with `needs:` or measured. Declaring needs makes the map complete.
+
+## Barrios
+
+Every app lands in one barrio:
+
+1. **Its own**, when its `rendimiento.yaml` says so: `barrio: Pagos` (letters, digits, spaces and dashes, up to 40; accents are fine). Use it for a team or a domain.
+2. Otherwise, **the barrio of the apps it talks to most**: apps that call each other end up together, named after the biggest of them (*stockpulse's barrio*). Measured traffic counts more than a declared connection, so the busiest neighbours win.
+3. Apps that call no other app go to **the centre**.
+4. What rendimiento does not deploy (add-ons, what was deployed another way, calls outside the cluster) is in **the outskirts**.
 
 ## Using it
 
-- **Zoom** with the mouse wheel or a pinch, and **drag** to move around; the **+**, **−** and **⤢** buttons in the corner zoom in, out, and back to the whole view.
-- **Zoom to apps**: the chips above the map pick one or several apps (or other systems); the map glides to them and fades the rest. **Everything** goes back to the whole map. Double-clicking an app's circle, or **Zoom to …** in the side panel, picks just that one. The choice is kept in the address (`?apps=wellness,jobsentry`), so a view can be bookmarked or shared.
-- **Hover** a node to light up its connections; everything else fades.
-- **Click** a node to pin it. The side panel shows what it is, its health and pods, its public addresses, **Calls** (what it uses) and **Called by** (who uses it), each with the variable or address and where the line comes from. Click a name in those lists to jump to that node.
-- **Open app** goes to the app's page; **Open in Services** goes to the service's entry in the catalog.
+- **Three levels.** The **region** shows the barrios; tap one to come closer. In a **barrio**, tap a pueblo to see what comes in and what goes out in the panel; tap it twice, or **Go into the pueblo**, to go inside. Inside the **pueblo**, tap a house, the well or a road. **Esc** goes up a level, and the path above the map (*Region › Town centre › wellness*) jumps back to any of them. The place is kept in the address (`?barrio=centre&pueblo=wellness`), so a view can be bookmarked or shared.
+- **Tap a road** to see what goes along it: calls per minute, failures, p50 and p95 with a chart over the period, how it is known, and buttons to go to either end. A road between barrios lists the calls it is made of. Roads take a tap a finger's width away.
+- **Zoom** with the mouse wheel or a pinch, and **drag** to move around; the **+**, **−** and **⤢** buttons zoom in, out, and back to the whole level.
+- **Go to an app** jumps straight to an app by name.
+- **The panel** reads like a market board: every barrio, pueblo and service with its calls per minute, a small trend over the period and the change (▲▼) from its start to its end; **Needs attention** lists what is failing or slow. **Open app** goes to the app's page; **Open in Services** goes to the service's entry in the catalog.
 - **Refresh** rebuilds the catalog from the cluster right away (otherwise it is at most 30 seconds old, and the page reloads every minute).
 
 ## Latency on every line
 
-With tracing on, each line also carries what was measured: **calls per minute**, the share that **failed**, and how long they took as the caller saw them (**p50**, half were faster; **p95**, the slowest 5%). Pick the window (15 minutes, an hour, 24 hours) at the top. Lines get **thicker** with more calls, turn **red** when 5% or more fail and **amber** when the slowest 5% take half a second or more. Hovering a service shows the typical time on its lines.
+With tracing on, each road also carries what was measured over the **Period** chosen at the top (15 minutes, an hour, 24 hours): **calls per minute**, the share that **failed**, and how long they took (**p50**, half were faster; **p95**, the slowest 5%), each with its trend across the period. Roads get **wider** with more calls, turn **red** when 5% or more fail and **amber** when the slowest 5% take half a second or more. Fireflies (by night) or confetti (by day) run along measured roads from the caller to the callee: more of them for more calls, faster for quicker calls. Turn movement off in the top bar and they hold still.
 
-Lines **seen only in traces** (nobody declared them) are drawn in green: a call to a service no `needs:` mentions, a database, or an API **outside the cluster**, grouped under *Outside the cluster*.
+Calls **seen only in traces** (nobody declared them) get roads of their own: a call to a service no `needs:` mentions, a database, or an API **outside the cluster**, grouped under *Outside the cluster* in the outskirts.
 
 ### Turning it on
 

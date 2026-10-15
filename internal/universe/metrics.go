@@ -21,7 +21,16 @@ type EdgeMetrics struct {
 	Errors float64 `json:"errors"`
 	P50MS  float64 `json:"p50Ms,omitempty"`
 	P95MS  float64 `json:"p95Ms,omitempty"`
+	// Trend is the calls per minute across the window, TrendPoints of them,
+	// oldest first; P50Trend and P95Trend are the latency in milliseconds
+	// at the same points (0 where nothing was measured).
+	Trend    []float64 `json:"trend,omitempty"`
+	P50Trend []float64 `json:"p50Trend,omitempty"`
+	P95Trend []float64 `json:"p95Trend,omitempty"`
 }
+
+// TrendPoints is how many points a trend has.
+const TrendPoints = 24
 
 // Metrics reads the service graph the OpenTelemetry collector's
 // servicegraph connector writes to a Prometheus-compatible store
@@ -85,7 +94,61 @@ func (m *Metrics) Edges(ctx context.Context, window time.Duration) (map[[2]strin
 		}
 		out[k] = e
 	}
+	// The trends make the small charts; the map works without them.
+	_ = m.trends(ctx, window, time.Now(), out)
 	return out, nil
+}
+
+// trends fills the trend of every pair in out from range queries: calls
+// per minute and, as for the totals, the larger latency of the two sides.
+func (m *Metrics) trends(ctx context.Context, window time.Duration, now time.Time, out map[[2]string]EdgeMetrics) error {
+	step := window / TrendPoints
+	end := now.Truncate(time.Minute)
+	start := end.Add(-step * (TrendPoints - 1))
+	r := promDuration(max(step, 2*time.Minute))
+	type trendQuery struct {
+		q   string
+		get func(*EdgeMetrics) *[]float64
+		ms  bool
+	}
+	queries := []trendQuery{{`sum by (client, server) (rate(traces_service_graph_request_total[` + r + `])) * 60`, func(e *EdgeMetrics) *[]float64 { return &e.Trend }, false}}
+	for _, side := range []string{"client", "server"} {
+		hist := `sum by (client, server, le) (rate(traces_service_graph_request_` + side + `_seconds_bucket[` + r + `]))`
+		queries = append(queries,
+			trendQuery{`histogram_quantile(0.5, ` + hist + `)`, func(e *EdgeMetrics) *[]float64 { return &e.P50Trend }, true},
+			trendQuery{`histogram_quantile(0.95, ` + hist + `)`, func(e *EdgeMetrics) *[]float64 { return &e.P95Trend }, true},
+		)
+	}
+	for _, q := range queries {
+		res, err := m.queryRange(ctx, q.q, start, end, step)
+		if err != nil {
+			return err
+		}
+		for _, row := range res {
+			k := [2]string{row.labels["client"], row.labels["server"]}
+			e, ok := out[k]
+			if !ok {
+				continue
+			}
+			list := q.get(&e)
+			if *list == nil {
+				*list = make([]float64, TrendPoints)
+			}
+			for _, p := range row.points {
+				i := int(math.Round(float64(p.at.Sub(start)) / float64(step)))
+				if i < 0 || i >= TrendPoints {
+					continue
+				}
+				v := p.value
+				if q.ms {
+					v *= 1000
+				}
+				(*list)[i] = math.Max((*list)[i], v)
+			}
+			out[k] = e
+		}
+	}
+	return nil
 }
 
 // sample is one series of an instant query.
@@ -97,19 +160,6 @@ type sample struct {
 // query runs an instant PromQL query and returns its series, skipping
 // values that are not numbers (NaN from an empty histogram).
 func (m *Metrics) query(ctx context.Context, q string) ([]sample, error) {
-	hc := m.HTTP
-	if hc == nil {
-		hc = &http.Client{Timeout: 10 * time.Second}
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(m.URL, "/")+"/api/v1/query?query="+url.QueryEscape(q), nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := hc.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("metrics: %w", err)
-	}
-	defer resp.Body.Close()
 	var body struct {
 		Status string `json:"status"`
 		Error  string `json:"error"`
@@ -120,8 +170,8 @@ func (m *Metrics) query(ctx context.Context, q string) ([]sample, error) {
 			} `json:"result"`
 		} `json:"data"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, fmt.Errorf("metrics: HTTP %d: %w", resp.StatusCode, err)
+	if err := m.get(ctx, "/api/v1/query?query="+url.QueryEscape(q), &body); err != nil {
+		return nil, err
 	}
 	if body.Status != "success" {
 		return nil, fmt.Errorf("metrics: %s", body.Error)
@@ -136,6 +186,75 @@ func (m *Metrics) query(ctx context.Context, q string) ([]sample, error) {
 		out = append(out, sample{labels: r.Metric, value: v})
 	}
 	return out, nil
+}
+
+// series is one series of a range query.
+type series struct {
+	labels map[string]string
+	points []point
+}
+
+type point struct {
+	at    time.Time
+	value float64
+}
+
+// queryRange runs a PromQL range query, skipping values that are not numbers.
+func (m *Metrics) queryRange(ctx context.Context, q string, start, end time.Time, step time.Duration) ([]series, error) {
+	v := url.Values{"query": {q}, "start": {strconv.FormatInt(start.Unix(), 10)}, "end": {strconv.FormatInt(end.Unix(), 10)},
+		"step": {strconv.FormatFloat(step.Seconds(), 'f', -1, 64)}}
+	var body struct {
+		Status string `json:"status"`
+		Error  string `json:"error"`
+		Data   struct {
+			Result []struct {
+				Metric map[string]string `json:"metric"`
+				Values [][2]any          `json:"values"`
+			} `json:"result"`
+		} `json:"data"`
+	}
+	if err := m.get(ctx, "/api/v1/query_range?"+v.Encode(), &body); err != nil {
+		return nil, err
+	}
+	if body.Status != "success" {
+		return nil, fmt.Errorf("metrics: %s", body.Error)
+	}
+	var out []series
+	for _, r := range body.Data.Result {
+		s := series{labels: r.Metric}
+		for _, pv := range r.Values {
+			at, _ := pv[0].(float64)
+			str, _ := pv[1].(string)
+			f, err := strconv.ParseFloat(str, 64)
+			if err != nil || math.IsNaN(f) || math.IsInf(f, 0) {
+				continue
+			}
+			s.points = append(s.points, point{time.Unix(0, int64(at*1e9)), f})
+		}
+		out = append(out, s)
+	}
+	return out, nil
+}
+
+// get fetches a path of the metrics API and decodes its JSON into body.
+func (m *Metrics) get(ctx context.Context, path string, body any) error {
+	hc := m.HTTP
+	if hc == nil {
+		hc = &http.Client{Timeout: 10 * time.Second}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(m.URL, "/")+path, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := hc.Do(req)
+	if err != nil {
+		return fmt.Errorf("metrics: %w", err)
+	}
+	defer resp.Body.Close()
+	if err := json.NewDecoder(resp.Body).Decode(body); err != nil {
+		return fmt.Errorf("metrics: HTTP %d: %w", resp.StatusCode, err)
+	}
+	return nil
 }
 
 // promDuration writes a window the way PromQL reads it (15m, 1h, 24h).
