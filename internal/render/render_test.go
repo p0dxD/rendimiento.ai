@@ -239,8 +239,12 @@ services:
 	if api.ReadinessProbe.TimeoutSeconds != 5 {
 		t.Fatal("probe timeout")
 	}
+	// A slow start (a JVM with its tracing agent) gets 5 minutes before liveness may restart it.
+	if sp := api.StartupProbe; sp == nil || sp.HTTPGet == nil || sp.PeriodSeconds*sp.FailureThreshold != 300 || sp.TimeoutSeconds != 5 {
+		t.Fatalf("startup probe = %+v", sp)
+	}
 	// No health declared: a TCP readiness gate only, never a liveness probe.
-	if web := objs.Deployments[0].Spec.Template.Spec.Containers[0]; web.ReadinessProbe == nil || web.ReadinessProbe.TCPSocket == nil || web.LivenessProbe != nil {
+	if web := objs.Deployments[0].Spec.Template.Spec.Containers[0]; web.ReadinessProbe == nil || web.ReadinessProbe.TCPSocket == nil || web.LivenessProbe != nil || web.StartupProbe != nil {
 		t.Fatalf("default probe = %+v / %+v", web.ReadinessProbe, web.LivenessProbe)
 	}
 }

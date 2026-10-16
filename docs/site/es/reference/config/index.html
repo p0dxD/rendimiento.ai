@@ -1,0 +1,3408 @@
+
+<!doctype html>
+<html lang="es" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Cómo funciona rendimiento, cómo se construye y se despliega, y cómo hacerlo crecer.">
+      
+      
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../api/">
+      
+      
+        
+          <link rel="alternate" href="../../../reference/config/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../../../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Configuración - El libro de rendimiento</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Nunito+Sans:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Nunito Sans";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/cotija.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ajustes" class="md-skip">
+          Saltar a contenido
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabecera">
+    <a href="../../" title="El libro de rendimiento" class="md-header__button md-logo" aria-label="El libro de rendimiento" data-md-component="logo">
+      
+  <img src="../../../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            El libro de rendimiento
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Configuración
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Night"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Night" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Day"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Day" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Seleccionar idioma">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../reference/config/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Búsqueda" placeholder="Búsqueda" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Buscar">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpiar" aria-label="Limpiar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando búsqueda
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/p0dxD/rendimiento.ai" title="Ir al repositorio" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    p0dxD/rendimiento.ai
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Pestañas" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Inicio
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../start/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Empiece aquí
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../environment/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Su entorno
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Arquitectura
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guide/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Uso
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../develop/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Desarrollo
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../future/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Crecimiento
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Referencia
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navegación" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="El libro de rendimiento" class="md-nav__button md-logo" aria-label="El libro de rendimiento" data-md-component="logo">
+      
+  <img src="../../../assets/logo.svg" alt="logo">
+
+    </a>
+    El libro de rendimiento
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/p0dxD/rendimiento.ai" title="Ir al repositorio" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    p0dxD/rendimiento.ai
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inicio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../start/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Empiece aquí
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Empiece aquí
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Por qué existe rendimiento
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conceptos y vocabulario
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/tour/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Un recorrido por la interfaz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../environment/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Su entorno
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Su entorno
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../environment/deploy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cómo se despliega la plataforma
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Arquitectura
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Arquitectura
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Panorama general
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/flows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flujos, paso a paso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    El motor de integración continua
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Construir imágenes con BuildKit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/controller/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    El controlador de aplicaciones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/addons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    El motor de complementos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/api-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API, autenticación e interfaz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datos y estado
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modelo de seguridad
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guide/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Uso
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Uso
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Referencia de rendimiento.yaml
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/apps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Las aplicaciones en el día a día
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Construcciones y pruebas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/tasks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tareas (comandos en la integración continua)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/reliability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Confiabilidad (disponibilidad y gráficas)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/visits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visitas (Umami)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/mercado/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    El Mercado (páginas sin código)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notificaciones (correo)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/problems/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Problemas (lo que salió mal en la plataforma)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/ruta/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    La Ruta (la memoria de personas y agentes, por MCP)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/languages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Idiomas (inglés y español)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/needs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Necesidades y catálogo de servicios
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/universe/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    El universo (todas las aplicaciones desde arriba)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/observa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bibliotecas (rendimiento para Node, Python y Java)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/addons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Complementos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/renovate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Renovate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../develop/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Desarrollo
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Desarrollo
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../develop/go/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Go para este código
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../develop/setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preparación y construcción
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../develop/recipes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recetas para cambios comunes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../develop/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pruebas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../develop/patterns/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Patrones de diseño
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../develop/refactoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reestructuración y salud del código
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../future/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crecimiento
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Crecimiento
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../future/scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Escalar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../future/roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hoja de ruta
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../future/open-source/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Convertirse en un proyecto de código abierto
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Referencia
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Referencia
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuración
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuración
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Tabla de contenidos">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Tabla de contenidos
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Básicos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#github" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GitHub
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#builds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Construcciones
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rendering-apps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generar las aplicaciones
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DNS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#uptime-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comprobaciones de disponibilidad
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Avisos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#public-stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estadísticas públicas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visits-umami" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visitas (Umami)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#traces-and-the-universe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trazas y el universo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#log-archive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Archivo de registros
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-ons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complementos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#secrets-the-platform-reads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Los secretos que lee la plataforma
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../crds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recursos personalizados
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tooling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Objetivos de make y guiones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../code-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mapa del código
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glosario
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Tabla de contenidos">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Tabla de contenidos
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Básicos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#github" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GitHub
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#builds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Construcciones
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rendering-apps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generar las aplicaciones
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DNS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#uptime-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comprobaciones de disponibilidad
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Avisos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#public-stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estadísticas públicas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visits-umami" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visitas (Umami)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#traces-and-the-universe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trazas y el universo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#log-archive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Archivo de registros
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-ons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complementos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#secrets-the-platform-reads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Los secretos que lee la plataforma
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="ajustes">Ajustes<a class="headerlink" href="#ajustes" title="Permanent link">&para;</a></h1>
+<p>rendimiento se configura solo con <strong>variables de entorno</strong>, que se leen una vez al arrancar en <code>cmd/rendimiento/main.go</code>. En un clúster vienen del ConfigMap <code>rendimiento</code> y de unos cuantos Secrets (<code>deploy/rendimiento.yaml</code> trae valores de ejemplo; guarde los valores de un clúster real en una capa privada, vea <a href="../../environment/deploy/#your-own-settings">Cómo se despliega la plataforma</a>). Para cambiar un ajuste, edite el ConfigMap y corra <code>kubectl -n rendimiento-system rollout restart deploy/rendimiento</code>.</p>
+<h2 id="core">Básicos<a class="headerlink" href="#core" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Predeterminado</th>
+<th>Ejemplo</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DATABASE_URL</code></td>
+<td><em>(obligatorio)</em></td>
+<td>del Secret <code>rendimiento-db</code></td>
+<td>cadena de conexión a Postgres</td>
+</tr>
+<tr>
+<td><code>BASE_URL</code></td>
+<td><code>http://localhost:8080</code></td>
+<td><code>https://rendimiento.example.com</code></td>
+<td>la URL pública; se usa para las respuestas de OAuth, los avisos web y las ligas en las comprobaciones de GitHub</td>
+</tr>
+<tr>
+<td><code>BOOK_URL</code>, <code>BOOK_URL_ES</code></td>
+<td><em>(vacío: sin enlace)</em></td>
+<td><code>https://learn.example.com/</code>, <code>https://aprende.example.com/</code></td>
+<td>el libro en inglés y en español, enlazado desde la página de bienvenida que se ve antes de iniciar sesión</td>
+</tr>
+<tr>
+<td><code>SELF_APP</code></td>
+<td><em>(vacío: sin botón Actualizar)</em></td>
+<td><code>rendimiento-ai</code></td>
+<td>la aplicación con la que está incorporado el repositorio de rendimiento; las imágenes <code>build:platform</code> de sus versiones son a las que la página Entorno puede <a href="../../environment/deploy/#updating-from-the-environment-page">actualizar</a> (<code>SELF_BUILD</code>, <code>SELF_DEPLOYMENT</code> y <code>SELF_CONTAINER</code> son <code>platform</code>, <code>rendimiento</code> y <code>rendimiento</code> de forma predeterminada)</td>
+</tr>
+<tr>
+<td><code>GITHUB_ACCOUNTS</code></td>
+<td><em>(vacío: todas las instalaciones)</em></td>
+<td><code>example-user,example-paginas</code></td>
+<td>las únicas cuentas (usuarios u organizaciones) cuyas instalaciones de la aplicación de GitHub usa rendimiento: las demás no aparecen en el asistente y sus envíos se ignoran. Póngalo antes de hacer pública la aplicación, lo que permite que cualquiera la instale</td>
+</tr>
+<tr>
+<td><code>PARALLEL_RUNS</code></td>
+<td><code>3</code></td>
+<td><code>2</code></td>
+<td>cuántas ejecuciones van a la vez, cada una de una aplicación distinta (las de una misma aplicación esperan su turno, así sus versiones conservan el orden); <code>MAX_PARALLEL_STEPS</code> sigue limitando los pasos de todas</td>
+</tr>
+<tr>
+<td><code>PAGES_ORG</code></td>
+<td><em>(vacío: el Mercado está apagado)</em></td>
+<td><code>example-paginas</code></td>
+<td>la organización de GitHub donde el <a href="../../guide/mercado/">Mercado</a> crea el repositorio de cada página (ahí la aplicación necesita el permiso de administración)</td>
+</tr>
+<tr>
+<td><code>ALLOWED_USERS</code></td>
+<td><em>(vacío: nadie)</em></td>
+<td><code>su-cuenta-de-github</code></td>
+<td>las cuentas de GitHub que pueden iniciar sesión (separadas por comas o espacios)</td>
+</tr>
+<tr>
+<td><code>SETUP_TOKEN</code></td>
+<td>—</td>
+<td>del Secret <code>rendimiento-setup</code></td>
+<td>protege <code>/api/setup/github</code> hasta que exista la aplicación de GitHub</td>
+</tr>
+<tr>
+<td><code>NAMESPACE</code></td>
+<td><code>rendimiento-system</code></td>
+<td></td>
+<td>donde viven la plataforma y sus Secrets</td>
+</tr>
+<tr>
+<td><code>LISTEN</code></td>
+<td><code>:8080</code></td>
+<td></td>
+<td>la dirección HTTP (API, interfaz, avisos web)</td>
+</tr>
+<tr>
+<td><code>METRICS_ADDR</code></td>
+<td><code>:9090</code></td>
+<td></td>
+<td>métricas de Prometheus (controller-runtime)</td>
+</tr>
+<tr>
+<td><code>LEADER_ELECTION</code></td>
+<td><code>true</code></td>
+<td><code>false</code></td>
+<td>una sola réplica activa; apagado porque una réplica con Recreate nunca se encima</td>
+</tr>
+</tbody>
+</table>
+<h2 id="github">GitHub<a class="headerlink" href="#github" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Predeterminado</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GITHUB_APP_NAME</code></td>
+<td><code>rendimiento</code></td>
+<td>el nombre de la aplicación, que se usa al crearla con el flujo de manifiesto (<code>rendimiento</code> aquí)</td>
+</tr>
+<tr>
+<td><code>GITHUB_SECRET</code></td>
+<td><code>rendimiento-github</code></td>
+<td>el Secret donde se guardan las credenciales de la aplicación después de la configuración</td>
+</tr>
+</tbody>
+</table>
+<h2 id="builds">Construcciones<a class="headerlink" href="#builds" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Predeterminado</th>
+<th>Ejemplo</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REGISTRY</code></td>
+<td><code>registry.example.lan:5000</code></td>
+<td></td>
+<td>a donde se envían las imágenes y las cachés de construcción</td>
+</tr>
+<tr>
+<td><code>REGISTRY_INSECURE</code></td>
+<td><code>true</code></td>
+<td></td>
+<td>registro sobre HTTP simple</td>
+</tr>
+<tr>
+<td><code>BUILD_NAMESPACE</code></td>
+<td><code>rendimiento-builds</code></td>
+<td></td>
+<td>donde corren los pods de construcción y de pruebas</td>
+</tr>
+<tr>
+<td><code>BUILDKIT_POOL</code></td>
+<td><em>(vacío)</em></td>
+<td><code>buildkitd-pool.devops-tools.svc.cluster.local</code></td>
+<td>el Service sin IP propia del grupo de demonios; las imágenes se reparten en él por hash de encuentro</td>
+</tr>
+<tr>
+<td><code>BUILDKIT_ADDR</code></td>
+<td><code>tcp://buildkitd.devops-tools.svc.cluster.local:1234</code></td>
+<td></td>
+<td>el demonio único, que se usa cuando no hay grupo o no se puede resolver</td>
+</tr>
+<tr>
+<td><code>BUILDKIT_IMAGE</code></td>
+<td><code>moby/buildkit:v0.18.2</code></td>
+<td></td>
+<td>la imagen del cliente <code>buildctl</code> en los pods de construcción</td>
+</tr>
+<tr>
+<td><code>MAX_PARALLEL_STEPS</code></td>
+<td><code>2</code></td>
+<td><code>4</code></td>
+<td>los pasos que corren a la vez, entre todas las ejecuciones</td>
+</tr>
+<tr>
+<td><code>STEP_TIMEOUT</code></td>
+<td><code>45m</code></td>
+<td></td>
+<td>lo más que puede durar un paso (≥ 1m)</td>
+</tr>
+<tr>
+<td><code>BUILD_EXCLUDE_NODES</code></td>
+<td><em>(vacío)</em></td>
+<td><code>gpu-node</code></td>
+<td>los nodos que deben evitar los pods de construcción</td>
+</tr>
+<tr>
+<td><code>RAILPACK_IMAGE</code></td>
+<td><em>(vacío: Railpack apagado)</em></td>
+<td><code>registry.example.lan:5000/rendimiento-railpack:0.40.0</code></td>
+<td>la imagen con la herramienta de Railpack, para los servicios sin Dockerfile</td>
+</tr>
+<tr>
+<td><code>RAILPACK_FRONTEND</code></td>
+<td><em>(vacío)</em></td>
+<td><code>ghcr.io/railwayapp/railpack-frontend:v0.40.0</code></td>
+<td>la interfaz de entrada de BuildKit que corresponde a esa versión</td>
+</tr>
+<tr>
+<td><code>TEST_POSTGRES_IMAGE</code></td>
+<td><code>postgres:17-alpine</code></td>
+<td></td>
+<td>la base de datos desechable de las pruebas con <code>postgres: true</code></td>
+</tr>
+<tr>
+<td><code>TEST_CACHE_STORAGE_CLASS</code></td>
+<td><em>(vacío: la predeterminada del clúster)</em></td>
+<td><code>local-path</code></td>
+<td>clase de almacenamiento de los volúmenes de las pruebas con <code>cache: true</code>; una clase local del nodo es la más rápida (la prueba corre entonces en ese nodo, o empieza con una caché vacía en otro si ese nodo está lleno)</td>
+</tr>
+<tr>
+<td><code>TEST_CACHE_SIZE</code></td>
+<td><code>10Gi</code></td>
+<td></td>
+<td>tamaño de cada uno de esos volúmenes</td>
+</tr>
+</tbody>
+</table>
+<h2 id="rendering-apps">Generar las aplicaciones<a class="headerlink" href="#rendering-apps" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Predeterminado</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>INGRESS_CLASS</code></td>
+<td><code>nginx</code></td>
+<td>el <code>ingressClassName</code> de las entradas de las aplicaciones</td>
+</tr>
+<tr>
+<td><code>CLUSTER_ISSUER</code></td>
+<td><code>letsencrypt-prod</code></td>
+<td>el emisor de cert-manager para los certificados de las aplicaciones</td>
+</tr>
+<tr>
+<td><code>STORAGE_CLASS</code></td>
+<td><code>longhorn</code></td>
+<td>la clase de almacenamiento de los volúmenes de <code>volume:</code> y de las bases de datos de <code>needs:</code></td>
+</tr>
+<tr>
+<td><code>VOLUME_LABELS</code></td>
+<td><em>(vacío)</em></td>
+<td>pares <code>KEY=value</code> (separados por comas) que se agregan a cada volumen de las aplicaciones, p. ej. <code>recurring-job.longhorn.io/source=enabled,recurring-job-group.longhorn.io/backup-nightly=enabled</code> para respaldarlos cada noche</td>
+</tr>
+<tr>
+<td><code>GPU_RESOURCE</code></td>
+<td><em>(vacío)</em></td>
+<td>el nombre del recurso que piden los servicios con <code>gpu:</code> (<code>nvidia.com/gpu</code>)</td>
+</tr>
+<tr>
+<td><code>GPU_RUNTIME_CLASS</code></td>
+<td><em>(vacío)</em></td>
+<td>la clase de entorno de ejecución para los pods con GPU (<code>nvidia</code>)</td>
+</tr>
+<tr>
+<td><code>GPU_HOST_PATHS</code></td>
+<td><em>(vacío)</em></td>
+<td>carpetas del nodo montadas en solo lectura en los pods con GPU (las bibliotecas del controlador)</td>
+</tr>
+<tr>
+<td><code>GPU_ENV</code></td>
+<td><em>(vacío)</em></td>
+<td><code>KEY=value;KEY=value</code> que se agregan a los contenedores con GPU</td>
+</tr>
+<tr>
+<td><code>GPU_SHARED_MEMORY</code></td>
+<td><em>(vacío)</em></td>
+<td>el tamaño de <code>/dev/shm</code> en los pods con GPU</td>
+</tr>
+</tbody>
+</table>
+<h2 id="dns">DNS<a class="headerlink" href="#dns" title="Permanent link">&para;</a></h2>
+<p>Se toman del Secret opcional <code>rendimiento-dns</code>. Sin token, la automatización de DNS está apagada (<code>dns.Noop</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Predeterminado</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CLOUDFLARE_API_TOKEN</code></td>
+<td>—</td>
+<td>un token con <em>Zone:DNS:Edit</em></td>
+</tr>
+<tr>
+<td><code>DNS_TARGET</code></td>
+<td>—</td>
+<td>a dónde apuntan los nombres de host de las aplicaciones; una IP enciende el DNS dinámico</td>
+</tr>
+<tr>
+<td><code>DNS_ZONE</code></td>
+<td>—</td>
+<td>la zona predeterminada que ofrece el asistente (<code>example.com</code>)</td>
+</tr>
+<tr>
+<td><code>DNS_PROXIED</code></td>
+<td><code>false</code></td>
+<td>crear los registros detrás del proxy de Cloudflare (<code>true</code> aquí)</td>
+</tr>
+<tr>
+<td><code>DDNS_INTERVAL</code></td>
+<td><code>5m</code></td>
+<td>cada cuánto revisa la IP pública el DNS dinámico (≥ 1m)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="uptime-checks">Comprobaciones de disponibilidad<a class="headerlink" href="#uptime-checks" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Predeterminado</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UPTIME_INTERVAL</code></td>
+<td><code>1m</code></td>
+<td>Cada cuánto se comprueba cada servicio (<a href="../../guide/reliability/">Confiabilidad</a>); <code>0</code> apaga las comprobaciones. Al menos <code>10s</code>.</td>
+</tr>
+<tr>
+<td><code>VERIFY_WINDOW</code></td>
+<td><code>5m</code></td>
+<td>Cuánto tiempo se vigila cada versión nueva antes de contarla como verificada (<a href="../../guide/reliability/#verifying-each-release">verificar las versiones</a>); <code>0</code> apaga la verificación y la reversión automática. Al menos <code>1m</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="notifications">Avisos<a class="headerlink" href="#notifications" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Predeterminado</th>
+<th>Ejemplo</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NOTIFY_EMAIL_TO</code></td>
+<td><em>(vacío: apagado)</em></td>
+<td><code>you@example.com</code></td>
+<td>quién recibe los <a href="../../guide/notifications/">correos de aviso</a>, separados por comas</td>
+</tr>
+<tr>
+<td><code>NOTIFY_LANG</code></td>
+<td><code>en</code></td>
+<td><code>es</code></td>
+<td>el idioma de los correos: <code>en</code>, o <code>es</code> para español de México</td>
+</tr>
+<tr>
+<td><code>NOTIFY_EMAIL_FROM</code></td>
+<td><code>rendimiento &lt;alerts@joserod.space&gt;</code></td>
+<td></td>
+<td>el remitente; debe estar en un dominio verificado en Resend</td>
+</tr>
+<tr>
+<td><code>RESEND_API_KEY</code></td>
+<td>—</td>
+<td>del Secret <code>rendimiento-notify</code></td>
+<td>la llave de la API de Resend</td>
+</tr>
+</tbody>
+</table>
+<h2 id="public-stats">Estadísticas públicas<a class="headerlink" href="#public-stats" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Predeterminado</th>
+<th>Ejemplo</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PUBLIC_STATS</code></td>
+<td><code>false</code></td>
+<td><code>true</code></td>
+<td>servir <a href="../../guide/reliability/#public-stats"><code>GET /api/public/stats</code></a> sin iniciar sesión</td>
+</tr>
+<tr>
+<td><code>STATS_LISTEN</code></td>
+<td><em>(vacío: en el puerto principal)</em></td>
+<td><code>:8081</code></td>
+<td>servir las estadísticas públicas solo en este puerto interno, no en el público</td>
+</tr>
+<tr>
+<td><code>PUBLIC_STATS_ORIGINS</code></td>
+<td><em>(ninguno)</em></td>
+<td></td>
+<td>los orígenes de navegador que pueden pedirlas (CORS); no hace falta si se piden desde un servidor</td>
+</tr>
+<tr>
+<td><code>PUBLIC_STATS_TZ</code></td>
+<td><code>UTC</code></td>
+<td><code>America/New_York</code></td>
+<td>la zona horaria en la que se cuentan sus días</td>
+</tr>
+<tr>
+<td><code>PUBLIC_ACTIVITY</code></td>
+<td><code>false</code></td>
+<td><code>true</code></td>
+<td>mostrar <em>Ahora mismo</em> en la página de bienvenida: lo que se está construyendo y las versiones más recientes, por nombre de aplicación (<a href="../api/"><code>GET /api/public/activity</code></a>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="visits-umami">Visitas (Umami)<a class="headerlink" href="#visits-umami" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Predeterminado</th>
+<th>Ejemplo</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UMAMI_URL</code></td>
+<td><em>(vacío: apagado)</em></td>
+<td><code>http://umami.umami.svc.cluster.local:3000</code></td>
+<td>Umami dentro del clúster; se lee para la pestaña <a href="../../guide/visits/">Visitas</a> y el panel de visitantes del inicio</td>
+</tr>
+<tr>
+<td><code>UMAMI_PUBLIC_URL</code></td>
+<td><em>(vacío: sin enlaces)</em></td>
+<td><code>https://umami.example.com</code></td>
+<td>la dirección pública de Umami, para los enlaces «Abrir en Umami»</td>
+</tr>
+<tr>
+<td><code>UMAMI_USERNAME</code>, <code>UMAMI_PASSWORD</code></td>
+<td>—</td>
+<td>del Secret <code>rendimiento-umami</code></td>
+<td>un usuario de Umami <strong>de solo lectura</strong>, en el equipo dueño de los sitios</td>
+</tr>
+</tbody>
+</table>
+<p>Los días y las horas se cuentan en <code>PUBLIC_STATS_TZ</code>.</p>
+<h2 id="traces-and-the-universe">Trazas y el universo<a class="headerlink" href="#traces-and-the-universe" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Predeterminado</th>
+<th>Ejemplo</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TELEMETRY_ENDPOINT</code></td>
+<td><em>(vacío: <code>observe</code> no hace nada)</em></td>
+<td><code>http://opentelemetry-collector.observa.svc.cluster.local:4318</code></td>
+<td>el colector de OpenTelemetry (OTLP por HTTP) al que los servicios con <code>observe</code> envían sus trazas; se instala con el complemento <strong>OpenTelemetry Collector</strong></td>
+</tr>
+<tr>
+<td><code>TELEMETRY_SAMPLE_RATIO</code></td>
+<td><code>0.25</code></td>
+<td><code>1</code></td>
+<td>la proporción de trazas que se conservan (una traza que empezó antes conserva la decisión de quien llamó)</td>
+</tr>
+<tr>
+<td><code>TELEMETRY_AGENTS</code></td>
+<td>las imágenes de OpenTelemetry para <code>java</code>, <code>node</code>, <code>python</code></td>
+<td><code>java=registry.example.lan/otel-java:2.32.0</code></td>
+<td>pares <code>lenguaje=imagen</code> que reemplazan la imagen de un agente</td>
+</tr>
+<tr>
+<td><code>METRICS_URL</code></td>
+<td><em>(vacío: sin latencia en el mapa)</em></td>
+<td><code>http://vmsingle.monitoring.svc.cluster.local:8428</code></td>
+<td>un almacén compatible con Prometheus (VictoriaMetrics) donde el colector escribe el grafo de servicios; el <a href="../../guide/universe/">universo</a> lee de ahí las llamadas, los errores y la latencia</td>
+</tr>
+</tbody>
+</table>
+<h2 id="log-archive">Archivo de registros<a class="headerlink" href="#log-archive" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Predeterminado</th>
+<th>Ejemplo</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LOG_ARCHIVE_ENDPOINT</code></td>
+<td><em>(vacío: apagado)</em></td>
+<td><code>garage.garage.svc.cluster.local:3900</code></td>
+<td>el <code>host:puerto</code> compatible con S3 donde se <a href="../../architecture/data/#the-log-archive">archivan los registros de los pasos</a></td>
+</tr>
+<tr>
+<td><code>LOG_ARCHIVE_BUCKET</code></td>
+<td><code>rendimiento-logs</code></td>
+<td></td>
+<td>la cubeta</td>
+</tr>
+<tr>
+<td><code>LOG_ARCHIVE_SECURE</code></td>
+<td><code>false</code></td>
+<td></td>
+<td>usar HTTPS</td>
+</tr>
+<tr>
+<td><code>LOG_ARCHIVE_ACCESS_KEY</code>, <code>LOG_ARCHIVE_SECRET_KEY</code></td>
+<td>—</td>
+<td>del Secret <code>rendimiento-logs</code></td>
+<td>las credenciales de un usuario que puede usar la cubeta</td>
+</tr>
+<tr>
+<td><code>LOG_RETENTION_DAYS</code></td>
+<td><code>365</code></td>
+<td></td>
+<td>los registros archivados se borran después de estos días (una regla de ciclo de vida en la cubeta)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="add-ons">Complementos<a class="headerlink" href="#add-ons" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Predeterminado</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ADDONS_REPO</code></td>
+<td><code>p0dxD/gitops</code></td>
+<td>el repositorio de git donde se declaran los complementos (<code>addons/*.yaml</code>)</td>
+</tr>
+<tr>
+<td><code>ADDONS_IDENTITY</code></td>
+<td><code>system:serviceaccount:&lt;NAMESPACE&gt;:rendimiento-addons</code></td>
+<td>la identidad con la que se aplican los objetos de los complementos (suplantación)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="secrets-the-platform-reads">Los secretos que lee la plataforma<a class="headerlink" href="#secrets-the-platform-reads" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Secret (en <code>rendimiento-system</code>)</th>
+<th>Llaves</th>
+<th>Lo escribe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rendimiento-db</code></td>
+<td><code>password</code></td>
+<td>usted, una vez</td>
+</tr>
+<tr>
+<td><code>rendimiento-setup</code></td>
+<td><code>token</code></td>
+<td>usted, una vez</td>
+</tr>
+<tr>
+<td><code>rendimiento-github</code></td>
+<td>ID de la aplicación, llave privada, secreto de avisos web, cliente OAuth</td>
+<td>el flujo de configuración</td>
+</tr>
+<tr>
+<td><code>rendimiento-dns</code></td>
+<td><code>CLOUDFLARE_API_TOKEN</code>, <code>DNS_TARGET</code></td>
+<td>usted</td>
+</tr>
+<tr>
+<td><code>rendimiento-notify</code></td>
+<td><code>RESEND_API_KEY</code></td>
+<td>usted</td>
+</tr>
+<tr>
+<td><code>rendimiento-logs</code></td>
+<td><code>LOG_ARCHIVE_ACCESS_KEY</code>, <code>LOG_ARCHIVE_SECRET_KEY</code></td>
+<td>usted (una llave de almacenamiento limitada a la cubeta)</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Volver al principio
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Pie" >
+        
+          
+          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Anterior: Referencia">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Anterior
+              </span>
+              <div class="md-ellipsis">
+                Referencia
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../api/" class="md-footer__link md-footer__link--next" aria-label="Siguiente: API HTTP">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Siguiente
+              </span>
+              <div class="md-ellipsis">
+                API HTTP
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.indexes", "navigation.footer", "search.highlight", "search.suggest", "toc.follow", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copiado al portapapeles", "clipboard.copy": "Copiar al portapapeles", "search.result.more.one": "1 m\u00e1s en esta p\u00e1gina", "search.result.more.other": "# m\u00e1s en esta p\u00e1gina", "search.result.none": "No se encontraron documentos", "search.result.one": "1 documento encontrado", "search.result.other": "# documentos encontrados", "search.result.placeholder": "Teclee para comenzar b\u00fasqueda", "search.result.term.missing": "Falta", "select.version": "Seleccionar versi\u00f3n"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

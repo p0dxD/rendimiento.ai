@@ -1,0 +1,144 @@
+/* The book in the look of the app: Cotija, pueblo mágico. By day (scheme
+   "default") whitewashed walls, a grana header under roof tiles, papel
+   picado under the menu and a guardapolvo footer; by night (scheme
+   "slate") an añil sky with stars and cempasúchil links. */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&display=swap");
+
+:root {
+  --grana: #8E1B2C;
+  --teja: #B5532A;
+  --anil: #23408E;
+  --cempasuchil: #E8890C;
+  --maiz: #E9B824;
+  --nopal: #3E7B3A;
+  --rosa: #D6246E;
+}
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #8E1B2C;
+  --md-primary-fg-color--light: #B23A4C;
+  --md-primary-fg-color--dark: #6E1422;
+  --md-primary-bg-color: #FFF8EC;
+  --md-accent-fg-color: #C25E00;
+  --md-default-bg-color: #FBF5EA;
+  --md-default-fg-color: #2B1B12;
+  --md-default-fg-color--light: #6B5444;
+  --md-typeset-color: #2B1B12;
+  --md-typeset-a-color: #8E1B2C;
+  --md-code-bg-color: #F4EADA;
+  --md-footer-bg-color: #8E1B2C;
+  --md-footer-bg-color--dark: #6E1422;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-hue: 255;
+  --md-primary-fg-color: #241634;
+  --md-primary-fg-color--light: #3A2A52;
+  --md-primary-fg-color--dark: #170F26;
+  --md-primary-bg-color: #F6EBDD;
+  --md-accent-fg-color: #F2A93B;
+  --md-default-bg-color: #120F2A;
+  --md-default-fg-color: #F6EBDD;
+  --md-default-fg-color--light: #B8A9C9;
+  --md-typeset-color: #F6EBDD;
+  --md-typeset-a-color: #F2C14E;
+  --md-code-bg-color: #211531;
+  --md-footer-bg-color: #4A0E18;
+  --md-footer-bg-color--dark: #2E0810;
+}
+
+/* Night sky: a few stars over the añil, still while reading. */
+[data-md-color-scheme="slate"] body {
+  background:
+    radial-gradient(1.5px 1.5px at 12% 22%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(1px 1px at 28% 64%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(2px 2px at 44% 30%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(1px 1px at 58% 78%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 71% 18%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(1px 1px at 83% 52%, #FFF6DC 50%, transparent 51%),
+    radial-gradient(2px 2px at 92% 36%, #FFF6DC 50%, transparent 51%),
+    linear-gradient(180deg, #0A1230 0%, #171238 45%, #22112E 100%);
+  background-attachment: fixed;
+}
+
+/* Headings in Fraunces, like the app. */
+.md-typeset h1, .md-typeset h2, .md-typeset h3, .md-header__topic {
+  font-family: "Fraunces", Georgia, serif;
+  letter-spacing: -0.01em;
+}
+.md-typeset h1 { font-weight: 800; color: var(--md-default-fg-color); }
+.md-typeset h2 { font-weight: 700; }
+
+/* Roof tiles over the header. */
+.md-header { box-shadow: none; }
+.md-header::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 9px;
+  background: radial-gradient(circle at 50% 0, var(--teja) 0 8px, #8A3A1A 8px 9px, transparent 10px) 0 0 / 18px 9px;
+}
+[data-md-color-scheme="slate"] .md-header::before {
+  background: radial-gradient(circle at 50% 0, #4A2216 0 8px, #2A140D 8px 9px, transparent 10px) 0 0 / 18px 9px;
+}
+.md-header__inner { padding-top: 6px; }
+
+/* Papel picado under the menu: six colors, a zigzag edge, small cuts. */
+.md-tabs { position: relative; overflow: visible; }
+.md-tabs::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -16px; height: 16px; z-index: 1; pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 40%, var(--md-default-bg-color) 0 3px, transparent 3.5px) 0 0 / 60px 16px,
+    linear-gradient(90deg, var(--grana) 0 16.66%, var(--cempasuchil) 0 33.33%, var(--anil) 0 50%, var(--rosa) 0 66.66%, var(--nopal) 0 83.33%, var(--maiz) 0) 0 0 / 360px 100%;
+  -webkit-mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 12px 100%,
+    linear-gradient(90deg, #000 0 56px, #0000 0 60px) 0 0 / 60px 100%;
+  -webkit-mask-composite: source-in;
+  mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 12px 100%,
+    linear-gradient(90deg, #000 0 56px, #0000 0 60px) 0 0 / 60px 100%;
+  mask-composite: intersect;
+}
+[data-md-color-scheme="slate"] .md-tabs::after { opacity: .9; }
+/* On narrow screens the menu tabs are hidden: the papel picado hangs under the header instead. */
+@media screen and (max-width: 76.234375em) {
+  .md-header { overflow: visible; }
+  .md-header::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -14px; height: 14px; pointer-events: none;
+    background:
+      radial-gradient(circle at 50% 40%, var(--md-default-bg-color) 0 2.5px, transparent 3px) 0 0 / 50px 14px,
+      linear-gradient(90deg, var(--grana) 0 16.66%, var(--cempasuchil) 0 33.33%, var(--anil) 0 50%, var(--rosa) 0 66.66%, var(--nopal) 0 83.33%, var(--maiz) 0) 0 0 / 300px 100%;
+    -webkit-mask:
+      conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 10px 100%,
+      linear-gradient(90deg, #000 0 46px, #0000 0 50px) 0 0 / 50px 100%;
+    -webkit-mask-composite: source-in;
+    mask:
+      conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 10px 100%,
+      linear-gradient(90deg, #000 0 46px, #0000 0 50px) 0 0 / 50px 100%;
+    mask-composite: intersect;
+  }
+  .md-main__inner { margin-top: 1.6rem; }
+}
+.md-main__inner { margin-top: 2.2rem; }
+
+/* The home page's cards stand under the arches of the portales. */
+.md-typeset .grid.cards > ul > li, .md-typeset .grid > .card {
+  border-radius: 4.5rem 4.5rem .6rem .6rem;
+  padding-top: 1.4rem;
+  border: 2px solid color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+  background: color-mix(in srgb, var(--md-default-bg-color) 70%, #fff 30%);
+}
+[data-md-color-scheme="slate"] .md-typeset .grid.cards > ul > li {
+  background: #211531; border-color: #3A2A52;
+}
+.md-typeset .grid.cards > ul > li:hover { border-color: var(--md-accent-fg-color); }
+
+/* The footer is the guardapolvo: a band with a whitewashed line above. */
+.md-footer { border-top: 4px solid var(--md-default-bg-color); box-shadow: 0 -3px 0 var(--md-footer-bg-color); }
+
+/* Admonition notes in cempasúchil. */
+.md-typeset .admonition.note, .md-typeset details.note { border-color: var(--cempasuchil); }
+.md-typeset .note > .admonition-title, .md-typeset .note > summary { background-color: color-mix(in srgb, var(--cempasuchil) 14%, transparent); }
+.md-typeset .note > .admonition-title::before, .md-typeset .note > summary::before { background-color: var(--cempasuchil); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .md-typeset .grid.cards > ul > li { transition: transform .25s ease, border-color .25s ease; }
+  .md-typeset .grid.cards > ul > li:hover { transform: translateY(-3px); }
+}

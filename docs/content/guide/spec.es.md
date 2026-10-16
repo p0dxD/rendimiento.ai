@@ -109,7 +109,7 @@ tasks:
 | `replicas` | entero 0–10 | `1` | Pods. Más de uno da despliegues sin interrupciones. |
 | `size` | `small` \| `medium` \| `large` | `small` | Tamaño predefinido de recursos (abajo). |
 | `resources` | objeto | ninguno | Sobrescribir cualquiera de `cpu`, `memory` (solicitudes), `cpuLimit`, `memoryLimit`; un límite puede ser `none`. |
-| `health.path` | texto | ninguna | Comprobación HTTP GET de disponibilidad y de vida. |
+| `health.path` | texto | ninguna | Comprobación HTTP GET de disponibilidad y de vida. La de vida empieza cuando la comprobación pasa por primera vez (hasta 5 minutos después de arrancar), así un arranque lento no se reinicia. |
 | `health.tcp` | booleano | `false` | Comprobar que el puerto acepta conexiones (bases de datos, servicios que no son HTTP). |
 | `health.timeout` | entero 1–60 | 1 | Segundos por comprobación. |
 | `command`, `args` | listas | los de la imagen | Sobrescribir el punto de entrada y los argumentos. |

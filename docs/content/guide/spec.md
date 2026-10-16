@@ -109,7 +109,7 @@ tasks:
 | `replicas` | int 0–10 | `1` | Pods. More than one gives zero-downtime rollouts. |
 | `size` | `small` \| `medium` \| `large` | `small` | Resource preset (below). |
 | `resources` | object | none | Override any of `cpu`, `memory` (requests), `cpuLimit`, `memoryLimit`; a limit may be `none`. |
-| `health.path` | string | none | HTTP GET check for readiness and liveness. |
+| `health.path` | string | none | HTTP GET check for readiness and liveness. Liveness starts once the check first passes (up to 5 minutes after start), so a slow start is not restarted. |
 | `health.tcp` | bool | `false` | Check that the port accepts connections (databases, non-HTTP). |
 | `health.timeout` | int 1–60 | 1 | Seconds per check. |
 | `command`, `args` | lists | the image's | Override the entrypoint and arguments. |
