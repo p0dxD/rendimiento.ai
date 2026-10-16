@@ -63,6 +63,7 @@ A single-page app in `web/`: **React 19**, **TypeScript**, **Vite**, **react-rou
 | `src/components/ui.tsx` | Shared pieces: badges, `usePoll` (load and refresh), `Switch`, the resource tree |
 | `src/pages/*.tsx` | One file per page: Dashboard, NewApp, AppPage, RunPage, Services, Universe, Addons, Installed (add-on list, catalog, detail), Mercado, Ruta, Problems, Environment, Version, Setup |
 | `src/components/maqueta.ts` | The Universe's village, drawn on a canvas ([below](#the-universe)) |
+| `src/components/maqueta3d.ts` | The same village in 3D, with three.js |
 | `src/styles.css` | Theme tokens and components |
 
 Patterns used throughout:
@@ -82,12 +83,13 @@ flowchart LR
   api["GET /api/universe<br/>internal/universe"] -->|"PromQL: totals and trends"| vm
   api --> store[("Store: apps, specs,<br/>uptime checks")]
   api --> cat["Services catalog"]
-  page["Universe page<br/>maqueta.ts"] --> api
+  page["Universe page<br/>maqueta.ts · maqueta3d.ts"] --> api
 ```
 
 - **`universe.Build`** makes the graph: a *system* per app (or per namespace for what rendimiento does not deploy), its *nodes* (services, databases, caches, jobs), and *edges* from `needs:`, from environment variables (the catalog), from Ingresses and from traces. **`barrios`** then puts every system in a barrio: the app's own `barrio:`, else the barrio of the apps it talks to most (label propagation over the edges between apps, weighted by measured calls), else the centre; non-apps go to the outskirts.
 - **`Metrics.Edges`** reads the service graph the collector writes: instant queries for the window's calls, failures and p50/p95 (the larger of the caller's and the callee's), and range queries for their trends (`TrendPoints`, 24 points). The map is still served when the metrics store does not answer. **`Metrics.Spans`** does the same for one service from the collector's span metrics (`/api/universe/spans`), leaving out the ASGI middleware's `… http send` pieces.
 - **The page** (`pages/Universe.tsx`) turns the graph into what is drawn: the status of every node, pueblo and barrio, and the roads between pueblos and between barrios with their calls summed. **`components/maqueta.ts`** lays the barrios out on a grid and the pueblos inside them, draws them in isometric projection on a canvas every frame (so the fireflies move), keeps the screen position of everything drawn for taps (a road takes a tap within 12 px), places labels so they do not cover each other, and glides the camera between levels. The level and place live in the address, so the browser's back button works.
+- **The 3D view** (`components/maqueta3d.ts`) takes the same model and the same layout (`placeWorld`, `placeInside`, shared with `maqueta.ts`) and builds it with [three.js](https://threejs.org): a tile is one unit, the scene is rebuilt from scratch on every change (a few hundred pieces), `MapControls` move, turn and tilt the camera, a ray finds the thing under a tap (an invisible cylinder stands for each house or pueblo), roads are still found on screen within 12 px, and the labels are drawn on a 2D canvas above it with the same code as in 2.5D. Both maquetas implement `Engine` (`set`, `zoom`, `fit`, `destroy`, and `turn` in 3D), so the page does not care which is showing. The page loads the 3D file with a dynamic `import()`, so three.js (about 150 KB compressed) is downloaded only by those who choose 3D.
 
 ### How the UI ships
 
