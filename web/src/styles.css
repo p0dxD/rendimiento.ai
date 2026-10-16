@@ -689,6 +689,15 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 .u-canvas.dragging { cursor: grabbing; }
 .u-zoom { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; z-index: 2; }
 .u-zoom button { width: 36px; height: 36px; padding: 0; justify-content: center; font-size: 18px; line-height: 1; }
+.u-host { cursor: default; }
+.u-3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.u-3d-labels { cursor: grab; touch-action: none; }
+.u-3d-labels.pointing { cursor: pointer; }
+.u-3d-labels.dragging { cursor: grabbing; }
+.u-mode { position: absolute; top: 10px; left: 10px; z-index: 2; display: flex; border-radius: 10px; overflow: hidden; border: 1.5px solid var(--border); background: var(--surface); }
+.u-mode button { border: 0; border-radius: 0; height: 32px; padding: 0 12px; font-weight: 800; font-size: 13px; background: transparent; }
+.u-mode button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.u-loading { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; color: var(--muted); pointer-events: none; }
 .u-hint { position: absolute; left: 10px; bottom: 10px; right: 56px; z-index: 2; pointer-events: none; color: var(--muted); }
 .u-hint span { background: color-mix(in srgb, var(--surface) 86%, transparent); padding: 4px 9px; border-radius: 8px; display: inline-block; }
 .universe-side { position: sticky; top: 12px; max-height: clamp(440px, 72vh, 780px); overflow-y: auto; min-width: 0; gap: 14px; }
