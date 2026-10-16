@@ -294,6 +294,15 @@ func deployment(meta metav1.ObjectMeta, sel map[string]string, svc spec.Service,
 		}
 		c.ReadinessProbe = probe(5, 3)
 		c.LivenessProbe = probe(30, 6)
+		// Liveness waits for this: a slow start (a JVM with the OpenTelemetry
+		// agent takes over 90 s on a Pi) gets up to 5 minutes instead of being
+		// restarted before it ever answers.
+		c.StartupProbe = &corev1.Probe{
+			ProbeHandler:     handler,
+			PeriodSeconds:    5,
+			FailureThreshold: 60,
+			TimeoutSeconds:   int32(svc.Health.Timeout),
+		}
 	} else {
 		// Without a declared health check, at least wait for the port to open
 		// so a rollout never swaps in a pod that isn't listening yet.
