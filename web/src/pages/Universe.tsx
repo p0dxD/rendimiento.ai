@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { timeAgo, universeApi, type Universe as UniverseData, type UniverseBarrio, type UniverseEdge, type UniverseNode, type UniverseSpan, type UniverseSystem, type UniverseWindow } from "../api";
-import { Maqueta, ms, rate, worst, type MapModel, type MapRoad, type Pick, type Status } from "../components/maqueta";
+import { Maqueta, ms, rate, worst, type Engine, type MapModel, type MapRoad, type MapView, type Pick, type Status } from "../components/maqueta";
 import { ErrorBox, usePoll } from "../components/ui";
 import { t, tn } from "../i18n";
 
@@ -23,6 +23,13 @@ const kindLabel: Record<UniverseNode["kind"], string> = {
 const sourceLabel: Record<UniverseEdge["sources"][number], string> = {
   declared: "declared in rendimiento.yaml", env: "found in its environment", ingress: "public address", traced: "seen in traces",
 };
+/** The way the map is drawn, remembered on this device: flat at an angle (2.5D) or in 3D. */
+type Mode = "2.5d" | "3d";
+const MODE_KEY = "rendimiento.universe.mode";
+function savedMode(): Mode {
+  try { return localStorage.getItem(MODE_KEY) === "3d" ? "3d" : "2.5d"; } catch { return "2.5d"; }
+}
+
 const statusLabel: Record<Status, string> = { none: "Not measured", ok: "Normal", slow: "Slow", bad: "Failing" };
 
 /** Numbers for anything on the map: its calls, how they went, and their trends. */
@@ -206,9 +213,18 @@ export function Universe() {
   const goRef = useRef(go);
   goRef.current = go;
 
-  // The canvas.
+  // The canvas: the 2.5D maqueta, or the 3D one (loaded only when chosen, with three.js).
+  const [mode, setModeState] = useState<Mode>(savedMode);
+  const [no3d, setNo3d] = useState(false);
+  const [loading3d, setLoading3d] = useState(false);
+  const setMode = (m: Mode) => {
+    setModeState(m);
+    try { localStorage.setItem(MODE_KEY, m); } catch { /* kept for this visit only */ }
+  };
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const maqueta = useRef<Maqueta>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const maqueta = useRef<Engine>(null);
+  const shown = useRef<{ model: MapModel; view: MapView }>(null);
   const onPick = useRef<(p: Pick | null, twice: boolean) => void>(() => {});
   onPick.current = (p, twice) => {
     if (!p) return setSel(undefined);
@@ -225,13 +241,29 @@ export function Universe() {
     setSel(p);
   };
   useEffect(() => {
-    if (!canvasRef.current) return;
-    const m = new Maqueta(canvasRef.current, (p, twice) => onPick.current(p, twice));
-    maqueta.current = m;
-    return () => m.destroy();
-  }, [world !== undefined]); // eslint-disable-line react-hooks/exhaustive-deps
+    let gone = false, engine: Engine | undefined;
+    const pick = (p: Pick | null, twice: boolean) => onPick.current(p, twice);
+    const ready = (e: Engine) => {
+      if (gone) return e.destroy();
+      engine = e;
+      maqueta.current = e;
+      if (shown.current) e.set(shown.current.model, shown.current.view);
+    };
+    const flat = () => { setNo3d(true); setMode("2.5d"); };
+    if (mode === "3d" && hostRef.current) {
+      const host = hostRef.current;
+      setLoading3d(true);
+      import("../components/maqueta3d")
+        .then(({ Maqueta3D }) => { if (!gone) ready(new Maqueta3D(host, pick)); })
+        .catch(flat) // no WebGL here, or the file did not load
+        .finally(() => setLoading3d(false));
+    } else if (mode === "2.5d" && canvasRef.current) ready(new Maqueta(canvasRef.current, pick));
+    return () => { gone = true; engine?.destroy(); maqueta.current = null; };
+  }, [world !== undefined, mode]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (world && maqueta.current) maqueta.current.set(world.model, { level, barrio, pueblo, sel });
+    if (!world) return;
+    shown.current = { model: world.model, view: { level, barrio, pueblo, sel } };
+    maqueta.current?.set(world.model, shown.current.view);
   }, [world, level, barrio, pueblo, sel]);
 
   // Esc goes up a level.
@@ -255,6 +287,7 @@ export function Universe() {
   const hint = level === "region" ? t("Tap a barrio to come closer.")
     : level === "barrio" ? t("Tap a pueblo to see what comes in and goes out; tap it twice to go in.")
     : t("Tap a house, the well or a road. Esc to leave the pueblo.");
+  const label = t("Map of every app as a village");
 
   return (
     <div className="stack">
@@ -302,13 +335,24 @@ export function Universe() {
 
       <div className="universe">
         <div className="u-stage">
-          <canvas ref={canvasRef} className="u-canvas" role="img" aria-label={t("Map of every app as a village")} />
+          {mode === "3d"
+            ? <div ref={hostRef} key="3d" className="u-canvas u-host" role="img" aria-label={label} />
+            : <canvas ref={canvasRef} key="2.5d" className="u-canvas" role="img" aria-label={label} />}
+          <div className="u-mode" role="group" aria-label={t("How the map is drawn")}>
+            <button aria-pressed={mode === "2.5d"} onClick={() => setMode("2.5d")} title={t("Flat, seen at an angle")}>2.5D</button>
+            <button aria-pressed={mode === "3d"} onClick={() => { setNo3d(false); setMode("3d"); }} title={t("In 3D: turn it and tilt it")}>3D</button>
+          </div>
           <div className="u-zoom" role="group" aria-label={t("Zoom")}>
             <button onClick={() => maqueta.current?.zoom(1.3)} title={t("Zoom in")} aria-label={t("Zoom in")}>+</button>
             <button onClick={() => maqueta.current?.zoom(1 / 1.3)} title={t("Zoom out")} aria-label={t("Zoom out")}>−</button>
             <button onClick={() => maqueta.current?.fit()} title={t("Fit")} aria-label={t("Fit")}>⤢</button>
+            {mode === "3d" && <>
+              <button onClick={() => maqueta.current?.turn?.(-45)} title={t("Turn left")} aria-label={t("Turn left")}>⟲</button>
+              <button onClick={() => maqueta.current?.turn?.(45)} title={t("Turn right")} aria-label={t("Turn right")}>⟳</button>
+            </>}
           </div>
-          <div className="u-hint small"><span>{hint}</span></div>
+          {loading3d && <div className="u-loading small">{t("Building the village in 3D…")}</div>}
+          <div className="u-hint small"><span>{no3d ? t("3D needs WebGL, which this browser does not have; the map stays in 2.5D.") : hint}</span></div>
         </div>
         <aside className="universe-side card stack" aria-live="polite">
           <Panel world={world} data={data} win={win} level={level} barrio={here} town={town} sel={sel} setSel={setSel} go={go} goApp={goApp} />
@@ -324,6 +368,7 @@ export function Universe() {
           <li>{t("Red: 5% or more of the calls fail; amber: the slowest 5% take half a second or more.")}</li>
           <li>{t("Inside a pueblo: houses are services, the well is the database and the jar the cache. Calls from outside come in through the arch; calls to other apps leave by the signposts.")}</li>
           <li>{t("Scroll or pinch to zoom, drag to move, Esc to go up a level.")}</li>
+          <li>{t("2.5D or 3D, at the map's top left: the same village. In 3D, drag with the right button or two fingers to turn it and tilt it, or use ⟲ ⟳; the choice is kept on this device.")}</li>
         </ul>
         {!data.traces && <p className="small muted">{t("For latency on each road, the platform needs METRICS_URL and the OpenTelemetry collector add-on.")}</p>}
         <p className="small muted" style={{ margin: 0 }}>{t("Updated {when}", { when: timeAgo(data.generated) })} · <Link to="/services">{t("Services")}</Link></p>

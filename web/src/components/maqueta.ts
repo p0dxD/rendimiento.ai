@@ -31,8 +31,17 @@ export type Level = "region" | "barrio" | "pueblo";
 export type HitKind = "barrio" | "pueblo" | "node" | "road" | "internet" | "arch" | "sign";
 export interface Pick { kind: HitKind; id: string }
 export interface MapView { level: Level; barrio?: string; pueblo?: string; sel?: Pick }
+/** What the page asks of a maqueta, in 2.5D or in 3D. */
+export interface Engine {
+  set(model: MapModel, view: MapView): void;
+  zoom(f: number): void;
+  fit(): void;
+  /** Turns the village, in degrees; only the 3D one turns. */
+  turn?(deg: number): void;
+  destroy(): void;
+}
 
-const INTERNET = "internet";
+export const INTERNET = "internet";
 const TW = 32, TH = 16; // half a tile, across and down
 const RANK: Record<Status, number> = { none: 0, ok: 1, slow: 2, bad: 3 };
 export const worst = (list: Status[]): Status => list.reduce<Status>((w, s) => (RANK[s] > RANK[w] ? s : w), "none");
@@ -63,27 +72,27 @@ const NIGHT = {
   roof: "#8A3B5A", roofD: "#642842", road: "#4E4178", roadEdge: "#2A2350", flow: "#F2C14E", window: "#FFC864", cantera: "#7B5A86", water: "#2E5BD0",
   tones: ["#E0607A", "#F06AA6", "#7FC27A", "#7C9BEA", "#E58A5C", "#C36BA0", "#F2A93B"], outskirts: "#8F84A8",
 };
-type Palette = typeof DAY & { ok: string; slow: string; bad: string; text: string; muted: string; surface: string; border: string; accent: string; rosa: string; maiz: string; nopal: string; anil: string; teja: string; grana: string; cempasuchil: string };
+export type Palette = typeof DAY & { ok: string; slow: string; bad: string; text: string; muted: string; surface: string; border: string; accent: string; rosa: string; maiz: string; nopal: string; anil: string; teja: string; grana: string; cempasuchil: string };
 
-interface P { x: number; y: number }
+export interface P { x: number; y: number }
 interface Box { x0: number; y0: number; x1: number; y1: number }
 interface Cam { x: number; y: number; s: number }
 interface Road3 { a: P; b: P; c: P }
-interface PlacedBarrio { b: MapBarrio; x0: number; y0: number; side: number }
-interface PlacedPueblo { p: MapPueblo; barrio: string; gx: number; gy: number; size: number; houses: number; well: boolean; jar: boolean }
-interface Inside { pueblo: MapPueblo; c: number; nodes: Map<string, { n: MapNode; gx: number; gy: number }>; arch: { gx: number; gy: number }; signs: { to: string; gx: number; gy: number; status: Status; perMinute: number }[] }
+export interface PlacedBarrio { b: MapBarrio; x0: number; y0: number; side: number }
+export interface PlacedPueblo { p: MapPueblo; barrio: string; gx: number; gy: number; size: number; houses: number; well: boolean; jar: boolean }
+export interface Inside { pueblo: MapPueblo; c: number; nodes: Map<string, { n: MapNode; gx: number; gy: number }>; arch: { gx: number; gy: number }; signs: { to: string; gx: number; gy: number; status: Status; perMinute: number }[] }
 type Hit = Pick & ({ x: number; y: number; r: number } | { pts: P[] } | { poly: P[] });
-interface Label { p: P; title: string; sub?: string; subColor?: string; big?: boolean; dy?: number; prio: number; alpha?: number; ring?: string; force?: boolean }
+export interface Label { p: P; title: string; sub?: string; subColor?: string; big?: boolean; dy?: number; prio: number; alpha?: number; ring?: string; force?: boolean }
 
 const iso = (gx: number, gy: number, z = 0): P => ({ x: (gx - gy) * TW, y: (gx + gy) * TH - z });
-const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
-function hash(s: string) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+export const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+export function hash(s: string) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 const qpt = (g: Road3, k: number): P => ({ x: (1 - k) ** 2 * g.a.x + 2 * (1 - k) * k * g.c.x + k * k * g.b.x, y: (1 - k) ** 2 * g.a.y + 2 * (1 - k) * k * g.c.y + k * k * g.b.y });
 function roadGeom(a: P, b: P, bend = 0.14): Road3 { const dx = b.x - a.x, dy = b.y - a.y; return { a, b, c: { x: (a.x + b.x) / 2 - dy * bend, y: (a.y + b.y) / 2 + dx * bend } }; }
-const roadWidth = (perMinute: number, k = 1) => (1.6 + Math.log10(perMinute + 1) * 1.7) * k;
-const INTERNET_AT = { gx: -4.6, gy: -4.6 };
+export const roadWidth = (perMinute: number, k = 1) => (1.6 + Math.log10(perMinute + 1) * 1.7) * k;
+export const INTERNET_AT = { gx: -4.6, gy: -4.6 };
 
-export class Maqueta {
+export class Maqueta implements Engine {
   private ctx: CanvasRenderingContext2D;
   private W = 0;
   private H = 0;
@@ -96,8 +105,8 @@ export class Maqueta {
   private sprites = new Map<string, HTMLCanvasElement>();
   private model?: MapModel;
   private view: MapView = { level: "region" };
-  private barrios = new Map<string, PlacedBarrio>();
-  private pueblos = new Map<string, PlacedPueblo>();
+  private barrios: Map<string, PlacedBarrio> = new Map();
+  private pueblos: Map<string, PlacedPueblo> = new Map();
   private inside?: Inside;
   private hits: Hit[] = [];
   private labels: Label[] = [];
@@ -162,56 +171,14 @@ export class Maqueta {
   // ---- layout ----
 
   private layout() {
-    const m = this.model!;
-    this.barrios.clear();
-    this.pueblos.clear();
-    const sides = m.barrios.map((b) => Math.max(6, Math.ceil(Math.sqrt(b.pueblos.length)) * 3.3 + 1.2));
-    const cell = Math.max(6, ...sides) + 2.6;
-    const cols = Math.ceil(Math.sqrt(m.barrios.length));
-    m.barrios.forEach((b, i) => {
-      const side = sides[i];
-      const x0 = (i % cols) * cell + (cell - 2.6 - side) / 2, y0 = Math.floor(i / cols) * cell + (cell - 2.6 - side) / 2;
-      this.barrios.set(b.id, { b, x0, y0, side });
-      const per = Math.ceil(Math.sqrt(b.pueblos.length));
-      const pad = (side - per * 3.3) / 2;
-      b.pueblos.forEach((p, j) => {
-        const h = hash(p.id);
-        const jx = ((h % 100) / 100 - 0.5) * 0.5, jy = (((h >> 8) % 100) / 100 - 0.5) * 0.5;
-        const kinds = p.nodes.map((n) => n.kind);
-        this.pueblos.set(p.id, {
-          p, barrio: b.id,
-          gx: x0 + pad + 1.65 + (j % per) * 3.3 + jx, gy: y0 + pad + 1.65 + Math.floor(j / per) * 3.3 + jy,
-          size: clamp(0.82 + Math.log10(p.perMinute + 1) * 0.12, 0.82, 1.2),
-          houses: clamp(kinds.filter((k) => k === "service" || k === "workload" || k === "external").length, 1, 4),
-          well: kinds.includes("postgres"), jar: kinds.includes("redis"),
-        });
-      });
-    });
+    const placed = placeWorld(this.model!);
+    this.barrios = placed.barrios;
+    this.pueblos = placed.pueblos;
   }
 
   private layoutInside(id: string) {
     const p = this.pueblos.get(id)?.p;
-    if (!p) { this.inside = undefined; return; }
-    const order: Record<NodeKind, number> = { service: 0, workload: 1, external: 2, postgres: 3, redis: 4, internet: 5 };
-    const list = [...p.nodes].sort((a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name));
-    const R = Math.max(4.4, list.length * 0.8), c = R + 2.4;
-    const nodes = new Map<string, { n: MapNode; gx: number; gy: number }>();
-    list.forEach((n, i) => {
-      const a = -Math.PI * 0.75 + (i / list.length) * Math.PI * 2;
-      nodes.set(n.id, { n, gx: c + Math.cos(a) * R, gy: c + Math.sin(a) * R });
-    });
-    // One signpost per app called.
-    const m = this.model!, out = new Map<string, { to: string; status: Status; perMinute: number }>();
-    for (const r of m.nodeRoads) {
-      if (!nodes.has(r.from) || nodes.has(r.to)) continue;
-      const to = r.to === INTERNET ? INTERNET : m.puebloOf.get(r.to) ?? r.to;
-      const s = out.get(to) ?? { to, status: "none" as Status, perMinute: 0 };
-      s.status = worst([s.status, r.status]); s.perMinute += r.perMinute;
-      out.set(to, s);
-    }
-    const outs = [...out.values()].sort((a, b) => a.to.localeCompare(b.to));
-    const signs = outs.map((s, i) => ({ ...s, gx: 2 * c + 1.8, gy: outs.length === 1 ? c : 1 + (i * (2 * c - 2)) / (outs.length - 1) }));
-    this.inside = { pueblo: p, c, nodes, arch: { gx: c, gy: -1.8 }, signs };
+    this.inside = p && placeInside(this.model!, p);
   }
 
   /** Where the internet's arch stands: at the barrio's corner when one is shown, else above the region. */
@@ -277,9 +244,7 @@ export class Maqueta {
 
   private readTheme() {
     this.night = isNight();
-    const cs = getComputedStyle(document.documentElement), v = (k: string) => cs.getPropertyValue("--" + k).trim();
-    this.P = { ...(this.night ? NIGHT : DAY), ok: v("ok"), slow: v("warn"), bad: v("bad"), text: v("text"), muted: v("muted"), surface: v("surface"), border: v("border"), accent: v("accent"),
-      rosa: v("rosa"), maiz: v("maiz"), nopal: v("nopal"), anil: v("anil"), teja: v("teja"), grana: v("grana"), cempasuchil: v("cempasuchil") };
+    this.P = palette(this.night);
     this.sprites.clear();
   }
 
@@ -562,31 +527,7 @@ export class Maqueta {
   // ---- labels, in screen space, skipping any that would cover another ----
 
   private label(wp: P, title: string, sub: string | undefined, o: Omit<Label, "p" | "title" | "sub">) { this.labels.push({ p: this.toScreen(wp), title, sub, ...o }); }
-  private drawLabels() {
-    const { ctx, P } = this, placed: { x: number; y: number; w: number; h: number }[] = [];
-    const titleFont = (big?: boolean) => (big ? "700 17px Fraunces, Georgia, serif" : "800 12.5px 'Nunito Sans', system-ui, sans-serif");
-    const subFont = "600 11px ui-monospace, 'SF Mono', Menlo, Consolas, monospace";
-    this.labels.sort((a, b) => b.prio - a.prio);
-    for (const L of this.labels) {
-      ctx.font = titleFont(L.big);
-      const tw = ctx.measureText(L.title).width;
-      ctx.font = subFont;
-      const sw = L.sub ? ctx.measureText(L.sub).width : 0;
-      const w = Math.max(tw, sw) + 16, h = L.sub ? (L.big ? 42 : 36) : L.big ? 28 : 22;
-      const x = L.p.x - w / 2, y = L.p.y + (L.dy ?? 0);
-      if (x > this.W || y > this.H || x + w < 0 || y + h < 0) continue;
-      if (!L.force && placed.some((r) => x < r.x + r.w + 4 && x + w + 4 > r.x && y < r.y + r.h + 3 && y + h + 3 > r.y)) continue;
-      placed.push({ x, y, w, h });
-      ctx.globalAlpha = L.alpha ?? 1;
-      ctx.beginPath(); ctx.roundRect(x, y, w, h, 9);
-      ctx.fillStyle = P.surface; ctx.globalAlpha *= 0.92; ctx.fill(); ctx.globalAlpha = L.alpha ?? 1;
-      ctx.strokeStyle = L.ring ?? P.border; ctx.lineWidth = L.ring ? 2 : 1; ctx.stroke();
-      ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = P.text; ctx.font = titleFont(L.big);
-      ctx.fillText(L.title, L.p.x, y + 4);
-      if (L.sub) { ctx.font = subFont; ctx.fillStyle = L.subColor ?? P.muted; ctx.fillText(L.sub, L.p.x, y + (L.big ? 25 : 20)); }
-      ctx.globalAlpha = 1;
-    }
-  }
+  private drawLabels() { drawLabels(this.ctx, this.labels, this.W, this.H, this.P); }
 
   // ---- the village's pieces (world space) ----
 
@@ -762,8 +703,93 @@ export class Maqueta {
   }
 }
 
+/** The village's colors for day or night, with the page's own tokens. */
+export function palette(night: boolean): Palette {
+  const cs = getComputedStyle(document.documentElement), v = (k: string) => cs.getPropertyValue("--" + k).trim();
+  return { ...(night ? NIGHT : DAY), ok: v("ok"), slow: v("warn"), bad: v("bad"), text: v("text"), muted: v("muted"), surface: v("surface"), border: v("border"), accent: v("accent"),
+    rosa: v("rosa"), maiz: v("maiz"), nopal: v("nopal"), anil: v("anil"), teja: v("teja"), grana: v("grana"), cempasuchil: v("cempasuchil") };
+}
+
+/** Where every barrio and pueblo goes, in tiles; both the 2.5D and the 3D maqueta use it. */
+export function placeWorld(m: MapModel) {
+  const barrios = new Map<string, PlacedBarrio>(), pueblos = new Map<string, PlacedPueblo>();
+  const sides = m.barrios.map((b) => Math.max(6, Math.ceil(Math.sqrt(b.pueblos.length)) * 3.3 + 1.2));
+  const cell = Math.max(6, ...sides) + 2.6;
+  const cols = Math.ceil(Math.sqrt(m.barrios.length));
+  m.barrios.forEach((b, i) => {
+    const side = sides[i];
+    const x0 = (i % cols) * cell + (cell - 2.6 - side) / 2, y0 = Math.floor(i / cols) * cell + (cell - 2.6 - side) / 2;
+    barrios.set(b.id, { b, x0, y0, side });
+    const per = Math.ceil(Math.sqrt(b.pueblos.length));
+    const pad = (side - per * 3.3) / 2;
+    b.pueblos.forEach((p, j) => {
+      const h = hash(p.id);
+      const jx = ((h % 100) / 100 - 0.5) * 0.5, jy = (((h >> 8) % 100) / 100 - 0.5) * 0.5;
+      const kinds = p.nodes.map((n) => n.kind);
+      pueblos.set(p.id, {
+        p, barrio: b.id,
+        gx: x0 + pad + 1.65 + (j % per) * 3.3 + jx, gy: y0 + pad + 1.65 + Math.floor(j / per) * 3.3 + jy,
+        size: clamp(0.82 + Math.log10(p.perMinute + 1) * 0.12, 0.82, 1.2),
+        houses: clamp(kinds.filter((k) => k === "service" || k === "workload" || k === "external").length, 1, 4),
+        well: kinds.includes("postgres"), jar: kinds.includes("redis"),
+      });
+    });
+  });
+  return { barrios, pueblos };
+}
+
+/** Inside a pueblo: its houses in a ring around the plaza, the arch, and one signpost per app called. */
+export function placeInside(m: MapModel, p: MapPueblo): Inside {
+  const order: Record<NodeKind, number> = { service: 0, workload: 1, external: 2, postgres: 3, redis: 4, internet: 5 };
+  const list = [...p.nodes].sort((a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name));
+  const R = Math.max(4.4, list.length * 0.8), c = R + 2.4;
+  const nodes = new Map<string, { n: MapNode; gx: number; gy: number }>();
+  list.forEach((n, i) => {
+    const a = -Math.PI * 0.75 + (i / list.length) * Math.PI * 2;
+    nodes.set(n.id, { n, gx: c + Math.cos(a) * R, gy: c + Math.sin(a) * R });
+  });
+  const out = new Map<string, { to: string; status: Status; perMinute: number }>();
+  for (const r of m.nodeRoads) {
+    if (!nodes.has(r.from) || nodes.has(r.to)) continue;
+    const to = r.to === INTERNET ? INTERNET : m.puebloOf.get(r.to) ?? r.to;
+    const s = out.get(to) ?? { to, status: "none" as Status, perMinute: 0 };
+    s.status = worst([s.status, r.status]); s.perMinute += r.perMinute;
+    out.set(to, s);
+  }
+  const outs = [...out.values()].sort((a, b) => a.to.localeCompare(b.to));
+  const signs = outs.map((s, i) => ({ ...s, gx: 2 * c + 1.8, gy: outs.length === 1 ? c : 1 + (i * (2 * c - 2)) / (outs.length - 1) }));
+  return { pueblo: p, c, nodes, arch: { gx: c, gy: -1.8 }, signs };
+}
+
+/** Draws labels in screen space, the most important first, skipping any that would cover another. */
+export function drawLabels(ctx: CanvasRenderingContext2D, labels: Label[], W: number, H: number, P: Palette) {
+  const placed: { x: number; y: number; w: number; h: number }[] = [];
+  const titleFont = (big?: boolean) => (big ? "700 17px Fraunces, Georgia, serif" : "800 12.5px 'Nunito Sans', system-ui, sans-serif");
+  const subFont = "600 11px ui-monospace, 'SF Mono', Menlo, Consolas, monospace";
+  labels.sort((a, b) => b.prio - a.prio);
+  for (const L of labels) {
+    ctx.font = titleFont(L.big);
+    const tw = ctx.measureText(L.title).width;
+    ctx.font = subFont;
+    const sw = L.sub ? ctx.measureText(L.sub).width : 0;
+    const w = Math.max(tw, sw) + 16, h = L.sub ? (L.big ? 42 : 36) : L.big ? 28 : 22;
+    const x = L.p.x - w / 2, y = L.p.y + (L.dy ?? 0);
+    if (x > W || y > H || x + w < 0 || y + h < 0) continue;
+    if (!L.force && placed.some((r) => x < r.x + r.w + 4 && x + w + 4 > r.x && y < r.y + r.h + 3 && y + h + 3 > r.y)) continue;
+    placed.push({ x, y, w, h });
+    ctx.globalAlpha = L.alpha ?? 1;
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, 9);
+    ctx.fillStyle = P.surface; ctx.globalAlpha *= 0.92; ctx.fill(); ctx.globalAlpha = L.alpha ?? 1;
+    ctx.strokeStyle = L.ring ?? P.border; ctx.lineWidth = L.ring ? 2 : 1; ctx.stroke();
+    ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = P.text; ctx.font = titleFont(L.big);
+    ctx.fillText(L.title, L.p.x, y + 4);
+    if (L.sub) { ctx.font = subFont; ctx.fillStyle = L.subColor ?? P.muted; ctx.fillText(L.sub, L.p.x, y + (L.big ? 25 : 20)); }
+    ctx.globalAlpha = 1;
+  }
+}
+
 /** The letters on a house: its language, like the Services page. */
-function badge(n: MapNode) {
+export function badge(n: MapNode) {
   if (n.kind === "postgres" || n.kind === "redis") return "";
   if (n.kind === "external") return "↗";
   const lang: Record<string, string> = { node: "JS", python: "Py", java: "Jv", go: "Go", static: "◇" };
