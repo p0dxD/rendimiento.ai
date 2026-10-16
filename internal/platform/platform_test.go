@@ -204,9 +204,14 @@ func resetDB(ctx context.Context, dsn string) error {
 	return st.ResetForTests(ctx)
 }
 
+// testWait is how long a test waits for a run or a condition. A run on a
+// busy worker (the controller's envtest running beside it) has taken more
+// than 20 seconds; a passing test returns as soon as it is done.
+const testWait = 60 * time.Second
+
 func waitRun(t *testing.T, p *Platform, id int64) *store.Run {
 	t.Helper()
-	deadline := time.Now().Add(20 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for time.Now().Before(deadline) {
 		r, err := p.Store.GetRun(context.Background(), id)
 		if err == nil && r.FinishedAt != nil {
@@ -326,7 +331,7 @@ func TestOnboardPushDeployRollback(t *testing.T) {
 
 func eventually(t *testing.T, what string, cond func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(20 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for time.Now().Before(deadline) {
 		if cond() {
 			return
