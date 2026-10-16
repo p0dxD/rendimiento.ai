@@ -15,6 +15,8 @@ The map is a model village, seen from a hill at an angle:
 
 Inside a pueblo, each **house** is a service, with its language on a badge (`JS`, `Py`, `Jv`, `Go`); a tall house is a job or worker that only calls others. Calls from other apps and from the internet come in through the **arch**, and calls to other apps leave by **signposts** named after them.
 
+The rest is there for life and means nothing: laurels with their trunks whitewashed, iron benches facing the kiosco, a fountain, flower beds of cempasúchil, the **presidencia municipal** with its portales and a clock tower that tells the real time, and people strolling round the plaza, half one way and half the other, as in the old *paseo*. Between the pueblos of a barrio grow more laurels, and a barrio with room to spare gets a little plaza of its own. With movement off, the people and the fountain hold still.
+
 ## Where the roads come from
 
 | Road | Source | Example |

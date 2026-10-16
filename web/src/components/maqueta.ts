@@ -66,11 +66,13 @@ const DAY = {
   sky1: "#FDF8EF", sky2: "#F2E3C8", ground: "#F3E7D2", plaza: "#E8D6B8", wallL: "#EFE1CB", wallR: "#E0CDB0",
   roof: "#B5532A", roofD: "#8F3F1E", road: "#C9AF8E", roadEdge: "#F9F1E4", flow: "#E8890C", window: "#6B5444cc", cantera: "#D9A88A", water: "#23408E",
   tones: ["#8E1B2C", "#D6246E", "#3E7B3A", "#23408E", "#B5532A", "#6B1E4A", "#E8890C"], outskirts: "#8C7B6B",
+  leaf: "#4F7F3A", leafL: "#79A653", trunk: "#7A5232", cal: "#F6F0E4", iron: "#2F4A3A", skin: ["#8D5B3E", "#B57F55", "#6E452E"],
 };
 const NIGHT = {
   sky1: "#0D0A24", sky2: "#1C1F55", ground: "#1D1840", plaza: "#2A2350", wallL: "#45366A", wallR: "#362A55",
   roof: "#8A3B5A", roofD: "#642842", road: "#4E4178", roadEdge: "#2A2350", flow: "#F2C14E", window: "#FFC864", cantera: "#7B5A86", water: "#2E5BD0",
   tones: ["#E0607A", "#F06AA6", "#7FC27A", "#7C9BEA", "#E58A5C", "#C36BA0", "#F2A93B"], outskirts: "#8F84A8",
+  leaf: "#264B3A", leafL: "#3A6A4C", trunk: "#3B2B3A", cal: "#9C92B8", iron: "#7A8CB0", skin: ["#6E4A3A", "#8A6248", "#55382C"],
 };
 export type Palette = typeof DAY & { ok: string; slow: string; bad: string; text: string; muted: string; surface: string; border: string; accent: string; rosa: string; maiz: string; nopal: string; anil: string; teja: string; grana: string; cempasuchil: string };
 
@@ -78,9 +80,15 @@ export interface P { x: number; y: number }
 interface Box { x0: number; y0: number; x1: number; y1: number }
 interface Cam { x: number; y: number; s: number }
 interface Road3 { a: P; b: P; c: P }
-export interface PlacedBarrio { b: MapBarrio; x0: number; y0: number; side: number }
+/**
+ * What makes a place feel lived in, and means nothing: laurels with their
+ * trunks whitewashed, iron benches, a fountain, flower beds, a little plaza
+ * with its kiosco, and the presidencia municipal with its clock tower.
+ */
+export interface Decor { kind: "tree" | "bench" | "fountain" | "kiosco" | "presidencia" | "jardinera"; gx: number; gy: number; s: number; along?: 0 | 1; back?: 1 | -1 }
+export interface PlacedBarrio { b: MapBarrio; x0: number; y0: number; side: number; decor: Decor[] }
 export interface PlacedPueblo { p: MapPueblo; barrio: string; gx: number; gy: number; size: number; houses: number; well: boolean; jar: boolean }
-export interface Inside { pueblo: MapPueblo; c: number; nodes: Map<string, { n: MapNode; gx: number; gy: number }>; arch: { gx: number; gy: number }; signs: { to: string; gx: number; gy: number; status: Status; perMinute: number }[] }
+export interface Inside { pueblo: MapPueblo; c: number; decor: Decor[]; walkers: number; nodes: Map<string, { n: MapNode; gx: number; gy: number }>; arch: { gx: number; gy: number }; signs: { to: string; gx: number; gy: number; status: Status; perMinute: number }[] }
 type Hit = Pick & ({ x: number; y: number; r: number } | { pts: P[] } | { poly: P[] });
 export interface Label { p: P; title: string; sub?: string; subColor?: string; big?: boolean; dy?: number; prio: number; alpha?: number; ring?: string; force?: boolean }
 
@@ -410,10 +418,18 @@ export class Maqueta implements Engine {
       if (fb === focus && tb) linked.add(r.to);
       if (tb === focus && fb) linked.add(r.from);
     }
-    const list = [...this.pueblos.values()].sort((a, b) => a.gx + a.gy - (b.gx + b.gy));
     const offs = [[-0.45, -0.35], [0.4, -0.5], [-0.35, 0.45], [0.45, 0.35]];
-    for (const pp of list) {
-      const mine = pp.barrio === focus;
+    const list: ({ gx: number; gy: number; pp: PlacedPueblo } | { gx: number; gy: number; d: Decor; barrio: string })[] = [...this.pueblos.values()].map((pp) => ({ gx: pp.gx, gy: pp.gy, pp }));
+    for (const pb of this.barrios.values()) for (const d of pb.decor) list.push({ gx: d.gx, gy: d.gy, d, barrio: pb.b.id });
+    list.sort((a, b) => a.gx + a.gy - (b.gx + b.gy));
+    for (const item of list) {
+      if ("d" in item) {
+        ctx.globalAlpha = focus && item.barrio !== focus ? 0.38 : 1;
+        this.decor(item.d, now);
+        ctx.globalAlpha = 1;
+        continue;
+      }
+      const pp = item.pp, mine = pp.barrio === focus;
       ctx.globalAlpha = !focus ? 1 : mine ? 1 : linked.has(pp.p.id) ? 0.7 : 0.32;
       const sel = this.selected("pueblo", pp.p.id);
       this.ring(pp.gx, pp.gy, 1.25 * pp.size, this.ringColor(pp.p.status), sel ? 4 : 2.4, pp.p.status === "bad" && !still() ? 1.15 + 0.12 * Math.sin(now * 0.005) : 0);
@@ -465,30 +481,25 @@ export class Maqueta implements Engine {
       this.road(g, r, roadWidth(r.perMinute, 1.15), now, this.selected("road", r.id));
       this.hitRoad(r.id, g);
     }
-    const items = [...ins.nodes.values()].sort((a, b) => a.gx + a.gy - (b.gx + b.gy));
-    const tops = new Map<string, P>();
-    for (const it of items) {
-      const n = it.n, sel = this.selected("node", n.id);
-      this.ring(it.gx, it.gy, 1.35, this.ringColor(n.status), sel ? 4 : 2.4, n.status === "bad" && !still() ? 1.15 + 0.12 * Math.sin(now * 0.005) : 0);
-      if (sel) this.ring(it.gx, it.gy, 1.65, P.accent, 2);
-      let h: number;
-      if (n.kind === "postgres") h = this.well(it.gx, it.gy, 1.6);
-      else if (n.kind === "redis") h = this.jar(it.gx, it.gy, 1.4);
-      else h = this.house(it.gx, it.gy, n.kind === "external" ? 1.2 : 1.7, this.tone(barrio), { tall: n.kind === "workload", portal: n.kind === "service" && !!n.lang && n.lang === "static" });
-      tops.set(n.id, iso(it.gx, it.gy, h));
-      const glyph = badge(n);
-      if (glyph) {
-        const p = iso(it.gx, it.gy, h + 12);
-        ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, Math.PI * 2); ctx.fillStyle = P.surface; ctx.fill();
-        ctx.strokeStyle = n.status === "none" ? P.muted : n.status === "ok" ? P.ok : this.statusColor(n.status); ctx.lineWidth = 2.4; ctx.stroke();
-        ctx.fillStyle = P.text; ctx.font = "800 10px 'Nunito Sans', system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText(glyph, p.x, p.y + 0.5);
-      }
-      this.hitCircle("node", n.id, iso(it.gx, it.gy, h / 2), 56);
-      this.label(iso(it.gx, it.gy), n.name, undefined, { dy: 38 * this.cam.s, prio: sel ? 12 : 4, force: sel, ring: sel ? P.accent : undefined });
+    const items = [...ins.nodes.values()];
+    const tops = new Map<string, P>(), badges: { p: P; glyph: string; status: Status }[] = [];
+    type Thing = { gx: number; gy: number; draw: () => void };
+    const things: Thing[] = [
+      ...ins.decor.map((d) => ({ gx: d.gx, gy: d.gy, draw: () => this.decor(d, now) })),
+      ...this.walkers(c, ins.walkers, now).map((w) => ({ gx: w.gx, gy: w.gy, draw: () => this.person(w.gx, w.gy, w.color, w.skin, w.step) })),
+      { gx: c, gy: c, draw: () => this.kiosco(c, c) },
+      ...[[c - 2.1, c - 2.1], [c + 2.1, c - 2.1], [c - 2.1, c + 2.1], [c + 2.1, c + 2.1]].map(([x, y]) => ({ gx: x, gy: y, draw: () => this.farol(x, y, now) })),
+      ...items.map((it) => ({ gx: it.gx, gy: it.gy, draw: () => this.insideNode(it, barrio, now, tops, badges) })),
+    ];
+    for (const th of things.sort((a, b) => a.gx + a.gy - (b.gx + b.gy))) th.draw();
+    for (const b of badges) {
+      ctx.beginPath(); ctx.arc(b.p.x, b.p.y, 11, 0, Math.PI * 2); ctx.fillStyle = P.surface; ctx.fill();
+      ctx.strokeStyle = b.status === "none" ? P.muted : b.status === "ok" ? P.ok : this.statusColor(b.status); ctx.lineWidth = 2.4; ctx.stroke();
+      ctx.fillStyle = P.text; ctx.font = "800 10px 'Nunito Sans', system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(b.glyph, b.p.x, b.p.y + 0.5);
     }
     // papel picado strung from the kiosco to every house
-    const k = this.kiosco(c, c);
+    const k = iso(c, c, 6 + 26 + 22);
     const colors = [P.rosa, P.maiz, P.nopal, P.anil, P.cempasuchil];
     ctx.lineWidth = 1;
     let ci = 0;
@@ -503,8 +514,27 @@ export class Maqueta implements Engine {
         this.poly([{ x: p.x - 3, y: p.y }, { x: p.x + 3, y: p.y }, { x: p.x, y: p.y + 7 }], colors[ci++ % colors.length]);
       }
     }
-    for (const [x, y] of [[c - 2.1, c - 2.1], [c + 2.1, c - 2.1], [c - 2.1, c + 2.1], [c + 2.1, c + 2.1]]) this.farol(x, y, now);
-    // the arch where calls come in
+    this.drawGates(ins, m);
+  }
+
+  /** A house, the well or the jar inside a pueblo, with its ring, label and tap area; its badge is drawn later, on top. */
+  private insideNode(it: { n: MapNode; gx: number; gy: number }, barrio: string, now: number, tops: Map<string, P>, badges: { p: P; glyph: string; status: Status }[]) {
+    const { P } = this, n = it.n, sel = this.selected("node", n.id);
+    this.ring(it.gx, it.gy, 1.35, this.ringColor(n.status), sel ? 4 : 2.4, n.status === "bad" && !still() ? 1.15 + 0.12 * Math.sin(now * 0.005) : 0);
+    if (sel) this.ring(it.gx, it.gy, 1.65, P.accent, 2);
+    let h: number;
+    if (n.kind === "postgres") h = this.well(it.gx, it.gy, 1.6);
+    else if (n.kind === "redis") h = this.jar(it.gx, it.gy, 1.4);
+    else h = this.house(it.gx, it.gy, n.kind === "external" ? 1.2 : 1.7, this.tone(barrio), { tall: n.kind === "workload", portal: n.kind === "service" && !!n.lang && n.lang === "static" });
+    tops.set(n.id, iso(it.gx, it.gy, h));
+    const glyph = badge(n);
+    if (glyph) badges.push({ p: iso(it.gx, it.gy, h + 12), glyph, status: n.status });
+    this.hitCircle("node", n.id, iso(it.gx, it.gy, h / 2), 56);
+    this.label(iso(it.gx, it.gy), n.name, undefined, { dy: 38 * this.cam.s, prio: sel ? 12 : 4, force: sel, ring: sel ? P.accent : undefined });
+  }
+
+  /** The arch where calls come in, and the signposts where they leave. */
+  private drawGates(ins: Inside, m: MapModel) {
     const ids = new Set(ins.nodes.keys());
     const callers = [...new Set(m.nodeRoads.filter((r) => ids.has(r.to) && !ids.has(r.from)).map((r) => (r.from === INTERNET ? t("Internet") : m.puebloOf.get(r.from) ?? r.from)))];
     this.arch(ins.arch.gx, ins.arch.gy);
@@ -598,8 +628,8 @@ export class Maqueta implements Engine {
     return 34 * sz;
   }
   /** The bandstand in the plaza; returns the tip of its roof. */
-  private kiosco(cx: number, cy: number) {
-    const { ctx, P } = this, r = 1.1, h = 26, tp = this.ellipse(cx, cy, 6, r), base = this.ellipse(cx, cy, 0, r + 0.2);
+  private kiosco(cx: number, cy: number, k = 1) {
+    const { ctx, P } = this, r = 1.1 * k, h = 26 * k, tp = this.ellipse(cx, cy, 6 * k, r), base = this.ellipse(cx, cy, 0, r + 0.2 * k);
     ctx.beginPath(); ctx.ellipse(base.p.x, base.p.y, base.rx, base.ry, 0, 0, Math.PI * 2); ctx.fillStyle = P.cantera; ctx.fill();
     ctx.beginPath(); ctx.ellipse(tp.p.x, tp.p.y, tp.rx, tp.ry, 0, 0, Math.PI * 2); ctx.fillStyle = P.wallL; ctx.fill();
     ctx.strokeStyle = this.night ? P.maiz : P.grana; ctx.lineWidth = 2.4;
@@ -609,12 +639,131 @@ export class Maqueta implements Engine {
       const x = tp.p.x + Math.cos(a) * tp.rx * 0.9, y = tp.p.y + Math.sin(a) * tp.ry * 0.9;
       ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - h); ctx.stroke();
     }
-    const top = this.ellipse(cx, cy, 6 + h, r + 0.15), apex = iso(cx, cy, 6 + h + 22);
+    const top = this.ellipse(cx, cy, 6 * k + h, r + 0.15 * k), apex = iso(cx, cy, 6 * k + h + 22 * k);
     ctx.beginPath(); ctx.moveTo(top.p.x - top.rx, top.p.y); ctx.lineTo(apex.x, apex.y); ctx.lineTo(top.p.x + top.rx, top.p.y);
     ctx.ellipse(top.p.x, top.p.y, top.rx, top.ry, 0, 0, Math.PI, false); ctx.closePath(); ctx.fillStyle = P.grana; ctx.fill();
     ctx.beginPath(); ctx.ellipse(top.p.x, top.p.y, top.rx, top.ry, 0, 0, Math.PI, false); ctx.strokeStyle = P.maiz; ctx.lineWidth = 2; ctx.stroke();
     return apex;
   }
+  // ---- what makes it lived in (it means nothing) ----
+
+  private decor(d: Decor, now: number) {
+    if (d.kind === "tree") this.tree(d.gx, d.gy, d.s);
+    else if (d.kind === "bench") this.bench(d.gx, d.gy, d.s, d.along ?? 0, d.back ?? 1);
+    else if (d.kind === "fountain") this.fountain(d.gx, d.gy, d.s, now);
+    else if (d.kind === "kiosco") this.kiosco(d.gx, d.gy, d.s);
+    else if (d.kind === "jardinera") this.jardinera(d.gx, d.gy, d.s);
+    else this.presidencia(d.gx, d.gy);
+  }
+  /** A laurel trimmed round, its trunk whitewashed at the foot, as in a Mexican plaza. */
+  private tree(gx: number, gy: number, s: number) {
+    const { ctx, P } = this, p = iso(gx, gy);
+    ctx.beginPath(); ctx.ellipse(p.x + 5 * s, p.y + 1, 17 * s, 7 * s, 0, 0, Math.PI * 2); ctx.fillStyle = "rgba(0,0,0,.13)"; ctx.fill();
+    const tw = 2.6 * s, th = 17 * s;
+    ctx.fillStyle = P.trunk; ctx.fillRect(p.x - tw, p.y - th, tw * 2, th);
+    ctx.fillStyle = P.cal; ctx.fillRect(p.x - tw, p.y - 7 * s, tw * 2, 7 * s);
+    const cy = p.y - th - 10 * s;
+    ctx.beginPath(); ctx.ellipse(p.x, cy, 16 * s, 13 * s, 0, 0, Math.PI * 2); ctx.fillStyle = P.leaf; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(p.x - 4 * s, cy - 4 * s, 10 * s, 8 * s, 0, 0, Math.PI * 2); ctx.fillStyle = P.leafL; ctx.fill();
+  }
+  /** An iron bench; it runs along one axis and has its back on one side. */
+  private bench(gx: number, gy: number, s: number, along: 0 | 1, back: 1 | -1) {
+    const iron = this.P.iron, c = { t: iron, l: shade(iron, -0.25), r: shade(iron, -0.4) };
+    const len = 0.7 * s, dep = 0.2 * s, w = along === 0 ? len : dep, d = along === 0 ? dep : len, x = gx - w / 2, y = gy - d / 2;
+    for (const u of [0.08, 0.92]) along === 0 ? this.box(x + w * u - 0.02, y, 0.04, d, 5 * s, c) : this.box(x, y + d * u - 0.02, w, 0.04, 5 * s, c);
+    this.box(x, y, w, d, 1.6 * s, c, 5 * s);
+    if (along === 0) this.box(x, back > 0 ? y + d - 0.04 : y, w, 0.04, 7 * s, c, 6.6 * s);
+    else this.box(back > 0 ? x + w - 0.04 : x, y, 0.04, d, 7 * s, c, 6.6 * s);
+  }
+  /** A round of stone with its top: wells, fountains and flower beds are made of these. */
+  private drum(cx: number, cy: number, r: number, z0: number, h: number, side: string, top: string) {
+    const { ctx } = this, b = this.ellipse(cx, cy, z0, r), tp = this.ellipse(cx, cy, z0 + h, r);
+    ctx.beginPath(); ctx.moveTo(b.p.x - b.rx, b.p.y); ctx.ellipse(b.p.x, b.p.y, b.rx, b.ry, 0, Math.PI, 0, true); ctx.lineTo(tp.p.x + tp.rx, tp.p.y);
+    ctx.ellipse(tp.p.x, tp.p.y, tp.rx, tp.ry, 0, 0, Math.PI, false); ctx.closePath(); ctx.fillStyle = side; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(tp.p.x, tp.p.y, tp.rx, tp.ry, 0, 0, Math.PI * 2); ctx.fillStyle = top; ctx.fill();
+  }
+  /** A cantera fountain with a basin on a column, and water falling. */
+  private fountain(cx: number, cy: number, s: number, now: number) {
+    const { ctx, P } = this, r = 0.62 * s;
+    this.drum(cx, cy, r, 0, 7 * s, P.cantera, P.wallL);
+    this.drum(cx, cy, r * 0.84, 6.9 * s, 0.2, P.water, P.water);
+    this.drum(cx, cy, 0.07 * s, 7 * s, 13 * s, P.cantera, P.cantera);
+    this.drum(cx, cy, 0.24 * s, 20 * s, 3 * s, P.cantera, P.water);
+    const top = iso(cx, cy, 23 * s), time = still() ? 0 : now / 1000;
+    ctx.fillStyle = this.night ? "#9CC2FF" : "#FFFFFFcc";
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2, k = (time * 0.8 + i * 0.37) % 1;
+      const x = top.x + Math.cos(a) * (6 + 14 * k) * s, y = top.y + Math.sin(a) * (3 + 6 * k) * s + (k * k * 20 - k * 6) * s;
+      ctx.fillRect(x - 1, y - 1, 2, 2);
+    }
+  }
+  /** A low bed of cempasúchil and other flowers, edged in cantera. */
+  private jardinera(cx: number, cy: number, s: number) {
+    const { ctx, P } = this, w = 1.1 * s;
+    this.box(cx - w / 2, cy - w / 2, w, w, 5 * s, { t: this.night ? "#2E3B2E" : "#5B7A3A", l: P.cantera, r: shade(P.cantera, -0.15) });
+    const colors = [P.cempasuchil, P.rosa, P.maiz, P.grana];
+    for (let i = 0; i < 18; i++) {
+      const h = hash("flor" + i), p = iso(cx - w / 2 + 0.1 + ((h % 100) / 100) * (w - 0.2), cy - w / 2 + 0.1 + (((h >> 8) % 100) / 100) * (w - 0.2), 6 * s);
+      ctx.beginPath(); ctx.arc(p.x, p.y, 2.2 * s, 0, Math.PI * 2); ctx.fillStyle = colors[i % colors.length]; ctx.fill();
+    }
+  }
+  /** The presidencia municipal: portales on the ground floor, balconies above, and a clock tower that tells the real time. */
+  private presidencia(gx: number, gy: number) {
+    const { ctx, P } = this, w = 2.5, d = 1.6, h = 36, x = gx - w / 2, y = gy - d / 2;
+    const wall = { t: P.cantera, l: P.wallL, r: P.wallR }, stone = { t: P.cantera, l: P.cantera, r: shade(P.cantera, -0.15) };
+    this.box(x, y, w, d, h, wall);
+    this.box(x - 0.06, y - 0.06, w + 0.12, d + 0.12, 4, stone, h);
+    const L = (u: number, z: number) => iso(x + w * u, y + d, z), R = (u: number, z: number) => iso(x + w, y + d * u, z);
+    const dark = this.night ? "#1A1530" : "#7A5A48", lit = P.window;
+    // portales: arches along both faces we see
+    for (const [F, n, len] of [[L, 5, w], [R, 3, d]] as const) {
+      for (let i = 0; i < n; i++) {
+        const u0 = (i + 0.16) / n, u1 = (i + 0.84) / n, mid = (u0 + u1) / 2, span = ((u1 - u0) * len * TW) / 2.2, pts: P[] = [F(u0, 0), F(u1, 0)];
+        for (let k = 0; k <= 8; k++) { const a = (k / 8) * Math.PI; pts.push(F(mid + (Math.cos(a) * (u1 - u0)) / 2, 11 + Math.sin(a) * span * 0.6)); }
+        this.poly(pts, dark);
+        this.poly([F(u0 + 0.03, h * 0.6), F(u1 - 0.03, h * 0.6), F(u1 - 0.03, h * 0.82), F(u0 + 0.03, h * 0.82)], lit);
+        this.poly([F(u0 - 0.02, h * 0.57), F(u1 + 0.02, h * 0.57), F(u1 + 0.02, h * 0.6), F(u0 - 0.02, h * 0.6)], this.night ? "#8C7AB0" : P.iron);
+      }
+    }
+    // the clock tower
+    const tw = 0.72, tx = gx - tw / 2, ty = gy - tw / 2, z0 = h + 4, th = 28;
+    this.box(tx, ty, tw, tw, th, wall, z0);
+    this.box(tx - 0.05, ty - 0.05, tw + 0.1, tw + 0.1, 3, stone, z0 + th);
+    const e = 0.06, apex = iso(gx, gy, z0 + th + 3 + 16);
+    this.poly([iso(tx - e, ty + tw + e, z0 + th + 3), iso(tx + tw + e, ty + tw + e, z0 + th + 3), apex], P.roof);
+    this.poly([iso(tx + tw + e, ty - e, z0 + th + 3), iso(tx + tw + e, ty + tw + e, z0 + th + 3), apex], P.roofD);
+    const TL = (u: number, z: number) => iso(tx + tw * u, ty + tw, z), TR = (u: number, z: number) => iso(tx + tw, ty + tw * u, z);
+    const now = new Date(), hr = ((now.getHours() % 12) + now.getMinutes() / 60) * (Math.PI / 6), mn = now.getMinutes() * (Math.PI / 30);
+    for (const F of [TL, TR]) {
+      const zc = z0 + th * 0.58, ru = 0.3, rz = 7.5, face: P[] = [];
+      for (let k = 0; k < 20; k++) { const a = (k / 20) * Math.PI * 2; face.push(F(0.5 + Math.cos(a) * ru, zc + Math.sin(a) * rz)); }
+      this.poly(face, this.night ? "#FFF3C4" : "#FBF6EA", P.roofD, 1.2);
+      ctx.strokeStyle = "#2B2118"; ctx.lineCap = "round";
+      for (const [a, k, lw] of [[hr, 0.55, 1.8], [mn, 0.85, 1.2]] as const) {
+        const c0 = F(0.5, zc), c1 = F(0.5 + Math.sin(a) * ru * k, zc + Math.cos(a) * rz * k);
+        ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(c0.x, c0.y); ctx.lineTo(c1.x, c1.y); ctx.stroke();
+      }
+    }
+    // the flag on its pole at the corner of the roof
+    const base = iso(x + w - 0.25, y + 0.25, h + 4), poleTop = { x: base.x, y: base.y - 30 };
+    ctx.strokeStyle = this.night ? "#8C7AB0" : "#6B5444"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(poleTop.x, poleTop.y); ctx.stroke();
+    ["#006847", "#FFFFFF", "#CE1126"].forEach((col, i) => { ctx.fillStyle = col; ctx.fillRect(poleTop.x + 1 + i * 5, poleTop.y, 5, 9); });
+  }
+  /** The paseo: people walking round the plaza, half one way and half the other. */
+  private walkers(c: number, n: number, now: number) {
+    const P = this.P;
+    return paseo(c, n, still() ? 0 : now / 1000).map((w, i) => ({ ...w, color: P.tones[(i * 3) % P.tones.length], skin: P.skin[i % P.skin.length] }));
+  }
+  private person(gx: number, gy: number, color: string, skin: string, step: number) {
+    const { ctx } = this, p = iso(gx, gy), bob = Math.abs(Math.sin(step)) * 1.2;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, 4, 1.8, 0, 0, Math.PI * 2); ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fill();
+    ctx.strokeStyle = this.night ? "#2A2350" : "#3B2B22"; ctx.lineWidth = 1.6; ctx.lineCap = "round";
+    const sw = Math.sin(step) * 1.6;
+    ctx.beginPath(); ctx.moveTo(p.x - 1, p.y - 5); ctx.lineTo(p.x - 1 + sw, p.y); ctx.moveTo(p.x + 1, p.y - 5); ctx.lineTo(p.x + 1 - sw, p.y); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(p.x, p.y - 9 - bob, 3.2, 4.6, 0, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x, p.y - 15.5 - bob, 2.4, 0, Math.PI * 2); ctx.fillStyle = skin; ctx.fill();
+  }
+
   private farol(gx: number, gy: number, now: number) {
     const { ctx, P } = this, p = iso(gx, gy);
     ctx.strokeStyle = this.night ? "#8C7AB0" : P.roofD; ctx.lineWidth = 1.6;
@@ -719,9 +868,11 @@ export function placeWorld(m: MapModel) {
   m.barrios.forEach((b, i) => {
     const side = sides[i];
     const x0 = (i % cols) * cell + (cell - 2.6 - side) / 2, y0 = Math.floor(i / cols) * cell + (cell - 2.6 - side) / 2;
-    barrios.set(b.id, { b, x0, y0, side });
+    const decor: Decor[] = [];
+    barrios.set(b.id, { b, x0, y0, side, decor });
     const per = Math.ceil(Math.sqrt(b.pueblos.length));
     const pad = (side - per * 3.3) / 2;
+    const centres: { gx: number; gy: number }[] = [];
     b.pueblos.forEach((p, j) => {
       const h = hash(p.id);
       const jx = ((h % 100) / 100 - 0.5) * 0.5, jy = (((h >> 8) % 100) / 100 - 0.5) * 0.5;
@@ -733,7 +884,23 @@ export function placeWorld(m: MapModel) {
         houses: clamp(kinds.filter((k) => k === "service" || k === "workload" || k === "external").length, 1, 4),
         well: kinds.includes("postgres"), jar: kinds.includes("redis"),
       });
+      centres.push(pueblos.get(p.id)!);
     });
+    // a little plaza in the first free spot, and laurels where the streets cross
+    if (b.pueblos.length < per * per) {
+      const j = b.pueblos.length, gx = x0 + pad + 1.65 + (j % per) * 3.3, gy = y0 + pad + 1.65 + Math.floor(j / per) * 3.3;
+      decor.push({ kind: "kiosco", gx, gy, s: 0.42 });
+      for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) decor.push({ kind: "tree", gx: gx + dx * 0.95, gy: gy + dy * 0.95, s: 0.5 });
+      decor.push({ kind: "bench", gx, gy: gy + 0.75, s: 0.6, along: 0, back: 1 }, { kind: "bench", gx: gx + 0.75, gy, s: 0.6, along: 1, back: 1 });
+      centres.push({ gx, gy });
+    }
+    for (let i = 0; i <= per; i++) for (let k = 0; k <= per; k++) {
+      const h = hash(`${b.id}:${i}:${k}`);
+      const gx = x0 + pad + i * 3.3 + ((h % 100) / 100 - 0.5) * 0.4, gy = y0 + pad + k * 3.3 + (((h >> 8) % 100) / 100 - 0.5) * 0.4;
+      if (gx < x0 + 0.4 || gy < y0 + 0.4 || gx > x0 + side - 0.4 || gy > y0 + side - 0.4) continue;
+      if (centres.some((c) => Math.hypot(c.gx - gx, c.gy - gy) < 1.75)) continue;
+      decor.push({ kind: "tree", gx, gy, s: 0.5 + ((h >> 16) % 25) / 100 });
+    }
   });
   return { barrios, pueblos };
 }
@@ -758,7 +925,30 @@ export function placeInside(m: MapModel, p: MapPueblo): Inside {
   }
   const outs = [...out.values()].sort((a, b) => a.to.localeCompare(b.to));
   const signs = outs.map((s, i) => ({ ...s, gx: 2 * c + 1.8, gy: outs.length === 1 ? c : 1 + (i * (2 * c - 2)) / (outs.length - 1) }));
-  return { pueblo: p, c, nodes, arch: { gx: c, gy: -1.8 }, signs };
+  // the plaza: benches facing the kiosco, laurels around it, and in the corners
+  // the presidencia, a fountain, a grove and a flower bed, wherever there is room
+  const room = (gx: number, gy: number, r: number) => [...nodes.values()].every((n) => Math.hypot(n.gx - gx, n.gy - gy) >= r);
+  const decor: Decor[] = [
+    { kind: "bench", gx: c, gy: c - 1.42, s: 1, along: 0, back: -1 }, { kind: "bench", gx: c, gy: c + 1.42, s: 1, along: 0, back: 1 },
+    { kind: "bench", gx: c - 1.42, gy: c, s: 1, along: 1, back: -1 }, { kind: "bench", gx: c + 1.42, gy: c, s: 1, along: 1, back: 1 },
+  ];
+  const add = (d: Decor, r: number) => { if (room(d.gx, d.gy, r)) decor.push(d); };
+  for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) add({ kind: "tree", gx: c + dx * 2.85, gy: c + dy * 2.85, s: 1 }, 1.5);
+  for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) add({ kind: "tree", gx: c + dx * 2.75, gy: c + dy * 2.75, s: 0.85 }, 1.5);
+  const e = 2 * c;
+  add({ kind: "presidencia", gx: 0.5, gy: 0.5, s: 1 }, 2.6);
+  add({ kind: "fountain", gx: 0.7, gy: e - 0.7, s: 1 }, 1.6);
+  add({ kind: "tree", gx: 1.9, gy: e - 0.2, s: 0.9 }, 1.3);
+  add({ kind: "tree", gx: -0.2, gy: e - 1.9, s: 0.9 }, 1.3);
+  add({ kind: "bench", gx: 1.6, gy: e - 1.3, s: 1, along: 1, back: 1 }, 1.3);
+  add({ kind: "tree", gx: e - 0.4, gy: 0.2, s: 1 }, 1.3);
+  add({ kind: "tree", gx: e - 1.7, gy: -0.2, s: 0.8 }, 1.3);
+  add({ kind: "tree", gx: e + 0.2, gy: 1.6, s: 0.85 }, 1.3);
+  add({ kind: "bench", gx: e - 1.2, gy: 1.0, s: 1, along: 0, back: -1 }, 1.3);
+  add({ kind: "jardinera", gx: e - 0.5, gy: e - 0.5, s: 1 }, 1.4);
+  add({ kind: "tree", gx: e + 0.3, gy: e - 1.9, s: 0.7 }, 1.3);
+  add({ kind: "tree", gx: e - 1.9, gy: e + 0.3, s: 0.7 }, 1.3);
+  return { pueblo: p, c, nodes, arch: { gx: c, gy: -1.8 }, signs, decor, walkers: 6 };
 }
 
 /** Draws labels in screen space, the most important first, skipping any that would cover another. */
@@ -786,6 +976,20 @@ export function drawLabels(ctx: CanvasRenderingContext2D, labels: Label[], W: nu
     if (L.sub) { ctx.font = subFont; ctx.fillStyle = L.subColor ?? P.muted; ctx.fillText(L.sub, L.p.x, y + (L.big ? 25 : 20)); }
     ctx.globalAlpha = 1;
   }
+}
+
+/** Where the people walking round the plaza are at a time (seconds): half go one way, half the other, as in the old paseo. */
+export function paseo(c: number, n: number, time: number) {
+  return Array.from({ length: n }, (_, i) => {
+    const dir = i % 2 ? -1 : 1, r = 2.1 + (i % 2) * 0.22, a = dir * time * 0.06 + (i / n) * Math.PI * 2 + (i % 2) * 0.4;
+    return { gx: c + Math.cos(a) * r, gy: c + Math.sin(a) * r, step: time * 5 + i, heading: a + (dir * Math.PI) / 2 };
+  });
+}
+
+/** Lightens (k > 0) or darkens (k < 0) a #rrggbb color. */
+export function shade(hex: string, k: number) {
+  const n = parseInt(hex.slice(1, 7), 16), f = (v: number) => Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k);
+  return "#" + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => f(v).toString(16).padStart(2, "0")).join("");
 }
 
 /** The letters on a house: its language, like the Services page. */
