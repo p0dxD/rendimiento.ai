@@ -24,10 +24,11 @@ func New(crdDirs ...string) *envtest.Environment {
 		Set("election-timeout", "5000").
 		Set("heartbeat-interval", "500")
 	return &envtest.Environment{
-		CRDDirectoryPaths:        crdDirs,
-		ErrorIfCRDPathMissing:    true,
-		ControlPlane:             envtest.ControlPlane{Etcd: etcd},
-		ControlPlaneStartTimeout: 90 * time.Second, // etcd and the API server
-		ControlPlaneStopTimeout:  60 * time.Second,
+		CRDDirectoryPaths:     crdDirs,
+		ErrorIfCRDPathMissing: true,
+		ControlPlane:          envtest.ControlPlane{Etcd: etcd},
+		// etcd and the API server. Not the stop timeout: Stop waits all of it
+		// (60 s made every test 40 s slower and the package hit go test's 10 minutes).
+		ControlPlaneStartTimeout: 90 * time.Second,
 	}
 }
