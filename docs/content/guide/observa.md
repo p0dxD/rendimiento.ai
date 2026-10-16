@@ -85,6 +85,23 @@ Pago pago = Observa.tramo("cobrar", Map.of("pedido.id", id), () -> {
 
 Checked exceptions pass through `tramo`. With the agent, spans join its traces through `GlobalOpenTelemetry`.
 
+Until the library is on Maven Central, OpenTelemetry's own annotation does the same for a method, with nothing but the agent: depend on `io.opentelemetry.instrumentation:opentelemetry-instrumentation-annotations` (the agent's version, `2.32.0`) and mark the method:
+
+```java
+@WithSpan("guardar-viaje")
+public Result saveTrip(...) { ... }
+```
+
+## Go
+
+Go has no agent and no observa library. Use the OpenTelemetry SDK: with `observe: true` the platform sets `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME` and the sampler, so the setup reads them all from the environment. *hello-rendimiento* does it in about forty lines (`tracing.go`):
+
+- `otlptracehttp.New(ctx)` and a `TracerProvider` with `resource.WithFromEnv()`;
+- `otelhttp.NewHandler` around the mux, naming each request after its route (`r.Pattern`);
+- `tracer.Start(ctx, "render-page")` for a moment of its own.
+
+OpenTelemetry for Go v1.38 and later need Go 1.26; v1.37 (with `otelhttp` v0.62) builds with Go 1.24.
+
 ## Tests
 
 Each library is tested as a [task](tasks.md) of rendimiento's own `rendimiento.yaml` (`sdk-node`, `sdk-python`, `sdk-java`) on every run that changes its folder, branches included.

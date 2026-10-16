@@ -85,6 +85,23 @@ Pago pago = Observa.tramo("cobrar", Map.of("pedido.id", id), () -> {
 
 Las excepciones verificadas pasan a través de `tramo`. Con el agente, los tramos se unen a sus trazas por medio de `GlobalOpenTelemetry`.
 
+Mientras la biblioteca no esté en Maven Central, la anotación de OpenTelemetry hace lo mismo con un método, sin más que el agente: dependa de `io.opentelemetry.instrumentation:opentelemetry-instrumentation-annotations` (la versión del agente, `2.32.0`) y marque el método:
+
+```java
+@WithSpan("guardar-viaje")
+public Result saveTrip(...) { ... }
+```
+
+## Go {#go}
+
+Go no tiene agente ni biblioteca observa. Use el SDK de OpenTelemetry: con `observe: true` la plataforma pone `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME` y el muestreo, así que la configuración los lee todos del entorno. *hello-rendimiento* lo hace en unas cuarenta líneas (`tracing.go`):
+
+- `otlptracehttp.New(ctx)` y un `TracerProvider` con `resource.WithFromEnv()`;
+- `otelhttp.NewHandler` alrededor del mux, con el nombre de la ruta de cada solicitud (`r.Pattern`);
+- `tracer.Start(ctx, "render-page")` para un momento propio.
+
+OpenTelemetry para Go v1.38 en adelante necesita Go 1.26; la v1.37 (con `otelhttp` v0.62) compila con Go 1.24.
+
 ## Pruebas {#tests}
 
 Cada biblioteca se prueba como una [tarea](tasks.md) del `rendimiento.yaml` de rendimiento mismo (`sdk-node`, `sdk-python`, `sdk-java`) en cada ejecución que cambia su carpeta, ramas incluidas.
