@@ -15,6 +15,8 @@ El mapa es una maqueta de pueblo vista desde un cerro, en ángulo:
 
 Dentro de un pueblo, cada **casa** es un servicio, con su lenguaje en una insignia (`JS`, `Py`, `Jv`, `Go`); una casa alta es una tarea o proceso que solo llama a otros. Las llamadas de otras aplicaciones y de internet entran por el **arco**, y las llamadas a otras aplicaciones salen por **letreros** con su nombre.
 
+Lo demás está ahí para darle vida y no significa nada: laureles con el tronco encalado, bancas de hierro frente al kiosco, una fuente, jardineras de cempasúchil, la **presidencia municipal** con sus portales y una torre con un reloj que da la hora real, y gente que da la vuelta a la plaza, la mitad en un sentido y la mitad en el otro, como en el *paseo* de antes. Entre los pueblos de un barrio crecen más laureles, y un barrio con lugar de sobra tiene su propia placita. Con el movimiento apagado, la gente y la fuente se quedan quietas.
+
 ## De dónde salen los caminos {#where-the-roads-come-from}
 
 | Camino | Origen | Ejemplo |

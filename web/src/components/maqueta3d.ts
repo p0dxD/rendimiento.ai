@@ -10,8 +10,8 @@ import * as THREE from "three";
 import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 import { t } from "../i18n";
 import {
-  INTERNET, INTERNET_AT, badge, clamp, drawLabels, hash, isNight, ms, palette, placeInside, placeWorld, rate, roadWidth, still,
-  type Engine, type HitKind, type Inside, type Label, type MapModel, type MapRoad, type MapView, type Palette, type Pick, type PlacedBarrio, type PlacedPueblo, type Status,
+  INTERNET, INTERNET_AT, badge, clamp, drawLabels, hash, isNight, ms, palette, paseo, placeInside, placeWorld, rate, roadWidth, shade, still,
+  type Decor, type Engine, type HitKind, type Inside, type Label, type MapModel, type MapRoad, type MapView, type Palette, type Pick, type PlacedBarrio, type PlacedPueblo, type Status,
 } from "./maqueta";
 
 /** A pixel of height in the 2.5D drawing is this much of a tile here. */
@@ -57,6 +57,7 @@ export class Maqueta3D implements Engine {
   private badges: Badge[] = [];
   private flows: Flow[] = [];
   private pulses: THREE.Mesh[] = [];
+  private people: { c: number; figures: THREE.Group[] }[] = [];
   private proxies: Proxy[] = [];
   private plates: Proxy[] = [];
   private roadHits: RoadHit[] = [];
@@ -368,6 +369,13 @@ export class Maqueta3D implements Engine {
         if (f.spin) s.material.rotation = time * 2 + i;
       });
     }
+    for (const pl of this.people) {
+      paseo(pl.c, pl.figures.length, time).forEach((w, i) => {
+        const f = pl.figures[i];
+        f.position.set(w.gx, Math.abs(Math.sin(w.step)) * 0.03, w.gy);
+        f.rotation.y = -w.heading;
+      });
+    }
     for (const r of this.pulses) { const k = still() ? 1.15 : 1.15 + 0.12 * Math.sin(now * 0.005); r.scale.set(k, k, k); }
     const dist = this.camera.position.distanceTo(this.controls.target);
     if (this.scene.fog instanceof THREE.Fog) { this.scene.fog.near = dist * 1.4; this.scene.fog.far = dist * 4 + 40; }
@@ -398,7 +406,7 @@ export class Maqueta3D implements Engine {
     this.root.traverse((o) => { if (o instanceof THREE.Sprite) o.material.dispose(); });
     this.root.clear();
     this.owned.forEach((d) => d.dispose());
-    this.owned = []; this.anchors = []; this.zoomedLabels = []; this.badges = []; this.flows = []; this.pulses = []; this.proxies = []; this.plates = []; this.roadHits = [];
+    this.owned = []; this.anchors = []; this.zoomedLabels = []; this.badges = []; this.flows = []; this.pulses = []; this.people = []; this.proxies = []; this.plates = []; this.roadHits = [];
   }
 
   /** Builds the scene for the current level from scratch: a few hundred pieces, quick enough on every change. */
@@ -432,6 +440,7 @@ export class Maqueta3D implements Engine {
       g.receiveShadow = true;
       this.plates.push({ mesh: g, pick: { kind: "barrio", id: pb.b.id } });
       this.frame(pb.x0, pb.y0, pb.x0 + pb.side, pb.y0 + pb.side, sel ? P.accent : tone, sel ? 0.12 : 0.06, sel ? 1 : 0.55 * a);
+      for (const d of pb.decor) this.decor(d, a);
     }
     const net = this.internetAt();
     const center = (id: string) => {
@@ -530,6 +539,8 @@ export class Maqueta3D implements Engine {
       this.anchor(it.gx, 0, it.gy + 1.2, n.name, undefined, { dy: 6, prio: sel ? 12 : 4, force: sel, ring: sel ? P.accent : undefined });
     }
     // papel picado strung from the kiosco to every house
+    for (const d of ins.decor) this.decor(d);
+    this.walkers(c, ins.walkers);
     const k = this.kiosco(c, c), colors = [P.rosa, P.maiz, P.nopal, P.anil, P.cempasuchil];
     let ci = 0;
     for (const tp of tops.values()) {
@@ -675,19 +686,129 @@ export class Maqueta3D implements Engine {
     return 34 * sz * Z;
   }
   /** The bandstand in the plaza; returns the tip of its roof. */
-  private kiosco(cx: number, cy: number) {
-    const P = this.P, r = 1.1, fl = 6 * Z, h = 26 * Z, rh = 22 * Z;
-    this.part(this.geo.cyl, this.mat(P.cantera), cx, 0.02, cy, r + 0.2, 0.04, r + 0.2);
-    this.part(this.geo.cyl, this.mat(P.wallL), cx, fl / 2, cy, r, fl, r);
-    const post = this.mat(this.night ? P.maiz : P.grana);
+  private kiosco(cx: number, cy: number, k = 1, alpha = 1) {
+    const P = this.P, r = 1.1 * k, fl = 6 * Z * k, h = 26 * Z * k, rh = 22 * Z * k;
+    this.part(this.geo.cyl, this.mat(P.cantera, alpha), cx, 0.02, cy, r + 0.2 * k, 0.04, r + 0.2 * k);
+    this.part(this.geo.cyl, this.mat(P.wallL, alpha), cx, fl / 2, cy, r, fl, r);
+    const post = this.mat(this.night ? P.maiz : P.grana, alpha);
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
-      this.part(this.geo.post, post, cx + Math.cos(a) * r * 0.9, fl + h / 2, cy + Math.sin(a) * r * 0.9, 0.04, h, 0.04);
+      this.part(this.geo.post, post, cx + Math.cos(a) * r * 0.9, fl + h / 2, cy + Math.sin(a) * r * 0.9, 0.04 * k, h, 0.04 * k);
     }
-    this.part(this.geo.cone, this.mat(P.grana), cx, fl + h + rh / 2, cy, r + 0.15, rh, r + 0.15);
-    this.part(this.geo.cyl, this.mat(P.maiz), cx, fl + h + 0.02, cy, r + 0.17, 0.04, r + 0.17, false);
+    this.part(this.geo.cone, this.mat(P.grana, alpha), cx, fl + h + rh / 2, cy, r + 0.15 * k, rh, r + 0.15 * k);
+    this.part(this.geo.cyl, this.mat(P.maiz, alpha), cx, fl + h + 0.02, cy, r + 0.17 * k, 0.04 * k, r + 0.17 * k, false);
     return new THREE.Vector3(cx, fl + h + rh, cy);
   }
+  // ---- what makes it lived in (it means nothing) ----
+
+  private decor(d: Decor, alpha = 1) {
+    if (d.kind === "tree") this.tree(d.gx, d.gy, d.s, alpha);
+    else if (d.kind === "bench") this.bench(d.gx, d.gy, d.s, d.along ?? 0, d.back ?? 1, alpha);
+    else if (d.kind === "fountain") this.fountain(d.gx, d.gy, d.s, alpha);
+    else if (d.kind === "kiosco") this.kiosco(d.gx, d.gy, d.s, alpha);
+    else if (d.kind === "jardinera") this.jardinera(d.gx, d.gy, d.s, alpha);
+    else this.presidencia(d.gx, d.gy, alpha);
+  }
+  /** A laurel trimmed round, its trunk whitewashed at the foot. */
+  private tree(gx: number, gy: number, s: number, alpha = 1) {
+    const P = this.P, th = 17 * s * Z;
+    this.part(this.geo.post, this.mat(P.trunk, alpha), gx, th / 2, gy, 0.07 * s, th, 0.07 * s);
+    this.part(this.geo.post, this.mat(P.cal, alpha), gx, 3.5 * s * Z, gy, 0.075 * s, 7 * s * Z, 0.075 * s, false);
+    const cy = th + 10 * s * Z;
+    this.part(this.geo.sphere, this.mat(P.leaf, alpha), gx, cy, gy, 0.48 * s, 0.4 * s, 0.48 * s);
+    this.part(this.geo.sphere, this.mat(P.leafL, alpha), gx - 0.12 * s, cy + 0.12 * s, gy + 0.08 * s, 0.3 * s, 0.24 * s, 0.3 * s, false);
+  }
+  /** An iron bench; it runs along one axis and has its back on one side. */
+  private bench(gx: number, gy: number, s: number, along: 0 | 1, back: 1 | -1, alpha = 1) {
+    const c = shade(this.P.iron, -0.1), len = 0.7 * s, dep = 0.2 * s, w = along === 0 ? len : dep, d = along === 0 ? dep : len, x = gx - w / 2, y = gy - d / 2;
+    for (const u of [0.08, 0.92]) along === 0 ? this.box(x + w * u - 0.02, 0, y, 0.04, 5 * s * Z, d, c, alpha) : this.box(x, 0, y + d * u - 0.02, w, 5 * s * Z, 0.04, c, alpha);
+    this.box(x, 5 * s * Z, y, w, 1.6 * s * Z, d, c, alpha);
+    if (along === 0) this.box(x, 6.6 * s * Z, back > 0 ? y + d - 0.04 : y, w, 7 * s * Z, 0.04, c, alpha);
+    else this.box(back > 0 ? x + w - 0.04 : x, 6.6 * s * Z, y, 0.04, 7 * s * Z, d, c, alpha);
+  }
+  /** A cantera fountain with a basin on a column. */
+  private fountain(cx: number, cy: number, s: number, alpha = 1) {
+    const P = this.P, r = 0.62 * s, stone = this.mat(P.cantera, alpha);
+    this.part(this.geo.cyl, stone, cx, 3.5 * s * Z, cy, r, 7 * s * Z, r);
+    this.part(this.geo.cyl, this.mat(P.water, alpha), cx, 7 * s * Z + 0.004, cy, r * 0.84, 0.01, r * 0.84, false);
+    this.part(this.geo.post, stone, cx, 13.5 * s * Z, cy, 0.07 * s, 13 * s * Z, 0.07 * s);
+    this.part(this.geo.cyl, stone, cx, 21.5 * s * Z, cy, 0.24 * s, 3 * s * Z, 0.24 * s);
+    this.part(this.geo.cyl, this.mat(P.water, alpha), cx, 23 * s * Z + 0.004, cy, 0.2 * s, 0.01, 0.2 * s, false);
+    if (this.night) this.glow(cx, 0.4 * s, cy, "#9CC2FF", 1.2 * s, 0.25);
+  }
+  /** A low bed of cempasúchil and other flowers, edged in cantera. */
+  private jardinera(cx: number, cy: number, s: number, alpha = 1) {
+    const P = this.P, w = 1.1 * s, h = 5 * s * Z, soil = this.night ? "#2E3B2E" : "#5B7A3A";
+    this.box(cx - w / 2, 0, cy - w / 2, w, h, w, [P.cantera, P.cantera, soil, P.cantera, P.cantera, P.cantera], alpha);
+    const colors = [P.cempasuchil, P.rosa, P.maiz, P.grana];
+    for (let i = 0; i < 18; i++) {
+      const hh = hash("flor" + i);
+      this.part(this.geo.sphere, this.mat(colors[i % colors.length], alpha), cx - w / 2 + 0.1 + ((hh % 100) / 100) * (w - 0.2), h + 0.04, cy - w / 2 + 0.1 + (((hh >> 8) % 100) / 100) * (w - 0.2), 0.06 * s, 0.05 * s, 0.06 * s, false);
+    }
+  }
+  /** The presidencia municipal: portales below, balconies above, and a clock tower with the real time. */
+  private presidencia(gx: number, gy: number, alpha = 1) {
+    const P = this.P, w = 2.5, d = 1.6, h = 36 * Z, x = gx - w / 2, z = gy - d / 2;
+    const dark = this.night ? "#1A1530" : "#7A5A48", lit = this.night ? this.mat(P.window, alpha, "glow") : this.mat(P.window, alpha);
+    this.box(x, 0, z, w, h, d, [P.wallR, P.wallR, P.cantera, P.wallL, P.wallL, P.wallL], alpha);
+    this.box(x - 0.06, h, z - 0.06, w + 0.12, 4 * Z, d + 0.12, P.cantera, alpha);
+    // portales and balconies on both faces we see first: +z (n arches along x) and +x (along z)
+    for (const [n, len, face] of [[5, w, "z"], [3, d, "x"]] as const) {
+      for (let i = 0; i < n; i++) {
+        const u = ((i + 0.5) / n) * len, aw = (len / n) * 0.62, ah = 11 * Z;
+        const at = (dx: number, dz: number) => (face === "z" ? [x + u + dx, z + d + dz] : [x + w + dz, z + u + dx]);
+        const [ax, az] = at(0, 0.011);
+        const sx = face === "z" ? aw : 0.02, sz = face === "z" ? 0.02 : aw;
+        this.part(this.geo.box, this.mat(dark, alpha), ax, ah / 2, az, sx, ah, sz, false);
+        const disc = this.part(this.geo.cyl, this.mat(dark, alpha), ax, ah, az, aw / 2, 0.02, aw / 2, false);
+        disc.rotation.set(face === "z" ? Math.PI / 2 : 0, 0, face === "x" ? Math.PI / 2 : 0);
+        this.part(this.geo.box, lit, ax, h * 0.71, az, face === "z" ? aw * 0.8 : 0.02, h * 0.22, face === "z" ? 0.02 : aw * 0.8, false);
+        const [bx, bz] = at(0, 0.05);
+        this.part(this.geo.box, this.mat(this.night ? "#8C7AB0" : P.iron, alpha), bx, h * 0.585, bz, face === "z" ? aw * 1.05 : 0.1, 0.025, face === "z" ? 0.1 : aw * 1.05, false);
+      }
+    }
+    // the clock tower
+    const tw = 0.72, z0 = h + 4 * Z, th = 28 * Z, tx = gx - tw / 2, tz = gy - tw / 2;
+    this.box(tx, z0, tz, tw, th, tw, [P.wallR, P.wallR, P.cantera, P.wallL, P.wallL, P.wallL], alpha);
+    this.box(tx - 0.05, z0 + th, tz - 0.05, tw + 0.1, 3 * Z, tw + 0.1, P.cantera, alpha);
+    const rh = 16 * Z;
+    this.part(this.geo.roof, this.mat(P.roof, alpha), gx, z0 + th + 3 * Z + rh / 2, gy, tw + 0.12, rh, tw + 0.12);
+    const now = new Date(), hr = ((now.getHours() % 12) + now.getMinutes() / 60) * (Math.PI / 6), mn = now.getMinutes() * (Math.PI / 30);
+    const zc = z0 + th * 0.58, cr = 0.22;
+    for (const face of ["z", "x"] as const) {
+      const fx = face === "z" ? gx : tx + tw + 0.012, fz = face === "z" ? tz + tw + 0.012 : gy;
+      const disc = this.part(this.geo.cyl, this.night ? this.mat("#FFF3C4", alpha, "glow") : this.mat("#FBF6EA", alpha), fx, zc, fz, cr, 0.02, cr, false);
+      disc.rotation.set(face === "z" ? Math.PI / 2 : 0, 0, face === "x" ? Math.PI / 2 : 0);
+      for (const [a, k, t] of [[hr, 0.55, 0.035], [mn, 0.85, 0.022]] as const) {
+        // a hand pointing at angle a (clockwise from twelve) on this face
+        const len = cr * k, ux = Math.sin(a) * len / 2, uy = Math.cos(a) * len / 2;
+        const hand = this.part(this.geo.box, this.mat("#2B2118", alpha), face === "z" ? fx + ux : fx + 0.012, zc + uy, face === "z" ? fz + 0.012 : fz - ux, face === "z" ? t : 0.01, len, face === "z" ? 0.01 : t, false);
+        if (face === "z") hand.rotation.z = -a; else hand.rotation.x = -a;
+      }
+    }
+    // the flag on its pole at the corner of the roof
+    const px = x + w - 0.25, pz = z + 0.25, ph = 0.95;
+    this.part(this.geo.post, this.mat(this.night ? "#8C7AB0" : "#6B5444", alpha), px, h + ph / 2, pz, 0.015, ph, 0.015, false);
+    ["#006847", "#FFFFFF", "#CE1126"].forEach((col, i) => this.part(this.geo.box, this.mat(col, alpha, "glow"), px + 0.06 + i * 0.1, h + ph - 0.14, pz, 0.1, 0.26, 0.01, false));
+  }
+  /** The paseo round the plaza; the figures move every frame. */
+  private walkers(c: number, n: number) {
+    const P = this.P, figures: THREE.Group[] = [];
+    for (let i = 0; i < n; i++) {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(this.geo.sphere, this.mat(P.tones[(i * 3) % P.tones.length]));
+      body.scale.set(0.09, 0.15, 0.09); body.position.y = 0.2; body.castShadow = true;
+      const head = new THREE.Mesh(this.geo.sphere, this.mat(P.skin[i % P.skin.length]));
+      head.scale.setScalar(0.065); head.position.y = 0.42; head.castShadow = true;
+      const legs = new THREE.Mesh(this.geo.post, this.mat(this.night ? "#2A2350" : "#3B2B22"));
+      legs.scale.set(0.045, 0.12, 0.045); legs.position.y = 0.06;
+      g.add(legs, body, head);
+      this.root.add(g);
+      figures.push(g);
+    }
+    this.people.push({ c, figures });
+  }
+
   private farol(gx: number, gy: number) {
     const P = this.P, h = 26 * Z;
     this.part(this.geo.post, this.mat(this.night ? "#8C7AB0" : P.roofD), gx, h / 2, gy, 0.025, h, 0.025);

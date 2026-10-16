@@ -976,6 +976,7 @@ export const es: Record<string, string> = {
   "Zoom out": "Alejar",
   "Fit": "Ajustar",
   "How the map is drawn": "Cómo se dibuja el mapa",
+  "The laurels, benches, fountain, flower beds, the presidencia with its clock (it tells the real time) and the people strolling round the plaza are there for life: they mean nothing.": "Los laureles, las bancas, la fuente, las jardineras, la presidencia con su reloj (da la hora real) y la gente que da la vuelta a la plaza están ahí para darle vida: no significan nada.",
   "Flat, seen at an angle": "Plano, visto en ángulo",
   "In 3D: turn it and tilt it": "En 3D: gírelo e inclínelo",
   "Turn left": "Girar a la izquierda",

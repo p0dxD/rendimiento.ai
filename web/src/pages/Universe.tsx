@@ -367,6 +367,7 @@ export function Universe() {
           <li>{t("Road: a connection. Wider, more calls. Fireflies go from the caller to the callee; the faster they move, the lower the latency. A dashed footpath is a connection nobody measured.")}</li>
           <li>{t("Red: 5% or more of the calls fail; amber: the slowest 5% take half a second or more.")}</li>
           <li>{t("Inside a pueblo: houses are services, the well is the database and the jar the cache. Calls from outside come in through the arch; calls to other apps leave by the signposts.")}</li>
+          <li>{t("The laurels, benches, fountain, flower beds, the presidencia with its clock (it tells the real time) and the people strolling round the plaza are there for life: they mean nothing.")}</li>
           <li>{t("Scroll or pinch to zoom, drag to move, Esc to go up a level.")}</li>
           <li>{t("2.5D or 3D, at the map's top left: the same village. In 3D, drag with the right button or two fingers to turn it and tilt it, or use ⟲ ⟳; the choice is kept on this device.")}</li>
         </ul>
