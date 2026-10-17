@@ -124,6 +124,8 @@ export function ReliabilityTab({ app }: { app: App }) {
 function CheckCard({ data, series: s, target }: { data: Reliability; series: UptimeSeries; target: string }) {
   const outages = data.incidents.filter((i) => i.service === s.service && i.kind === s.kind).length;
   const last = s.last;
+  // A new domain whose DNS record is still spreading (internal/uptime DNSGrace).
+  const dnsPending = !!last && !last.ok && !!last.error?.startsWith("DNS pending");
   return (
     <section className="card rel-check" aria-label={`${s.service}, ${t(kindLabel[s.kind])}`}>
       <div className="row between">
@@ -132,8 +134,8 @@ function CheckCard({ data, series: s, target }: { data: Reliability; series: Upt
           <div className="small muted mono">{target}</div>
         </div>
         {last && (
-          <span className={`badge ${last.ok ? "ok" : "bad"}`} title={last.error}>
-            {last.ok ? t("Up") : t("Down")} · {t("checked {when}", { when: timeAgo(last.at) })}
+          <span className={`badge ${last.ok ? "ok" : dnsPending ? "warn" : "bad"}`} title={last.error}>
+            {last.ok ? t("Up") : dnsPending ? t("DNS pending") : t("Down")} · {t("checked {when}", { when: timeAgo(last.at) })}
           </span>
         )}
       </div>
@@ -148,7 +150,8 @@ function CheckCard({ data, series: s, target }: { data: Reliability; series: Upt
       <StatusStrip data={data} series={s} />
       <LatencyChart data={data} series={s} />
       <DataTable data={data} series={s} />
-      {last && !last.ok && last.error && <div className="small" style={{ marginTop: 8 }}>{t("Latest failure:")} <span className="mono">{last.error}</span></div>}
+      {dnsPending && <div className="small" style={{ marginTop: 8 }}>{t("This address has never answered yet: a new domain's DNS record can take a few minutes to spread. It counts as an outage only if it still fails after an hour.")}</div>}
+      {last && !last.ok && last.error && !dnsPending && <div className="small" style={{ marginTop: 8 }}>{t("Latest failure:")} <span className="mono">{last.error}</span></div>}
     </section>
   );
 }

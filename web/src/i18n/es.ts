@@ -127,6 +127,8 @@ export const es: Record<string, string> = {
   "dismissed {when}": "descartado {when}",
   "Done": "Listo",
   "Down": "Caído",
+  "DNS pending": "DNS pendiente",
+  "This address has never answered yet: a new domain's DNS record can take a few minutes to spread. It counts as an outage only if it still fails after an hour.": "Esta dirección todavía no ha respondido nunca: el registro DNS de un dominio nuevo puede tardar unos minutos en propagarse. Cuenta como caída solo si sigue fallando después de una hora.",
   "Duration": "Duración",
   "Dynamic DNS": "DNS dinámico",
   "e.g. api-keys": "p. ej. claves-api",

@@ -167,11 +167,23 @@ type Recorder interface {
 	OpenIncidents(ctx context.Context) ([]store.Incident, error)
 	RollupProbes(ctx context.Context, since time.Time) error
 	PruneProbes(ctx context.Context, now time.Time) error
+	// AnsweredChecks lists the checks that have succeeded at least once.
+	AnsweredChecks(ctx context.Context) ([]store.Probe, error)
 }
 
 // FailuresToOpen is how many failed checks in a row make an outage: one
 // failure is often a blip (a pod restarting, a slow response).
 const FailuresToOpen = 2
+
+// DNSGrace is how long a public address that has never answered may fail
+// its DNS lookup before that counts as an outage: a new domain's record
+// takes minutes to reach every resolver, and nobody should get a "down"
+// email for an address that was never up.
+const DNSGrace = time.Hour
+
+// DNSPending starts the error of a check within that grace (the pages show
+// it as "DNS pending", not "down").
+const DNSPending = "DNS pending: "
 
 // Prober checks every target once per Interval and records the results.
 type Prober struct {
@@ -185,9 +197,11 @@ type Prober struct {
 	Notify  *notify.Notifier
 	BaseURL string
 
-	mu      sync.Mutex
-	state   map[string]*checkState // target key → its streak
-	changes []change               // outages opened or closed this round
+	mu       sync.Mutex
+	state    map[string]*checkState // target key → its streak
+	changes  []change               // outages opened or closed this round
+	answered map[string]bool        // target keys that have succeeded at least once
+	dnsSince map[string]time.Time   // never-answered public checks: first DNS failure
 }
 
 type checkState struct {
@@ -221,6 +235,7 @@ func (p *Prober) Run(ctx context.Context) {
 			p.state[key(in.AppID, in.Service, in.Kind)] = &checkState{fails: FailuresToOpen, incident: in.ID, since: in.StartedAt}
 		}
 	}
+	p.loadAnswered(ctx)
 	p.Log.Info("uptime checks started", "interval", p.Interval)
 	tick := time.NewTicker(p.Interval)
 	defer tick.Stop()
@@ -253,6 +268,9 @@ func (p *Prober) Round(ctx context.Context) {
 		p.Log.Warn("uptime: could not list apps", "err", err)
 		return
 	}
+	if p.answered == nil {
+		p.loadAnswered(ctx)
+	}
 	targets := Targets(apps)
 	results := make([]store.Probe, len(targets))
 	sem := make(chan struct{}, max(p.Parallel, 1))
@@ -270,6 +288,9 @@ func (p *Prober) Round(ctx context.Context) {
 	if ctx.Err() != nil {
 		return
 	}
+	for i := range results {
+		p.markDNSPending(targets[i], &results[i])
+	}
 	if err := p.Store.RecordProbes(ctx, results); err != nil {
 		p.Log.Warn("uptime: could not record checks", "err", err)
 	}
@@ -277,6 +298,48 @@ func (p *Prober) Round(ctx context.Context) {
 		p.observe(ctx, targets[i], r)
 	}
 	p.notifyChanges()
+}
+
+// loadAnswered learns which checks have ever succeeded, so a restart does
+// not treat a long-working domain as new.
+func (p *Prober) loadAnswered(ctx context.Context) {
+	answered := map[string]bool{}
+	if checks, err := p.Store.AnsweredChecks(ctx); err != nil {
+		p.Log.Warn("uptime: could not load the checks that answered before", "err", err)
+	} else {
+		for _, c := range checks {
+			answered[key(c.AppID, c.Service, c.Kind)] = true
+		}
+	}
+	p.mu.Lock()
+	p.answered, p.dnsSince = answered, map[string]time.Time{}
+	p.mu.Unlock()
+}
+
+// markDNSPending rewrites the error of a public check that has never
+// answered and fails its DNS lookup, for its first DNSGrace: a new domain
+// whose record is still spreading. After that it fails like any other.
+func (p *Prober) markDNSPending(t Target, r *store.Probe) {
+	k := key(t.AppID, t.Service, t.Kind)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if r.OK {
+		p.answered[k] = true
+		delete(p.dnsSince, k)
+		return
+	}
+	if t.Kind != KindPublic || p.answered[k] || !strings.HasPrefix(r.Error, "DNS: ") {
+		delete(p.dnsSince, k)
+		return
+	}
+	since, ok := p.dnsSince[k]
+	if !ok {
+		since = r.At
+		p.dnsSince[k] = since
+	}
+	if r.At.Sub(since) < DNSGrace {
+		r.Error = DNSPending + strings.TrimPrefix(r.Error, "DNS: ")
+	}
 }
 
 // notifyChanges sends one email per app for the outages that started, and
@@ -413,6 +476,10 @@ func (p *Prober) observe(ctx context.Context, t Target, r store.Probe) {
 	if st == nil {
 		st = &checkState{}
 		p.state[k] = st
+	}
+	if strings.HasPrefix(r.Error, DNSPending) {
+		st.fails = 0 // a new domain still spreading: not an outage (yet)
+		return
 	}
 	if r.OK {
 		if st.incident != 0 {
