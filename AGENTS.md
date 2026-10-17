@@ -27,6 +27,7 @@ The person you work with merges and deploys; you prepare.
 ## Working in this repository
 
 - Tests: `make test-remote` (runs on a worker node). Don't run the full `make test` on the control-plane machine; a single light package (`go test ./internal/render`) is fine.
+- `internal/platform` and `internal/controller` share one envtest per package (`kubeConfig` in their tests): objects from earlier tests stay, and a deleted namespace stays Terminating. Give each new test its **own app and namespace names**.
 - Images build on the cluster's BuildKit pool (`make image`), never with a local `docker build`.
 - This repository is **public**: only example values (`example.com`, `registry.example.lan`). Real hostnames, IPs, node names, hardware and email belong in the private overlay (`local.mk`, `DEPLOY_DIR`), never here.
 - Keep the book in the same change: `docs/content/` in English and Spanish (`page.es.md` beside `page.md`, headings keep the English anchor with `{#...}`); check with `mkdocs build --strict` and `make docs-check`.
