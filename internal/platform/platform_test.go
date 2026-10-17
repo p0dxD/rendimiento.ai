@@ -2,6 +2,7 @@ package platform
 
 import (
 	"context"
+	"encoding/json"
 
 	"fmt"
 	"github.com/go-logr/logr"
@@ -339,6 +340,27 @@ func eventually(t *testing.T, what string, cond func() bool) {
 		time.Sleep(200 * time.Millisecond)
 	}
 	t.Fatalf("timed out waiting for %s", what)
+}
+
+// A repo with no code, only rendimiento.yaml with a ready-made image (p0dxD/ai,
+// Ollama): the wizard got "detected": null and crashed on it.
+func TestProposeRepoWithoutCode(t *testing.T) {
+	p, fake, _, _ := setup(t)
+	fake.files["image-only"] = fstest.MapFS{
+		"rendimiento.yaml": {Data: []byte("services:\n  - name: ollama\n    image: ollama/ollama:0.40.6\n    port: 11434\n")},
+		"README.md":        {Data: []byte("# ai\n")},
+	}
+	prop, err := p.Propose(context.Background(), 7, "p0dxD/ai", "image-only")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !prop.Existing || len(prop.Spec.Services) != 1 || prop.Spec.Services[0].Image != "ollama/ollama:0.40.6" {
+		t.Fatalf("proposal = %+v", prop)
+	}
+	raw, _ := json.Marshal(prop)
+	if !strings.Contains(string(raw), `"detected":[]`) {
+		t.Fatalf("detected must be an empty list: %s", raw)
+	}
 }
 
 func TestProposeDetectsExistingDeployment(t *testing.T) {

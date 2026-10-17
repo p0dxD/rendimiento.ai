@@ -169,7 +169,7 @@ export function NewApp() {
         <div className="stack">
           <div className="card stack">
             <strong>{t("What we found in {repo}", { repo: proposal.repo })}</strong>
-            {proposal.detected.map((d) => (
+            {(proposal.detected ?? []).map((d) => (
               <div key={d.path} className="detect">
                 <div className="lang">{langBadge[d.language] ?? d.language.slice(0, 2)}</div>
                 <div>
