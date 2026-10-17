@@ -66,4 +66,4 @@ flowchart LR
 | Know if the cluster is healthy | the Environment tab checks every dependency and node | [Tour](start/tour.md#environment) |
 
 !!! note "This book is part of the code"
-    It lives in [`docs/`](https://github.com/p0dxD/rendimiento.ai/tree/main/docs) of the repository and is deployed by rendimiento itself, from its own `rendimiento.yaml`, on the home network (its address is in the Services page). Change the code, change the book in the same pull request. The [code map](reference/code-map.md) is regenerated from the source on every build, so it is never out of date.
+    It lives in [`docs/`](https://github.com/p0dxD/rendimiento.ai/tree/main/docs) of the repository and is deployed by rendimiento itself, from its own `rendimiento.yaml`, on the home network (its address is in the Services page). Change the code, change the book in the same pull request. The code, the book and the libraries are under the [Apache License 2.0](https://github.com/p0dxD/rendimiento.ai/blob/main/LICENSE). The [code map](reference/code-map.md) is regenerated from the source on every build, so it is never out of date.
