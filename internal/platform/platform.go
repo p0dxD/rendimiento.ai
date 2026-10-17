@@ -630,7 +630,7 @@ func (p *Platform) rejectRun(ctx context.Context, app *store.App, branch, sha, e
 	p.finishCheck(ctx, app, run, p.startCheck(ctx, app, run), store.RunFailed, cause.Error())
 	if run.Deploy {
 		p.Notify.Notify(notify.Message{
-			Tone: notify.Critical, Key: fmt.Sprintf("spec:%s:%s", app.Name, sha),
+			Tone: notify.Critical, Key: fmt.Sprintf("spec:%s:%s", app.Name, sha), Group: notify.GroupBuild,
 			Subject: M("✗ %s: rendimiento.yaml has an error", app.Name),
 			Title:   M("The push was not deployed"),
 			Summary: M("rendimiento.yaml on %s has an error, so nothing was built or released; the app keeps running its current release. Fix the file and push again.", branch),

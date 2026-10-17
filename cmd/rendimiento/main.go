@@ -339,6 +339,20 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	}
 	// Email notifications: failed runs, rollbacks, outages, recoveries.
 	notifier := &notify.Notifier{To: splitList(os.Getenv("NOTIFY_EMAIL_TO")), Log: log.With("component", "notify"), Lang: i18n.Parse(env("NOTIFY_LANG", "en"))}
+	// Like Alertmanager: notices of one kind that arrive together are one
+	// email, and an outage is emailed only once it has lasted a while.
+	groupWait, err := time.ParseDuration(env("NOTIFY_GROUP_WAIT", "2m"))
+	if err != nil || groupWait < 0 {
+		return fmt.Errorf("NOTIFY_GROUP_WAIT must be a duration such as 2m (0: no grouping), got %q", os.Getenv("NOTIFY_GROUP_WAIT"))
+	}
+	notifier.GroupWait = groupWait
+	outageAfter, err := time.ParseDuration(env("NOTIFY_OUTAGE_AFTER", "5m"))
+	if err != nil || outageAfter < 0 {
+		return fmt.Errorf("NOTIFY_OUTAGE_AFTER must be a duration such as 5m (0: at once), got %q", os.Getenv("NOTIFY_OUTAGE_AFTER"))
+	}
+	if prober != nil {
+		prober.NotifyAfter = outageAfter
+	}
 	if key := os.Getenv("RESEND_API_KEY"); key != "" {
 		notifier.Sender = &notify.Resend{APIKey: key, From: env("NOTIFY_EMAIL_FROM", "rendimiento <alerts@joserod.space>")}
 	}

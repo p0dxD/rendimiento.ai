@@ -259,7 +259,7 @@ func (p *Platform) verifyMessage(app *store.App, rel *store.Release, reason stri
 		{Label: M("Failed release"), Value: fmt.Sprintf("#%d (%s)", rel.Number, shortSHA(rel.SHA))},
 	}
 	m := notify.Message{
-		Key: fmt.Sprintf("verify:%s:%d", app.Name, rel.Number), Details: strings.ReplaceAll(reason, "; ", "\n"),
+		Key: fmt.Sprintf("verify:%s:%d", app.Name, rel.Number), Group: notify.GroupRelease, Details: strings.ReplaceAll(reason, "; ", "\n"),
 		ActionURL: p.Config.BaseURL + "/apps/" + app.Name + "/releases", ActionLabel: M("See releases"),
 	}
 	if to != nil {
@@ -504,7 +504,7 @@ func (p *Platform) notifyRunFailed(app *store.App, run *store.Run, msg string, s
 	if strings.Contains(msg, "not deployed:") {
 		// The build passed; a pre-deploy task stopped the release.
 		p.Notify.Notify(notify.Message{
-			Tone: notify.Critical, Key: fmt.Sprintf("predeploy:%s:%s", app.Name, run.SHA),
+			Tone: notify.Critical, Key: fmt.Sprintf("predeploy:%s:%s", app.Name, run.SHA), Group: notify.GroupRelease,
 			Subject: M("⛔ %s: release not deployed", app.Name),
 			Title:   M("A pre-deploy task stopped the release"),
 			Summary: M("The build passed, but a pre-deploy task (a migration, a check) failed, so the release was not rolled out. The app keeps running its current release; nothing needs undoing."),
@@ -519,7 +519,7 @@ func (p *Platform) notifyRunFailed(app *store.App, run *store.Run, msg string, s
 		return
 	}
 	p.Notify.Notify(notify.Message{
-		Tone: notify.Critical, Key: fmt.Sprintf("run:%s:%s", app.Name, run.SHA),
+		Tone: notify.Critical, Key: fmt.Sprintf("run:%s:%s", app.Name, run.SHA), Group: notify.GroupBuild,
 		Subject: M("✗ %s: build failed on %s", app.Name, run.Branch),
 		Title:   M("The %s build failed", app.Name),
 		Summary: M("A push to %s did not build, so nothing was released; the app keeps running its current release.", run.Branch),
