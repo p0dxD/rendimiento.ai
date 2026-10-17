@@ -253,6 +253,8 @@ func TestDNSPending(t *testing.T) {
 	p2.markDNSPending(in, &r)
 	if r.Error != "DNS: no such host" {
 		t.Fatalf("internal check got a grace: %q", r.Error)
+	}
+}
 
 // Like Alertmanager's "for": an outage is emailed once it has lasted
 // NotifyAfter; a shorter one (the router's nightly restart) is recorded
