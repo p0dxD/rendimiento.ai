@@ -93,13 +93,13 @@ tasks:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/shop", DefaultBranch: "main", Name: "shop", Spec: *sp}, false); err != nil {
+	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/verifica", DefaultBranch: "main", Name: "verifica", Spec: *sp}, false); err != nil {
 		t.Fatal(err)
 	}
-	app, _ := p.Store.GetApp(ctx, "shop")
+	app, _ := p.Store.GetApp(ctx, "verifica")
 	push := func(c byte) {
 		t.Helper()
-		runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/shop", Branch: "main", SHA: sha(c)})
+		runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/verifica", Branch: "main", SHA: sha(c)})
 		if err != nil || len(runs) != 1 {
 			t.Fatalf("push: %v %v", runs, err)
 		}
@@ -197,13 +197,13 @@ tasks:
 	}
 	fake.files["main"] = tree
 	sp, _ := spec.Parse([]byte(yaml))
-	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/shop", DefaultBranch: "main", Name: "shop", Spec: *sp}, false); err != nil {
+	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/predespliegue", DefaultBranch: "main", Name: "predespliegue", Spec: *sp}, false); err != nil {
 		t.Fatal(err)
 	}
-	app, _ := p.Store.GetApp(ctx, "shop")
+	app, _ := p.Store.GetApp(ctx, "predespliegue")
 	push := func(c byte) *store.Run {
 		t.Helper()
-		runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/shop", Branch: "main", SHA: sha(c)})
+		runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/predespliegue", Branch: "main", SHA: sha(c)})
 		if err != nil || len(runs) != 1 {
 			t.Fatalf("push: %v %v", runs, err)
 		}
@@ -211,7 +211,7 @@ tasks:
 	}
 	live := func() int64 {
 		var cr v1alpha1.App
-		_ = kube.Get(ctx, client.ObjectKey{Name: "shop"}, &cr)
+		_ = kube.Get(ctx, client.ObjectKey{Name: "predespliegue"}, &cr)
 		return cr.Spec.Release
 	}
 
