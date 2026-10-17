@@ -85,7 +85,7 @@ func TestReleaseVerification(t *testing.T) {
 			return store.Probe{AppID: tg.AppID, Service: tg.Service, Kind: tg.Kind, OK: !broken.Load(), Error: "HTTP 502", At: time.Now()}
 		},
 	}
-	yaml := "services:\n  - name: web\n    domain: shop.joserod.space\n    health: { path: /health }\n"
+	yaml := "services:\n  - name: web\n    domain: version.joserod.space\n    health: { path: /health }\n"
 	sha := func(c byte) string { return strings.Repeat(string(c), 40) }
 	tree := fstest.MapFS{"rendimiento.yaml": {Data: []byte(yaml)}}
 	for _, c := range "ab" {
@@ -93,13 +93,13 @@ func TestReleaseVerification(t *testing.T) {
 	}
 	fake.files["main"] = tree
 	sp, _ := spec.Parse([]byte(yaml))
-	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/shop", DefaultBranch: "main", Name: "shop", Spec: *sp}, false); err != nil {
+	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/version", DefaultBranch: "main", Name: "version", Spec: *sp}, false); err != nil {
 		t.Fatal(err)
 	}
-	app, _ := p.Store.GetApp(ctx, "shop")
+	app, _ := p.Store.GetApp(ctx, "version")
 	push := func(c byte) {
 		t.Helper()
-		runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/shop", Branch: "main", SHA: sha(c)})
+		runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/version", Branch: "main", SHA: sha(c)})
 		if err != nil || len(runs) != 1 {
 			t.Fatalf("push: %v %v", runs, err)
 		}
@@ -136,7 +136,7 @@ func TestReleaseVerification(t *testing.T) {
 		t.Fatalf("release 3 = %+v, %v", r3, err)
 	}
 	var cr v1alpha1.App
-	if err := kube.Get(ctx, client.ObjectKey{Name: "shop"}, &cr); err != nil || cr.Spec.Release != 3 || cr.Spec.Images["web"] != r3.Images["web"] {
+	if err := kube.Get(ctx, client.ObjectKey{Name: "version"}, &cr); err != nil || cr.Spec.Release != 3 || cr.Spec.Images["web"] != r3.Images["web"] {
 		t.Fatalf("App object: release %d images %v (want release 3, #1's images)", cr.Spec.Release, cr.Spec.Images)
 	}
 	r1, _ := p.Store.GetRelease(ctx, app.ID, 1)
