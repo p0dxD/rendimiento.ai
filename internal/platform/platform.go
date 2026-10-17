@@ -232,6 +232,11 @@ func (p *Platform) Propose(ctx context.Context, installation int64, repo, branch
 	if err != nil {
 		return nil, err
 	}
+	if results == nil {
+		// A repo with no code, only rendimiento.yaml and ready-made images:
+		// an empty list, not null, for the wizard.
+		results = []detect.Result{}
+	}
 	prop := &Proposal{Repo: repo, DefaultBranch: branch, Detected: results, Files: map[string]string{}, Railpack: p.Config.Railpack}
 	if raw, err := fs.ReadFile(fsys, spec.FileName); err == nil {
 		s, err := spec.Parse(raw)
