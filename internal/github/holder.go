@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"strings"
 	"sync/atomic"
+	"time"
 )
 
 // ErrNotConfigured is returned until the GitHub App has been created in the setup flow.
@@ -116,6 +117,33 @@ func (h *Holder) BranchSHA(ctx context.Context, installation int64, repo, branch
 		return "", err
 	}
 	return c.BranchSHA(ctx, repo, branch)
+}
+
+// RecentPullRequests lists a repo's most recently updated pull requests.
+func (h *Holder) RecentPullRequests(ctx context.Context, installation int64, repo string) ([]PullInfo, error) {
+	c, err := h.client(installation)
+	if err != nil {
+		return nil, err
+	}
+	return c.RecentPullRequests(ctx, repo)
+}
+
+// MergeBase is the best common ancestor of two commits or branches.
+func (h *Holder) MergeBase(ctx context.Context, installation int64, repo, base, head string) (string, time.Time, error) {
+	c, err := h.client(installation)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	return c.MergeBase(ctx, repo, base, head)
+}
+
+// FirstParent returns a commit's first parent.
+func (h *Holder) FirstParent(ctx context.Context, installation int64, repo, sha string) (string, error) {
+	c, err := h.client(installation)
+	if err != nil {
+		return "", err
+	}
+	return c.FirstParent(ctx, repo, sha)
 }
 
 // ForOwner returns an API client for the installation on an account

@@ -52,6 +52,9 @@ type GitHub interface {
 	CloneToken(ctx context.Context, installation int64) (string, error)
 	ChangedFiles(ctx context.Context, installation int64, repo, base, head string) ([]string, bool, error)
 	BranchSHA(ctx context.Context, installation int64, repo, branch string) (string, error)
+	RecentPullRequests(ctx context.Context, installation int64, repo string) ([]gh.PullInfo, error)
+	MergeBase(ctx context.Context, installation int64, repo, base, head string) (string, time.Time, error)
+	FirstParent(ctx context.Context, installation int64, repo, sha string) (string, error)
 }
 
 // Config is the platform's cluster-level settings.
@@ -74,6 +77,7 @@ type Platform struct {
 	Hub       *events.Hub
 	Config    Config
 	Log       *slog.Logger
+	caminos   caminosCache
 	// Verify configures release verification and automatic rollback.
 	Verify VerifySettings
 	// Notify emails failed runs and rolled-back releases (nil: no email).

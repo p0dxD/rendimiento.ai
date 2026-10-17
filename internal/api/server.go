@@ -195,6 +195,7 @@ func (s *Server) Handler() http.Handler {
 	auth("GET /api/apps/{app}/impact", s.deleteImpact)
 	auth("POST /api/apps/{app}/disconnect", s.disconnectApp)
 	auth("GET /api/apps/{app}/runs", s.listRuns)
+	auth("GET /api/apps/{app}/caminos", s.appCaminos)
 	auth("POST /api/apps/{app}/runs", s.triggerRun)
 	auth("GET /api/universe", s.universe)
 	auth("GET /api/universe/spans", s.universeSpans)
@@ -967,6 +968,21 @@ func (s *Server) listRuns(w http.ResponseWriter, r *http.Request, _ string) {
 		runs = []*store.Run{}
 	}
 	writeJSON(w, runs)
+}
+
+// appCaminos is the Caminos tab: the app's last two weeks of runs, drawn as
+// the default branch and the branches that leave and rejoin it.
+func (s *Server) appCaminos(w http.ResponseWriter, r *http.Request, _ string) {
+	a := s.app(w, r)
+	if a == nil {
+		return
+	}
+	h, err := s.Platform.Caminos(r.Context(), a)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, h)
 }
 
 // triggerRun queues a run by hand ("Run now"), of the default branch unless

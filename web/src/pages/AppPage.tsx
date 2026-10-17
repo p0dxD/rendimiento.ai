@@ -4,6 +4,7 @@ import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo, type Rele
 import { ErrorBox, PhaseBadge, ResourceTree, RunBadge, Switch, usePoll } from "../components/ui";
 import { ReliabilityTab } from "../components/reliability";
 import { VisitsTab } from "../components/visits";
+import { CaminosTab } from "../components/caminos-tab";
 import { AppProblems } from "./Problems";
 import { Flor } from "../components/ambiente";
 import { t, tn } from "../i18n";
@@ -11,6 +12,7 @@ import { t, tn } from "../i18n";
 const tabs = [
   { id: "", label: "Overview" }, // labels are translated where shown
   { id: "runs", label: "Runs" },
+  { id: "caminos", label: "Roads" },
   { id: "releases", label: "Releases" },
   { id: "reliability", label: "Reliability" },
   { id: "visits", label: "Visits" },
@@ -18,7 +20,7 @@ const tabs = [
 ];
 
 /**
- * An app's page, in tabs: overview, runs, releases, reliability, visits and settings. It refreshes as runs and releases happen.
+ * An app's page, in tabs: overview, runs, roads (its branches as caminos), releases, reliability, visits and settings. It refreshes as runs and releases happen.
  */
 export function AppPage() {
   const { name = "", tab = "" } = useParams();
@@ -58,6 +60,7 @@ export function AppPage() {
       </nav>
       {tab === "" && <Overview name={name} app={app} />}
       {tab === "runs" && <Runs name={name} />}
+      {tab === "caminos" && <CaminosTab name={name} />}
       {tab === "releases" && <Releases name={name} current={app.status.release} />}
       {tab === "reliability" && <ReliabilityTab app={app} />}
       {tab === "visits" && <VisitsTab app={app} />}

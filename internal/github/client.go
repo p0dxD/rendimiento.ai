@@ -410,6 +410,65 @@ func (c *Client) BranchSHA(ctx context.Context, repo, branch string) (string, er
 	return out.SHA, nil
 }
 
+// PullInfo is what the Caminos tab needs of a pull request.
+type PullInfo struct {
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+	State  string `json:"state"`
+	Head   struct {
+		Ref string `json:"ref"`
+	} `json:"head"`
+	Base struct {
+		Ref string `json:"ref"`
+	} `json:"base"`
+	MergedAt       *time.Time `json:"merged_at"`
+	MergeCommitSHA string     `json:"merge_commit_sha"`
+}
+
+// RecentPullRequests lists a repo's 100 most recently updated pull requests,
+// open and closed.
+func (c *Client) RecentPullRequests(ctx context.Context, repo string) ([]PullInfo, error) {
+	var out []PullInfo
+	err := c.do(ctx, http.MethodGet, "/repos/"+repo+"/pulls?state=all&sort=updated&direction=desc&per_page=100", nil, &out)
+	return out, err
+}
+
+// MergeBase is the best common ancestor of two commits or branches, with
+// its commit time.
+func (c *Client) MergeBase(ctx context.Context, repo, base, head string) (sha string, at time.Time, err error) {
+	var out struct {
+		MergeBase struct {
+			SHA    string `json:"sha"`
+			Commit struct {
+				Committer struct {
+					Date time.Time `json:"date"`
+				} `json:"committer"`
+			} `json:"commit"`
+		} `json:"merge_base_commit"`
+	}
+	// per_page=1: only the merge base is needed, not the files.
+	if err := c.do(ctx, http.MethodGet, "/repos/"+repo+"/compare/"+url.PathEscape(base)+"..."+url.PathEscape(head)+"?per_page=1", nil, &out); err != nil {
+		return "", time.Time{}, err
+	}
+	return out.MergeBase.SHA, out.MergeBase.Commit.Committer.Date, nil
+}
+
+// FirstParent returns a commit's first parent ("" for a root commit).
+func (c *Client) FirstParent(ctx context.Context, repo, sha string) (string, error) {
+	var out struct {
+		Parents []struct {
+			SHA string `json:"sha"`
+		} `json:"parents"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/repos/"+repo+"/commits/"+url.PathEscape(sha), nil, &out); err != nil {
+		return "", err
+	}
+	if len(out.Parents) == 0 {
+		return "", nil
+	}
+	return out.Parents[0].SHA, nil
+}
+
 // PutFile creates or updates one file on a branch as a single commit and
 // returns the commit's SHA.
 func (c *Client) PutFile(ctx context.Context, repo, branch, filePath, content, message string) (string, error) {

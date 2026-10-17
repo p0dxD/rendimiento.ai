@@ -483,6 +483,43 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return (type.includes("json") ? res.json() : res.text()) as Promise<T>;
 }
 
+// ---- caminos: an app's branches as roads (the Caminos tab) ----
+
+/** One run, as a stop on the road. */
+export interface CaminosRun {
+  id: number;
+  sha: string;
+  status: string;
+  message?: string;
+  failed?: string[]; // the steps that failed
+  release?: number; // the release it made
+  at: string;
+  end?: string;
+}
+
+/** One branch: a vereda that leaves the default branch and, if merged, comes back. */
+export interface CaminosBranch {
+  name: string;
+  pr?: number;
+  title?: string;
+  parent?: string; // a stacked pull request's base branch
+  state: "merged" | "open" | "left";
+  fork?: { sha: string; at: string };
+  mergedAt?: string;
+  mergeSha?: string;
+  runs: CaminosRun[];
+}
+
+/** The last two weeks of an app: its default branch and the branches around it. */
+export interface Caminos {
+  defaultBranch: string;
+  from: string;
+  to: string;
+  main: CaminosRun[];
+  branches: CaminosBranch[];
+  partial?: boolean;
+}
+
 export const api = {
   me: () => request<{ login: string }>("GET", "/api/me"),
   logout: () => request<void>("POST", "/api/auth/logout"),
@@ -516,6 +553,7 @@ export const api = {
   disconnectApp: (name: string) => request<void>("POST", `/api/apps/${name}/disconnect?confirm=${encodeURIComponent(name)}`),
   deleteApp: (name: string) => request<void>("DELETE", `/api/apps/${name}?confirm=${encodeURIComponent(name)}`),
   runs: (app: string) => request<Run[]>("GET", `/api/apps/${app}/runs`),
+  caminos: (app: string) => request<Caminos>("GET", `/api/apps/${app}/caminos`),
   triggerRun: (app: string, branch?: string) => request<Run>("POST", `/api/apps/${app}/runs`, { branch }),
   releases: (app: string) => request<Release[]>("GET", `/api/apps/${app}/releases`),
   releaseTaskLog: (app: string, release: number, task: string) => request<string>("GET", `/api/apps/${app}/releases/${release}/tasks/${encodeURIComponent(task)}/log`),

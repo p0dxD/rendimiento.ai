@@ -741,3 +741,48 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 .u-legend li { margin-bottom: 4px; break-inside: avoid; }
 
 .u-open { padding: 4px 6px 10px; }
+
+/* ---- Caminos: an app's branches as roads ---- */
+.caminos-main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+.caminos-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.caminos-stage { position: relative; height: clamp(400px, 62vh, 660px); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--surface); touch-action: none; }
+.caminos-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; }
+.caminos-stage canvas.pointing { cursor: pointer; }
+.caminos-stage canvas.dragging { cursor: grabbing; }
+.caminos-picado { position: absolute; top: 0; left: 0; right: 0; height: 28px; display: flex; pointer-events: none; z-index: 1; }
+.caminos-picado i { flex: 1; height: 100%; margin: 0 2px; transform-origin: top center; animation: caminos-mece 5s ease-in-out infinite; opacity: .92;
+  -webkit-mask: radial-gradient(circle at 50% 42%, transparent 3.5px, #000 4px); mask: radial-gradient(circle at 50% 42%, transparent 3.5px, #000 4px);
+  clip-path: polygon(0 0, 100% 0, 100% 72%, 87% 100%, 75% 72%, 62% 100%, 50% 72%, 37% 100%, 25% 72%, 12% 100%, 0 72%); }
+.caminos-picado i:nth-child(6n+1) { background: var(--rosa); } .caminos-picado i:nth-child(6n+2) { background: var(--maiz); }
+.caminos-picado i:nth-child(6n+3) { background: var(--nopal); } .caminos-picado i:nth-child(6n+4) { background: var(--anil); }
+.caminos-picado i:nth-child(6n+5) { background: var(--cempasuchil); } .caminos-picado i:nth-child(6n) { background: var(--grana); }
+.caminos-picado i:nth-child(odd) { animation-delay: -2.4s; }
+@keyframes caminos-mece { 50% { transform: rotate(1.6deg) translateY(1px); } }
+.caminos-tools { position: absolute; right: 12px; top: 40px; display: flex; flex-direction: column; gap: 6px; z-index: 2; }
+.caminos-tools button { width: 36px; height: 36px; padding: 0; font-size: 1rem; line-height: 1; }
+.caminos-hint { position: absolute; left: 12px; bottom: 12px; right: 60px; z-index: 2; font-size: 13px; color: var(--muted); pointer-events: none; }
+.caminos-hint span { background: color-mix(in srgb, var(--surface) 86%, transparent); padding: 4px 9px; border-radius: 8px; display: inline-block; }
+.caminos-mini { height: 52px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); overflow: hidden; touch-action: none; }
+.caminos-mini canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
+.caminos-panel { display: flex; flex-direction: column; gap: 12px; max-height: calc(clamp(400px, 62vh, 660px) + 60px); overflow-y: auto; min-width: 0; }
+.caminos-panel h2 { margin: 6px 0 2px; overflow-wrap: anywhere; }
+.caminos-panel h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 6px; }
+.caminos-panel .rel-tiles { grid-template-columns: 1fr 1fr; margin: 0; }
+.caminos-panel .rel-tile .value { font-size: 18px; }
+.caminos-list { display: flex; flex-direction: column; gap: 2px; }
+.caminos-item { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 8px; align-items: start; width: 100%; text-align: left; background: none; border: 0; border-radius: 10px; padding: 6px; color: inherit; font: inherit; cursor: pointer; }
+.caminos-item:hover { background: var(--idle-bg); }
+.caminos-item .badge { padding: 0; background: none; margin-top: 4px; }
+.caminos-item small { display: block; color: var(--muted); }
+.caminos-item > span:nth-child(2) { overflow-wrap: anywhere; font-weight: 600; }
+.caminos-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: 14px; }
+.caminos-facts dt { color: var(--muted); font-weight: 600; }
+.caminos-facts dd { margin: 0; overflow-wrap: anywhere; }
+.caminos-msg { background: var(--idle-bg); border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.45 var(--mono); margin: 0; }
+.caminos-legend { margin-top: 12px; }
+.caminos-legend summary { cursor: pointer; font-weight: 700; }
+.caminos-legend ul { margin: 8px 0 0; padding-left: 18px; columns: 2 18rem; column-gap: 28px; }
+.caminos-legend li { margin-bottom: 4px; break-inside: avoid; }
+@media (max-width: 960px) { .caminos-main { grid-template-columns: minmax(0, 1fr); } .caminos-panel { max-height: none; } }
+@media (prefers-reduced-motion: reduce) { .caminos-picado i { animation: none; } }
+:root[data-motion="off"] .caminos-picado i { animation: none; }

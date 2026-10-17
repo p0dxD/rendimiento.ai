@@ -70,6 +70,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/apps/{app}/impact` | what a delete would remove (shown before confirming) |
 | POST | `/api/apps/{app}/disconnect` | stop managing the app but leave its workloads running |
 | GET | `/api/apps/{app}/runs` | CI runs |
+| GET | `/api/apps/{app}/caminos` | the last 14 days of runs by branch, with where each branch started and was merged ([Roads](../guide/caminos.md)) |
 | POST | `/api/apps/{app}/runs` | start a run of the default branch (the **Run** button) |
 | GET | `/api/apps/{app}/releases` | release history (digest per service) |
 | GET | `/api/apps/{app}/reliability?range=24h\|7d\|30d` | uptime checks: per check, uptime, p50/p95, chart buckets and the latest check; outages; releases in the range |
