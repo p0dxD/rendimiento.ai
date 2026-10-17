@@ -50,7 +50,20 @@ type Message struct {
 	// Key identifies the event for de-duplication: a message with the same
 	// key as one sent within Cooldown is dropped. Empty never de-duplicates.
 	Key string
+	// Group is the kind of notice (GroupOutage, GroupRecovery…): messages of
+	// one group that arrive within the Notifier's GroupWait go out as one
+	// email. Empty sends the message on its own, at once.
+	Group string
 }
+
+// Groups of notices, like Alertmanager's group_by: a burst of one kind is
+// one email.
+const (
+	GroupOutage   = "outage"
+	GroupRecovery = "recovery"
+	GroupRelease  = "release"
+	GroupBuild    = "build"
+)
 
 // Sender delivers a rendered email.
 type Sender interface {
@@ -74,20 +87,62 @@ type Notifier struct {
 	OnSent func()
 	// Lang is the language of the emails (NOTIFY_LANG); English by default.
 	Lang i18n.Lang
+	// GroupWait is how long the first message of a group waits for others
+	// of the same group before they go out together (NOTIFY_GROUP_WAIT, like
+	// Alertmanager's group_wait). Zero sends every message at once.
+	GroupWait time.Duration
 
-	mu   sync.Mutex
-	sent map[string]time.Time
-	hour []time.Time
+	mu      sync.Mutex
+	sent    map[string]time.Time
+	hour    []time.Time
+	pending map[string][]Message // group → messages waiting for GroupWait
 }
 
 // Enabled reports whether messages are actually sent.
 func (n *Notifier) Enabled() bool { return n != nil && n.Sender != nil && len(n.To) > 0 }
 
 // Notify sends m in the background (a slow mail API never delays the
-// caller). It reports false when m was dropped: notifications off, a
-// duplicate, or over the hourly cap.
+// caller); a message with a Group waits GroupWait for others of its group,
+// and they go out as one email. It reports false when m was dropped:
+// notifications off, a duplicate, or over the hourly cap.
 func (n *Notifier) Notify(m Message) bool {
-	if !n.allow(m) {
+	if !n.fresh(m) {
+		return false
+	}
+	if m.Group == "" || n.GroupWait <= 0 {
+		return n.sendLater(m)
+	}
+	n.mu.Lock()
+	if n.pending == nil {
+		n.pending = map[string][]Message{}
+	}
+	first := len(n.pending[m.Group]) == 0
+	n.pending[m.Group] = append(n.pending[m.Group], m)
+	n.mu.Unlock()
+	if first {
+		time.AfterFunc(n.GroupWait, func() { n.flush(m.Group) })
+	}
+	return true
+}
+
+// flush sends a group's waiting messages: one as it is, several as one email.
+func (n *Notifier) flush(group string) {
+	n.mu.Lock()
+	ms := n.pending[group]
+	delete(n.pending, group)
+	n.mu.Unlock()
+	switch len(ms) {
+	case 0:
+	case 1:
+		n.sendLater(ms[0])
+	default:
+		n.sendLater(Combine(ms))
+	}
+}
+
+// sendLater sends m in the background, within the hourly cap.
+func (n *Notifier) sendLater(m Message) bool {
+	if !n.underCap(m) {
 		return false
 	}
 	go func() {
@@ -100,9 +155,9 @@ func (n *Notifier) Notify(m Message) bool {
 	return true
 }
 
-// allow keeps email from flooding: the same message (by its key) at most
-// once every 30 minutes, and 20 emails an hour in all, by default.
-func (n *Notifier) allow(m Message) bool {
+// fresh drops a message whose key was sent within Cooldown (30 minutes by
+// default), and every message when notifications are off.
+func (n *Notifier) fresh(m Message) bool {
 	if !n.Enabled() {
 		return false
 	}
@@ -120,7 +175,17 @@ func (n *Notifier) allow(m Message) bool {
 		if at, ok := n.sent[m.Key]; ok && now.Sub(at) < cooldown {
 			return false
 		}
+		n.sent[m.Key] = now
 	}
+	return true
+}
+
+// underCap keeps a bad night from flooding the inbox: 20 emails an hour in
+// all, by default (a grouped email counts once).
+func (n *Notifier) underCap(m Message) bool {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	now := time.Now()
 	limit := n.PerHour
 	if limit == 0 {
 		limit = 20
@@ -139,10 +204,35 @@ func (n *Notifier) allow(m Message) bool {
 		return false
 	}
 	n.hour = append(n.hour, now)
-	if m.Key != "" {
-		n.sent[m.Key] = now
-	}
 	return true
+}
+
+// Combine makes one email of several notices of a group: the most severe
+// tone, the first subject "and N more", and one row per notice (its title
+// and summary), with their details one after another.
+func Combine(ms []Message) Message {
+	rank := map[Tone]int{Critical: 3, Warning: 2, Good: 1, Info: 0}
+	out := Message{
+		Tone:        ms[0].Tone,
+		Subject:     i18n.M("%s (and %d more)", ms[0].Subject, len(ms)-1),
+		Title:       i18n.M("%d notices at once", len(ms)),
+		Summary:     i18n.M("They came within a few minutes of each other, so they arrive in one email."),
+		ActionURL:   ms[0].ActionURL,
+		ActionLabel: ms[0].ActionLabel,
+		Group:       ms[0].Group,
+	}
+	var details []string
+	for _, m := range ms {
+		if rank[m.Tone] > rank[out.Tone] {
+			out.Tone = m.Tone
+		}
+		out.Facts = append(out.Facts, Fact{Label: m.Title, Value: m.Summary})
+		if m.Details != "" {
+			details = append(details, m.Details)
+		}
+	}
+	out.Details = strings.Join(details, "\n")
+	return out
 }
 
 // Send renders and sends m now, without de-duplication (the test email).

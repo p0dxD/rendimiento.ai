@@ -255,3 +255,54 @@ func TestDNSPending(t *testing.T) {
 		t.Fatalf("internal check got a grace: %q", r.Error)
 	}
 }
+
+// Like Alertmanager's "for": an outage is emailed once it has lasted
+// NotifyAfter; a shorter one (the router's nightly restart) is recorded
+// but sends neither the outage nor the recovery email.
+func TestNotifyAfter(t *testing.T) {
+	f := &fakeStore{incidents: map[int64]*store.Incident{}}
+	p := &Prober{Store: f, Log: slog.New(slog.NewTextHandler(io.Discard, nil)), state: map[string]*checkState{}, NotifyAfter: 5 * time.Minute}
+	ctx := context.Background()
+	tg := Target{AppID: 1, App: "shop", Service: "web", Kind: KindPublic}
+	start := time.Date(2026, 10, 17, 3, 0, 0, 0, time.UTC)
+	at := func(m int, ok bool) {
+		r := store.Probe{At: start.Add(time.Duration(m) * time.Minute), OK: ok}
+		if !ok {
+			r.Error = "DNS: server misbehaving"
+		}
+		p.observe(ctx, tg, r)
+	}
+	drain := func() []change { c := p.changes; p.changes = nil; return c }
+
+	// A 3-minute blip: recorded, never emailed.
+	at(0, false)
+	at(1, false)
+	at(2, false)
+	at(3, true)
+	if len(f.incidents) != 1 || f.incidents[1].EndedAt == nil {
+		t.Fatalf("the blip was not recorded: %+v", f.incidents)
+	}
+	if c := drain(); len(c) != 0 {
+		t.Fatalf("a 3-minute outage was emailed: %+v", c)
+	}
+
+	// A real outage: emailed at 5 minutes, once, and then its recovery.
+	for m := 10; m <= 14; m++ {
+		at(m, false)
+	}
+	if c := drain(); len(c) != 0 {
+		t.Fatalf("emailed before 5 minutes: %+v", c)
+	}
+	at(15, false)
+	if c := drain(); len(c) != 1 || !c[0].down || !c[0].since.Equal(start.Add(10*time.Minute)) {
+		t.Fatalf("at 5 minutes: %+v", c)
+	}
+	at(16, false)
+	if c := drain(); len(c) != 0 {
+		t.Fatalf("emailed twice: %+v", c)
+	}
+	at(17, true)
+	if c := drain(); len(c) != 1 || c[0].down {
+		t.Fatalf("recovery: %+v", c)
+	}
+}

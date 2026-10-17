@@ -196,6 +196,12 @@ type Prober struct {
 	// Notify emails outages and recoveries (nil: no email); BaseURL links them.
 	Notify  *notify.Notifier
 	BaseURL string
+	// NotifyAfter is how long an outage must last before it is emailed
+	// (NOTIFY_OUTAGE_AFTER, like Alertmanager's "for"). One that ends sooner
+	// is still recorded, but sends neither the outage nor the recovery email:
+	// the router's nightly restart is two minutes of every public check
+	// failing. Zero emails an outage as soon as it opens.
+	NotifyAfter time.Duration
 
 	mu       sync.Mutex
 	state    map[string]*checkState // target key → its streak
@@ -209,6 +215,8 @@ type checkState struct {
 	firstFail store.Probe
 	incident  int64     // open incident ID, or 0
 	since     time.Time // when the open incident started
+	err       string    // its first error
+	notified  bool      // its outage email went out (so its recovery one will)
 }
 
 // change is an outage that started or ended, for the round's emails.
@@ -232,7 +240,8 @@ func (p *Prober) Run(ctx context.Context) {
 	p.state = map[string]*checkState{}
 	if open, err := p.Store.OpenIncidents(ctx); err == nil {
 		for _, in := range open {
-			p.state[key(in.AppID, in.Service, in.Kind)] = &checkState{fails: FailuresToOpen, incident: in.ID, since: in.StartedAt}
+			p.state[key(in.AppID, in.Service, in.Kind)] = &checkState{fails: FailuresToOpen, incident: in.ID, since: in.StartedAt,
+				err: in.Error, notified: time.Since(in.StartedAt) >= p.NotifyAfter}
 		}
 	}
 	p.loadAnswered(ctx)
@@ -415,7 +424,7 @@ func outageMessage(app string, down []change, baseURL string) notify.Message {
 		subject = M("🔴 %s: %s is down", app, names[0])
 	}
 	return notify.Message{
-		Tone: notify.Critical, Subject: subject, Key: "down:" + app,
+		Tone: notify.Critical, Subject: subject, Key: "down:" + app, Group: notify.GroupOutage,
 		Title:   M("%s is down", app),
 		Summary: M("%s failed two checks in a row. rendimiento keeps checking every minute and will email you when it recovers.", joinAnd(names)),
 		Facts:   facts, Details: strings.Join(details, "\n"),
@@ -437,7 +446,7 @@ func recoveryMessage(app string, up []change, baseURL string) notify.Message {
 		facts = append(facts, notify.Fact{Label: checkName(c.target), Value: value})
 	}
 	return notify.Message{
-		Tone: notify.Good, Subject: M("✅ %s recovered", app), Key: "up:" + app,
+		Tone: notify.Good, Subject: M("✅ %s recovered", app), Key: "up:" + app, Group: notify.GroupRecovery,
 		Title:     M("%s recovered", app),
 		Summary:   M("%s answered normally again.", joinAnd(names)),
 		Facts:     facts,
@@ -488,7 +497,9 @@ func (p *Prober) observe(ctx context.Context, t Target, r store.Probe) {
 				return // try again on the next success
 			}
 			p.Log.Info("service recovered", "app", t.App, "service", t.Service, "check", t.Kind)
-			p.changes = append(p.changes, change{target: t, since: st.since})
+			if st.notified { // no "recovered" for an outage nobody was told about
+				p.changes = append(p.changes, change{target: t, since: st.since})
+			}
 		}
 		*st = checkState{}
 		return
@@ -504,9 +515,13 @@ func (p *Prober) observe(ctx context.Context, t Target, r store.Probe) {
 			p.Log.Warn("uptime: could not open incident", "err", err)
 			return
 		}
-		st.incident, st.since = id, st.firstFail.At
+		st.incident, st.since, st.err = id, st.firstFail.At, st.firstFail.Error
 		p.Log.Warn("service down", "app", t.App, "service", t.Service, "check", t.Kind, "error", st.firstFail.Error)
-		p.changes = append(p.changes, change{target: t, down: true, since: st.firstFail.At, err: st.firstFail.Error})
+	}
+	// Email the outage once it has lasted NotifyAfter.
+	if st.incident != 0 && !st.notified && r.At.Sub(st.since) >= p.NotifyAfter {
+		st.notified = true
+		p.changes = append(p.changes, change{target: t, down: true, since: st.since, err: st.err})
 	}
 }
 

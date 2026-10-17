@@ -127,3 +127,52 @@ func TestOnSent(t *testing.T) {
 		t.Fatalf("failed: err %v, OnSent calls %d", err, calls)
 	}
 }
+
+// Like Alertmanager's group_wait: notices of one group that arrive together
+// go out as one email; other groups and ungrouped notices are not held back.
+func TestNotifierGroups(t *testing.T) {
+	f := &fakeSender{}
+	n := &Notifier{Sender: f, To: []string{"me@example.com"}, GroupWait: 100 * time.Millisecond}
+	for _, app := range []string{"shop", "blog", "wiki"} {
+		n.Notify(Message{Tone: Critical, Subject: "🔴 " + app + " is down", Title: app + " is down", Summary: "web fails", Key: "down:" + app, Group: GroupOutage})
+	}
+	n.Notify(Message{Tone: Good, Subject: "✅ api recovered", Key: "up:api", Group: GroupRecovery})
+	n.Notify(Message{Subject: "test email"}) // no group: at once
+	time.Sleep(30 * time.Millisecond)
+	f.mu.Lock()
+	early := append([]string(nil), f.sent...)
+	f.mu.Unlock()
+	if len(early) != 1 || early[0] != "test email" {
+		t.Fatalf("before GroupWait: %v", early)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		f.mu.Lock()
+		got := len(f.sent)
+		f.mu.Unlock()
+		if got == 3 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	joined := strings.Join(f.sent, " | ")
+	if len(f.sent) != 3 || !strings.Contains(joined, "🔴 shop is down (and 2 more)") || !strings.Contains(joined, "✅ api recovered") {
+		t.Fatalf("sent: %v", f.sent)
+	}
+}
+
+func TestCombine(t *testing.T) {
+	m := Combine([]Message{
+		{Tone: Warning, Subject: "a", Title: "A", Summary: "sa", Details: "da", ActionURL: "u"},
+		{Tone: Critical, Subject: "b", Title: "B", Summary: "sb"},
+	})
+	if m.Tone != Critical || m.Subject != "a (and 1 more)" || m.Title != "2 notices at once" || len(m.Facts) != 2 ||
+		m.Facts[1] != (Fact{"B", "sb"}) || m.Details != "da" || m.ActionURL != "u" {
+		t.Fatalf("combined: %+v", m)
+	}
+	if _, _, err := Render(m); err != nil {
+		t.Fatal(err)
+	}
+}

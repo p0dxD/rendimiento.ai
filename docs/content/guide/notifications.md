@@ -11,13 +11,17 @@ rendimiento emails you when something needs your attention, so you don't have to
 | A release **failed verification and was rolled back** | ↩ *app: release #9 rolled back*: what broke, and what runs now | release verification (`platform/verify.go`) |
 | A release failed verification but was **kept** (`verify.rollback: false`, or nothing to roll back to) | ⚠ *app: release #9 failed verification* | release verification |
 | A **build on the default branch failed**, so nothing was released | ✗ *app: build failed on main*: the failing steps and their errors | the CI worker (`platform.execute`) |
-| A service **went down**: an outage opened after two failed checks | 🔴 *app is down*: which checks, since when, and the errors | uptime checks (`uptime.Prober`) |
-| …and **recovered** | ✅ *app recovered*, with how long it was down | uptime checks |
+| A service **went down** and stayed down 5 minutes (`NOTIFY_OUTAGE_AFTER`) | 🔴 *app is down*: which checks, since when, and the errors | uptime checks (`uptime.Prober`) |
+| …and **recovered**, after an outage you were told about | ✅ *app recovered*, with how long it was down | uptime checks |
 
 Branch and pull-request builds don't email you; their result is on the commit's GitHub check.
 
 ## Noise control
 
+Like Prometheus's Alertmanager, rendimiento waits before it tells you, and puts together what happens at once:
+
+- **An outage must last before it is emailed** (`NOTIFY_OUTAGE_AFTER`, 5 minutes). An outage opens after two failed checks and is always recorded on the [Reliability](reliability.md) tab, but its email waits until it has lasted 5 minutes. One that ends sooner sends nothing: neither *down* nor *recovered*. A router that restarts every night at 3:00, with every public check failing its DNS for two minutes, no longer sends two dozen emails.
+- **Notices of one kind arrive as one email** (`NOTIFY_GROUP_WAIT`, 2 minutes). The first outage, recovery, rolled-back release or failed build waits 2 minutes for others of the same kind; if more arrive, they go out together: *🔴 shop is down (and 11 more)*, with one row per notice, most severe color first. Each kind is grouped on its own, and the test email is never held back.
 - **One email per app per minute of changes.** When several checks of an app go down together (its public URL and its in-cluster check), you get one email listing them all.
 - **No repeats.** The same event (the same app down, the same release rolled back) is sent at most once every 30 minutes. A flapping service doesn't send a stream of emails.
 - **An hourly cap of 20 emails.** Past it, emails are dropped and logged, so a bad night can't flood your inbox.
