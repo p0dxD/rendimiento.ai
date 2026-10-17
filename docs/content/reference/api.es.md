@@ -71,6 +71,7 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | GET | `/api/apps/{app}/impact` | lo que quitaría un borrado (se muestra antes de confirmar) |
 | POST | `/api/apps/{app}/disconnect` | deja de administrar la aplicación pero deja corriendo sus cargas de trabajo |
 | GET | `/api/apps/{app}/runs` | las ejecuciones de integración continua |
+| GET | `/api/apps/{app}/caminos` | las ejecuciones de los últimos 14 días por rama, con dónde salió y dónde se integró cada una ([Caminos](../guide/caminos.md)) |
 | POST | `/api/apps/{app}/runs` | inicia una ejecución de la rama principal (el botón **Ejecutar**) |
 | GET | `/api/apps/{app}/releases` | el historial de versiones (huella por servicio) |
 | GET | `/api/apps/{app}/releases/{number}/tasks/{task}/log` | el registro de una tarea posterior al despliegue de una versión |

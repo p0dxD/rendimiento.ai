@@ -86,6 +86,7 @@ plugins:
             Builds and tests: Construcciones y pruebas
             Tasks (commands in CI): Tareas (comandos en la integración continua)
             Reliability (uptime and charts): Confiabilidad (disponibilidad y gráficas)
+            Roads (branches as caminos): Caminos (las ramas como veredas)
             Notifications (email): Notificaciones (correo)
             Problems (what went wrong in the platform): Problemas (lo que salió mal en la plataforma)
             Visits (Umami): Visitas (Umami)
@@ -173,6 +174,7 @@ nav:
       - Builds and tests: guide/builds.md
       - Tasks (commands in CI): guide/tasks.md
       - Reliability (uptime and charts): guide/reliability.md
+      - Roads (branches as caminos): guide/caminos.md
       - Visits (Umami): guide/visits.md
       - The Mercado (pages without code): guide/mercado.md
       - Notifications (email): guide/notifications.md

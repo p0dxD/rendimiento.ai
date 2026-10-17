@@ -96,6 +96,13 @@ func (f *fakeGitHub) UpdateCheck(_ context.Context, _ int64, _ string, id int64,
 	return nil
 }
 func (f *fakeGitHub) CloneToken(context.Context, int64) (string, error) { return "ghs_x", nil }
+func (f *fakeGitHub) RecentPullRequests(context.Context, int64, string) ([]gh.PullInfo, error) {
+	return nil, nil
+}
+func (f *fakeGitHub) MergeBase(context.Context, int64, string, string, string) (string, time.Time, error) {
+	return "", time.Time{}, nil
+}
+func (f *fakeGitHub) FirstParent(context.Context, int64, string, string) (string, error) { return "", nil }
 func (f *fakeGitHub) BranchSHA(context.Context, int64, string, string) (string, error) {
 	return strings.Repeat("9", 40), nil
 }
@@ -755,5 +762,38 @@ func TestInvalidSpecIsAFailedRun(t *testing.T) {
 	list, _ := p.Store.ListProblems(ctx, "invalida", time.Now().Add(-time.Hour), false, 10)
 	if len(list) != 1 || list[0].Resolution != "fixed by ccccccc" {
 		t.Fatalf("problems = %+v", list)
+	}
+}
+
+// The Caminos tab: an app's runs by branch, rebuilt only when a newer run
+// appears (or after caminosTTL).
+func TestCaminos(t *testing.T) {
+	p, _, _, _ := setup(t)
+	ctx := context.Background()
+	app := &store.App{Name: "caminos-app", Repo: "p0dxD/caminos-app", DefaultBranch: "main", Spec: spec.Spec{Services: []spec.Service{{Name: "web"}}}}
+	if err := p.Store.CreateApp(ctx, app); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range []*store.Run{{SHA: strings.Repeat("a", 40), Branch: "main"}, {SHA: strings.Repeat("b", 40), Branch: "vereda"}} {
+		r.AppID, r.Event = app.ID, "push"
+		if err := p.Store.CreateRun(ctx, r, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h, err := p.Caminos(ctx, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(h.Main) != 1 || len(h.Branches) != 1 || h.Branches[0].Name != "vereda" || h.Branches[0].State != "open" || h.DefaultBranch != "main" {
+		t.Fatalf("history = %+v", h)
+	}
+	if again, _ := p.Caminos(ctx, app); again != h {
+		t.Fatal("an unchanged history should come from the cache")
+	}
+	if err := p.Store.CreateRun(ctx, &store.Run{AppID: app.ID, SHA: strings.Repeat("c", 40), Branch: "vereda", Event: "push"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if fresh, _ := p.Caminos(ctx, app); fresh == h || len(fresh.Branches[0].Runs) != 2 {
+		t.Fatalf("a new run should rebuild the history: %+v", fresh)
 	}
 }
