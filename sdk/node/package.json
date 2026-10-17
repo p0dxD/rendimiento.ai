@@ -2,6 +2,7 @@
   "name": "@rendimiento/observa",
   "version": "0.1.0",
   "description": "rendimiento for Node: traces for the Universe map, on top of OpenTelemetry",
+  "license": "Apache-2.0",
   "keywords": [
     "opentelemetry",
     "tracing",

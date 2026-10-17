@@ -1,11 +1,13 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]  # SPDX license expressions (PEP 639)
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "rendimiento-observa"
 version = "0.1.0"
 description = "rendimiento for Python: traces for the Universe map, on top of OpenTelemetry"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.9"
 dependencies = ["opentelemetry-api>=1.25"]
 

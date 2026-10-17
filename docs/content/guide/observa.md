@@ -105,3 +105,7 @@ OpenTelemetry for Go v1.38 and later need Go 1.26; v1.37 (with `otelhttp` v0.62)
 ## Tests
 
 Each library is tested as a [task](tasks.md) of rendimiento's own `rendimiento.yaml` (`sdk-node`, `sdk-python`, `sdk-java`) on every run that changes its folder, branches included.
+
+## License
+
+The three libraries are under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), the same as OpenTelemetry, which they are built on: each folder has its `LICENSE`, and `package.json`, `pyproject.toml` and `pom.xml` declare it.
