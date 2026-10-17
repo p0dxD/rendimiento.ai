@@ -52,6 +52,8 @@ El panel muestra en la tarjeta de cada aplicación su **disponibilidad de las ú
 
 Una interrupción empieza tras **dos comprobaciones fallidas seguidas**, con fecha de la primera. Una sola falla suele ser un parpadeo, como un pod que se reinicia o una respuesta lenta. La interrupción termina con la siguiente comprobación correcta. Las interrupciones sobreviven a los reinicios de la plataforma: una plataforma reiniciada retoma las que están abiertas y las cierra cuando el servicio se recupera.
 
+**Un dominio nuevo tiene una hora.** Si una dirección pública **nunca ha respondido** y falla al buscar su DNS, lo más probable es que su registro todavía se esté propagando. Durante su primera hora, la comprobación muestra **DNS pendiente** en lugar de caído, sin interrupción y sin correo. Pasada esa hora, falla como cualquier otra. Una dirección que respondió aunque sea una vez, dentro de los 400 días de resúmenes que se guardan, no tiene gracia: si un dominio que funcionaba pierde su DNS, se marca caído de inmediato.
+
 ## Verificar cada versión {#verifying-each-release}
 
 Cada versión de la rama principal se **vigila después de publicarse**, y una versión que descompone un servicio **se revierte automáticamente**.

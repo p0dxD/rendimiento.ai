@@ -133,6 +133,17 @@ func (f *fakeStore) OpenIncidents(context.Context) ([]store.Incident, error) {
 }
 func (f *fakeStore) RollupProbes(context.Context, time.Time) error { return nil }
 func (f *fakeStore) PruneProbes(context.Context, time.Time) error  { return nil }
+func (f *fakeStore) AnsweredChecks(context.Context) ([]store.Probe, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []store.Probe
+	for _, p := range f.probes {
+		if p.OK {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
 
 func TestIncidents(t *testing.T) {
 	up := true
@@ -191,5 +202,56 @@ func TestRound(t *testing.T) {
 	p.Round(context.Background())
 	if len(f.probes) != 1 || f.probes[0].Service != "web" || f.probes[0].Kind != KindInternal || f.probes[0].AppID != 1 {
 		t.Fatalf("probes = %+v", f.probes)
+	}
+}
+
+// A new domain whose DNS record is still spreading is "DNS pending" for an
+// hour, not an outage; one that has answered before is down at once.
+func TestDNSPending(t *testing.T) {
+	f := &fakeStore{incidents: map[int64]*store.Incident{}}
+	p := &Prober{Store: f, Log: slog.New(slog.NewTextHandler(io.Discard, nil)), state: map[string]*checkState{}}
+	p.loadAnswered(context.Background())
+	ctx := context.Background()
+	newSite := Target{AppID: 1, App: "shop", Service: "web", Kind: KindPublic, URL: "https://new.example.com/"}
+	start := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	fail := func(tg Target, at time.Time) store.Probe {
+		r := store.Probe{AppID: tg.AppID, Service: tg.Service, Kind: tg.Kind, At: at, Error: "DNS: no such host"}
+		p.markDNSPending(tg, &r)
+		p.observe(ctx, tg, r)
+		return r
+	}
+	for _, m := range []int{0, 1, 2, 30, 59} {
+		if r := fail(newSite, start.Add(time.Duration(m)*time.Minute)); r.Error != DNSPending+"no such host" {
+			t.Fatalf("minute %d: error %q", m, r.Error)
+		}
+	}
+	if len(f.incidents) != 0 {
+		t.Fatalf("a new domain within its grace opened an incident: %+v", f.incidents)
+	}
+	// After an hour it is an outage like any other, dated from then.
+	fail(newSite, start.Add(61*time.Minute))
+	if r := fail(newSite, start.Add(62*time.Minute)); r.Error != "DNS: no such host" || len(f.incidents) != 1 {
+		t.Fatalf("after the grace: error %q, incidents %+v", r.Error, f.incidents)
+	}
+	if got := f.incidents[1].StartedAt; !got.Equal(start.Add(61 * time.Minute)) {
+		t.Fatalf("outage dated %v", got)
+	}
+
+	// A domain that answered once (even before a restart) gets no grace.
+	old := Target{AppID: 1, App: "shop", Service: "api", Kind: KindPublic, URL: "https://api.example.com/"}
+	_ = f.RecordProbes(ctx, []store.Probe{{AppID: 1, Service: "api", Kind: KindPublic, OK: true}})
+	p2 := &Prober{Store: f, Log: p.Log, state: map[string]*checkState{}}
+	p2.loadAnswered(ctx)
+	r := store.Probe{AppID: 1, Service: "api", Kind: KindPublic, At: start, Error: "DNS: no such host"}
+	p2.markDNSPending(old, &r)
+	if r.Error != "DNS: no such host" {
+		t.Fatalf("a domain that answered before got a grace: %q", r.Error)
+	}
+	// Nor does an internal check, or another kind of failure.
+	in := Target{AppID: 1, App: "shop", Service: "web", Kind: KindInternal}
+	r = store.Probe{Error: "DNS: no such host", At: start}
+	p2.markDNSPending(in, &r)
+	if r.Error != "DNS: no such host" {
+		t.Fatalf("internal check got a grace: %q", r.Error)
 	}
 }

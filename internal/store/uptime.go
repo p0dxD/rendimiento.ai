@@ -238,6 +238,28 @@ func (s *Store) Uptime(ctx context.Context, appID int64, since time.Time, bucket
 	return out, nil
 }
 
+// AnsweredChecks lists the checks (app, service and kind) that have
+// succeeded at least once in the kept history (400 days of hourly
+// summaries, plus the checks not summarized yet). A public address that
+// never has may still be waiting for its DNS.
+func (s *Store) AnsweredChecks(ctx context.Context) ([]Probe, error) {
+	rows, err := s.pool.Query(ctx, `SELECT app_id, service, kind FROM probe_hourly WHERE ok > 0
+		UNION SELECT app_id, service, kind FROM probes WHERE ok`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Probe
+	for rows.Next() {
+		var p Probe
+		if err := rows.Scan(&p.AppID, &p.Service, &p.Kind); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
 // LatestProbes is the newest check since a time of every app, service and
 // kind: the health the Universe page shows on each service.
 func (s *Store) LatestProbes(ctx context.Context, since time.Time) ([]Probe, error) {
