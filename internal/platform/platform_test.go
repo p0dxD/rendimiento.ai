@@ -24,9 +24,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/config"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
@@ -154,17 +156,7 @@ func setup(t *testing.T) (*Platform, *fakeGitHub, *fakeExec, client.Client) {
 		t.Fatal(err)
 	}
 
-	env := testenv.New(filepath.Join("..", "..", "deploy", "crds"))
-	cfg, err := env.Start()
-	if err != nil {
-		if os.Getenv("KUBEBUILDER_ASSETS") != "" {
-			// Configured but failed to start (e.g. an overloaded machine):
-			// fail, so a test gate never passes with these tests skipped.
-			t.Fatalf("envtest failed to start: %v", err)
-		}
-		t.Skipf("envtest unavailable: %v", err)
-	}
-	t.Cleanup(func() { _ = env.Stop() })
+	cfg := kubeConfig(t)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = v1alpha1.AddToScheme(scheme)
@@ -194,6 +186,46 @@ func setup(t *testing.T) (*Platform, *fakeGitHub, *fakeExec, client.Client) {
 	p.Runner = pipeline.NewRunner(exec, p, 2)
 	go p.Work(ctx)
 	return p, gh, exec, kube
+}
+
+// The package's tests share one envtest: starting an API server and etcd
+// took about half of each test on the cluster's workers (the package ran
+// 409 s for 7 tests). Each test still gets its own manager, Platform and
+// freshly migrated database; the Kubernetes objects of earlier tests stay,
+// so every test that calls setup uses its own app names (hello, secplus,
+// shop, cambios, tareas, invalida, verifica, predespliegue, version).
+var (
+	sharedEnv     *envtest.Environment
+	sharedCfg     *rest.Config
+	sharedEnvErr  error
+	sharedEnvOnce sync.Once
+)
+
+// kubeConfig starts the shared envtest the first time a test needs it, or
+// skips (fails, when KUBEBUILDER_ASSETS is set) if it cannot start.
+func kubeConfig(t *testing.T) *rest.Config {
+	t.Helper()
+	sharedEnvOnce.Do(func() {
+		sharedEnv = testenv.New(filepath.Join("..", "..", "deploy", "crds"))
+		sharedCfg, sharedEnvErr = sharedEnv.Start()
+	})
+	if sharedEnvErr != nil {
+		if os.Getenv("KUBEBUILDER_ASSETS") != "" {
+			// Configured but failed to start (e.g. an overloaded machine):
+			// fail, so a test gate never passes with these tests skipped.
+			t.Fatalf("envtest failed to start: %v", sharedEnvErr)
+		}
+		t.Skipf("envtest unavailable: %v", sharedEnvErr)
+	}
+	return sharedCfg
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if sharedEnv != nil && sharedCfg != nil {
+		_ = sharedEnv.Stop()
+	}
+	os.Exit(code)
 }
 
 func resetDB(ctx context.Context, dsn string) error {
@@ -434,7 +466,7 @@ jobs:
 		sha('c') + "..." + sha('d'): {"rendimiento.yaml"},
 	}
 	sp, _ := spec.Parse([]byte(yaml))
-	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/shop", DefaultBranch: "main", Name: "shop", Spec: *sp}, false); err != nil {
+	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/cambios", DefaultBranch: "main", Name: "cambios", Spec: *sp}, false); err != nil {
 		t.Fatal(err)
 	}
 	push := func(c byte) (*store.Run, []string) {
@@ -442,7 +474,7 @@ jobs:
 		exec.mu.Lock()
 		exec.ran = nil
 		exec.mu.Unlock()
-		runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/shop", Branch: "main", SHA: sha(c)})
+		runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/cambios", Branch: "main", SHA: sha(c)})
 		if err != nil || len(runs) != 1 {
 			t.Fatalf("push: %v %v", runs, err)
 		}
@@ -455,7 +487,7 @@ jobs:
 	}
 	images := func() map[string]string {
 		var cr v1alpha1.App
-		_ = kube.Get(ctx, client.ObjectKey{Name: "shop"}, &cr)
+		_ = kube.Get(ctx, client.ObjectKey{Name: "cambios"}, &cr)
 		return cr.Spec.Images
 	}
 
@@ -494,7 +526,7 @@ jobs:
 		t.Fatalf("unknown diff ran %v", ran)
 	}
 	// 6. Manual "Build now": everything builds.
-	app, _ := p.Store.GetApp(ctx, "shop")
+	app, _ := p.Store.GetApp(ctx, "cambios")
 	run, err := p.QueueRun(ctx, app, "main", "", "manual")
 	if err != nil {
 		t.Fatal(err)
@@ -537,7 +569,7 @@ tasks:
 	fake.files["main"] = tree
 	fake.changed = map[string][]string{sha('a') + "..." + sha('b'): {"api/main.go"}}
 	sp, _ := spec.Parse([]byte(yaml))
-	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/shop", DefaultBranch: "main", Name: "shop", Spec: *sp}, false); err != nil {
+	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/tareas", DefaultBranch: "main", Name: "tareas", Spec: *sp}, false); err != nil {
 		t.Fatal(err)
 	}
 	push := func(branch string, c byte) (*store.Run, []string) {
@@ -545,7 +577,7 @@ tasks:
 		exec.mu.Lock()
 		exec.ran = nil
 		exec.mu.Unlock()
-		runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/shop", Branch: branch, SHA: sha(c)})
+		runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/tareas", Branch: branch, SHA: sha(c)})
 		if err != nil || len(runs) != 1 {
 			t.Fatalf("push: %v %v", runs, err)
 		}
@@ -668,16 +700,16 @@ func TestInvalidSpecIsAFailedRun(t *testing.T) {
 	ctx := context.Background()
 	mails := captureSender{subjects: make(chan string, 4)}
 	p.Notify = &notify.Notifier{Sender: mails, To: []string{"you@example.com"}}
-	good := "services:\n  - name: web\n    domain: shop.example.com\n"
-	bad := "services:\n  - name: web\n    domain: shop.example.com\n    aliases: [shop.example.com]\n"
+	good := "services:\n  - name: web\n    domain: invalida.example.com\n"
+	bad := "services:\n  - name: web\n    domain: invalida.example.com\n    aliases: [invalida.example.com]\n"
 	fake.files["main"] = fstest.MapFS{"rendimiento.yaml": {Data: []byte(good)}}
 	fake.files[strings.Repeat("b", 40)] = fstest.MapFS{"rendimiento.yaml": {Data: []byte(bad)}}
 	sp, _ := spec.Parse([]byte(good))
-	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/shop", DefaultBranch: "main", Name: "shop", Spec: *sp}, false); err != nil {
+	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/invalida", DefaultBranch: "main", Name: "invalida", Spec: *sp}, false); err != nil {
 		t.Fatal(err)
 	}
 
-	runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/shop", Branch: "main", SHA: strings.Repeat("b", 40)})
+	runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/invalida", Branch: "main", SHA: strings.Repeat("b", 40)})
 	if err != nil || len(runs) != 1 {
 		t.Fatalf("push: %v %v", runs, err)
 	}
@@ -698,29 +730,29 @@ func TestInvalidSpecIsAFailedRun(t *testing.T) {
 	}
 	select {
 	case s := <-mails.subjects:
-		if !strings.Contains(s, "shop: rendimiento.yaml has an error") {
+		if !strings.Contains(s, "invalida: rendimiento.yaml has an error") {
 			t.Fatalf("email subject %q", s)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("no email")
 	}
-	app, _ := p.Store.GetApp(ctx, "shop")
+	app, _ := p.Store.GetApp(ctx, "invalida")
 	if len(app.Spec.Services[0].Aliases) != 0 {
 		t.Fatalf("the invalid spec was saved: %+v", app.Spec.Services[0])
 	}
 
 	// The problem the rejection recorded is resolved by the next good push
 	// on the same branch.
-	_ = p.Store.RecordProblem(ctx, store.Problem{Fingerprint: "rej", Level: "WARN", App: "shop", Message: msgSpecRejected,
+	_ = p.Store.RecordProblem(ctx, store.Problem{Fingerprint: "rej", Level: "WARN", App: "invalida", Message: msgSpecRejected,
 		Attrs: fmt.Sprintf("run=%d branch=main", run.ID), LastAt: time.Now()})
 	fake.files[strings.Repeat("c", 40)] = fstest.MapFS{"rendimiento.yaml": {Data: []byte(good)}}
-	if runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/shop", Branch: "main", SHA: strings.Repeat("c", 40)}); err != nil || len(runs) != 1 {
+	if runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/invalida", Branch: "main", SHA: strings.Repeat("c", 40)}); err != nil || len(runs) != 1 {
 		t.Fatalf("good push: %v %v", runs, err)
 	}
 	if n, _ := p.Store.OpenProblems(ctx); n != 0 {
 		t.Fatalf("open problems after the fix = %d", n)
 	}
-	list, _ := p.Store.ListProblems(ctx, "shop", time.Now().Add(-time.Hour), false, 10)
+	list, _ := p.Store.ListProblems(ctx, "invalida", time.Now().Add(-time.Hour), false, 10)
 	if len(list) != 1 || list[0].Resolution != "fixed by ccccccc" {
 		t.Fatalf("problems = %+v", list)
 	}
