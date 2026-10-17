@@ -52,6 +52,8 @@ The dashboard shows each app's **24-hour uptime** on its card:
 
 An outage starts after **two failed checks in a row**, dated from the first one. One failure alone is usually a blip, such as a pod restarting or a slow response. The outage ends at the next successful check. Outages survive platform restarts: a restarted platform picks up the open ones and closes them when the service recovers.
 
+**A new domain gets an hour.** When a public address has **never answered** and its DNS lookup fails, its record is most likely still spreading. For its first hour the check shows **DNS pending** instead of down, with no outage and no email. After that hour it fails like any other check. An address that has answered even once, as far back as the 400 days of summaries go, gets no grace, so a domain that was working and loses its DNS is down at once.
+
 ## Verifying each release
 
 Every release on the default branch is **watched after it goes live**, and a release that breaks a service is **rolled back automatically**.

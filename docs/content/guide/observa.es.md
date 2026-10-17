@@ -105,3 +105,7 @@ OpenTelemetry para Go v1.38 en adelante necesita Go 1.26; la v1.37 (con `otelhtt
 ## Pruebas {#tests}
 
 Cada biblioteca se prueba como una [tarea](tasks.md) del `rendimiento.yaml` de rendimiento mismo (`sdk-node`, `sdk-python`, `sdk-java`) en cada ejecución que cambia su carpeta, ramas incluidas.
+
+## Licencia {#license}
+
+Las tres bibliotecas están bajo la [Licencia Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0), la misma de OpenTelemetry, sobre el que están hechas: cada carpeta tiene su `LICENSE`, y `package.json`, `pyproject.toml` y `pom.xml` la declaran.

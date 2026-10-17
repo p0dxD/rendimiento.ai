@@ -81,6 +81,21 @@ func TestUptime(t *testing.T) {
 		t.Fatalf("latest = %+v %v", latest, err)
 	}
 
+	// Every check that ever succeeded, from the summaries and the raw
+	// checks; a new public address that never answered is not among them.
+	if err := s.RecordProbes(ctx, []Probe{{AppID: app.ID, Service: "new", Kind: "public", At: now, Error: "DNS: no such host"}}); err != nil {
+		t.Fatal(err)
+	}
+	answered, err := s.AnsweredChecks(ctx)
+	if err != nil || len(answered) != 2 {
+		t.Fatalf("answered = %+v %v", answered, err)
+	}
+	for _, a := range answered {
+		if a.AppID != app.ID || a.Service != "web" {
+			t.Fatalf("answered = %+v", answered)
+		}
+	}
+
 	// Incidents: open, listed as ongoing, closed.
 	id, err := s.OpenIncident(ctx, Incident{AppID: app.ID, Service: "web", Kind: "internal", StartedAt: start.Add(30 * time.Minute), Error: "HTTP 503"})
 	if err != nil {

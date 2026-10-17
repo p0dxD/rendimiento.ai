@@ -80,3 +80,7 @@ Start with [Developing it](docs/content/develop/index.md). Don't compile or run 
 | `hack/` | test-remote, code map, doc-comment checker |
 
 A generated [code map](docs/content/reference/code-map.md) lists every package, type and function.
+
+## License
+
+[Apache License 2.0](LICENSE), like the observa libraries in `sdk/` and OpenTelemetry they build on.
