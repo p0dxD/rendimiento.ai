@@ -2,10 +2,8 @@ package controller
 
 import (
 	"context"
-	"os"
 
 	"github.com/go-logr/logr"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -32,7 +30,6 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
-	"github.com/p0dxD/rendimiento.ai/internal/testenv"
 )
 
 type fakeDNS struct {
@@ -74,17 +71,7 @@ func setup(t *testing.T) (client.Client, *fakeDNS) {
 func setupWith(t *testing.T, opt render.Options) (client.Client, *fakeDNS) {
 	t.Helper()
 	ctrl.SetLogger(logr.Discard())
-	env := testenv.New(filepath.Join("..", "..", "deploy", "crds"), filepath.Join("testdata", "crds"))
-	cfg, err := env.Start()
-	if err != nil {
-		if os.Getenv("KUBEBUILDER_ASSETS") != "" {
-			// Configured but failed to start (e.g. an overloaded machine):
-			// fail, so a test gate never passes with these tests skipped.
-			t.Fatalf("envtest failed to start: %v", err)
-		}
-		t.Skipf("envtest unavailable (run setup-envtest and set KUBEBUILDER_ASSETS): %v", err)
-	}
-	t.Cleanup(func() { _ = env.Stop() })
+	cfg := kubeConfig(t)
 
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -104,6 +91,7 @@ func setupWith(t *testing.T, opt render.Options) (client.Client, *fakeDNS) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { deleteApps(c) }) // before cancel: the finalizers need the manager
 	return c, dns
 }
 
@@ -242,39 +230,39 @@ func TestAdoptExistingDeployment(t *testing.T) {
 	ctx := context.Background()
 	one := int32(1)
 	pt := networkingv1.PathTypePrefix
-	lbl := map[string]string{"app": "legacy"}
+	lbl := map[string]string{"app": "antiguo"}
 	for _, o := range []client.Object{
-		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "legacy"}},
-		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "legacy", Name: "legacy-practice"}, StringData: map[string]string{"token": "x"}},
-		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: "legacy", Name: "legacy"}, Spec: appsv1.DeploymentSpec{Replicas: &one,
+		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "antiguo"}},
+		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "antiguo", Name: "antiguo-practice"}, StringData: map[string]string{"token": "x"}},
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: "antiguo", Name: "antiguo"}, Spec: appsv1.DeploymentSpec{Replicas: &one,
 			Selector: &metav1.LabelSelector{MatchLabels: lbl},
 			Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: lbl}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "c", Image: "old"}}}}}},
-		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: "legacy", Name: "unrelated"}, Spec: appsv1.DeploymentSpec{Replicas: &one,
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: "antiguo", Name: "unrelated"}, Spec: appsv1.DeploymentSpec{Replicas: &one,
 			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "cache"}},
 			Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "cache"}}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "c", Image: "redis"}}}}}},
-		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Namespace: "legacy", Name: "legacy"}, Spec: corev1.ServiceSpec{Selector: lbl, Ports: []corev1.ServicePort{{Port: 80}}}},
-		&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Namespace: "legacy", Name: "legacy"}, Spec: networkingv1.IngressSpec{
-			TLS: []networkingv1.IngressTLS{{Hosts: []string{"legacy.joserod.space"}, SecretName: "legacy-tls"}},
-			Rules: []networkingv1.IngressRule{{Host: "legacy.joserod.space", IngressRuleValue: networkingv1.IngressRuleValue{HTTP: &networkingv1.HTTPIngressRuleValue{
+		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Namespace: "antiguo", Name: "antiguo"}, Spec: corev1.ServiceSpec{Selector: lbl, Ports: []corev1.ServicePort{{Port: 80}}}},
+		&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Namespace: "antiguo", Name: "antiguo"}, Spec: networkingv1.IngressSpec{
+			TLS: []networkingv1.IngressTLS{{Hosts: []string{"antiguo.joserod.space"}, SecretName: "antiguo-tls"}},
+			Rules: []networkingv1.IngressRule{{Host: "antiguo.joserod.space", IngressRuleValue: networkingv1.IngressRuleValue{HTTP: &networkingv1.HTTPIngressRuleValue{
 				Paths: []networkingv1.HTTPIngressPath{{Path: "/", PathType: &pt, Backend: networkingv1.IngressBackend{Service: &networkingv1.IngressServiceBackend{
-					Name: "legacy", Port: networkingv1.ServiceBackendPort{Number: 80}}}}}}}}}}},
+					Name: "antiguo", Port: networkingv1.ServiceBackendPort{Number: 80}}}}}}}}}}},
 	} {
 		if err := c.Create(ctx, o); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "legacy"}, Spec: v1alpha1.AppSpec{
-		Services: []spec.Service{{Name: "web", Path: ".", Port: 3000, Size: spec.SizeSmall, Replicas: 1, Domain: "legacy.joserod.space",
-			TLSSecret: "legacy-tls", Build: spec.Build{Dockerfile: "Dockerfile"}}},
-		Images: map[string]string{"web": "registry.local/legacy-web@sha256:1"},
+	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "antiguo"}, Spec: v1alpha1.AppSpec{
+		Services: []spec.Service{{Name: "web", Path: ".", Port: 3000, Size: spec.SizeSmall, Replicas: 1, Domain: "antiguo.joserod.space",
+			TLSSecret: "antiguo-tls", Build: spec.Build{Dockerfile: "Dockerfile"}}},
+		Images: map[string]string{"web": "registry.local/antiguo-web@sha256:1"},
 	}}
 	if err := c.Create(ctx, app); err != nil {
 		t.Fatal(err)
 	}
 	get := func() v1alpha1.App {
 		var a v1alpha1.App
-		_ = c.Get(ctx, client.ObjectKey{Name: "legacy"}, &a)
+		_ = c.Get(ctx, client.ObjectKey{Name: "antiguo"}, &a)
 		return a
 	}
 	// Without consent, an existing namespace is never taken.
@@ -283,14 +271,14 @@ func TestAdoptExistingDeployment(t *testing.T) {
 		return a.Status.Phase == v1alpha1.PhaseError && strings.Contains(a.Status.Message, "migrate it (adopt)")
 	})
 
-	updateApp(t, c, "legacy", func(a *v1alpha1.App) { a.Spec.Adopt = true })
-	key := func(n string) client.ObjectKey { return client.ObjectKey{Namespace: "legacy", Name: n} }
+	updateApp(t, c, "antiguo", func(a *v1alpha1.App) { a.Spec.Adopt = true })
+	key := func(n string) client.ObjectKey { return client.ObjectKey{Namespace: "antiguo", Name: n} }
 	var web appsv1.Deployment
 	eventually(t, "new deployment next to the old one", func() bool { return c.Get(ctx, key("web"), &web) == nil })
 	eventually(t, "migrating status", func() bool { return strings.Contains(get().Status.Message, "migrating") })
 	// Traffic must not move while the new pods are not ready.
 	var ing networkingv1.Ingress
-	if err := c.Get(ctx, key("legacy"), &ing); err != nil {
+	if err := c.Get(ctx, key("antiguo"), &ing); err != nil {
 		t.Fatalf("legacy ingress removed too early: %v", err)
 	}
 	if err := c.Get(ctx, key("web"), &ing); !apierrors.IsNotFound(err) {
@@ -304,24 +292,24 @@ func TestAdoptExistingDeployment(t *testing.T) {
 	}
 
 	eventually(t, "traffic switched to the new ingress", func() bool {
-		return c.Get(ctx, key("web"), &ing) == nil && apierrors.IsNotFound(c.Get(ctx, key("legacy"), &networkingv1.Ingress{}))
+		return c.Get(ctx, key("web"), &ing) == nil && apierrors.IsNotFound(c.Get(ctx, key("antiguo"), &networkingv1.Ingress{}))
 	})
-	if ing.Spec.TLS[0].SecretName != "legacy-tls" || ing.Spec.Rules[0].Host != "legacy.joserod.space" {
+	if ing.Spec.TLS[0].SecretName != "antiguo-tls" || ing.Spec.Rules[0].Host != "antiguo.joserod.space" {
 		t.Fatalf("new ingress = %+v", ing.Spec)
 	}
-	eventually(t, "legacy workload removed", func() bool {
-		return apierrors.IsNotFound(c.Get(ctx, key("legacy"), &appsv1.Deployment{})) &&
-			apierrors.IsNotFound(c.Get(ctx, key("legacy"), &corev1.Service{}))
+	eventually(t, "antiguo workload removed", func() bool {
+		return apierrors.IsNotFound(c.Get(ctx, key("antiguo"), &appsv1.Deployment{})) &&
+			apierrors.IsNotFound(c.Get(ctx, key("antiguo"), &corev1.Service{}))
 	})
 	if err := c.Get(ctx, key("unrelated"), &appsv1.Deployment{}); err != nil {
 		t.Fatalf("unrelated deployment must survive: %v", err)
 	}
-	if err := c.Get(ctx, key("legacy-practice"), &corev1.Secret{}); err != nil {
+	if err := c.Get(ctx, key("antiguo-practice"), &corev1.Secret{}); err != nil {
 		t.Fatalf("existing secret must survive: %v", err)
 	}
 	var ns corev1.Namespace
-	_ = c.Get(ctx, client.ObjectKey{Name: "legacy"}, &ns)
-	if ns.Labels[render.LabelApp] != "legacy" {
+	_ = c.Get(ctx, client.ObjectKey{Name: "antiguo"}, &ns)
+	if ns.Labels[render.LabelApp] != "antiguo" {
 		t.Fatalf("namespace not labeled as adopted: %v", ns.Labels)
 	}
 	eventually(t, "no longer migrating", func() bool { return !strings.Contains(get().Status.Message, "migrating") })
@@ -331,13 +319,13 @@ func TestAdoptExistingDeployment(t *testing.T) {
 	cert := &unstructured.Unstructured{}
 	cert.SetAPIVersion("cert-manager.io/v1")
 	cert.SetKind("Certificate")
-	cert.SetNamespace("legacy")
-	cert.SetName("legacy-tls")
+	cert.SetNamespace("antiguo")
+	cert.SetName("antiguo-tls")
 	_ = unstructured.SetNestedSlice(cert.Object, []any{map[string]any{"type": "Ready", "status": "True"}}, "status", "conditions")
 	if err := c.Create(ctx, cert); err != nil {
 		t.Fatal(err)
 	}
-	updateApp(t, c, "legacy", func(a *v1alpha1.App) { a.Spec.Release = 2 }) // any spec change triggers a reconcile
+	updateApp(t, c, "antiguo", func(a *v1alpha1.App) { a.Spec.Release = 2 }) // any spec change triggers a reconcile
 	eventually(t, "cert ready via tlsSecret", func() bool {
 		s := get().Status.Services
 		return len(s) == 1 && s[0].CertReady
@@ -490,42 +478,42 @@ func TestAdoptInPlace(t *testing.T) {
 func TestJobsAdoptAndPrune(t *testing.T) {
 	c, _ := setup(t)
 	ctx := context.Background()
-	_ = c.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "well"}})
-	legacy := &batchv1.CronJob{ObjectMeta: metav1.ObjectMeta{Namespace: "well", Name: "recap",
-		Annotations: map[string]string{"argocd.argoproj.io/tracking-id": "well:batch/CronJob:well/recap"}},
+	_ = c.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "jobs"}})
+	legacy := &batchv1.CronJob{ObjectMeta: metav1.ObjectMeta{Namespace: "jobs", Name: "recap",
+		Annotations: map[string]string{"argocd.argoproj.io/tracking-id": "jobs:batch/CronJob:jobs/recap"}},
 		Spec: batchv1.CronJobSpec{Schedule: "0 9 * * *", JobTemplate: batchv1.JobTemplateSpec{Spec: batchv1.JobSpec{Template: corev1.PodTemplateSpec{
 			Spec: corev1.PodSpec{RestartPolicy: corev1.RestartPolicyNever, Containers: []corev1.Container{{Name: "old", Image: "registry.example.lan:5000/wellness-api:1.5.8"}}}}}}}}
 	if err := c.Create(ctx, legacy); err != nil {
 		t.Fatal(err)
 	}
-	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "well"}, Spec: v1alpha1.AppSpec{Adopt: true,
+	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "jobs"}, Spec: v1alpha1.AppSpec{Adopt: true,
 		Services: []spec.Service{{Name: "api", Path: ".", Port: 8000, Size: spec.SizeSmall, Replicas: 1, Build: spec.Build{Dockerfile: "Dockerfile"}}},
 		Jobs: []spec.Job{
 			{Name: "recap", Schedule: "0 9 * * MON", TimeZone: "America/New_York", Service: "api", Size: spec.SizeSmall, Command: []string{"python", "-c", "recap()"}},
 			{Name: "ping", Schedule: "@hourly", Image: "curlimages/curl:8.10.1", Size: spec.SizeSmall},
 		},
-		Images: map[string]string{"api": "registry.local/well-api@sha256:1"},
+		Images: map[string]string{"api": "registry.local/jobs-api@sha256:1"},
 	}}
 	if err := c.Create(ctx, app); err != nil {
 		t.Fatal(err)
 	}
-	key := client.ObjectKey{Namespace: "well", Name: "recap"}
+	key := client.ObjectKey{Namespace: "jobs", Name: "recap"}
 	var cj batchv1.CronJob
 	eventually(t, "cronjob taken over", func() bool {
 		return c.Get(ctx, key, &cj) == nil && cj.Labels[render.LabelManagedBy] == render.ManagedBy
 	})
 	ct := cj.Spec.JobTemplate.Spec.Template.Spec.Containers
 	if cj.UID != legacy.UID || cj.Spec.Schedule != "0 9 * * MON" || *cj.Spec.TimeZone != "America/New_York" ||
-		len(ct) != 1 || ct[0].Image != "registry.local/well-api@sha256:1" || cj.Annotations["argocd.argoproj.io/tracking-id"] != "" {
+		len(ct) != 1 || ct[0].Image != "registry.local/jobs-api@sha256:1" || cj.Annotations["argocd.argoproj.io/tracking-id"] != "" {
 		t.Fatalf("cronjob = %+v containers %+v", cj.Spec, ct)
 	}
 	eventually(t, "new cronjob", func() bool {
-		return c.Get(ctx, client.ObjectKey{Namespace: "well", Name: "ping"}, &batchv1.CronJob{}) == nil
+		return c.Get(ctx, client.ObjectKey{Namespace: "jobs", Name: "ping"}, &batchv1.CronJob{}) == nil
 	})
 
-	updateApp(t, c, "well", func(a *v1alpha1.App) { a.Spec.Jobs = a.Spec.Jobs[:1] })
+	updateApp(t, c, "jobs", func(a *v1alpha1.App) { a.Spec.Jobs = a.Spec.Jobs[:1] })
 	eventually(t, "removed job pruned", func() bool {
-		return apierrors.IsNotFound(c.Get(ctx, client.ObjectKey{Namespace: "well", Name: "ping"}, &batchv1.CronJob{}))
+		return apierrors.IsNotFound(c.Get(ctx, client.ObjectKey{Namespace: "jobs", Name: "ping"}, &batchv1.CronJob{}))
 	})
 }
 
@@ -890,7 +878,7 @@ func TestAppObserve(t *testing.T) {
 	c, _ := setupWith(t, opt)
 	ctx := context.Background()
 	quiet := false
-	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "shop"}, Spec: v1alpha1.AppSpec{
+	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "observa"}, Spec: v1alpha1.AppSpec{
 		Observe: true,
 		Images:  map[string]string{"api": "reg/api@sha256:1", "ui": "reg/ui@sha256:2"},
 		Services: []spec.Service{
@@ -902,13 +890,13 @@ func TestAppObserve(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stored v1alpha1.App
-	if err := c.Get(ctx, client.ObjectKey{Name: "shop"}, &stored); err != nil || !stored.Spec.Observe {
+	if err := c.Get(ctx, client.ObjectKey{Name: "observa"}, &stored); err != nil || !stored.Spec.Observe {
 		t.Fatalf("observe was not kept by the API server: %+v %v", stored.Spec, err)
 	}
 	var api, ui appsv1.Deployment
 	eventually(t, "api and ui deployed", func() bool {
-		return c.Get(ctx, client.ObjectKey{Namespace: "shop", Name: "api"}, &api) == nil &&
-			c.Get(ctx, client.ObjectKey{Namespace: "shop", Name: "ui"}, &ui) == nil
+		return c.Get(ctx, client.ObjectKey{Namespace: "observa", Name: "api"}, &api) == nil &&
+			c.Get(ctx, client.ObjectKey{Namespace: "observa", Name: "ui"}, &ui) == nil
 	})
 	envOf := func(d appsv1.Deployment, name string) string {
 		for _, e := range d.Spec.Template.Spec.Containers[0].Env {
@@ -918,7 +906,7 @@ func TestAppObserve(t *testing.T) {
 		}
 		return ""
 	}
-	if envOf(api, "OTEL_SERVICE_NAME") != "shop/api" || len(api.Spec.Template.Spec.InitContainers) != 1 {
+	if envOf(api, "OTEL_SERVICE_NAME") != "observa/api" || len(api.Spec.Template.Spec.InitContainers) != 1 {
 		t.Fatalf("api is not observed: env %+v", api.Spec.Template.Spec.Containers[0].Env)
 	}
 	if envOf(ui, "OTEL_SERVICE_NAME") != "" {

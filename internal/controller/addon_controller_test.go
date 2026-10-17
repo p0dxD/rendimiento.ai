@@ -3,8 +3,6 @@ package controller
 import (
 	"context"
 	"io/fs"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -24,7 +22,6 @@ import (
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/addon"
-	"github.com/p0dxD/rendimiento.ai/internal/testenv"
 )
 
 // fakeGit serves folders that tests can change between syncs.
@@ -52,15 +49,7 @@ func (f *fakeGit) set(path string, files map[string]string) {
 func setupAddons(t *testing.T) (client.Client, *fakeGit) {
 	t.Helper()
 	ctrl.SetLogger(logr.Discard())
-	env := testenv.New(filepath.Join("..", "..", "deploy", "crds"))
-	cfg, err := env.Start()
-	if err != nil {
-		if os.Getenv("KUBEBUILDER_ASSETS") != "" {
-			t.Fatalf("envtest failed to start: %v", err)
-		}
-		t.Skipf("envtest unavailable: %v", err)
-	}
-	t.Cleanup(func() { _ = env.Stop() })
+	cfg := kubeConfig(t)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = v1alpha1.AddToScheme(scheme)
@@ -79,6 +68,7 @@ func setupAddons(t *testing.T) (client.Client, *fakeGit) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() { _ = mgr.Start(ctx) }()
+	t.Cleanup(func() { deleteAddons(c) }) // before cancel: the finalizers need the manager
 	return c, git
 }
 
