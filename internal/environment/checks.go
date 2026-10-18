@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,7 +30,7 @@ type checkFunc func(context.Context) Check
 // checks is every check of the Environment page, in the order shown; they
 // run in parallel, from one snapshot of the cluster where they can.
 func (c *Checker) checks(s *snapshot) []checkFunc {
-	return []checkFunc{
+	checks := []checkFunc{
 		func(context.Context) Check { return c.checkAPI(s) },
 		func(context.Context) Check { return checkNodes(s) },
 		func(context.Context) Check { return checkMetrics(s) },
@@ -49,6 +51,51 @@ func (c *Checker) checks(s *snapshot) []checkFunc {
 		c.checkGitHub,
 		c.checkDatabase,
 	}
+	if len(c.Config.Services) > 0 {
+		checks = slices.Insert(checks, 1, checkFunc(c.checkServices))
+	}
+	return checks
+}
+
+// checkServices: each of the platform's own services (Deployments) has its
+// pods ready. A missing one is skipped: one Deployment can run every role.
+func (c *Checker) checkServices(ctx context.Context) Check {
+	ch := Check{ID: "platform-services", Name: M("Platform services"), Category: CatCluster, Required: true, Status: OK}
+	var down, partial []string
+	for _, name := range c.Config.Services {
+		var d appsv1.Deployment
+		if err := c.Kube.Get(ctx, client.ObjectKey{Namespace: c.Config.Namespace, Name: name}, &d); err != nil {
+			if !apierrors.IsNotFound(err) {
+				ch.Details = append(ch.Details, name+": "+err.Error())
+				ch.Status = worst(ch.Status, Warning)
+			}
+			continue
+		}
+		want := int32(1)
+		if d.Spec.Replicas != nil {
+			want = *d.Spec.Replicas
+		}
+		ready := d.Status.ReadyReplicas
+		ch.Details = append(ch.Details, M("%s: %d of %d pods ready", name, ready, want))
+		switch {
+		case ready == 0 && want > 0:
+			down = append(down, name)
+		case ready < want:
+			partial = append(partial, name)
+		}
+	}
+	switch {
+	case len(ch.Details) == 0:
+		ch.Status, ch.Summary = Missing, M("none of the platform's Deployments was found")
+	case len(down) > 0:
+		ch.Status, ch.Summary = Error, M("not running: %s", strings.Join(down, ", "))
+		ch.Fix = M("Look at the service's pods and logs: kubectl -n %s logs deploy/%s", c.Config.Namespace, down[0])
+	case len(partial) > 0:
+		ch.Status, ch.Summary = worst(ch.Status, Warning), M("some pods not ready: %s", strings.Join(partial, ", "))
+	default:
+		ch.Summary = M("every service is running")
+	}
+	return ch
 }
 
 // checkAPI: the Kubernetes API answers, and which version it is.

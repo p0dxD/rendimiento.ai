@@ -15,6 +15,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/p0dxD/rendimiento.ai/internal/i18n"
@@ -38,6 +39,9 @@ type Updater struct {
 	// Namespace, Deployment and Container are where rendimiento runs; Pod is
 	// this process's pod (HOSTNAME), to read the image it really runs.
 	Namespace, Deployment, Container, Pod string
+	// Also are the platform's other Deployments (one per role), updated to
+	// the same image; a missing one is skipped.
+	Also []string
 	// Changes lists the files that differ between two commits of the app's
 	// repository (GitHub's compare). With it, Status says when the
 	// manifests changed since the last `make deploy`; nil skips that check.
@@ -162,9 +166,9 @@ func isManifest(path string) bool {
 	return strings.HasPrefix(path, "deploy/") && (strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml"))
 }
 
-// Update points the Deployment at release's image. With one replica and the
-// Recreate strategy, this pod stops and the new one starts (and migrates the
-// database) within a minute; the request answers before that.
+// Update points the platform's Deployments at release's image. Each rolls
+// over (the new pods start, migrate the database and take over, then the old
+// ones stop) within a minute or two; the request answers before that.
 func (u *Updater) Update(ctx context.Context, release int64, login string) (*Version, error) {
 	_, versions, err := u.versions(ctx)
 	if err != nil {
@@ -180,9 +184,23 @@ func (u *Updater) Update(ctx context.Context, release int64, login string) (*Ver
 	if v == nil {
 		return nil, fmt.Errorf(M("release %d of %s has no image of rendimiento"), release, u.App)
 	}
-	var d appsv1.Deployment
-	if err := u.Kube.Get(ctx, client.ObjectKey{Namespace: u.Namespace, Name: u.Deployment}, &d); err != nil {
+	// The other services first: the one answering this request goes last.
+	for _, name := range u.Also {
+		if err := u.patch(ctx, name, v, login); err != nil && !apierrors.IsNotFound(err) {
+			return nil, err
+		}
+	}
+	if err := u.patch(ctx, u.Deployment, v, login); err != nil {
 		return nil, err
+	}
+	return v, nil
+}
+
+// patch points one Deployment's container at v's image.
+func (u *Updater) patch(ctx context.Context, name string, v *Version, login string) error {
+	var d appsv1.Deployment
+	if err := u.Kube.Get(ctx, client.ObjectKey{Namespace: u.Namespace, Name: name}, &d); err != nil {
+		return err
 	}
 	before := d.DeepCopy()
 	found := false
@@ -192,17 +210,14 @@ func (u *Updater) Update(ctx context.Context, release int64, login string) (*Ver
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf(M("the %s deployment has no container named %s"), u.Deployment, u.Container)
+		return fmt.Errorf(M("the %s deployment has no container named %s"), name, u.Container)
 	}
 	if d.Spec.Template.Annotations == nil {
 		d.Spec.Template.Annotations = map[string]string{}
 	}
 	d.Spec.Template.Annotations["rendimiento.ai/release"] = fmt.Sprint(v.Release)
 	d.Spec.Template.Annotations["rendimiento.ai/updated-by"] = login
-	if err := u.Kube.Patch(ctx, &d, client.StrategicMergeFrom(before)); err != nil {
-		return nil, err
-	}
-	return v, nil
+	return u.Kube.Patch(ctx, &d, client.StrategicMergeFrom(before))
 }
 
 // versions are the app's releases that hold a platform image, newest first.

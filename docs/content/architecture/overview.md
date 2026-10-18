@@ -43,9 +43,27 @@ flowchart TB
 | **Built-in add-ons** | `internal/renovate` | Renovate runs on a schedule. |
 | **Views** | `internal/catalog`, `internal/environment` | The Services page and the Environment page. |
 
+### Three services from one binary {#three-services}
+
+The same image runs as three Deployments, chosen by the `ROLE` setting, so a failure stays in one service, with its own logs, health and restarts:
+
+| Service (`ROLE`) | Deployment | What it runs | Only one active, by |
+|---|---|---|---|
+| `api` | `rendimiento` (2 replicas) | the UI, the API, webhooks, MCP, the public stats | nothing: every replica serves |
+| `control` | `rendimiento-control` | the App and Addon controllers, Renovate, the add-on sync, the uptime prober, release verification, the log archive, dynamic DNS | the leader lease |
+| `worker` | `rendimiento-worker` | the CI queue: build and test pods, deploys | the queue's lock in Postgres |
+
+`ROLE=all` (the default) runs everything in one process, as on a laptop. The services share nothing but Postgres and Kubernetes:
+
+- **live events** (log lines, step changes) go through Postgres `LISTEN/NOTIFY` ([`events.Bridge`](api-ui.md#live-updates-server-sent-events)), so a run page served by `api` follows a build on `worker`;
+- **requests** go the same way, with an answer: `api` asks `control` to start a Renovate run or for the last add-on sync, and gets an error at once when `control` is down instead of a hung page; a cancel reaches the worker running the run; a deploy hands the new release's verification to `control`;
+- CI runs are queued in Postgres by `api` and claimed by `worker`.
+
+The control service and the worker serve only `/healthz` on their HTTP port. Entorno's **Platform services** check shows each Deployment's ready pods (setting `SERVICES`).
+
 ### Why "started once elected"?
 
-Some work must happen exactly once in the cluster: claiming CI runs, scheduling Renovate, syncing add-ons. controller-runtime's *leader election* guarantees that only one replica does it. Today there is **one replica** with leader election off (on a busy Raspberry Pi control plane, lease renewals timed out and killed the process mid-build), so `mgr.Elected()` fires immediately. The structure is already in place for more replicas; see [Scaling](../future/scaling.md).
+Some work must happen exactly once in the cluster: scheduling Renovate, syncing add-ons, reconciling. controller-runtime's *leader election* guarantees that only one control process does it; its lease is long (60 seconds), because on a busy Raspberry Pi control plane short renewals timed out and killed the process. During an update the old pod hands the lease over as it stops. Claiming CI runs is guarded by the queue's lock in Postgres instead, so the worker needs no lease.
 
 ## How `main.go` wires it together
 
@@ -60,7 +78,7 @@ Some work must happen exactly once in the cluster: claiming CI runs, scheduling 
 7. creates the **add-on** identity client (impersonating `rendimiento-addons`), the renderer and syncer, and registers the **Addon controller**;
 8. creates the **platform**, the **Kubernetes executor** (build namespace, BuildKit pool, Railpack, node exclusions) and the **CI runner**, and the **Renovate runner**;
 9. creates the **API server** with all of the above;
-10. starts the manager, the leader-only loops and the HTTP server, and waits for a signal or an error.
+10. starts the manager, what its `ROLE` runs (the leader-only loops, the CI worker) and the HTTP server, and waits for a signal or an error.
 
 ```go
 --8<-- "cmd/rendimiento/main.go:startup"

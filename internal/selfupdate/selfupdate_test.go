@@ -116,6 +116,35 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
+// The platform's other services move to the same image; one that is not
+// deployed (everything in one Deployment) is skipped.
+func TestUpdateEveryService(t *testing.T) {
+	ctx := context.Background()
+	u := updater(t, old)
+	worker := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "rendimiento-system", Name: "rendimiento-worker"},
+		Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: []corev1.Container{
+			{Name: "rendimiento", Image: old},
+		}}}},
+	}
+	if err := u.Kube.Create(ctx, worker); err != nil {
+		t.Fatal(err)
+	}
+	u.Also = []string{"rendimiento-control", "rendimiento-worker"}
+	if _, err := u.Update(ctx, 2, "ana"); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"rendimiento", "rendimiento-worker"} {
+		var d appsv1.Deployment
+		if err := u.Kube.Get(ctx, client.ObjectKey{Namespace: "rendimiento-system", Name: name}, &d); err != nil {
+			t.Fatal(err)
+		}
+		if got := d.Spec.Template.Spec.Containers[0].Image; got != neu {
+			t.Errorf("%s runs %s, want %s", name, got, neu)
+		}
+	}
+}
+
 // compare is a fake GitHub compare: the files changed between two commits.
 type compare struct {
 	files map[[2]string][]string

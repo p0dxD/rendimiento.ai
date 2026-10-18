@@ -35,15 +35,15 @@ flowchart TB
 
 ## Queue and workers
 
-**Today:** a Postgres table claimed with `FOR UPDATE SKIP LOCKED`, and one worker loop inside the platform.
+**Today:** a Postgres table claimed with `FOR UPDATE SKIP LOCKED`, worked by its own service (`rendimiento-worker`, [`ROLE=worker`](../architecture/overview.md#three-services)). One worker is active at a time: it holds the queue's lock, and on start it requeues the runs a previous worker left running.
 
 **Limits:** thousands of runs a minute, far beyond this cluster. Postgres is not the bottleneck; build capacity is.
 
-**To scale:** run the worker as its own Deployment (`rendimiento worker`, a subcommand that only starts the runner) with several replicas. `SKIP LOCKED` already makes concurrent claims safe. Add a heartbeat column so a crashed worker's runs are requeued without waiting for a restart.
+**To scale:** several active workers. `SKIP LOCKED` already makes concurrent claims safe; what is missing is a heartbeat column, so a starting worker requeues only the runs of a worker that stopped beating, instead of taking the whole queue's lock.
 
 ## Controllers
 
-**Today:** one replica with leader election on; during an update the old pod hands the lease to the new one as it stops.
+**Today:** the control service (`rendimiento-control`), one replica with leader election on; during an update the old pod hands the lease to the new one as it stops.
 
 **To scale:** run two replicas. The standby takes over when the lease expires (60 seconds). Controllers scale *up* (more concurrent reconciles, via `MaxConcurrentReconciles`), not *out*. One leader per controller is the Kubernetes norm and handles thousands of objects.
 
@@ -51,7 +51,7 @@ flowchart TB
 
 **Today:** the API is stateless: sessions live in Postgres, and live events cross between processes through Postgres `LISTEN/NOTIFY` ([`events.Bridge`](../architecture/api-ui.md#live-updates-server-sent-events)), so a browser on one process sees what a worker publishes on another.
 
-**To scale:** run the API with several replicas behind the Service.
+**To scale:** the API (`rendimiento`, `ROLE=api`) already runs two replicas behind the Service; add more.
 
 ## Database
 

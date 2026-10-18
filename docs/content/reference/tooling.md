@@ -45,7 +45,7 @@ mkdocs build --strict          # what the image build runs; fails on broken link
 
 ```bash
 kubectl get app,radd                                   # everything rendimiento manages
-kubectl -n rendimiento-system logs deploy/rendimiento -f
+kubectl -n rendimiento-system logs deploy/rendimiento -f          # the UI and API (also -control, -worker)
 kubectl -n rendimiento-builds get pods -w              # builds as they happen
 kubectl -n devops-tools get pods -l app=buildkitd -o wide
 kubectl annotate radd <name> rendimiento.ai/paused=true

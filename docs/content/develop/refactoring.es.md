@@ -66,7 +66,6 @@ Las páginas tienen su propia lógica de carga de datos y de formularios. Confor
 
 ## Asperezas conocidas {#known-rough-edges}
 
-- **Una sola réplica de la plataforma, un proceso para todo.** Las actualizaciones ya no cortan el servicio (elección de líder y eventos en vivo por Postgres), pero la API, los controladores y el trabajador de CI siguen compartiendo un proceso: si uno falla, se lleva a los demás. Separarlos por función es el paso siguiente (vea [Escalar](../future/scaling.md#queue-and-workers)).
 - **Registros en Postgres mientras corre una ejecución.** Los registros de construcción se guardan como filas y se mudan al almacenamiento de objetos cuando la ejecución termina ([el archivo de registros](../architecture/data.md#the-log-archive)). Los registros en vivo todavía pasan por la base de datos.
 - **Registro sobre HTTP simple.** `registry.example.lan:5000` no es seguro. Está bien en una red doméstica, pero necesita TLS para cualquier otra cosa.
 - **Solo arm64.** Las imágenes se construyen para la arquitectura del clúster. Las imágenes para varias arquitecturas se tratan en [Código abierto](../future/open-source.md#releases-and-multi-arch-images).

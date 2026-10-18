@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/p0dxD/rendimiento.ai/internal/events"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 )
@@ -135,9 +136,33 @@ type Runner struct {
 	Log          *slog.Logger
 	// Timeout bounds a run; installation tokens expire after an hour.
 	Timeout time.Duration
+	// Remote, in a process that does not run Renovate (ROLE=api), sends
+	// Start and Running to the control service, which does (see Serve).
+	Remote *events.Hub
 
 	mu      sync.Mutex
 	running bool
+}
+
+// Topics the control service answers for the other processes.
+const (
+	topicStart   = "renovate/start"
+	topicRunning = "renovate/running"
+)
+
+// Serve answers the other processes' Start and Running (see Remote) until
+// ctx ends. It runs where Loop does.
+func (r *Runner) Serve(ctx context.Context, hub *events.Hub) {
+	hub.Answer(ctx, topicStart, func(ctx context.Context, data json.RawMessage) (any, error) {
+		var trigger string
+		if err := json.Unmarshal(data, &trigger); err != nil {
+			return nil, err
+		}
+		return r.Start(ctx, trigger)
+	})
+	hub.Answer(ctx, topicRunning, func(context.Context, json.RawMessage) (any, error) {
+		return r.Running(), nil
+	})
 }
 
 // Loop starts scheduled runs until ctx ends. Only one process may run it.
@@ -220,6 +245,19 @@ func (r *Runner) Repos(ctx context.Context, s Settings) ([]string, error) {
 
 // Start begins a run in the background and returns its record.
 func (r *Runner) Start(ctx context.Context, trigger string) (*store.AddonRun, error) {
+	if r.Remote != nil {
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		var run store.AddonRun
+		err := r.Remote.Ask(ctx, topicStart, trigger, &run)
+		if e := (*events.RemoteError)(nil); errors.As(err, &e) && e.Message == ErrBusy.Error() {
+			return nil, ErrBusy
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &run, nil
+	}
 	r.mu.Lock()
 	if r.running {
 		r.mu.Unlock()
@@ -706,6 +744,13 @@ func (r *Runner) cleanup(ctx context.Context) {
 
 // Running reports whether a run is in progress in this process.
 func (r *Runner) Running() bool {
+	if r.Remote != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		var running bool
+		_ = r.Remote.Ask(ctx, topicRunning, nil, &running)
+		return running
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.running

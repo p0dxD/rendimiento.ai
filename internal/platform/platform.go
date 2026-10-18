@@ -81,6 +81,10 @@ type Platform struct {
 	caminos   caminosCache
 	// Verify configures release verification and automatic rollback.
 	Verify VerifySettings
+	// VerifyElsewhere, in a process that does not watch releases (the CI
+	// worker and the API in their own services), hands verifications to the
+	// control service through the hub (see ServeVerifications).
+	VerifyElsewhere bool
 	// Notify emails failed runs and rolled-back releases (nil: no email).
 	Notify *notify.Notifier
 	// Clientset runs post-deploy tasks (Jobs in app namespaces) and reads their logs.

@@ -176,6 +176,11 @@ type Config struct {
 	LogArchive func(ctx context.Context) (ok bool, summary string)
 	// Analytics checks that Umami answers (nil: visitor numbers are off).
 	Analytics func(ctx context.Context) (ok bool, summary string)
+	// Namespace and Services are where the platform's own Deployments run
+	// (one per role: api, control, worker); a missing one is skipped (one
+	// Deployment with ROLE=all).
+	Namespace string
+	Services  []string
 }
 
 // Pinger is satisfied by the store.
@@ -193,6 +198,9 @@ type Checker struct {
 	Config    Config
 	// TTL caches reports; checks hit several APIs and the network.
 	TTL time.Duration
+	// DDNS, when set, reads the dynamic DNS status from where it runs (the
+	// control service) instead of from DNS.
+	DDNS func(ctx context.Context) dns.DDNSStatus
 
 	mu     sync.Mutex
 	cached *Report
@@ -247,7 +255,11 @@ func (c *Checker) build(ctx context.Context) *Report {
 		return r.Problems[i].Name < r.Problems[j].Name
 	})
 	r.Providers = c.providers(ctx, snap, results)
-	if d, ok := c.DNS.(ddnsReporter); ok {
+	if c.DDNS != nil {
+		if st := c.DDNS(ctx); st.Enabled {
+			r.DDNS = &st
+		}
+	} else if d, ok := c.DNS.(ddnsReporter); ok {
 		if st := d.DDNSStatus(); st.Enabled {
 			r.DDNS = &st
 		}

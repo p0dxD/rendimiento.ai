@@ -59,7 +59,7 @@ services:
 ```sh
 make test-remote   # generate, vet, all Go tests (unit, envtest, Postgres), UI typecheck, on a worker
 make image         # build + push the platform image on the BuildKit pool
-make deploy && kubectl -n rendimiento-system rollout restart deploy/rendimiento
+make deploy && kubectl -n rendimiento-system rollout restart deploy
 ```
 
 Start with [Developing it](docs/content/develop/index.md). Don't compile or run tests on the control-plane node.

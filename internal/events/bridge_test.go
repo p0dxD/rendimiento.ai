@@ -138,3 +138,47 @@ func TestBridge(t *testing.T) {
 	case <-time.After(200 * time.Millisecond):
 	}
 }
+
+// A question asked in one process is answered by the other, and errors and
+// silence come back as such.
+func TestAsk(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	wire := &fakeWire{rows: map[int64][]byte{}}
+	control, api := NewHub(), NewHub()
+	go (&Bridge{Hub: control, Wire: wire}).Run(ctx)
+	go (&Bridge{Hub: api, Wire: wire}).Run(ctx)
+	for wire.listening() < 2 {
+		time.Sleep(10 * time.Millisecond)
+	}
+	control.Answer(ctx, "sum", func(_ context.Context, data json.RawMessage) (any, error) {
+		var n []int
+		if err := json.Unmarshal(data, &n); err != nil {
+			return nil, err
+		}
+		if len(n) == 0 {
+			return nil, errors.New("nothing to add")
+		}
+		return n[0] + n[1], nil
+	})
+
+	for _, hub := range []*Hub{api, control} { // from another process, and from its own
+		var sum int
+		actx, done := context.WithTimeout(ctx, 2*time.Second)
+		if err := hub.Ask(actx, "sum", []int{2, 3}, &sum); err != nil || sum != 5 {
+			t.Fatalf("sum = %d (%v)", sum, err)
+		}
+		done()
+	}
+	actx, done := context.WithTimeout(ctx, 2*time.Second)
+	defer done()
+	var re *RemoteError
+	if err := api.Ask(actx, "sum", []int{}, nil); !errors.As(err, &re) || re.Message != "nothing to add" {
+		t.Fatalf("error = %v", err)
+	}
+	actx, done2 := context.WithTimeout(ctx, 100*time.Millisecond)
+	defer done2()
+	if err := api.Ask(actx, "nobody", 1, nil); !errors.Is(err, ErrNoAnswer) {
+		t.Fatalf("unanswered = %v", err)
+	}
+}

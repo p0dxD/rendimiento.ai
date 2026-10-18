@@ -37,7 +37,9 @@ ITEST_REGISTRY := registry.home.lan:5000
 ```mermaid
 flowchart TB
     subgraph rs[espacio de nombres rendimiento-system]
-        dep[Deployment rendimiento<br/>1 réplica, RollingUpdate]
+        dep[Deployment rendimiento<br/>ROLE=api, 2 réplicas]
+        ctl[Deployment rendimiento-control<br/>ROLE=control, líder]
+        wrk[Deployment rendimiento-worker<br/>ROLE=worker, CI]
         svc[Service rendimiento :80]
         ing[Ingress rendimiento.joserod.space<br/>TLS con cert-manager]
         db[(StatefulSet rendimiento-db<br/>Postgres 17, 5Gi en Longhorn)]
@@ -50,6 +52,8 @@ flowchart TB
     end
     crds[CRD apps.rendimiento.ai<br/>addons.rendimiento.ai]
     ing --> svc --> dep --> db
+    ctl --> db
+    wrk --> db
     dep -. lee .-> cm
 ```
 
@@ -140,15 +144,15 @@ El manifiesto pide estos permisos de repositorio: **Contents** de lectura y escr
 make test-remote     # todas las pruebas, en un nodo trabajador
 make image           # construye y envía registry.example.lan:5000/rendimiento:latest en el grupo de BuildKit
 make deploy          # kubectl apply -k deploy (solo hace falta si cambiaron deploy/ o los CRD)
-kubectl -n rendimiento-system rollout restart deploy/rendimiento
+kubectl -n rendimiento-system rollout restart deploy   # los tres servicios
 kubectl -n rendimiento-system rollout status deploy/rendimiento
 ```
 
-El Deployment descarga `:latest` con `imagePullPolicy: Always` y se actualiza **sin cortes**: un `RollingUpdate` con `maxUnavailable: 0` arranca el pod nuevo junto al anterior, y el anterior sigue atendiendo la interfaz y los avisos web hasta que el nuevo está listo. Entonces el pod anterior se detiene y entrega el arrendamiento de líder, así que el nuevo toma la cola de CI y los ciclos de fondo unos segundos después. Durante esos segundos corren las dos versiones:
+La plataforma corre como [tres servicios de una misma imagen](../architecture/overview.md#three-services): `rendimiento` (`ROLE=api`, dos réplicas detrás del Service), `rendimiento-control` y `rendimiento-worker`. Cada uno descarga `:latest` con `imagePullPolicy: Always` y se actualiza **sin cortes**: un `RollingUpdate` con `maxUnavailable: 0` arranca el pod nuevo junto al anterior, y el anterior sigue trabajando hasta que el nuevo está listo. Durante esos segundos corren las dos versiones:
 
 - los **eventos en vivo** (líneas de registro, cambios de paso, cancelaciones) pasan de una a otra por Postgres ([Actualizaciones en vivo](../architecture/api-ui.md#live-updates-server-sent-events)), así que una página de ejecución que atiende una muestra la construcción que corre la otra;
-- solo el **líder** corre los controladores, el trabajador de CI, Renovate, la sincronización de complementos, el sondeo de disponibilidad y el DNS dinámico;
-- una ejecución que el proceso anterior construía cuando se detuvo vuelve a la cola, como en cualquier reinicio.
+- el pod de control anterior le entrega el **arrendamiento de líder** al nuevo al detenerse; solo el líder corre los controladores, Renovate, la sincronización de complementos, el sondeo de disponibilidad, la verificación de versiones y el DNS dinámico;
+- el trabajador nuevo espera el **candado de la cola**; una ejecución que el anterior construía cuando se detuvo vuelve a la cola, como en cualquier reinicio.
 
 Las aplicaciones siguen corriendo de todos modos: no dependen de que la plataforma esté arriba.
 
@@ -158,9 +162,8 @@ Las aplicaciones siguen corriendo de todos modos: no dependen de que la platafor
 Al reiniciar, la plataforma:
 
 1. aplica las migraciones de la base de datos (`internal/store/migrations`), cada una una sola vez;
-2. en cuanto tiene el candado de la fila de ejecuciones en Postgres (una segunda copia de la plataforma lo espera), vuelve a poner en cola las ejecuciones de integración continua que un proceso anterior dejó corriendo (hasta dos reintentos) y borra los pods de construcción sobrantes;
-3. cierra las ejecuciones de Renovate que se interrumpieron;
-4. arranca los controladores, el trabajador de integración continua, el programador de Renovate, la sincronización de complementos desde git y el DNS dinámico.
+2. el trabajador, en cuanto tiene el candado de la fila de ejecuciones en Postgres (una segunda copia lo espera), vuelve a poner en cola las ejecuciones de integración continua que un proceso anterior dejó corriendo (hasta dos reintentos) y borra los pods de construcción sobrantes;
+3. el servicio de control, una vez elegido, cierra las ejecuciones de Renovate que se interrumpieron, reanuda las verificaciones de versiones y arranca los controladores, el programador de Renovate, la sincronización de complementos desde git y el DNS dinámico.
 
 !!! warning "`:latest` no tiene historial"
     Revertir una plataforma construida a mano significa volver a construir la confirmación anterior (`git checkout <confirmación buena> && make image`). Las imágenes que rendimiento construye de sí mismo se guardan por versión, así que [actualizar desde la página Entorno](#updating-from-the-environment-page) tiene un historial al cual regresar.
@@ -178,16 +181,19 @@ Las solicitudes de incorporación reciben la misma comprobación, sin versión. 
 
 Con `SELF_APP` puesto en el nombre de la aplicación con la que está incorporado el repositorio de rendimiento, la plataforma sabe cuál de esas versiones ejecuta (por el resumen de la imagen de su pod). Cuando la versión más reciente tiene otra imagen, el enlace **Entorno** muestra *nueva* y la página Entorno tiene un botón **Actualizar**. Sustituye los pasos de arriba para una versión que pasó sus comprobaciones:
 
-1. el botón apunta el Deployment a la imagen de la versión, fijada por su resumen (`<registro>/rendimiento-ai-platform@sha256:…`), y anota en la plantilla del pod la versión y quién lo presionó;
-2. el Deployment se renueva como arriba (la versión anterior atiende hasta que la nueva está lista) y el proceso nuevo aplica sus migraciones;
+1. el botón apunta los Deployments de la plataforma (`SERVICES`) a la imagen de la versión, fijada por su resumen (`<registro>/rendimiento-ai-platform@sha256:…`), y anota en la plantilla del pod la versión y quién lo presionó;
+2. cada Deployment se renueva como arriba (la versión anterior trabaja hasta que la nueva está lista) y los procesos nuevos aplican sus migraciones;
 3. la página espera a que responda la versión nueva y luego se recarga.
 
 `make deploy` conserva esa imagen (`hack/keep-image.sh` pone el resumen en ejecución en lugar del de la capa privada), así que cambiar la configuración no regresa la plataforma a `:latest`. Sigue siendo la forma de llevar al clúster los cambios de `deploy/` y de la capa privada; el botón solo cambia la imagen. Para saber cuándo hace falta, `make deploy` anota el commit que aplicó (la anotación `rendimiento.ai/manifests` del Deployment), y la página Entorno lo compara con la versión más nueva: si entre los dos cambió un archivo YAML de `deploy/`, como un CRD o los permisos, dice **Hace falta make deploy** y lista los archivos, antes de actualizar y hasta que lo ejecute. Los cambios de su capa privada los aplica usted; la página no los ve.
 
 !!! warning "Si la versión nueva no arranca"
-    La versión anterior sigue atendiendo: una versión que nunca queda lista deja detenida la actualización, no la plataforma caída. Regrese con `kubectl -n rendimiento-system rollout undo deploy/rendimiento`.
+    La versión anterior sigue atendiendo: una versión que nunca queda lista deja detenida la actualización, no la plataforma caída. Regrese con `kubectl -n rendimiento-system rollout undo deploy/<nombre>` en cada servicio detenido.
 
-Para regresar a una imagen construida a mano: `kubectl -n rendimiento-system set image deploy/rendimiento rendimiento=registry.example.lan:5000/rendimiento:latest`.
+Para regresar a una imagen construida a mano: `kubectl -n rendimiento-system set image deploy --all rendimiento=registry.example.lan:5000/rendimiento:latest`.
+
+!!! note "De un Deployment a tres"
+    Una plataforma que corría como un solo Deployment pasa a tres en dos pasos, en este orden: **Actualizar** a una versión que conoce `ROLE` (todavía corre todo en un proceso) y luego `make deploy`, que agrega `rendimiento-control` y `rendimiento-worker` con la imagen que está corriendo y convierte `rendimiento` en la API. Al revés, los Deployments nuevos arrancarían una imagen que no conoce su función.
 
 !!! note "Un campo que la plataforma en marcha no conoce"
     La plataforma lee `rendimiento.yaml` de forma estricta. Un cambio que le agrega un campo (como `builds:`) debe publicarse **antes** de enviar la confirmación que lo usa; si no, la ejecución de ese envío no puede leer su propio spec.

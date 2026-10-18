@@ -249,3 +249,23 @@ func TestDistribution(t *testing.T) {
 		t.Errorf("aks = %s", id)
 	}
 }
+
+// Each of the platform's services shows its ready pods; one that is down
+// fails the check, one that is not deployed is skipped.
+func TestPlatformServices(t *testing.T) {
+	kube := fake.NewClientBuilder().WithScheme(newScheme()).WithObjects(
+		deploy("rendimiento-system", "rendimiento", "x", 1),
+		deploy("rendimiento-system", "rendimiento-worker", "x", 0),
+	).Build()
+	c := &Checker{Kube: kube, Config: Config{Namespace: "rendimiento-system", Services: []string{"rendimiento", "rendimiento-control", "rendimiento-worker"}}}
+	ch := c.checkServices(context.Background())
+	if ch.Status != Error || !strings.Contains(ch.Summary, "rendimiento-worker") || len(ch.Details) != 2 {
+		t.Fatalf("check = %+v", ch)
+	}
+	if err := kube.Status().Update(context.Background(), deploy("rendimiento-system", "rendimiento-worker", "x", 1)); err != nil {
+		t.Fatal(err)
+	}
+	if ch := c.checkServices(context.Background()); ch.Status != OK {
+		t.Fatalf("all ready: %+v", ch)
+	}
+}

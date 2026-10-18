@@ -1,6 +1,6 @@
 # Ajustes
 
-rendimiento se configura solo con **variables de entorno**, que se leen una vez al arrancar en `cmd/rendimiento/main.go`. En un clúster vienen del ConfigMap `rendimiento` y de unos cuantos Secrets (`deploy/rendimiento.yaml` trae valores de ejemplo; guarde los valores de un clúster real en una capa privada, vea [Cómo se despliega la plataforma](../environment/deploy.md#your-own-settings)). Para cambiar un ajuste, edite el ConfigMap y corra `kubectl -n rendimiento-system rollout restart deploy/rendimiento`.
+rendimiento se configura solo con **variables de entorno**, que se leen una vez al arrancar en `cmd/rendimiento/main.go`. En un clúster vienen del ConfigMap `rendimiento` y de unos cuantos Secrets (`deploy/rendimiento.yaml` trae valores de ejemplo; guarde los valores de un clúster real en una capa privada, vea [Cómo se despliega la plataforma](../environment/deploy.md#your-own-settings)). Para cambiar un ajuste, edite el ConfigMap y corra `kubectl -n rendimiento-system rollout restart deploy` (los tres servicios).
 
 ## Básicos {#core}
 
@@ -18,7 +18,9 @@ rendimiento se configura solo con **variables de entorno**, que se leen una vez 
 | `NAMESPACE` | `rendimiento-system` | | donde viven la plataforma y sus Secrets |
 | `LISTEN` | `:8080` | | la dirección HTTP (API, interfaz, avisos web) |
 | `METRICS_ADDR` | `:9090` | | métricas de Prometheus (controller-runtime) |
-| `LEADER_ELECTION` | `true` | `true` | el arrendamiento decide qué proceso corre los controladores, la cola de CI y los ciclos de fondo; durante una actualización el pod anterior lo entrega al detenerse |
+| `ROLE` | `all` | por Deployment: `api`, `control`, `worker` | lo que corre este proceso ([tres servicios](../architecture/overview.md#three-services)): `api` la interfaz, la API, los avisos web y MCP; `control` los controladores y los ciclos de fondo; `worker` la cola de CI; `all` todo |
+| `SERVICES` | *(vacío)* | `rendimiento,rendimiento-control,rendimiento-worker` | los Deployments de la plataforma: Entorno muestra la salud de cada uno, y Actualizar los mueve todos a una versión |
+| `LEADER_ELECTION` | `true` | `true` | el arrendamiento decide qué proceso de control corre los controladores y los ciclos de fondo; durante una actualización el pod anterior lo entrega al detenerse |
 
 ## GitHub {#github}
 

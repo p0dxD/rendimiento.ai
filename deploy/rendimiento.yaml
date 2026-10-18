@@ -24,10 +24,13 @@ data:
   # Nodes that must never run builds: e.g. a node whose kernel cannot
   # enforce the build NetworkPolicy, or a GPU node reserved for inference.
   BUILD_EXCLUDE_NODES: gpu-node
-  # An update starts the new pod before stopping the old one: the lease
-  # decides which of the two runs the CI queue and the background loops.
-  # Its deadlines are long (60s) so a slow API server does not end it.
+  # The control service's leader lease: during an update the old pod hands
+  # it to the new one. Its deadlines are long (60s) so a slow API server
+  # does not end it.
   LEADER_ELECTION: "true"
+  # The platform's own Deployments, one per role: Entorno shows each one's
+  # health, and Update moves them all to a new release.
+  SERVICES: rendimiento,rendimiento-control,rendimiento-worker
   CLUSTER_ISSUER: letsencrypt-prod
   INGRESS_CLASS: nginx
   STORAGE_CLASS: longhorn
@@ -73,11 +76,15 @@ metadata:
   name: rendimiento
   namespace: rendimiento-system
 spec:
-  replicas: 1
-  # Zero-downtime updates: the old pod keeps serving until the new one is
-  # ready, then hands it the lease (and the CI queue) as it stops. Events
-  # cross between the two through Postgres; migrations stay compatible with
-  # the previous version (see AGENTS.md).
+  # The platform runs as three services from one image (ROLE): this one
+  # serves the UI, the API, webhooks and MCP; rendimiento-control runs the
+  # controllers and the background loops; rendimiento-worker runs CI. One
+  # failing does not take the others down. Live events and requests between
+  # them go through Postgres.
+  replicas: 2
+  # Zero-downtime updates: an old pod keeps serving until a new one is
+  # ready. Migrations stay compatible with the previous version (see
+  # AGENTS.md).
   strategy:
     type: RollingUpdate
     rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
@@ -103,6 +110,8 @@ spec:
             # UMAMI_USERNAME / UMAMI_PASSWORD (a view-only Umami user) for visitor numbers.
             - secretRef: { name: rendimiento-umami, optional: true }
           env:
+            - name: ROLE
+              value: api
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: rendimiento-db, key: password } }
             - name: DATABASE_URL
@@ -113,6 +122,133 @@ spec:
             - { name: http, containerPort: 8080 }
             - { name: metrics, containerPort: 9090 }
             - { name: stats, containerPort: 8081 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            capabilities: { drop: [ALL] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rendimiento-control
+  namespace: rendimiento-system
+spec:
+  replicas: 1
+  # One active process: the leader lease. During an update the old pod
+  # hands it over as it stops.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: rendimiento-control }
+  template:
+    metadata:
+      labels: { app: rendimiento-control }
+    spec:
+      serviceAccountName: rendimiento
+      containers:
+        - name: rendimiento
+          image: registry.example.lan:5000/rendimiento:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef: { name: rendimiento }
+            # CLOUDFLARE_API_TOKEN and DNS_TARGET; optional until DNS automation is wanted.
+            - secretRef: { name: rendimiento-dns, optional: true }
+            # RESEND_API_KEY for notification emails; optional (no email without it).
+            - secretRef: { name: rendimiento-notify, optional: true }
+            # LOG_ARCHIVE_ACCESS_KEY / LOG_ARCHIVE_SECRET_KEY for the log archive.
+            - secretRef: { name: rendimiento-logs, optional: true }
+            # UMAMI_USERNAME / UMAMI_PASSWORD (a view-only Umami user) for visitor numbers.
+            - secretRef: { name: rendimiento-umami, optional: true }
+          env:
+            - name: ROLE
+              value: control
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: rendimiento-db, key: password } }
+            - name: DATABASE_URL
+              value: postgres://rendimiento:$(DB_PASSWORD)@rendimiento-db:5432/rendimiento?sslmode=disable
+            - name: SETUP_TOKEN
+              valueFrom: { secretKeyRef: { name: rendimiento-setup, key: token } }
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: metrics, containerPort: 9090 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            capabilities: { drop: [ALL] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rendimiento-worker
+  namespace: rendimiento-system
+spec:
+  replicas: 1
+  # One active process: the CI queue's lock in Postgres. During an update
+  # the new pod waits for it; a run the old one was building goes back to
+  # the queue.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: rendimiento-worker }
+  template:
+    metadata:
+      labels: { app: rendimiento-worker }
+    spec:
+      serviceAccountName: rendimiento
+      containers:
+        - name: rendimiento
+          image: registry.example.lan:5000/rendimiento:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef: { name: rendimiento }
+            # CLOUDFLARE_API_TOKEN and DNS_TARGET; optional until DNS automation is wanted.
+            - secretRef: { name: rendimiento-dns, optional: true }
+            # RESEND_API_KEY for notification emails; optional (no email without it).
+            - secretRef: { name: rendimiento-notify, optional: true }
+            # LOG_ARCHIVE_ACCESS_KEY / LOG_ARCHIVE_SECRET_KEY for the log archive.
+            - secretRef: { name: rendimiento-logs, optional: true }
+            # UMAMI_USERNAME / UMAMI_PASSWORD (a view-only Umami user) for visitor numbers.
+            - secretRef: { name: rendimiento-umami, optional: true }
+          env:
+            - name: ROLE
+              value: worker
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: rendimiento-db, key: password } }
+            - name: DATABASE_URL
+              value: postgres://rendimiento:$(DB_PASSWORD)@rendimiento-db:5432/rendimiento?sslmode=disable
+            - name: SETUP_TOKEN
+              valueFrom: { secretKeyRef: { name: rendimiento-setup, key: token } }
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: metrics, containerPort: 9090 }
           readinessProbe:
             httpGet: { path: /healthz, port: http }
             periodSeconds: 10
