@@ -36,6 +36,8 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | POST | `/api/platform/update` | actualiza rendimiento a la imagen de una versión: `{release}`; se reinicia unos segundos después |
 | GET | `/api/services` | el catálogo de Servicios (aplicaciones, complementos, servicios del clúster, datos de conexión) |
 | GET | `/api/universe` | todas las aplicaciones desde arriba: barrios, sistemas, nodos (con sus últimas revisiones de disponibilidad) y las conexiones entre ellos, con llamadas por minuto, errores y latencia (con sus tendencias) de las trazas en `?window=` (`15m`, `1h`, `24h`); `?refresh=1` reconstruye antes el catálogo |
+| GET | `/api/universe/traces` | las solicitudes que guardó el servicio de trazas, de la más nueva a la más vieja; `?service=aplicación/servicio`, `?errors=1` para las que fallaron, `?before=` (RFC 3339) para ir hacia atrás |
+| GET | `/api/universe/traces/{id}` | una solicitud guardada con sus tramos, para la cascada |
 | GET | `/api/universe/spans` | lo que hace un servicio observado, según sus trazas: rutas que atiende, sus propios momentos, llamadas que hace, con llamadas por minuto, errores, latencia y tendencias; `?service=aplicación/servicio`, `?window=` |
 | GET | `/api/stats/visits` | el panel de visitantes del inicio: los últimos 7 días de cada aplicación que Umami cuenta, y los 7 anteriores ([Visitas](../guide/visits.md)) |
 | GET | `/api/stats/delivery` | las estadísticas de entregas del panel: los últimos 30 días, los 30 anteriores y doce puntos semanales |

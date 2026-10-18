@@ -25,7 +25,7 @@ Every function also has an English name: `start`, `span`, `event`, `call` / `hea
 
 The collector turns every span into numbers (its `spanmetrics`), and the [Universe](universe.md#using-it) shows them: tap a service and its panel lists **its own moments**, one row per `tramo` name, with calls per minute, failures, p50/p95 and a trend over the period; a failed `tramo` counts as a failure.
 
-**Events** and **flags** are recorded in the traces too, but rendimiento keeps only the numbers, not the traces themselves, so today they cannot be seen: they show up once traces are kept and a request can be followed step by step (the *request waterfall* on the [roadmap](../future/roadmap.md)). Name your tramos after the moment (`cobrar`, `generar-reporte`), not after a value (`cobrar-pedido-42`): each different name is a row of its own.
+**Events** and **flags** are recorded in the traces too: open a request's [waterfall](universe.md#following-one-request) and tap the step to see them. Name your tramos after the moment (`cobrar`, `generar-reporte`), not after a value (`cobrar-pedido-42`): each different name is a row of its own.
 
 ## Node
 

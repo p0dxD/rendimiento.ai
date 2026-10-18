@@ -200,6 +200,8 @@ func (s *Server) Handler() http.Handler {
 	auth("POST /api/apps/{app}/runs", s.triggerRun)
 	auth("GET /api/universe", s.universe)
 	auth("GET /api/universe/spans", s.universeSpans)
+	auth("GET /api/universe/traces", s.universeTraces)
+	auth("GET /api/universe/traces/{id}", s.universeTrace)
 	auth("GET /api/apps/{app}/releases", s.listReleases)
 	auth("GET /api/apps/{app}/reliability", s.reliability)
 	auth("GET /api/apps/{app}/visits", s.visits)
@@ -737,6 +739,48 @@ func (s *Server) universeSpans(w http.ResponseWriter, r *http.Request, _ string)
 		}
 	}
 	writeJSON(w, out)
+}
+
+// universeTraces lists the requests the traces service kept, newest first:
+// those that went through ?service=app/service (all without it), only the
+// failed ones with ?errors=1, older than ?before= (RFC 3339) to page back.
+func (s *Server) universeTraces(w http.ResponseWriter, r *http.Request, _ string) {
+	q := store.TraceQuery{Service: r.URL.Query().Get("service"), ErrorsOnly: r.URL.Query().Get("errors") == "1", Limit: 50}
+	if len(q.Service) > 200 {
+		httpError(w, http.StatusBadRequest, "service is too long")
+		return
+	}
+	if b := r.URL.Query().Get("before"); b != "" {
+		t, err := time.Parse(time.RFC3339Nano, b)
+		if err != nil {
+			httpError(w, http.StatusBadRequest, "before must be a time (RFC 3339)")
+			return
+		}
+		q.Before = t
+	}
+	list, err := s.Store.ListTraces(r.Context(), q)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if list == nil {
+		list = []store.Trace{}
+	}
+	writeJSON(w, map[string]any{"traces": list})
+}
+
+// universeTrace is one kept request with its spans: the waterfall.
+func (s *Server) universeTrace(w http.ResponseWriter, r *http.Request, _ string) {
+	t, spans, err := s.Store.GetTrace(r.Context(), r.PathValue("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		httpError(w, http.StatusNotFound, "this request was not kept, or its day has expired")
+		return
+	}
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"trace": t, "spans": spans})
 }
 
 // ---- environment ----

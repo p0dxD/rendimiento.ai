@@ -14,7 +14,6 @@ Items are ordered by value per effort for this cluster first, and for other user
 | Item | Why |
 |---|---|
 | **Off-site backups**: copy Garage's backup bucket to a cloud bucket (Cloudflare R2, Backblaze B2) | the backups survive losing the whole cluster |
-| **Request waterfall**: keep traces (Tempo or Jaeger) and show one request through every service, Zipkin-style, from a road on the Universe | see where a slow request spends its time |
 | **Canary and A/B releases** with ingress-nginx canary weights | ship to 10% first; automatic rollback on errors |
 | **Plugin contract**: a container that takes JSON in and returns a JSON verdict, at hooks *pre-deploy*, *post-deploy* and *analysis* | k6 performance gates, chaos experiments (Chaos Mesh), AI checks, all without changing the core |
 | **AI generator** behind `generate.Generator` | better `rendimiento.yaml` and Dockerfiles for unusual repos |

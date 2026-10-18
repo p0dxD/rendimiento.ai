@@ -40,6 +40,7 @@ flowchart TB
         dep[Deployment rendimiento<br/>ROLE=api, 2 replicas]
         ctl[Deployment rendimiento-control<br/>ROLE=control, leader]
         wrk[Deployment rendimiento-worker<br/>ROLE=worker, CI]
+        trc[Deployment rendimiento-traces<br/>ROLE=traces, :4318]
         svc[Service rendimiento :80]
         ing[Ingress rendimiento.joserod.space<br/>TLS by cert-manager]
         db[(StatefulSet rendimiento-db<br/>Postgres 17, 5Gi Longhorn)]
@@ -54,6 +55,7 @@ flowchart TB
     ing --> svc --> dep --> db
     ctl --> db
     wrk --> db
+    trc --> db
     dep -. reads .-> cm
 ```
 
@@ -144,11 +146,11 @@ The manifest asks for these repository permissions: **Contents** read & write (r
 make test-remote     # the full test suite, on a worker node
 make image           # build and push registry.example.lan:5000/rendimiento:latest on the BuildKit pool
 make deploy          # kubectl apply -k deploy (only needed when deploy/ or the CRDs changed)
-kubectl -n rendimiento-system rollout restart deploy   # the three services
+kubectl -n rendimiento-system rollout restart deploy   # every service
 kubectl -n rendimiento-system rollout status deploy/rendimiento
 ```
 
-The platform runs as [three services from one image](../architecture/overview.md#three-services): `rendimiento` (`ROLE=api`, two replicas behind the Service), `rendimiento-control` and `rendimiento-worker`. Each pulls `:latest` with `imagePullPolicy: Always` and updates with **no downtime**: a `RollingUpdate` with `maxUnavailable: 0` starts the new pod next to the old one, and the old one keeps working until the new one is ready. For those seconds both versions run:
+The platform runs as [services from one image](../architecture/overview.md#three-services): `rendimiento` (`ROLE=api`, two replicas behind the Service), `rendimiento-control`, `rendimiento-worker` and `rendimiento-traces`. Each pulls `:latest` with `imagePullPolicy: Always` and updates with **no downtime**: a `RollingUpdate` with `maxUnavailable: 0` starts the new pod next to the old one, and the old one keeps working until the new one is ready. For those seconds both versions run:
 
 - **live events** (log lines, step changes, cancels) cross between them through Postgres ([Live updates](../architecture/api-ui.md#live-updates-server-sent-events)), so a run page served by one shows the build the other runs;
 - the old control pod hands the **leader lease** to the new one as it stops; only the leader runs the controllers, Renovate, the add-on sync, the uptime prober, release verification and dynamic DNS;

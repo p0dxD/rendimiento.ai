@@ -1,6 +1,6 @@
 # Settings
 
-rendimiento is configured only through **environment variables**, read once at startup in `cmd/rendimiento/main.go`. On a cluster, they come from the `rendimiento` ConfigMap and a few Secrets (`deploy/rendimiento.yaml` has example values; keep a real cluster's values in a private overlay, see [How the platform is deployed](../environment/deploy.md#your-own-settings)). To change a setting, edit the ConfigMap and run `kubectl -n rendimiento-system rollout restart deploy` (the three services).
+rendimiento is configured only through **environment variables**, read once at startup in `cmd/rendimiento/main.go`. On a cluster, they come from the `rendimiento` ConfigMap and a few Secrets (`deploy/rendimiento.yaml` has example values; keep a real cluster's values in a private overlay, see [How the platform is deployed](../environment/deploy.md#your-own-settings)). To change a setting, edit the ConfigMap and run `kubectl -n rendimiento-system rollout restart deploy` (every service).
 
 ## Core
 
@@ -18,8 +18,8 @@ rendimiento is configured only through **environment variables**, read once at s
 | `NAMESPACE` | `rendimiento-system` | | where the platform and its Secrets live |
 | `LISTEN` | `:8080` | | HTTP address (API, UI, webhooks) |
 | `METRICS_ADDR` | `:9090` | | Prometheus metrics (controller-runtime) |
-| `ROLE` | `all` | per Deployment: `api`, `control`, `worker` | what this process runs ([three services](../architecture/overview.md#three-services)): `api` the UI, API, webhooks and MCP; `control` the controllers and background loops; `worker` the CI queue; `all` everything |
-| `SERVICES` | *(empty)* | `rendimiento,rendimiento-control,rendimiento-worker` | the platform's Deployments: Entorno shows each one's health, and Update moves them all to a release |
+| `ROLE` | `all` | per Deployment: `api`, `control`, `worker`, `traces` | what this process runs ([its services](../architecture/overview.md#three-services)): `api` the UI, API, webhooks and MCP; `control` the controllers and background loops; `worker` the CI queue; `traces` keeps requests for the waterfall; `all` everything |
+| `SERVICES` | *(empty)* | `rendimiento,rendimiento-control,rendimiento-worker,rendimiento-traces` | the platform's Deployments: Entorno shows each one's health, and Update moves them all to a release |
 | `LEADER_ELECTION` | `true` | `true` | the lease decides which control process runs the controllers and the background loops; during an update the old pod hands it over as it stops |
 
 ## GitHub
@@ -119,6 +119,10 @@ Days and hours are counted in `PUBLIC_STATS_TZ`.
 | `TELEMETRY_ENDPOINT` | *(empty: `observe` does nothing)* | `http://opentelemetry-collector.observa.svc.cluster.local:4318` | the OpenTelemetry collector (OTLP over HTTP) that services with `observe` send traces to; install it from the **OpenTelemetry Collector** add-on |
 | `TELEMETRY_SAMPLE_RATIO` | `0.25` | `1` | share of traces kept (a trace started upstream keeps its caller's decision) |
 | `TELEMETRY_AGENTS` | the OpenTelemetry images for `java`, `node`, `python` | `java=registry.example.lan/otel-java:2.32.0` | `language=image` pairs that replace an agent image |
+| `TRACES_LISTEN` | `:4318` | | where the traces service receives spans (OTLP over HTTP, protobuf) from the collector |
+| `TRACE_SAMPLE` | `0.1` | | share of normal requests the traces service keeps for the [waterfall](../guide/universe.md#following-one-request); failed and slow ones are always kept |
+| `TRACE_SLOW` | `1s` | | a request this long or longer is always kept (`0`: off) |
+| `TRACE_RETENTION_DAYS` | `7` | | days of kept requests; older days are dropped whole |
 | `METRICS_URL` | *(empty: no latency on the map)* | `http://vmsingle.monitoring.svc.cluster.local:8428` | a Prometheus-compatible store (VictoriaMetrics) where the collector writes the service graph; the [Universe](../guide/universe.md) reads calls, errors and latency from it |
 
 ## Log archive

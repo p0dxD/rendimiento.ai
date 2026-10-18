@@ -833,11 +833,44 @@ export interface UniverseSpan {
   p95Trend?: number[];
 }
 
+// A request the traces service kept (internal/store.Trace): it failed, was
+// slow, or fell in the sample.
+export interface KeptTrace {
+  id: string;
+  startedAt: string;
+  durationUs: number;
+  service: string;
+  name: string;
+  services: string[];
+  spans: number;
+  error: boolean;
+  reason: "error" | "slow" | "sample";
+}
+
+// One step of a kept request (internal/store.Span).
+export interface TraceSpan {
+  traceId: string;
+  id: string;
+  parentId?: string;
+  service: string;
+  name: string;
+  kind: UniverseSpan["kind"];
+  startedAt: string;
+  durationUs: number;
+  error: boolean;
+  statusMessage?: string;
+  attributes: Record<string, unknown> | null;
+  events: { name: string; at: string; attributes?: Record<string, unknown> }[] | null;
+}
+
 export const universeApi = {
   get: (window: UniverseWindow, refresh = false) =>
     request<Universe>("GET", `/api/universe?window=${window}${refresh ? "&refresh=1" : ""}`),
   spans: (service: string, window: UniverseWindow) =>
     request<{ spans: UniverseSpan[]; traces: boolean; metricsError?: string }>("GET", `/api/universe/spans?service=${encodeURIComponent(service)}&window=${window}`),
+  traces: (service: string, errorsOnly = false) =>
+    request<{ traces: KeptTrace[] }>("GET", `/api/universe/traces?service=${encodeURIComponent(service)}${errorsOnly ? "&errors=1" : ""}`),
+  trace: (id: string) => request<{ trace: KeptTrace; spans: TraceSpan[] }>("GET", `/api/universe/traces/${encodeURIComponent(id)}`),
 };
 
 export const catalogApi = {

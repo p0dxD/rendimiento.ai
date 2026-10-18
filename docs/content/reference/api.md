@@ -35,6 +35,8 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | POST | `/api/platform/update` | update rendimiento to a release's image: `{release}`; it restarts a few seconds later |
 | GET | `/api/services` | the Services catalog (apps, add-ons, cluster services, connection info) |
 | GET | `/api/universe` | every app from above: barrios, systems, nodes (with their latest uptime checks) and the edges between them, with calls per minute, errors and latency (with their trends) from traces over `?window=` (`15m`, `1h`, `24h`); `?refresh=1` rebuilds the catalog first |
+| GET | `/api/universe/traces` | requests the traces service kept, newest first; `?service=app/service`, `?errors=1` for the failed ones, `?before=` (RFC 3339) to page back |
+| GET | `/api/universe/traces/{id}` | one kept request and its spans, for the waterfall |
 | GET | `/api/universe/spans` | what one observed service does, from its traces: routes served, its own moments, calls made, with calls per minute, errors, latency and trends; `?service=app/service`, `?window=` |
 | GET | `/api/stats/visits` | the dashboard's visitors panel: the last 7 days of every app Umami counts, and the 7 before ([Visits](../guide/visits.md)) |
 | GET | `/api/stats/delivery` | the dashboard's delivery stats: the last 30 days, the 30 before, and twelve weekly points |

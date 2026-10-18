@@ -46,6 +46,7 @@ Every app lands in one barrio:
 - **Go to an app** jumps straight to an app by name.
 - **The panel** reads like a market board: every barrio, pueblo and service with its calls per minute, a small trend over the period and the change (▲▼) from its start to its end; **Needs attention** lists what is failing or slow. **Open app** goes to the app's page; **Open in Services** goes to the service's entry in the catalog.
 - **A service's moments.** Tap an observed service and the panel also lists what it does, from its traces: **its own moments** (what the [observa libraries](observa.md) mark with `tramo`, and the agent's own work), the **routes it serves** (`GET /api/moments`) and the **calls and queries it makes** (`SELECT wellness`), each with calls per minute, failures, p95 and a trend. Tap one to see its latency over the period.
+- **A service's recent requests.** Below its moments, the panel lists the requests through that service the [traces service](#following-one-request) kept, newest first: whether it **failed**, **was slow** or is **in the sample**, its duration and when. **Only the failed ones** narrows the list. Tap one to follow it step by step.
 - **Refresh** rebuilds the catalog from the cluster right away (otherwise it is at most 30 seconds old, and the page reloads every minute).
 
 ## Latency on every road {#latency-on-every-line}
@@ -56,7 +57,7 @@ Calls **seen only in traces** (nobody declared them) get roads of their own: a c
 
 ### Turning it on
 
-1. Install the **OpenTelemetry Collector** add-on (Add-ons). It receives traces and writes only the numbers, the service graph, to the metrics store; traces themselves are not kept. Set its remote-write URL to your VictoriaMetrics or Prometheus. Health checks (Kubernetes' probes, `kube-probe/…`, and rendimiento's uptime checks, `rendimiento-uptime/…`) are dropped first, so they do not draw a line from Internet to every service.
+1. Install the **OpenTelemetry Collector** add-on (Add-ons). It receives traces and writes the numbers, the service graph, to the metrics store; with an `otlphttp` exporter to `rendimiento-traces`, it also sends every span to the [traces service](#following-one-request). Set its remote-write URL to your VictoriaMetrics or Prometheus. Health checks (Kubernetes' probes, `kube-probe/…`, and rendimiento's uptime checks, `rendimiento-uptime/…`) are dropped first, so they do not draw a line from Internet to every service.
 2. On the platform, set `TELEMETRY_ENDPOINT` to the collector and `METRICS_URL` to the metrics store ([Settings](../reference/config.md#traces-and-the-universe)).
 3. In an app's `rendimiento.yaml`, add `observe: true` (or `observe: true` on one service). The next deploy adds tracing.
 
@@ -75,5 +76,17 @@ Every observed service is named `app/service` (`OTEL_SERVICE_NAME`), which is ho
     The Python agent is built for glibc. A service on an Alpine (musl) image may fail to load it: use a Debian-based image, or set `observe: false` on that service.
 
 A Go service is still measured from the other side: calls *to* it from an observed service are timed by the caller.
+
+## Following one request {#following-one-request}
+
+A road says how a service does on average; a **request's waterfall** says where one request spent its time. Open it from a service's **Recent requests**: every step (span) of the request in call order, each under the one that made it, with a bar for when it ran within the request and its duration. Colors follow the service, so the hops between services show; a step that failed is red. Tap a step to see what it did (served a request, made a call, its own moment), when it started, its status message, its attributes (the route, the query, the status code) and its events (an exception with its stack, a flag the [observa libraries](observa.md) recorded).
+
+Requests are kept by the **traces service** (`rendimiento-traces`, [`ROLE=traces`](../architecture/overview.md#three-services)). The collector sends it every span; it waits 20 seconds for a request's spans to arrive and then keeps:
+
+- every request where a step **failed**;
+- every request that took **`TRACE_SLOW`** or more (1 second);
+- **`TRACE_SAMPLE`** of the rest (one in ten), chosen by the request's ID, so a request is kept or dropped whole.
+
+They go to Postgres, one partition per day, and a day is dropped whole after **`TRACE_RETENTION_DAYS`** (7). Only what the services sample reaches the collector (`TELEMETRY_SAMPLE_RATIO`, a quarter), so the traces service sees a quarter of the requests and keeps the interesting ones among them. Set the ratio to `1` to see every failure.
 
 To add the moments only the code knows (a payment, a report) and feature flags to the traces, use the [libraries](observa.md) for Node, Python and Java.

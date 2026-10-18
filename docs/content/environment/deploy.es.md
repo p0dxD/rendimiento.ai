@@ -40,6 +40,7 @@ flowchart TB
         dep[Deployment rendimiento<br/>ROLE=api, 2 réplicas]
         ctl[Deployment rendimiento-control<br/>ROLE=control, líder]
         wrk[Deployment rendimiento-worker<br/>ROLE=worker, CI]
+        trc[Deployment rendimiento-traces<br/>ROLE=traces, :4318]
         svc[Service rendimiento :80]
         ing[Ingress rendimiento.joserod.space<br/>TLS con cert-manager]
         db[(StatefulSet rendimiento-db<br/>Postgres 17, 5Gi en Longhorn)]
@@ -54,6 +55,7 @@ flowchart TB
     ing --> svc --> dep --> db
     ctl --> db
     wrk --> db
+    trc --> db
     dep -. lee .-> cm
 ```
 
@@ -144,11 +146,11 @@ El manifiesto pide estos permisos de repositorio: **Contents** de lectura y escr
 make test-remote     # todas las pruebas, en un nodo trabajador
 make image           # construye y envía registry.example.lan:5000/rendimiento:latest en el grupo de BuildKit
 make deploy          # kubectl apply -k deploy (solo hace falta si cambiaron deploy/ o los CRD)
-kubectl -n rendimiento-system rollout restart deploy   # los tres servicios
+kubectl -n rendimiento-system rollout restart deploy   # todos los servicios
 kubectl -n rendimiento-system rollout status deploy/rendimiento
 ```
 
-La plataforma corre como [tres servicios de una misma imagen](../architecture/overview.md#three-services): `rendimiento` (`ROLE=api`, dos réplicas detrás del Service), `rendimiento-control` y `rendimiento-worker`. Cada uno descarga `:latest` con `imagePullPolicy: Always` y se actualiza **sin cortes**: un `RollingUpdate` con `maxUnavailable: 0` arranca el pod nuevo junto al anterior, y el anterior sigue trabajando hasta que el nuevo está listo. Durante esos segundos corren las dos versiones:
+La plataforma corre como [servicios de una misma imagen](../architecture/overview.md#three-services): `rendimiento` (`ROLE=api`, dos réplicas detrás del Service), `rendimiento-control`, `rendimiento-worker` y `rendimiento-traces`. Cada uno descarga `:latest` con `imagePullPolicy: Always` y se actualiza **sin cortes**: un `RollingUpdate` con `maxUnavailable: 0` arranca el pod nuevo junto al anterior, y el anterior sigue trabajando hasta que el nuevo está listo. Durante esos segundos corren las dos versiones:
 
 - los **eventos en vivo** (líneas de registro, cambios de paso, cancelaciones) pasan de una a otra por Postgres ([Actualizaciones en vivo](../architecture/api-ui.md#live-updates-server-sent-events)), así que una página de ejecución que atiende una muestra la construcción que corre la otra;
 - el pod de control anterior le entrega el **arrendamiento de líder** al nuevo al detenerse; solo el líder corre los controladores, Renovate, la sincronización de complementos, el sondeo de disponibilidad, la verificación de versiones y el DNS dinámico;

@@ -25,7 +25,7 @@ Cada función tiene también un nombre en inglés: `start`, `span`, `event`, `ca
 
 El colector convierte cada tramo en números (su `spanmetrics`), y el [universo](universe.md#using-it) los muestra: toque un servicio y su panel enlista **sus propios momentos**, una fila por cada nombre de `tramo`, con llamadas por minuto, fallas, p50/p95 y la tendencia del periodo; un `tramo` que falla cuenta como falla.
 
-**Los eventos** y **las banderas** también quedan en las trazas, pero rendimiento solo guarda los números, no las trazas, así que hoy no se pueden ver: aparecerán cuando se guarden las trazas y se pueda seguir una solicitud paso a paso (la *cascada de una solicitud* en la [hoja de ruta](../future/roadmap.md)). Nombre sus tramos por el momento (`cobrar`, `generar-reporte`), no por un valor (`cobrar-pedido-42`): cada nombre distinto es una fila aparte.
+**Los eventos** y **las banderas** también quedan en las trazas: abra la [cascada](universe.md#following-one-request) de una solicitud y toque el paso para verlos. Nombre sus tramos por el momento (`cobrar`, `generar-reporte`), no por un valor (`cobrar-pedido-42`): cada nombre distinto es una fila aparte.
 
 ## Node {#node}
 

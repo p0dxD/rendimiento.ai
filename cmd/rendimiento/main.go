@@ -53,6 +53,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/ruta"
 	"github.com/p0dxD/rendimiento.ai/internal/selfupdate"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/p0dxD/rendimiento.ai/internal/traces"
 	"github.com/p0dxD/rendimiento.ai/internal/universe"
 	"github.com/p0dxD/rendimiento.ai/internal/uptime"
 	"github.com/p0dxD/rendimiento.ai/web"
@@ -90,10 +91,11 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 
 	// ROLE is the part of the platform this process runs: api (the UI, the
 	// API, webhooks, MCP), control (the controllers and the background loops,
-	// on the elected leader), worker (the CI queue), or all of them.
+	// on the elected leader), worker (the CI queue), traces (keeps requests
+	// for the Universe's waterfall), or all of them.
 	role := env("ROLE", "all")
-	if !slices.Contains([]string{"all", "api", "control", "worker"}, role) {
-		return fmt.Errorf("ROLE must be all, api, control or worker, got %q", role)
+	if !slices.Contains([]string{"all", "api", "control", "worker", "traces"}, role) {
+		return fmt.Errorf("ROLE must be all, api, control, worker or traces, got %q", role)
 	}
 	runs := func(r string) bool { return role == "all" || role == r }
 	log = log.With("role", role)
@@ -121,6 +123,34 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	go problemLog.Run(ctx, st, plain)
 
 	// --8<-- [end:startup]
+
+	if runs("traces") {
+		srv, keeper, err := tracesService(st, log)
+		if err != nil {
+			return err
+		}
+		go keeper.Run(ctx)
+		go func() {
+			<-ctx.Done()
+			shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			keeper.Flush(shutdown, time.Now().Add(time.Hour)) // what was waiting
+			_ = srv.Shutdown(shutdown)
+		}()
+		log.Info("receiving traces", "addr", srv.Addr, "sample", keeper.Sample, "slow", keeper.Slow, "days", keeper.Retention)
+		if role == "traces" {
+			// Only this: the traces service needs no Kubernetes or GitHub.
+			if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+				return err
+			}
+			return nil
+		}
+		go func() {
+			if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+				log.Error("traces receiver stopped", "err", err)
+			}
+		}()
+	}
 
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -611,6 +641,26 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		_ = statsSrv.Shutdown(shutdown)
 	}
 	return httpSrv.Shutdown(shutdown)
+}
+
+// tracesService is the traces service's receiver (TRACES_LISTEN) and keeper,
+// from TRACE_SAMPLE, TRACE_SLOW and TRACE_RETENTION_DAYS.
+func tracesService(st *store.Store, log *slog.Logger) (*http.Server, *traces.Keeper, error) {
+	sample, err := strconv.ParseFloat(env("TRACE_SAMPLE", "0.1"), 64)
+	if err != nil || sample < 0 || sample > 1 {
+		return nil, nil, fmt.Errorf("TRACE_SAMPLE must be a share between 0 and 1, got %q", os.Getenv("TRACE_SAMPLE"))
+	}
+	slow, err := time.ParseDuration(env("TRACE_SLOW", "1s"))
+	if err != nil || slow < 0 {
+		return nil, nil, fmt.Errorf("TRACE_SLOW must be a duration such as 1s (0: off), got %q", os.Getenv("TRACE_SLOW"))
+	}
+	days, err := strconv.Atoi(env("TRACE_RETENTION_DAYS", "7"))
+	if err != nil || days < 1 {
+		return nil, nil, fmt.Errorf("TRACE_RETENTION_DAYS must be a number of days, got %q", os.Getenv("TRACE_RETENTION_DAYS"))
+	}
+	k := &traces.Keeper{Store: st, Log: log.With("component", "traces"), Sample: sample, Slow: slow, Retention: days}
+	srv := &http.Server{Addr: env("TRACES_LISTEN", ":4318"), Handler: k.Handler(), ReadHeaderTimeout: 10 * time.Second}
+	return srv, k, nil
 }
 
 // ddnsTopic is where the control service answers for dynamic DNS's status.

@@ -43,15 +43,16 @@ flowchart TB
 | **Complementos integrados** | `internal/renovate` | Renovate se ejecuta según una programación. |
 | **Vistas** | `internal/catalog`, `internal/environment` | La página Servicios y la página Entorno. |
 
-### Tres servicios de un mismo programa {#three-services}
+### Servicios de un mismo programa {#three-services}
 
-La misma imagen corre como tres Deployments, elegidos por el ajuste `ROLE`, así que una falla se queda en un servicio, con sus propios registros, su salud y sus reinicios:
+La misma imagen corre como cuatro Deployments, elegidos por el ajuste `ROLE`, así que una falla se queda en un servicio, con sus propios registros, su salud y sus reinicios:
 
 | Servicio (`ROLE`) | Deployment | Qué corre | Uno solo activo, por |
 |---|---|---|---|
 | `api` | `rendimiento` (2 réplicas) | la interfaz, la API, los avisos web, MCP, las estadísticas públicas | nada: todas las réplicas atienden |
 | `control` | `rendimiento-control` | los controladores de App y Addon, Renovate, la sincronización de complementos, el sondeo de disponibilidad, la verificación de versiones, el archivo de registros, el DNS dinámico | el arrendamiento de líder |
 | `worker` | `rendimiento-worker` | la cola de CI: pods de construcción y de pruebas, despliegues | el candado de la cola en Postgres |
+| `traces` | `rendimiento-traces` | recibe cada tramo del colector de OpenTelemetry y guarda solicitudes completas para la [cascada](../guide/universe.md#following-one-request) del universo | una réplica (los tramos de una solicitud esperan en su memoria) |
 
 `ROLE=all` (el valor predeterminado) corre todo en un proceso, como en una computadora personal. Los servicios no comparten nada más que Postgres y Kubernetes:
 
@@ -59,7 +60,7 @@ La misma imagen corre como tres Deployments, elegidos por el ajuste `ROLE`, así
 - las **peticiones** van por el mismo camino, con respuesta: `api` le pide a `control` que arranque una ejecución de Renovate o la última sincronización de complementos, y recibe un error enseguida si `control` está caído, en vez de una página que no responde; una cancelación llega al trabajador que corre la ejecución; un despliegue le entrega a `control` la verificación de la versión nueva;
 - `api` pone las ejecuciones de CI en la cola de Postgres y `worker` las toma.
 
-El servicio de control y el trabajador solo atienden `/healthz` en su puerto HTTP. La comprobación **Servicios de la plataforma** de Entorno muestra los pods listos de cada Deployment (ajuste `SERVICES`).
+El servicio de control y el trabajador solo atienden `/healthz` en su puerto HTTP; el servicio de trazas solo atiende su receptor (`TRACES_LISTEN`) y no necesita Kubernetes ni GitHub. La comprobación **Servicios de la plataforma** de Entorno muestra los pods listos de cada Deployment (ajuste `SERVICES`).
 
 ### ¿Por qué "arranca al ser elegido"? {#why-started-once-elected}
 
