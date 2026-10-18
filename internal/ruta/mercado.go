@@ -22,7 +22,7 @@ type Mercado interface {
 
 // addMercadoTools registers the Mercado's tools: listing and reading stalls
 // for every key; changing and opening them for a key that can write, within
-// a cargo.
+// a cargo. Photos are added from the UI: a new page has no photo fields.
 func (s *Server) addMercadoTools(srv *mcp.Server, write bool) {
 	addTool(s, srv, &mcp.Tool{Name: "mercado_puestos", Description: "Lista los puestos del Mercado (páginas sin código para personas que no programan): nombre, tipo, dueño y dirección."}, s.puestos)
 	addTool(s, srv, &mcp.Tool{Name: "mercado_leer", Description: "Lee la página completa de un puesto: sus textos, colores, detalles y enlaces (las fotos aparecen como rutas)."}, s.leerPuesto)
@@ -56,9 +56,22 @@ type editarPuestoIn struct {
 }
 
 type abrirPuestoIn struct {
-	Direccion          string         `json:"direccion" jsonschema:"la dirección de la página, p. ej. panaderia-ana.example.com, bajo uno de los dominios de la plataforma"`
-	Pagina             mercado.Pagina `json:"pagina" jsonschema:"la página: tipo, idioma (es o en), nombre, lema, sobre, paleta, detalles, enlaces; sin fotos"`
-	PedidoPorLaPersona bool           `json:"pedido_por_la_persona" jsonschema:"true solo si la persona con quien trabaja pidió abrir este puesto"`
+	Direccion          string        `json:"direccion" jsonschema:"la dirección de la página, p. ej. panaderia-ana.example.com, bajo uno de los dominios de la plataforma"`
+	Pagina             nuevaPaginaIn `json:"pagina" jsonschema:"la página, sin fotos"`
+	PedidoPorLaPersona bool          `json:"pedido_por_la_persona" jsonschema:"true solo si la persona con quien trabaja pidió abrir este puesto"`
+}
+
+// nuevaPaginaIn is a new page as an agent writes it: only the kind and the
+// name are required; the Mercado fills in the rest (language, palette…).
+type nuevaPaginaIn struct {
+	Tipo     string            `json:"tipo" jsonschema:"negocio, evento, persona, causa…: qué es la página"`
+	Nombre   string            `json:"nombre" jsonschema:"el nombre que se ve en la página"`
+	Idioma   string            `json:"idioma,omitempty" jsonschema:"es o en: el idioma de las etiquetas de la página"`
+	Lema     string            `json:"lema,omitempty" jsonschema:"una frase corta bajo el nombre"`
+	Sobre    string            `json:"sobre,omitempty" jsonschema:"el texto principal; párrafos separados por una línea en blanco"`
+	Paleta   string            `json:"paleta,omitempty" jsonschema:"cempasuchil, grana, anil, nopal o rosa"`
+	Detalles []mercado.Detalle `json:"detalles,omitempty" jsonschema:"datos con etiqueta (Horario, Dirección…)"`
+	Enlaces  []mercado.Enlace  `json:"enlaces,omitempty" jsonschema:"cómo encontrar al dueño (instagram, facebook, tiktok, whatsapp, correo, telefono, web)"`
 }
 
 type abrirPuestoOut struct {
@@ -127,10 +140,8 @@ func (s *Server) abrirPuesto(ctx context.Context, k store.AgentKey, in abrirPues
 	if k.CreatedBy == "" {
 		return abrirPuestoOut{}, errors.New("esta llave no tiene dueño: el puesto necesita a una persona que lo cuide")
 	}
-	p := in.Pagina
-	if p.Foto != "" || len(p.Galeria) > 0 {
-		return abrirPuestoOut{}, errors.New("las fotos se agregan desde la interfaz del Mercado, no por aquí")
-	}
+	n := in.Pagina
+	p := mercado.Pagina{Tipo: n.Tipo, Nombre: n.Nombre, Idioma: n.Idioma, Lema: n.Lema, Sobre: n.Sobre, Paleta: n.Paleta, Detalles: n.Detalles, Enlaces: n.Enlaces}
 	if err := checkText(p.Nombre, p.Lema+"\n"+p.Sobre, nil); err != nil {
 		return abrirPuestoOut{}, err
 	}
