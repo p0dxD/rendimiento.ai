@@ -138,7 +138,7 @@ erDiagram
 
 ### Migrations
 
-Migrations are plain SQL files in `internal/store/migrations/`, **embedded** into the binary and applied in filename order at startup (`Store.Migrate`), each once, recorded in `schema_migrations`, under a table lock so two processes never apply the same one. To change the schema, add the next numbered file; never edit one that has already run.
+Migrations are plain SQL files in `internal/store/migrations/`, **embedded** into the binary and applied in filename order at startup (`Store.Migrate`), each once, recorded in `schema_migrations`, under a table lock so two processes never apply the same one. To change the schema, add the next numbered file; never edit one that has already run. An update runs the previous version next to the new one for a few seconds, so a migration only adds; dropping or renaming waits for a later release.
 
 ```sql
 --8<-- "internal/store/migrations/0004_addons.sql"

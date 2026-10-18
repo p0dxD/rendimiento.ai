@@ -1357,10 +1357,14 @@ func (s *Server) cancelRun(w http.ResponseWriter, r *http.Request, _ string) {
 	}
 	if !s.Platform.Cancel(id) {
 		run, err := s.Store.GetRun(r.Context(), id)
-		if err == nil && run.Status == store.RunQueued {
+		switch {
+		case err == nil && run.Status == store.RunQueued:
 			_ = s.Store.FinishRun(r.Context(), id, store.RunCancelled, "cancelled before it started")
-		} else {
-			httpError(w, http.StatusConflict, "run is not running on this replica or already finished")
+		case err == nil && run.Status == store.RunRunning:
+			// Running in another process (the CI worker's): ask it to stop.
+			s.Platform.RequestCancel(id)
+		default:
+			httpError(w, http.StatusConflict, "run is not running or already finished")
 			return
 		}
 	}

@@ -122,6 +122,9 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		LeaderElection:          env("LEADER_ELECTION", "true") == "true",
 		LeaderElectionID:        "rendimiento-controller",
 		LeaderElectionNamespace: ns,
+		// During an update the old pod hands the lease over as it stops,
+		// instead of the new one waiting for it to expire.
+		LeaderElectionReleaseOnCancel: true,
 		// Pi control planes stall under build load; the 10s default renew
 		// deadline made the process exit mid-build.
 		LeaseDuration: ptr(60 * time.Second),
@@ -137,6 +140,7 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	}
 
 	var dnsProvider dns.Provider = dns.Noop{}
+	ddns := func() {} // started on the leader only
 	if tok := os.Getenv("CLOUDFLARE_API_TOKEN"); tok != "" {
 		target := os.Getenv("DNS_TARGET")
 		if target == "" {
@@ -150,7 +154,7 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 				return fmt.Errorf("DDNS_INTERVAL must be a duration of at least 1m, got %q", os.Getenv("DDNS_INTERVAL"))
 			}
 			log.Info("dynamic DNS enabled: records follow this network's public IP", "interval", every)
-			go cf.Run(ctx, every, log.Info)
+			ddns = func() { go cf.Run(ctx, every, log.Info) }
 		}
 	} else {
 		log.Warn("CLOUDFLARE_API_TOKEN not set: DNS records must be created by hand")
@@ -252,6 +256,10 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		Store: st, Kube: kube, GitHub: holder, Generator: generate.Templates{}, Hub: events.NewHub(), Log: log,
 		Config: platform.Config{Registry: env("REGISTRY", "registry.example.lan:5000"), BaseURL: baseURL, Zone: os.Getenv("DNS_ZONE"), Railpack: os.Getenv("RAILPACK_IMAGE") != ""},
 	}
+	// Live events (log lines, step changes, cancels) cross between processes
+	// through Postgres: during an update the UI may be served by one version
+	// while the other still runs a build.
+	go (&events.Bridge{Hub: p.Hub, Wire: st, Log: log}).Run(ctx)
 	clientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return err
@@ -473,6 +481,7 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 				log.Info("removed build pods left by the previous process", "count", n)
 			}
 			log.Info("starting CI worker", "maxParallelSteps", parallel)
+			ddns()
 			go renovateRunner.Loop(ctx)
 			go addonSyncer.Loop(ctx)
 			if prober != nil {

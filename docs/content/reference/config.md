@@ -18,7 +18,7 @@ rendimiento is configured only through **environment variables**, read once at s
 | `NAMESPACE` | `rendimiento-system` | | where the platform and its Secrets live |
 | `LISTEN` | `:8080` | | HTTP address (API, UI, webhooks) |
 | `METRICS_ADDR` | `:9090` | | Prometheus metrics (controller-runtime) |
-| `LEADER_ELECTION` | `true` | `false` | one active replica; off because one Recreate replica never overlaps |
+| `LEADER_ELECTION` | `true` | `true` | the lease decides which process runs the controllers, the CI queue and the background loops; during an update the old pod hands it over as it stops |
 
 ## GitHub
 

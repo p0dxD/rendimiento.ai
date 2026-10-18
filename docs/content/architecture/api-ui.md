@@ -48,9 +48,13 @@ flowchart LR
     hub --> s1[SSE: browser 1]
     hub --> s2[SSE: browser 2]
     rec --> db[(steps.log)]
+    hub <--> pg[(Postgres<br/>NOTIFY rendimiento_events)]
+    pg <--> other[the other process's hub]
 ```
 
-`events.Hub` is an in-process publish/subscribe map from topic to subscriber channels. Publishing never blocks: a subscriber that falls behind misses events and refetches state when it reconnects. It is the simplest thing that works with one replica; with several replicas it needs a shared bus ([Scaling](../future/scaling.md#live-updates-across-replicas)). The ingress for the platform disables proxy buffering and allows hour-long reads, so events flow immediately.
+`events.Hub` is an in-process publish/subscribe map from topic to subscriber channels. Publishing never blocks: a subscriber that falls behind misses events and refetches state when it reconnects. The ingress for the platform disables proxy buffering and allows hour-long reads, so events flow immediately.
+
+**Between processes** (during an update two run at once), `events.Bridge` joins the hubs through Postgres `LISTEN/NOTIFY` on the `rendimiento_events` channel: each process sends out what is published on its hub and delivers the others' events to its own subscribers, never its own back. An event larger than a notification (Postgres allows 8000 bytes; long log chunks are) is stored in the `live_events` table and only its id is sent; rows are deleted after 10 minutes. A **cancel** is an event too (topic `cancel`): the API asks, and the process running the build stops it.
 
 ## The UI
 

@@ -18,7 +18,7 @@ rendimiento se configura solo con **variables de entorno**, que se leen una vez 
 | `NAMESPACE` | `rendimiento-system` | | donde viven la plataforma y sus Secrets |
 | `LISTEN` | `:8080` | | la dirección HTTP (API, interfaz, avisos web) |
 | `METRICS_ADDR` | `:9090` | | métricas de Prometheus (controller-runtime) |
-| `LEADER_ELECTION` | `true` | `false` | una sola réplica activa; apagado porque una réplica con Recreate nunca se encima |
+| `LEADER_ELECTION` | `true` | `true` | el arrendamiento decide qué proceso corre los controladores, la cola de CI y los ciclos de fondo; durante una actualización el pod anterior lo entrega al detenerse |
 
 ## GitHub {#github}
 
