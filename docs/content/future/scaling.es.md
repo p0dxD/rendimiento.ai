@@ -35,15 +35,15 @@ flowchart TB
 
 ## Cola y trabajadores {#queue-and-workers}
 
-**Hoy:** una tabla de Postgres que se aparta con `FOR UPDATE SKIP LOCKED`, y un solo ciclo de trabajador dentro de la plataforma.
+**Hoy:** una tabla de Postgres que se aparta con `FOR UPDATE SKIP LOCKED`, atendida por su propio servicio (`rendimiento-worker`, [`ROLE=worker`](../architecture/overview.md#three-services)). Hay un solo trabajador activo a la vez: tiene el candado de la cola y, al arrancar, vuelve a poner en cola las ejecuciones que un trabajador anterior dejó corriendo.
 
 **Límites:** miles de ejecuciones por minuto, mucho más de lo que hace este clúster. Postgres no es el cuello de botella; la capacidad de construcción sí.
 
-**Para escalar:** correr el trabajador como su propio Deployment (`rendimiento worker`, un subcomando que solo arranca el corredor) con varias réplicas. `SKIP LOCKED` ya hace seguro que varios aparten a la vez. Agregar una columna de latido para que las ejecuciones de un trabajador caído vuelvan a la cola sin esperar un reinicio.
+**Para escalar:** varios trabajadores activos. `SKIP LOCKED` ya hace seguro que varios aparten a la vez; falta una columna de latido, para que un trabajador que arranca vuelva a poner en cola solo las ejecuciones de uno que dejó de latir, en vez de tomar el candado de toda la cola.
 
 ## Controladores {#controllers}
 
-**Hoy:** una réplica con la elección de líder activada; durante una actualización el pod anterior entrega el arrendamiento al nuevo al detenerse.
+**Hoy:** el servicio de control (`rendimiento-control`), una réplica con la elección de líder activada; durante una actualización el pod anterior entrega el arrendamiento al nuevo al detenerse.
 
 **Para escalar:** correr dos réplicas. La de respaldo toma el control cuando vence el arrendamiento (60 segundos). Los controladores escalan *hacia arriba* (más conciliaciones simultáneas, con `MaxConcurrentReconciles`), no *hacia los lados*. Un líder por controlador es lo normal en Kubernetes y aguanta miles de objetos.
 
@@ -51,7 +51,7 @@ flowchart TB
 
 **Hoy:** la API no tiene estado: las sesiones viven en Postgres, y los eventos en vivo pasan entre procesos por `LISTEN/NOTIFY` de Postgres ([`events.Bridge`](../architecture/api-ui.md#live-updates-server-sent-events)), así que un navegador en un proceso ve lo que publica un trabajador en otro.
 
-**Para escalar:** correr la API con varias réplicas detrás del Service.
+**Para escalar:** la API (`rendimiento`, `ROLE=api`) ya corre dos réplicas detrás del Service; agregue más.
 
 ## Base de datos {#database}
 

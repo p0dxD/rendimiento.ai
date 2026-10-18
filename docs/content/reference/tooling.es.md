@@ -45,7 +45,7 @@ mkdocs build --strict          # lo que corre la construcción de la imagen; fal
 
 ```bash
 kubectl get app,radd                                   # todo lo que administra rendimiento
-kubectl -n rendimiento-system logs deploy/rendimiento -f
+kubectl -n rendimiento-system logs deploy/rendimiento -f          # la interfaz y la API (también -control, -worker)
 kubectl -n rendimiento-builds get pods -w              # las construcciones conforme ocurren
 kubectl -n devops-tools get pods -l app=buildkitd -o wide
 kubectl annotate radd <name> rendimiento.ai/paused=true

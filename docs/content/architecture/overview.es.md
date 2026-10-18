@@ -43,9 +43,27 @@ flowchart TB
 | **Complementos integrados** | `internal/renovate` | Renovate se ejecuta según una programación. |
 | **Vistas** | `internal/catalog`, `internal/environment` | La página Servicios y la página Entorno. |
 
+### Tres servicios de un mismo programa {#three-services}
+
+La misma imagen corre como tres Deployments, elegidos por el ajuste `ROLE`, así que una falla se queda en un servicio, con sus propios registros, su salud y sus reinicios:
+
+| Servicio (`ROLE`) | Deployment | Qué corre | Uno solo activo, por |
+|---|---|---|---|
+| `api` | `rendimiento` (2 réplicas) | la interfaz, la API, los avisos web, MCP, las estadísticas públicas | nada: todas las réplicas atienden |
+| `control` | `rendimiento-control` | los controladores de App y Addon, Renovate, la sincronización de complementos, el sondeo de disponibilidad, la verificación de versiones, el archivo de registros, el DNS dinámico | el arrendamiento de líder |
+| `worker` | `rendimiento-worker` | la cola de CI: pods de construcción y de pruebas, despliegues | el candado de la cola en Postgres |
+
+`ROLE=all` (el valor predeterminado) corre todo en un proceso, como en una computadora personal. Los servicios no comparten nada más que Postgres y Kubernetes:
+
+- los **eventos en vivo** (líneas de registro, cambios de paso) pasan por `LISTEN/NOTIFY` de Postgres ([`events.Bridge`](api-ui.md#live-updates-server-sent-events)), así que una página de ejecución que atiende `api` sigue una construcción en `worker`;
+- las **peticiones** van por el mismo camino, con respuesta: `api` le pide a `control` que arranque una ejecución de Renovate o la última sincronización de complementos, y recibe un error enseguida si `control` está caído, en vez de una página que no responde; una cancelación llega al trabajador que corre la ejecución; un despliegue le entrega a `control` la verificación de la versión nueva;
+- `api` pone las ejecuciones de CI en la cola de Postgres y `worker` las toma.
+
+El servicio de control y el trabajador solo atienden `/healthz` en su puerto HTTP. La comprobación **Servicios de la plataforma** de Entorno muestra los pods listos de cada Deployment (ajuste `SERVICES`).
+
 ### ¿Por qué "arranca al ser elegido"? {#why-started-once-elected}
 
-Algunos trabajos deben ocurrir exactamente una vez en el clúster: tomar ejecuciones de integración continua, programar Renovate, sincronizar complementos. La *elección de líder* de controller-runtime garantiza que solo una réplica los haga. Hoy hay **una sola réplica** con la elección de líder desactivada (en un plano de control de Raspberry Pi ocupado, las renovaciones del arrendamiento vencían y mataban el proceso a media construcción), así que `mgr.Elected()` se dispara de inmediato. La estructura ya está lista para más réplicas; vea [Escalar](../future/scaling.md).
+Algunos trabajos deben ocurrir exactamente una vez en el clúster: programar Renovate, sincronizar complementos, conciliar. La *elección de líder* de controller-runtime garantiza que solo un proceso de control los haga; su arrendamiento es largo (60 segundos), porque en un plano de control de Raspberry Pi ocupado las renovaciones cortas vencían y mataban el proceso. Durante una actualización, el pod anterior entrega el arrendamiento al detenerse. Tomar ejecuciones de CI lo protege el candado de la cola en Postgres, así que el trabajador no necesita arrendamiento.
 
 ## Cómo los conecta `main.go` {#how-maingo-wires-it-together}
 
@@ -60,7 +78,7 @@ Algunos trabajos deben ocurrir exactamente una vez en el clúster: tomar ejecuci
 7. crea el cliente con la identidad de los **complementos** (que suplanta a `rendimiento-addons`), el generador y el sincronizador, y registra el **controlador de complementos**;
 8. crea la **plataforma**, el **ejecutor de Kubernetes** (espacio de nombres de construcción, grupo de BuildKit, Railpack, nodos excluidos), el **ejecutor de integración continua** y el **ejecutor de Renovate**;
 9. crea el **servidor de la API** con todo lo anterior;
-10. arranca el administrador, los ciclos exclusivos del líder y el servidor HTTP, y espera una señal o un error.
+10. arranca el administrador, lo que corre su `ROLE` (los ciclos exclusivos del líder, el trabajador de CI) y el servidor HTTP, y espera una señal o un error.
 
 ```go
 --8<-- "cmd/rendimiento/main.go:startup"

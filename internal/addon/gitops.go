@@ -2,6 +2,7 @@ package addon
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -18,6 +19,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
+	"github.com/p0dxD/rendimiento.ai/internal/events"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
 )
 
@@ -172,6 +174,9 @@ type Syncer struct {
 	GitHub *gh.Holder
 	Repo   string // owner/name, e.g. p0dxD/gitops
 	Log    *slog.Logger
+	// Remote, in a process that does not sync (ROLE=api), sends Trigger
+	// and Last to the control service, which does (see Serve).
+	Remote *events.Hub
 
 	trigger chan struct{}
 	once    sync.Once
@@ -197,6 +202,10 @@ func (s *Syncer) init() { s.once.Do(func() { s.trigger = make(chan struct{}, 1) 
 
 // Trigger asks the loop to sync soon (e.g. after a push to the repo).
 func (s *Syncer) Trigger() {
+	if s.Remote != nil {
+		s.Remote.Publish(topicSync, events.Event{Type: "sync"})
+		return
+	}
 	s.init()
 	select {
 	case s.trigger <- struct{}{}:
@@ -204,8 +213,39 @@ func (s *Syncer) Trigger() {
 	}
 }
 
+// Topics the control service serves for the other processes.
+const (
+	topicSync = "addons/sync"
+	topicLast = "addons/last"
+)
+
+// Serve takes the other processes' Trigger and Last (see Remote) until ctx
+// ends. It runs where Loop does.
+func (s *Syncer) Serve(ctx context.Context, hub *events.Hub) {
+	syncs, stop := hub.Subscribe(topicSync)
+	go func() {
+		<-ctx.Done()
+		stop()
+	}()
+	go func() {
+		for range syncs {
+			s.Trigger()
+		}
+	}()
+	hub.Answer(ctx, topicLast, func(context.Context, json.RawMessage) (any, error) {
+		return s.Last(), nil
+	})
+}
+
 // Last returns the most recent sync's outcome.
 func (s *Syncer) Last() SyncResult {
+	if s.Remote != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		var last SyncResult
+		_ = s.Remote.Ask(ctx, topicLast, nil, &last)
+		return last
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.last

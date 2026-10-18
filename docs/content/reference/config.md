@@ -1,6 +1,6 @@
 # Settings
 
-rendimiento is configured only through **environment variables**, read once at startup in `cmd/rendimiento/main.go`. On a cluster, they come from the `rendimiento` ConfigMap and a few Secrets (`deploy/rendimiento.yaml` has example values; keep a real cluster's values in a private overlay, see [How the platform is deployed](../environment/deploy.md#your-own-settings)). To change a setting, edit the ConfigMap and run `kubectl -n rendimiento-system rollout restart deploy/rendimiento`.
+rendimiento is configured only through **environment variables**, read once at startup in `cmd/rendimiento/main.go`. On a cluster, they come from the `rendimiento` ConfigMap and a few Secrets (`deploy/rendimiento.yaml` has example values; keep a real cluster's values in a private overlay, see [How the platform is deployed](../environment/deploy.md#your-own-settings)). To change a setting, edit the ConfigMap and run `kubectl -n rendimiento-system rollout restart deploy` (the three services).
 
 ## Core
 
@@ -18,7 +18,9 @@ rendimiento is configured only through **environment variables**, read once at s
 | `NAMESPACE` | `rendimiento-system` | | where the platform and its Secrets live |
 | `LISTEN` | `:8080` | | HTTP address (API, UI, webhooks) |
 | `METRICS_ADDR` | `:9090` | | Prometheus metrics (controller-runtime) |
-| `LEADER_ELECTION` | `true` | `true` | the lease decides which process runs the controllers, the CI queue and the background loops; during an update the old pod hands it over as it stops |
+| `ROLE` | `all` | per Deployment: `api`, `control`, `worker` | what this process runs ([three services](../architecture/overview.md#three-services)): `api` the UI, API, webhooks and MCP; `control` the controllers and background loops; `worker` the CI queue; `all` everything |
+| `SERVICES` | *(empty)* | `rendimiento,rendimiento-control,rendimiento-worker` | the platform's Deployments: Entorno shows each one's health, and Update moves them all to a release |
+| `LEADER_ELECTION` | `true` | `true` | the lease decides which control process runs the controllers and the background loops; during an update the old pod hands it over as it stops |
 
 ## GitHub
 

@@ -4,8 +4,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -86,6 +88,16 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// ROLE is the part of the platform this process runs: api (the UI, the
+	// API, webhooks, MCP), control (the controllers and the background loops,
+	// on the elected leader), worker (the CI queue), or all of them.
+	role := env("ROLE", "all")
+	if !slices.Contains([]string{"all", "api", "control", "worker"}, role) {
+		return fmt.Errorf("ROLE must be all, api, control or worker, got %q", role)
+	}
+	runs := func(r string) bool { return role == "all" || role == r }
+	log = log.With("role", role)
+
 	// --8<-- [start:startup]
 	baseURL := strings.TrimRight(env("BASE_URL", "http://localhost:8080"), "/")
 	ns := env("NAMESPACE", "rendimiento-system")
@@ -116,10 +128,12 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	_ = apiextensionsv1.AddToScheme(scheme)
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:                  scheme,
-		Metrics:                 metricsserver.Options{BindAddress: env("METRICS_ADDR", ":9090")},
-		HealthProbeBindAddress:  "0",
-		LeaderElection:          env("LEADER_ELECTION", "true") == "true",
+		Scheme:                 scheme,
+		Metrics:                metricsserver.Options{BindAddress: env("METRICS_ADDR", ":9090")},
+		HealthProbeBindAddress: "0",
+		// Only the controllers and the background loops need a leader; the
+		// CI worker has the queue's lock in Postgres instead.
+		LeaderElection:          runs("control") && env("LEADER_ELECTION", "true") == "true",
 		LeaderElectionID:        "rendimiento-controller",
 		LeaderElectionNamespace: ns,
 		// During an update the old pod hands the lease over as it stops,
@@ -202,8 +216,10 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		}
 		renderOpts.Telemetry.Agents[k] = v
 	}
-	if err := (&controller.AppReconciler{Client: mgr.GetClient(), Scheme: scheme, Render: renderOpts, DNS: dnsProvider}).SetupWithManager(mgr); err != nil {
-		return err
+	if runs("control") {
+		if err := (&controller.AppReconciler{Client: mgr.GetClient(), Scheme: scheme, Render: renderOpts, DNS: dnsProvider}).SetupWithManager(mgr); err != nil {
+			return err
+		}
 	}
 
 	// GITHUB_ACCOUNTS: the only accounts whose installations of the App
@@ -240,11 +256,13 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		}
 	}()
 	addonSyncer := &addon.Syncer{Kube: kube, GitHub: holder, Repo: env("ADDONS_REPO", "p0dxD/gitops"), Log: log}
-	if err := (&controller.AddonReconciler{
-		Client: mgr.GetClient(), Target: addonTarget,
-		Renderer: &addon.Renderer{Git: addon.GitHubFetcher{GitHub: holder}, Discovery: disco},
-	}).SetupWithManager(mgr); err != nil {
-		return err
+	if runs("control") {
+		if err := (&controller.AddonReconciler{
+			Client: mgr.GetClient(), Target: addonTarget,
+			Renderer: &addon.Renderer{Git: addon.GitHubFetcher{GitHub: holder}, Discovery: disco},
+		}).SetupWithManager(mgr); err != nil {
+			return err
+		}
 	}
 
 	parallel, _ := strconv.Atoi(env("MAX_PARALLEL_STEPS", "2"))
@@ -260,6 +278,26 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	// through Postgres: during an update the UI may be served by one version
 	// while the other still runs a build.
 	go (&events.Bridge{Hub: p.Hub, Wire: st, Log: log}).Run(ctx)
+	if role != "api" {
+		// The GitHub App is configured through the API (setup): load it here too.
+		go func() {
+			configured, stop := p.Hub.Subscribe(api.GitHubAppTopic)
+			defer stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-configured:
+					if c, err := creds.Load(ctx); err != nil || c == nil {
+						log.Warn("could not load the GitHub App's credentials", "err", err)
+					} else if app, err := gh.New(*c); err == nil {
+						holder.Set(app)
+						log.Info("GitHub App loaded", "slug", c.Slug)
+					}
+				}
+			}
+		}()
+	}
 	clientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return err
@@ -452,36 +490,54 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	}
 	p.Verify = platform.VerifySettings{Window: verifyWindow, Check: checker.Check}
 	p.Clientset = clientset
+	srv.Environment.Config.Namespace = ns
+	srv.Environment.Config.Services = splitList(env("SERVICES", ""))
+	if srv.Update != nil {
+		srv.Update.Also = slices.DeleteFunc(slices.Clone(srv.Environment.Config.Services), func(d string) bool { return d == srv.Update.Deployment })
+	}
+	// Renovate, the add-on sync, release verification and dynamic DNS run
+	// on the control service; the other services ask it through the hub.
+	if !runs("control") {
+		renovateRunner.Remote, addonSyncer.Remote = p.Hub, p.Hub
+		p.VerifyElsewhere = true
+		srv.Environment.DDNS = func(ctx context.Context) dns.DDNSStatus {
+			ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			defer cancel()
+			var st dns.DDNSStatus
+			_ = p.Hub.Ask(ctx, ddnsTopic, nil, &st)
+			return st
+		}
+	}
 
-	httpSrv := &http.Server{Addr: env("LISTEN", ":8080"), Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
+	handler := srv.Handler()
+	if !runs("api") {
+		// The control service and the worker serve only their health.
+		health := http.NewServeMux()
+		health.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { io.WriteString(w, "ok") })
+		handler = health
+	}
+	httpSrv := &http.Server{Addr: env("LISTEN", ":8080"), Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 
 	errc := make(chan error, 4)
 	go func() { errc <- mgr.Start(ctx) }()
 	go func() {
-		// CI workers run only on the leader so one replica owns the queue.
+		// The control service's work waits for the leader lease (immediate
+		// without leader election, as in the worker and api roles).
 		select {
 		case <-mgr.Elected():
-			// And only in the process holding the queue's lock in Postgres:
-			// another copy (an overlapping pod, the binary started by hand)
-			// waits here instead of putting back in the queue, and deleting
-			// the pods of, runs this one is still doing.
-			release, err := st.LockQueue(ctx, 5*time.Second)
-			if err != nil {
-				break // ctx ended while waiting
-			}
-			defer release()
-			if requeued, failed, err := st.RequeueOrphans(ctx); err != nil {
-				log.Error("could not recover interrupted runs", "err", err)
-			} else if requeued+failed > 0 {
-				log.Warn("recovered runs interrupted by the last restart", "requeued", requeued, "failed", failed)
-			}
-			if n, err := executor.Cleanup(ctx); err != nil {
-				log.Warn("could not clean up old build pods", "err", err)
-			} else if n > 0 {
-				log.Info("removed build pods left by the previous process", "count", n)
-			}
-			log.Info("starting CI worker", "maxParallelSteps", parallel)
+		case <-ctx.Done():
+			errc <- nil
+			return
+		}
+		if runs("control") {
+			log.Info("starting the background loops")
 			ddns()
+			renovateRunner.Serve(ctx, p.Hub)
+			addonSyncer.Serve(ctx, p.Hub)
+			if d, ok := dnsProvider.(interface{ DDNSStatus() dns.DDNSStatus }); ok {
+				p.Hub.Answer(ctx, ddnsTopic, func(context.Context, json.RawMessage) (any, error) { return d.DDNSStatus(), nil })
+			}
+			go p.ServeVerifications(ctx)
 			go renovateRunner.Loop(ctx)
 			go addonSyncer.Loop(ctx)
 			if prober != nil {
@@ -496,13 +552,36 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 					logArchive.Run(ctx)
 				}()
 			}
-			p.Work(ctx)
-		case <-ctx.Done():
 		}
+		if runs("worker") {
+			// CI runs only in the process holding the queue's lock in
+			// Postgres: another copy (an overlapping pod, the binary started
+			// by hand) waits here instead of putting back in the queue, and
+			// deleting the pods of, runs this one is still doing.
+			release, err := st.LockQueue(ctx, 5*time.Second)
+			if err != nil {
+				errc <- nil // ctx ended while waiting
+				return
+			}
+			defer release()
+			if requeued, failed, err := st.RequeueOrphans(ctx); err != nil {
+				log.Error("could not recover interrupted runs", "err", err)
+			} else if requeued+failed > 0 {
+				log.Warn("recovered runs interrupted by the last restart", "requeued", requeued, "failed", failed)
+			}
+			if n, err := executor.Cleanup(ctx); err != nil {
+				log.Warn("could not clean up old build pods", "err", err)
+			} else if n > 0 {
+				log.Info("removed build pods left by the previous process", "count", n)
+			}
+			log.Info("starting CI worker", "maxParallelSteps", parallel)
+			p.Work(ctx)
+		}
+		<-ctx.Done()
 		errc <- nil
 	}()
 	var statsSrv *http.Server
-	if statsAddr != "" {
+	if statsAddr != "" && runs("api") {
 		statsSrv = &http.Server{Addr: statsAddr, Handler: srv.StatsHandler(), ReadHeaderTimeout: 10 * time.Second}
 		go func() {
 			log.Info("serving public stats internally", "addr", statsAddr)
@@ -533,6 +612,9 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	}
 	return httpSrv.Shutdown(shutdown)
 }
+
+// ddnsTopic is where the control service answers for dynamic DNS's status.
+const ddnsTopic = "ddns/status"
 
 // ptr returns a pointer to a copy of v.
 func ptr[T any](v T) *T { return &v }

@@ -36,6 +36,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/catalog"
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
 	"github.com/p0dxD/rendimiento.ai/internal/environment"
+	"github.com/p0dxD/rendimiento.ai/internal/events"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
 	"github.com/p0dxD/rendimiento.ai/internal/logarchive"
 	"github.com/p0dxD/rendimiento.ai/internal/mercado"
@@ -466,10 +467,15 @@ func (s *Server) setupCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.GitHub.Set(app)
+	s.Platform.Hub.Publish(GitHubAppTopic, events.Event{Type: "configured"}) // the other services load it too
 	s.Log.Info("GitHub App configured", "slug", creds.Slug)
 	// Next: install the app on the repos to deploy.
 	http.Redirect(w, r, creds.HTMLURL+"/installations/new", http.StatusFound)
 }
+
+// GitHubAppTopic tells the platform's other processes that the GitHub App
+// was configured, so they load its credentials from the secret.
+const GitHubAppTopic = "github/app"
 
 // ---- webhooks ----
 

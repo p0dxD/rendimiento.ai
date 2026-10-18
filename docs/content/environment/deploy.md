@@ -37,7 +37,9 @@ ITEST_REGISTRY := registry.home.lan:5000
 ```mermaid
 flowchart TB
     subgraph rs[namespace rendimiento-system]
-        dep[Deployment rendimiento<br/>1 replica, RollingUpdate]
+        dep[Deployment rendimiento<br/>ROLE=api, 2 replicas]
+        ctl[Deployment rendimiento-control<br/>ROLE=control, leader]
+        wrk[Deployment rendimiento-worker<br/>ROLE=worker, CI]
         svc[Service rendimiento :80]
         ing[Ingress rendimiento.joserod.space<br/>TLS by cert-manager]
         db[(StatefulSet rendimiento-db<br/>Postgres 17, 5Gi Longhorn)]
@@ -50,6 +52,8 @@ flowchart TB
     end
     crds[CRDs apps.rendimiento.ai<br/>addons.rendimiento.ai]
     ing --> svc --> dep --> db
+    ctl --> db
+    wrk --> db
     dep -. reads .-> cm
 ```
 
@@ -140,15 +144,15 @@ The manifest asks for these repository permissions: **Contents** read & write (r
 make test-remote     # the full test suite, on a worker node
 make image           # build and push registry.example.lan:5000/rendimiento:latest on the BuildKit pool
 make deploy          # kubectl apply -k deploy (only needed when deploy/ or the CRDs changed)
-kubectl -n rendimiento-system rollout restart deploy/rendimiento
+kubectl -n rendimiento-system rollout restart deploy   # the three services
 kubectl -n rendimiento-system rollout status deploy/rendimiento
 ```
 
-The Deployment pulls `:latest` with `imagePullPolicy: Always` and updates with **no downtime**: a `RollingUpdate` with `maxUnavailable: 0` starts the new pod next to the old one, and the old one keeps serving the UI and webhooks until the new one is ready. Then the old pod stops and hands over the leader lease, so the new one takes the CI queue and the background loops a few seconds later. For those seconds both versions run:
+The platform runs as [three services from one image](../architecture/overview.md#three-services): `rendimiento` (`ROLE=api`, two replicas behind the Service), `rendimiento-control` and `rendimiento-worker`. Each pulls `:latest` with `imagePullPolicy: Always` and updates with **no downtime**: a `RollingUpdate` with `maxUnavailable: 0` starts the new pod next to the old one, and the old one keeps working until the new one is ready. For those seconds both versions run:
 
 - **live events** (log lines, step changes, cancels) cross between them through Postgres ([Live updates](../architecture/api-ui.md#live-updates-server-sent-events)), so a run page served by one shows the build the other runs;
-- only the **leader** runs the controllers, the CI worker, Renovate, the add-on sync, the uptime prober and dynamic DNS;
-- a run the old process was building when it stopped goes back to the queue, as on any restart.
+- the old control pod hands the **leader lease** to the new one as it stops; only the leader runs the controllers, Renovate, the add-on sync, the uptime prober, release verification and dynamic DNS;
+- the new worker waits for the **queue's lock**; a run the old one was building when it stopped goes back to the queue, as on any restart.
 
 Apps keep running either way: they do not depend on the platform being up.
 
@@ -158,9 +162,8 @@ Apps keep running either way: they do not depend on the platform being up.
 On restart the platform:
 
 1. applies database migrations (`internal/store/migrations`), each once;
-2. once it holds the run queue's lock in Postgres (a second copy of the platform waits for it), requeues CI runs a previous process left running (up to two retries) and deletes leftover build pods;
-3. closes Renovate runs that were interrupted;
-4. starts the controllers, the CI worker, the Renovate scheduler, the add-on sync from git, and dynamic DNS.
+2. the worker, once it holds the run queue's lock in Postgres (a second copy waits for it), requeues CI runs a previous process left running (up to two retries) and deletes leftover build pods;
+3. the control service, once elected, closes Renovate runs that were interrupted, resumes release verifications, and starts the controllers, the Renovate scheduler, the add-on sync from git, and dynamic DNS.
 
 !!! warning "`:latest` has no history"
     Rolling back a hand-built platform means rebuilding the previous commit (`git checkout <good commit> && make image`). The images rendimiento builds itself are kept by release, so [updating from the Environment page](#updating-from-the-environment-page) has a history to go back to.
@@ -178,16 +181,19 @@ Pull requests get the same check without a release. On the default branch the im
 
 With `SELF_APP` set to the app rendimiento's repository is onboarded as, the platform knows which of those releases it runs (by the digest of its pod's image). When the newest release holds another image, the **Environment** link shows *new* and the Environment page has an **Update** button. It replaces the steps above for a version that passed its checks:
 
-1. the button points the Deployment at the release's image, pinned by digest (`<registry>/rendimiento-ai-platform@sha256:…`), and notes the release and who pressed it on the pod template;
-2. the Deployment rolls over as above (the old version serves until the new one is ready), and the new process applies its migrations;
+1. the button points the platform's Deployments (`SERVICES`) at the release's image, pinned by digest (`<registry>/rendimiento-ai-platform@sha256:…`), and notes the release and who pressed it on the pod template;
+2. each Deployment rolls over as above (the old version works until the new one is ready), and the new processes apply their migrations;
 3. the page waits until the new version answers, then reloads.
 
 `make deploy` keeps that image (`hack/keep-image.sh` puts the running digest in place of the overlay's), so changing the configuration does not take the platform back to `:latest`. It is still how `deploy/` and the overlay's changes reach the cluster; the button only changes the image. To tell when that is needed, `make deploy` records the commit it applied (the `rendimiento.ai/manifests` annotation on the Deployment), and the Environment page compares it with the newest release: when a YAML file under `deploy/` changed in between, such as a CRD or the permissions, it says **make deploy is needed** and lists the files, before you update and until you run it. Changes to your private overlay are yours to apply; the page does not see them.
 
 !!! warning "If the new version does not start"
-    The old version keeps serving: a release that never becomes ready leaves the rollout stuck, not the platform down. Go back with `kubectl -n rendimiento-system rollout undo deploy/rendimiento`.
+    The old version keeps serving: a release that never becomes ready leaves the rollout stuck, not the platform down. Go back with `kubectl -n rendimiento-system rollout undo deploy/<name>` for each service that is stuck.
 
-To go back to an image built by hand, `kubectl -n rendimiento-system set image deploy/rendimiento rendimiento=registry.example.lan:5000/rendimiento:latest`.
+To go back to an image built by hand, `kubectl -n rendimiento-system set image deploy --all rendimiento=registry.example.lan:5000/rendimiento:latest`.
+
+!!! note "From one Deployment to three"
+    A platform that ran as one Deployment moves to three in two steps, in this order: **Update** to a release that knows `ROLE` (it still runs everything in one process), then `make deploy`, which adds `rendimiento-control` and `rendimiento-worker` with the running image and turns `rendimiento` into the API. The other way round, the new Deployments would start an image that does not know its role.
 
 !!! note "A field the running platform doesn't know"
     The platform reads `rendimiento.yaml` strictly. A change that adds a field to it (as `builds:` did) must be shipped **before** the commit that uses the field is pushed, or that push's run fails to read its own spec.

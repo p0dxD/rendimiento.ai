@@ -76,6 +76,13 @@ func (p *Platform) startVerification(ctx context.Context, app *store.App, rel *s
 		p.postDeployOnly(ctx, app, rel)
 		return
 	}
+	if p.VerifyElsewhere {
+		// The control service watches it (ServeVerifications); marked as
+		// watched first, so it resumes the watch even if it misses this.
+		p.setVerification(app, rel, store.VerifyRunning, M("watching the new release for %s", fmtDur(window)))
+		p.Hub.Publish(VerifyTopic, events.Event{Type: "start", Data: verifyRequest{App: app.ID, Release: rel.Number}})
+		return
+	}
 	vctx, cancel := context.WithCancelCause(ctx)
 	p.mu.Lock()
 	if p.verifying == nil {
@@ -103,11 +110,54 @@ func (p *Platform) startVerification(ctx context.Context, app *store.App, rel *s
 // stopVerification ends an app's running verification as superseded (a
 // newer release, or a rollback by hand, replaced the release).
 func (p *Platform) stopVerification(appID int64) {
+	if p.VerifyElsewhere {
+		p.Hub.Publish(VerifyTopic, events.Event{Type: "stop", Data: verifyRequest{App: appID}})
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if c, ok := p.verifying[appID]; ok {
 		c(errSuperseded)
 		delete(p.verifying, appID)
+	}
+}
+
+// VerifyTopic carries verifications to start or stop from the processes
+// that deploy (the CI worker) or roll back (the API) to the control service.
+const VerifyTopic = "verify"
+
+// verifyRequest names the app and, to start, the release to watch.
+type verifyRequest struct {
+	App     int64 `json:"app"`
+	Release int64 `json:"release,omitempty"`
+}
+
+// ServeVerifications watches the releases the other processes send (see
+// VerifyElsewhere) until ctx ends. It runs on the control service.
+func (p *Platform) ServeVerifications(ctx context.Context) {
+	reqs, stop := p.Hub.Subscribe(VerifyTopic)
+	go func() {
+		<-ctx.Done()
+		stop()
+	}()
+	for e := range reqs {
+		var r verifyRequest
+		if err := events.Decode(e.Data, &r); err != nil {
+			continue
+		}
+		if e.Type == "stop" {
+			p.stopVerification(r.App)
+			continue
+		}
+		app, err := p.Store.GetAppByID(ctx, r.App)
+		if err != nil {
+			continue
+		}
+		rel, err := p.Store.GetRelease(ctx, app.ID, r.Release)
+		if err != nil {
+			p.Log.Warn("could not start a release's verification", "app", app.Name, "release", r.Release, "err", err)
+			continue
+		}
+		p.startVerification(ctx, app, rel)
 	}
 }
 
