@@ -11,7 +11,9 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"log/slog"
+	"regexp"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -229,12 +231,34 @@ func (k *Keeper) decide(id string, spans []store.Span) (store.Trace, bool) {
 		t.Reason = "error"
 	case k.Slow > 0 && time.Duration(t.DurationUS)*time.Microsecond >= k.Slow:
 		t.Reason = "slow"
-	case sampled(id, k.Sample):
+	case sampled(id, k.Sample) && (root == nil || !health(root)):
 		t.Reason = "sample"
 	default:
 		return t, false
 	}
 	return t, true
+}
+
+// healthPath is a health check's route: /health, /healthz, /api/health,
+// /livez, /readyz, /ping (with anything after a slash).
+var healthPath = regexp.MustCompile(`^/(api/)?(health|healthz|livez|readyz|ping)(/|$)`)
+
+// health says whether a request is a health check, by its root span's route
+// or name ("GET /api/health"). Checkers other than Kubernetes' and
+// rendimiento's own (which the Collector drops) would fill the sample with
+// them; they are still kept when they fail or are slow.
+func health(root *store.Span) bool {
+	for _, key := range []string{"http.route", "url.path", "http.target"} {
+		if v, ok := root.Attributes[key].(string); ok && healthPath.MatchString(v) {
+			return true
+		}
+	}
+	_, path, ok := strings.Cut(root.Name, " ")
+	if !ok {
+		path = root.Name
+	}
+	path, _, _ = strings.Cut(path, " ") // "GET /health http send": an ASGI step
+	return healthPath.MatchString(path)
 }
 
 // sampled says whether a request falls in the sampled share, by the low

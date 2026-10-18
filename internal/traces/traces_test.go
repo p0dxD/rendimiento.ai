@@ -80,6 +80,35 @@ func TestKeeper(t *testing.T) {
 	}
 }
 
+// Health checks are not sampled, but still kept when they fail or are slow.
+func TestHealthChecks(t *testing.T) {
+	k := &Keeper{Sample: 1, Slow: time.Second}
+	now := time.Now()
+	for _, name := range []string{"GET /api/health", "GET /health http send", "GET /healthz", "HEAD /ping"} {
+		if _, keep := k.decide("01", []store.Span{span("01", "a", "", "shop/web", now, 5, false)}); !keep {
+			t.Fatal("a normal request with sample 1 must be kept")
+		}
+		sp := span("01", "a", "", "shop/web", now, 5, false)
+		sp.Name = name
+		if _, keep := k.decide("01", []store.Span{sp}); keep {
+			t.Errorf("%q was sampled", name)
+		}
+		sp.Error = true
+		if tr, keep := k.decide("01", []store.Span{sp}); !keep || tr.Reason != "error" {
+			t.Errorf("failed %q: kept %v as %q", name, keep, tr.Reason)
+		}
+	}
+	sp := span("01", "a", "", "shop/web", now, 5, false)
+	sp.Name, sp.Attributes = "GET", map[string]any{"http.route": "/healthz"}
+	if _, keep := k.decide("01", []store.Span{sp}); keep {
+		t.Error("a health route in http.route was sampled")
+	}
+	sp.Name, sp.Attributes = "GET /healthy-food", nil
+	if _, keep := k.decide("01", []store.Span{sp}); !keep {
+		t.Error("/healthy-food is not a health check")
+	}
+}
+
 func TestSampled(t *testing.T) {
 	kept := 0
 	for i := range 10000 {

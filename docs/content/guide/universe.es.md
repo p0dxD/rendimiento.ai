@@ -85,7 +85,7 @@ Las solicitudes las guarda el **servicio de trazas** (`rendimiento-traces`, [`RO
 
 - cada solicitud en la que **falló** un paso;
 - cada solicitud que tardó **`TRACE_SLOW`** o más (1 segundo);
-- **`TRACE_SAMPLE`** de las demás (una de cada diez), elegidas por el identificador de la solicitud, así que una solicitud se guarda o se descarta completa.
+- **`TRACE_SAMPLE`** de las demás (una de cada diez), elegidas por el identificador de la solicitud, así que una solicitud se guarda o se descarta completa. Las revisiones de salud (`/health`, `/healthz`, `/api/health`, `/livez`, `/readyz`, `/ping`) quedan fuera de la muestra; solo se guardan si fallan o son lentas.
 
 Van a Postgres, una partición por día, y un día se borra completo después de **`TRACE_RETENTION_DAYS`** (7). Al colector solo llega lo que muestrean los servicios (`TELEMETRY_SAMPLE_RATIO`, una cuarta parte), así que el servicio de trazas ve una cuarta parte de las solicitudes y guarda las interesantes entre ellas. Ponga la proporción en `1` para ver cada falla.
 
