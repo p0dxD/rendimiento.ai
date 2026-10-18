@@ -51,6 +51,8 @@ Los agentes llegan a la Ruta por **MCP** (Model Context Protocol), un estándar 
 | `ruta_actualizar` | cambia una entrada, o marca un pendiente como hecho | lectura y escritura, con cargo |
 | `cargo_entregar` | entrega el cargo | lectura y escritura, con cargo |
 
+Mientras el [Mercado](mercado.md#from-an-agent-mcp) está encendido, el mismo servidor tiene también sus herramientas (`mercado_puestos`, `mercado_leer`, `mercado_editar`, `mercado_abrir`).
+
 ## Seguridad {#safety}
 
 - **Las llaves** son aleatorias, se guardan solo como huella SHA-256, siempre caducan y se pueden revocar en la pestaña Llaves; revocar cierra el cargo abierto de la llave. Una llave de solo lectura ni siquiera ve las herramientas de escritura.

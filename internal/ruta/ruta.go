@@ -96,6 +96,8 @@ Reglas:
 type Server struct {
 	Store Backend
 	Log   *slog.Logger
+	// Mercado adds the mercado_* tools (nil: the Mercado is off).
+	Mercado Mercado
 
 	read, write *mcp.Server
 }
@@ -351,6 +353,9 @@ func (s *Server) newServer(write bool) *mcp.Server {
 		addTool(s, srv, &mcp.Tool{Name: "ruta_anotar", Description: "Anota una entrada nueva: una decisión (con su porqué), un manual, un pendiente o una nota. Nunca incluya secretos. Necesita un cargo abierto."}, s.anotar)
 		addTool(s, srv, &mcp.Tool{Name: "ruta_actualizar", Description: "Cambia una entrada (título, cuerpo, etiquetas, o marca un pendiente como hecho). La versión anterior se conserva. Lo vivido no se puede cambiar desde aquí. Necesita un cargo abierto."}, s.actualizar)
 		addTool(s, srv, &mcp.Tool{Name: "cargo_entregar", Description: "Entrega su cargo antes de irse: qué hizo y qué queda pendiente, para quien siga."}, s.entregar)
+	}
+	if s.Mercado != nil {
+		s.addMercadoTools(srv, write)
 	}
 	return srv
 }

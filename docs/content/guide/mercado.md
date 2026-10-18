@@ -27,6 +27,19 @@ That commit is a push like any other: rendimiento builds the page and publishes 
 
 The form reads the page from `pagina.json` on the default branch, so a change made in GitHub shows in the form. `index.html` is rewritten on every save; change the page through `pagina.json` or the form, not by editing the HTML.
 
+## From an agent (MCP) {#from-an-agent-mcp}
+
+An agent connected to la Ruta's MCP server (`/mcp`, with an [agent key](ruta.md)) can tend the stalls in a conversation, for example «change the bakery's hours» or «make a page for my aunt's restaurant». The tools only appear while the Mercado is on:
+
+| Tool | What it does | Key |
+|---|---|---|
+| `mercado_puestos` | lists the stalls: name, kind, owner, address | any |
+| `mercado_leer` | reads a stall's whole page: texts, colors, details, links (photos as paths) | any |
+| `mercado_editar` | changes only the fields it is given (name, motto, about, palette, details, links) and publishes; the rest, photos included, stays | can write, with a cargo |
+| `mercado_abrir` | opens a new stall: its public repository and its page at its address, owned by whoever created the key | can write, with a cargo, and only with `pedido_por_la_persona: true` |
+
+Photos are added from the Mercado's page in the UI. Every call is recorded in the Ruta's activity, and only a stall can be changed this way, never another app.
+
 ## What is safe {#what-is-safe}
 
 Nothing typed in the form becomes HTML: names, texts and details are escaped, links are rebuilt from a username, a number or an address (only `https`, `mailto:` and `tel:` links come out), and photos must be JPEG, PNG, WebP or GIF by their content, not their name. The form shrinks photos to at most 1600 pixels before sending them. An address already used by an app, or by any ingress of the cluster, is refused, and so is anything outside the DNS zones. The preview is shown in a sandboxed frame, without scripts.
