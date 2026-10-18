@@ -85,7 +85,7 @@ Requests are kept by the **traces service** (`rendimiento-traces`, [`ROLE=traces
 
 - every request where a step **failed**;
 - every request that took **`TRACE_SLOW`** or more (1 second);
-- **`TRACE_SAMPLE`** of the rest (one in ten), chosen by the request's ID, so a request is kept or dropped whole.
+- **`TRACE_SAMPLE`** of the rest (one in ten), chosen by the request's ID, so a request is kept or dropped whole. Health checks (`/health`, `/healthz`, `/api/health`, `/livez`, `/readyz`, `/ping`) are left out of the sample; they are kept only when they fail or are slow.
 
 They go to Postgres, one partition per day, and a day is dropped whole after **`TRACE_RETENTION_DAYS`** (7). Only what the services sample reaches the collector (`TELEMETRY_SAMPLE_RATIO`, a quarter), so the traces service sees a quarter of the requests and keeps the interesting ones among them. Set the ratio to `1` to see every failure.
 
