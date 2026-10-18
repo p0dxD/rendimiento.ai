@@ -10,10 +10,13 @@ type Event struct {
 	Data any    `json:"data"`
 }
 
-// Hub is an in-process publish/subscribe fan-out keyed by topic ("run/42", "app/shop").
+// Hub is an in-process publish/subscribe fan-out keyed by topic ("run/42",
+// "app/shop"). With a relay (see Bridge), what is published here also reaches
+// the hubs of the platform's other processes.
 type Hub struct {
-	mu   sync.Mutex
-	subs map[string]map[chan Event]struct{}
+	mu    sync.Mutex
+	subs  map[string]map[chan Event]struct{}
+	relay func(topic string, e Event)
 }
 
 // NewHub returns an empty hub.
@@ -41,9 +44,30 @@ func (h *Hub) Subscribe(topic string) (<-chan Event, func()) {
 	}
 }
 
-// Publish sends e to every subscriber of topic without blocking: a subscriber that is behind misses
-// it and refetches on reconnect.
+// SetRelay passes every event published here to relay as well (it must not
+// block: CI publishes log lines).
+func (h *Hub) SetRelay(relay func(topic string, e Event)) {
+	h.mu.Lock()
+	h.relay = relay
+	h.mu.Unlock()
+}
+
+// Publish sends e to every subscriber of topic without blocking (a
+// subscriber that is behind misses it and refetches on reconnect), and to
+// the relay, if any.
 func (h *Hub) Publish(topic string, e Event) {
+	h.Deliver(topic, e)
+	h.mu.Lock()
+	relay := h.relay
+	h.mu.Unlock()
+	if relay != nil {
+		relay(topic, e)
+	}
+}
+
+// Deliver sends e to this process's subscribers only: an event that came
+// from another process.
+func (h *Hub) Deliver(topic string, e Event) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for ch := range h.subs[topic] {

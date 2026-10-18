@@ -37,7 +37,7 @@ ITEST_REGISTRY := registry.home.lan:5000
 ```mermaid
 flowchart TB
     subgraph rs[namespace rendimiento-system]
-        dep[Deployment rendimiento<br/>1 replica, Recreate]
+        dep[Deployment rendimiento<br/>1 replica, RollingUpdate]
         svc[Service rendimiento :80]
         ing[Ingress rendimiento.joserod.space<br/>TLS by cert-manager]
         db[(StatefulSet rendimiento-db<br/>Postgres 17, 5Gi Longhorn)]
@@ -144,7 +144,16 @@ kubectl -n rendimiento-system rollout restart deploy/rendimiento
 kubectl -n rendimiento-system rollout status deploy/rendimiento
 ```
 
-The Deployment pulls `:latest` with `imagePullPolicy: Always` and uses the `Recreate` strategy (one replica, never two at once), so a restart takes about 20 seconds during which the UI and webhooks are unavailable. Apps keep running: they do not depend on the platform being up. GitHub retries webhooks that fail.
+The Deployment pulls `:latest` with `imagePullPolicy: Always` and updates with **no downtime**: a `RollingUpdate` with `maxUnavailable: 0` starts the new pod next to the old one, and the old one keeps serving the UI and webhooks until the new one is ready. Then the old pod stops and hands over the leader lease, so the new one takes the CI queue and the background loops a few seconds later. For those seconds both versions run:
+
+- **live events** (log lines, step changes, cancels) cross between them through Postgres ([Live updates](../architecture/api-ui.md#live-updates-server-sent-events)), so a run page served by one shows the build the other runs;
+- only the **leader** runs the controllers, the CI worker, Renovate, the add-on sync, the uptime prober and dynamic DNS;
+- a run the old process was building when it stopped goes back to the queue, as on any restart.
+
+Apps keep running either way: they do not depend on the platform being up.
+
+!!! warning "Migrations stay compatible with the previous version"
+    The new version applies its migrations while the old one still serves. A migration only adds (tables, nullable columns or columns with a default, indexes); renaming or dropping something the previous version reads waits for a later release, once nothing uses it.
 
 On restart the platform:
 
@@ -170,13 +179,13 @@ Pull requests get the same check without a release. On the default branch the im
 With `SELF_APP` set to the app rendimiento's repository is onboarded as, the platform knows which of those releases it runs (by the digest of its pod's image). When the newest release holds another image, the **Environment** link shows *new* and the Environment page has an **Update** button. It replaces the steps above for a version that passed its checks:
 
 1. the button points the Deployment at the release's image, pinned by digest (`<registry>/rendimiento-ai-platform@sha256:…`), and notes the release and who pressed it on the pod template;
-2. the Deployment restarts as above (`Recreate`), and the new process applies its migrations;
+2. the Deployment rolls over as above (the old version serves until the new one is ready), and the new process applies its migrations;
 3. the page waits until the new version answers, then reloads.
 
 `make deploy` keeps that image (`hack/keep-image.sh` puts the running digest in place of the overlay's), so changing the configuration does not take the platform back to `:latest`. It is still how `deploy/` and the overlay's changes reach the cluster; the button only changes the image. To tell when that is needed, `make deploy` records the commit it applied (the `rendimiento.ai/manifests` annotation on the Deployment), and the Environment page compares it with the newest release: when a YAML file under `deploy/` changed in between, such as a CRD or the permissions, it says **make deploy is needed** and lists the files, before you update and until you run it. Changes to your private overlay are yours to apply; the page does not see them.
 
 !!! warning "If the new version does not start"
-    With one replica and `Recreate` the old version is gone before the new one is ready, so a release that cannot start leaves the platform down (apps keep running). Go back with `kubectl -n rendimiento-system rollout undo deploy/rendimiento`. A rolling update that keeps the old version until the new one is ready is a later step.
+    The old version keeps serving: a release that never becomes ready leaves the rollout stuck, not the platform down. Go back with `kubectl -n rendimiento-system rollout undo deploy/rendimiento`.
 
 To go back to an image built by hand, `kubectl -n rendimiento-system set image deploy/rendimiento rendimiento=registry.example.lan:5000/rendimiento:latest`.
 

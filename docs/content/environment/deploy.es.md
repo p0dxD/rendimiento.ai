@@ -37,7 +37,7 @@ ITEST_REGISTRY := registry.home.lan:5000
 ```mermaid
 flowchart TB
     subgraph rs[espacio de nombres rendimiento-system]
-        dep[Deployment rendimiento<br/>1 réplica, Recreate]
+        dep[Deployment rendimiento<br/>1 réplica, RollingUpdate]
         svc[Service rendimiento :80]
         ing[Ingress rendimiento.joserod.space<br/>TLS con cert-manager]
         db[(StatefulSet rendimiento-db<br/>Postgres 17, 5Gi en Longhorn)]
@@ -144,7 +144,16 @@ kubectl -n rendimiento-system rollout restart deploy/rendimiento
 kubectl -n rendimiento-system rollout status deploy/rendimiento
 ```
 
-El Deployment descarga `:latest` con `imagePullPolicy: Always` y usa la estrategia `Recreate` (una réplica, nunca dos a la vez), así que un reinicio tarda unos 20 segundos durante los cuales la interfaz y los avisos web no están disponibles. Las aplicaciones siguen corriendo: no dependen de que la plataforma esté arriba. GitHub reintenta los avisos web que fallan.
+El Deployment descarga `:latest` con `imagePullPolicy: Always` y se actualiza **sin cortes**: un `RollingUpdate` con `maxUnavailable: 0` arranca el pod nuevo junto al anterior, y el anterior sigue atendiendo la interfaz y los avisos web hasta que el nuevo está listo. Entonces el pod anterior se detiene y entrega el arrendamiento de líder, así que el nuevo toma la cola de CI y los ciclos de fondo unos segundos después. Durante esos segundos corren las dos versiones:
+
+- los **eventos en vivo** (líneas de registro, cambios de paso, cancelaciones) pasan de una a otra por Postgres ([Actualizaciones en vivo](../architecture/api-ui.md#live-updates-server-sent-events)), así que una página de ejecución que atiende una muestra la construcción que corre la otra;
+- solo el **líder** corre los controladores, el trabajador de CI, Renovate, la sincronización de complementos, el sondeo de disponibilidad y el DNS dinámico;
+- una ejecución que el proceso anterior construía cuando se detuvo vuelve a la cola, como en cualquier reinicio.
+
+Las aplicaciones siguen corriendo de todos modos: no dependen de que la plataforma esté arriba.
+
+!!! warning "Las migraciones siguen siendo compatibles con la versión anterior"
+    La versión nueva aplica sus migraciones mientras la anterior todavía atiende. Una migración solo agrega (tablas, columnas que aceptan nulos o con valor predeterminado, índices); renombrar o quitar algo que lee la versión anterior espera a una versión posterior, cuando ya nada lo usa.
 
 Al reiniciar, la plataforma:
 
@@ -170,13 +179,13 @@ Las solicitudes de incorporación reciben la misma comprobación, sin versión. 
 Con `SELF_APP` puesto en el nombre de la aplicación con la que está incorporado el repositorio de rendimiento, la plataforma sabe cuál de esas versiones ejecuta (por el resumen de la imagen de su pod). Cuando la versión más reciente tiene otra imagen, el enlace **Entorno** muestra *nueva* y la página Entorno tiene un botón **Actualizar**. Sustituye los pasos de arriba para una versión que pasó sus comprobaciones:
 
 1. el botón apunta el Deployment a la imagen de la versión, fijada por su resumen (`<registro>/rendimiento-ai-platform@sha256:…`), y anota en la plantilla del pod la versión y quién lo presionó;
-2. el Deployment se reinicia como arriba (`Recreate`) y el proceso nuevo aplica sus migraciones;
+2. el Deployment se renueva como arriba (la versión anterior atiende hasta que la nueva está lista) y el proceso nuevo aplica sus migraciones;
 3. la página espera a que responda la versión nueva y luego se recarga.
 
 `make deploy` conserva esa imagen (`hack/keep-image.sh` pone el resumen en ejecución en lugar del de la capa privada), así que cambiar la configuración no regresa la plataforma a `:latest`. Sigue siendo la forma de llevar al clúster los cambios de `deploy/` y de la capa privada; el botón solo cambia la imagen. Para saber cuándo hace falta, `make deploy` anota el commit que aplicó (la anotación `rendimiento.ai/manifests` del Deployment), y la página Entorno lo compara con la versión más nueva: si entre los dos cambió un archivo YAML de `deploy/`, como un CRD o los permisos, dice **Hace falta make deploy** y lista los archivos, antes de actualizar y hasta que lo ejecute. Los cambios de su capa privada los aplica usted; la página no los ve.
 
 !!! warning "Si la versión nueva no arranca"
-    Con una réplica y `Recreate`, la versión anterior ya no está cuando la nueva arranca, así que una versión que no puede arrancar deja la plataforma caída (las aplicaciones siguen corriendo). Regrese con `kubectl -n rendimiento-system rollout undo deploy/rendimiento`. Una actualización gradual que conserve la versión anterior hasta que la nueva esté lista queda para un paso posterior.
+    La versión anterior sigue atendiendo: una versión que nunca queda lista deja detenida la actualización, no la plataforma caída. Regrese con `kubectl -n rendimiento-system rollout undo deploy/rendimiento`.
 
 Para regresar a una imagen construida a mano: `kubectl -n rendimiento-system set image deploy/rendimiento rendimiento=registry.example.lan:5000/rendimiento:latest`.
 

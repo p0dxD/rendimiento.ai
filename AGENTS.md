@@ -31,4 +31,5 @@ The person you work with merges and deploys; you prepare.
 - Images build on the cluster's BuildKit pool (`make image`), never with a local `docker build`.
 - This repository is **public**: only example values (`example.com`, `registry.example.lan`). Real hostnames, IPs, node names, hardware and email belong in the private overlay (`local.mk`, `DEPLOY_DIR`), never here.
 - Keep the book in the same change: `docs/content/` in English and Spanish (`page.es.md` beside `page.md`, headings keep the English anchor with `{#...}`); check with `mkdocs build --strict` and `make docs-check`.
+- Migrations must work with the **previous** version too: an update runs both at once for a few seconds. Only add (tables, nullable or defaulted columns, indexes); drop or rename in a later release, once nothing reads it.
 - UI and server text are translated to Mexican Spanish (usted, no anglicisms): `npm run typecheck` and `TestCatalog` fail on a missing translation.

@@ -24,9 +24,10 @@ data:
   # Nodes that must never run builds: e.g. a node whose kernel cannot
   # enforce the build NetworkPolicy, or a GPU node reserved for inference.
   BUILD_EXCLUDE_NODES: gpu-node
-  # One replica with the Recreate strategy never overlaps, so leader
-  # election only adds a way to crash when the API server is slow.
-  LEADER_ELECTION: "false"
+  # An update starts the new pod before stopping the old one: the lease
+  # decides which of the two runs the CI queue and the background loops.
+  # Its deadlines are long (60s) so a slow API server does not end it.
+  LEADER_ELECTION: "true"
   CLUSTER_ISSUER: letsencrypt-prod
   INGRESS_CLASS: nginx
   STORAGE_CLASS: longhorn
@@ -73,7 +74,13 @@ metadata:
   namespace: rendimiento-system
 spec:
   replicas: 1
-  strategy: { type: Recreate }
+  # Zero-downtime updates: the old pod keeps serving until the new one is
+  # ready, then hands it the lease (and the CI queue) as it stops. Events
+  # cross between the two through Postgres; migrations stay compatible with
+  # the previous version (see AGENTS.md).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
   selector:
     matchLabels: { app: rendimiento }
   template:

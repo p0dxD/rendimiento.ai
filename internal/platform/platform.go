@@ -5,6 +5,7 @@ package platform
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -655,6 +656,17 @@ func (p *Platform) rejectRun(ctx context.Context, app *store.App, branch, sha, e
 // Work claims queued runs until ctx ends. Several workers may run; the
 // pipeline Runner enforces the global step concurrency limit.
 func (p *Platform) Work(ctx context.Context) {
+	// A cancel can come from any process (the API's, during an update the
+	// other version's): it reaches here through the hub.
+	cancels, stop := p.Hub.Subscribe(CancelTopic)
+	defer stop()
+	go func() {
+		for e := range cancels {
+			if id, ok := runIDOf(e.Data); ok {
+				p.Cancel(id)
+			}
+		}
+	}()
 	n := max(p.Workers, 1)
 	var wg sync.WaitGroup
 	for range n {
@@ -701,6 +713,28 @@ func (p *Platform) work(ctx context.Context) {
 		delete(p.busy, run.AppID)
 		p.claimMu.Unlock()
 	}
+}
+
+// CancelTopic carries requests to stop a run (its id) to the process that
+// runs it.
+const CancelTopic = "cancel"
+
+// RequestCancel asks whichever process runs a run to stop it.
+func (p *Platform) RequestCancel(runID int64) {
+	p.Hub.Publish(CancelTopic, events.Event{Type: "cancel", Data: runID})
+}
+
+// runIDOf reads a run id from an event's data: an int64 in this process,
+// JSON when it came from another.
+func runIDOf(d any) (int64, bool) {
+	switch v := d.(type) {
+	case int64:
+		return v, true
+	case json.RawMessage:
+		var id int64
+		return id, json.Unmarshal(v, &id) == nil
+	}
+	return 0, false
 }
 
 // Cancel stops a run in progress in this process; it reports whether one was found.

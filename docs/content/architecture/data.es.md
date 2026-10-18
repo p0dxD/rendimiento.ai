@@ -140,7 +140,7 @@ Los nombres de las tablas y las columnas se quedan en inglés porque son los del
 
 ### Migraciones {#migrations}
 
-Las migraciones son archivos de SQL simple en `internal/store/migrations/`, **incrustados** en el programa y aplicados en el orden de sus nombres al arrancar (`Store.Migrate`), cada uno una sola vez, anotados en `schema_migrations`, con la tabla bloqueada para que dos procesos nunca apliquen la misma. Para cambiar el esquema, agregue el siguiente archivo numerado; nunca edite uno que ya se ejecutó.
+Las migraciones son archivos de SQL simple en `internal/store/migrations/`, **incrustados** en el programa y aplicados en el orden de sus nombres al arrancar (`Store.Migrate`), cada uno una sola vez, anotados en `schema_migrations`, con la tabla bloqueada para que dos procesos nunca apliquen la misma. Para cambiar el esquema, agregue el siguiente archivo numerado; nunca edite uno que ya se ejecutó. Una actualización corre la versión anterior junto a la nueva unos segundos, así que una migración solo agrega; quitar o renombrar espera a una versión posterior.
 
 ```sql
 --8<-- "internal/store/migrations/0004_addons.sql"

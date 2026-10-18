@@ -43,15 +43,15 @@ flowchart TB
 
 ## Controllers
 
-**Today:** one replica, `LEADER_ELECTION=false`.
+**Today:** one replica with leader election on; during an update the old pod hands the lease to the new one as it stops.
 
-**To scale:** turn leader election on and run two replicas. The standby takes over within about 15 seconds. Controllers scale *up* (more concurrent reconciles, via `MaxConcurrentReconciles`), not *out*. One leader per controller is the Kubernetes norm and handles thousands of objects.
+**To scale:** run two replicas. The standby takes over when the lease expires (60 seconds). Controllers scale *up* (more concurrent reconciles, via `MaxConcurrentReconciles`), not *out*. One leader per controller is the Kubernetes norm and handles thousands of objects.
 
 ## Live updates across replicas
 
-**Today:** the API is almost stateless: sessions live in Postgres. The exception is `events.Hub`, which is in memory. A browser connected to replica A would miss events published by a worker on replica B.
+**Today:** the API is stateless: sessions live in Postgres, and live events cross between processes through Postgres `LISTEN/NOTIFY` ([`events.Bridge`](../architecture/api-ui.md#live-updates-server-sent-events)), so a browser on one process sees what a worker publishes on another.
 
-**To scale:** send events through Postgres `LISTEN/NOTIFY`, with no new infrastructure. Every replica listens and republishes to its own SSE clients. The hub's `Publish` and `Subscribe` API stays the same; only the transport changes. After that, run the API with several replicas behind the Service.
+**To scale:** run the API with several replicas behind the Service.
 
 ## Database
 

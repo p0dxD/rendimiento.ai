@@ -48,9 +48,13 @@ flowchart LR
     hub --> s1[SSE: navegador 1]
     hub --> s2[SSE: navegador 2]
     rec --> db[(steps.log)]
+    hub <--> pg[(Postgres<br/>NOTIFY rendimiento_events)]
+    pg <--> other[el concentrador del otro proceso]
 ```
 
-`events.Hub` es un mapa de publicación y suscripción dentro del proceso, de cada tema a los canales de sus suscriptores. Publicar nunca bloquea: un suscriptor que se queda atrás pierde eventos y vuelve a pedir el estado cuando se reconecta. Es lo más sencillo que funciona con una réplica; con varias réplicas necesita un bus compartido ([Escalar](../future/scaling.md#live-updates-across-replicas)). La entrada de la plataforma desactiva el búfer del intermediario y permite lecturas de una hora, así que los eventos fluyen al instante.
+`events.Hub` es un mapa de publicación y suscripción dentro del proceso, de cada tema a los canales de sus suscriptores. Publicar nunca bloquea: un suscriptor que se queda atrás pierde eventos y vuelve a pedir el estado cuando se reconecta. La entrada de la plataforma desactiva el búfer del intermediario y permite lecturas de una hora, así que los eventos fluyen al instante.
+
+**Entre procesos** (durante una actualización corren dos a la vez), `events.Bridge` une los concentradores por `LISTEN/NOTIFY` de Postgres en el canal `rendimiento_events`: cada proceso envía lo que se publica en su concentrador y entrega los eventos de los demás a sus propios suscriptores, nunca los suyos de vuelta. Un evento más grande que una notificación (Postgres permite 8000 bytes; los trozos largos de registro lo son) se guarda en la tabla `live_events` y solo se envía su identificador; las filas se borran a los 10 minutos. Una **cancelación** también es un evento (tema `cancel`): la API la pide y el proceso que corre la construcción la detiene.
 
 ## La interfaz {#the-ui}
 

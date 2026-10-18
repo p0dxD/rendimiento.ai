@@ -43,15 +43,15 @@ flowchart TB
 
 ## Controladores {#controllers}
 
-**Hoy:** una réplica, `LEADER_ELECTION=false`.
+**Hoy:** una réplica con la elección de líder activada; durante una actualización el pod anterior entrega el arrendamiento al nuevo al detenerse.
 
-**Para escalar:** activar la elección de líder y correr dos réplicas. La de respaldo toma el control en unos 15 segundos. Los controladores escalan *hacia arriba* (más conciliaciones simultáneas, con `MaxConcurrentReconciles`), no *hacia los lados*. Un líder por controlador es lo normal en Kubernetes y aguanta miles de objetos.
+**Para escalar:** correr dos réplicas. La de respaldo toma el control cuando vence el arrendamiento (60 segundos). Los controladores escalan *hacia arriba* (más conciliaciones simultáneas, con `MaxConcurrentReconciles`), no *hacia los lados*. Un líder por controlador es lo normal en Kubernetes y aguanta miles de objetos.
 
 ## Actualizaciones en vivo entre réplicas {#live-updates-across-replicas}
 
-**Hoy:** la API casi no tiene estado: las sesiones viven en Postgres. La excepción es `events.Hub`, que está en memoria. Un navegador conectado a la réplica A se perdería los eventos que publica un trabajador en la réplica B.
+**Hoy:** la API no tiene estado: las sesiones viven en Postgres, y los eventos en vivo pasan entre procesos por `LISTEN/NOTIFY` de Postgres ([`events.Bridge`](../architecture/api-ui.md#live-updates-server-sent-events)), así que un navegador en un proceso ve lo que publica un trabajador en otro.
 
-**Para escalar:** mandar los eventos por `LISTEN/NOTIFY` de Postgres, sin infraestructura nueva. Cada réplica escucha y vuelve a publicar a sus propios clientes de SSE. La API `Publish` y `Subscribe` del concentrador se queda igual; solo cambia el transporte. Después de eso, correr la API con varias réplicas detrás del Service.
+**Para escalar:** correr la API con varias réplicas detrás del Service.
 
 ## Base de datos {#database}
 
