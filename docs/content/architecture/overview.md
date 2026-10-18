@@ -43,15 +43,16 @@ flowchart TB
 | **Built-in add-ons** | `internal/renovate` | Renovate runs on a schedule. |
 | **Views** | `internal/catalog`, `internal/environment` | The Services page and the Environment page. |
 
-### Three services from one binary {#three-services}
+### Services from one binary {#three-services}
 
-The same image runs as three Deployments, chosen by the `ROLE` setting, so a failure stays in one service, with its own logs, health and restarts:
+The same image runs as four Deployments, chosen by the `ROLE` setting, so a failure stays in one service, with its own logs, health and restarts:
 
 | Service (`ROLE`) | Deployment | What it runs | Only one active, by |
 |---|---|---|---|
 | `api` | `rendimiento` (2 replicas) | the UI, the API, webhooks, MCP, the public stats | nothing: every replica serves |
 | `control` | `rendimiento-control` | the App and Addon controllers, Renovate, the add-on sync, the uptime prober, release verification, the log archive, dynamic DNS | the leader lease |
 | `worker` | `rendimiento-worker` | the CI queue: build and test pods, deploys | the queue's lock in Postgres |
+| `traces` | `rendimiento-traces` | receives every span from the OpenTelemetry Collector and keeps whole requests for the Universe's [waterfall](../guide/universe.md#following-one-request) | one replica (a request's spans wait in its memory) |
 
 `ROLE=all` (the default) runs everything in one process, as on a laptop. The services share nothing but Postgres and Kubernetes:
 
@@ -59,7 +60,7 @@ The same image runs as three Deployments, chosen by the `ROLE` setting, so a fai
 - **requests** go the same way, with an answer: `api` asks `control` to start a Renovate run or for the last add-on sync, and gets an error at once when `control` is down instead of a hung page; a cancel reaches the worker running the run; a deploy hands the new release's verification to `control`;
 - CI runs are queued in Postgres by `api` and claimed by `worker`.
 
-The control service and the worker serve only `/healthz` on their HTTP port. Entorno's **Platform services** check shows each Deployment's ready pods (setting `SERVICES`).
+The control service and the worker serve only `/healthz` on their HTTP port; the traces service serves only its receiver (`TRACES_LISTEN`) and needs no Kubernetes or GitHub. Entorno's **Platform services** check shows each Deployment's ready pods (setting `SERVICES`).
 
 ### Why "started once elected"?
 

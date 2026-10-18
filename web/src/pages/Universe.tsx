@@ -6,7 +6,7 @@
 // reads like a market board: calls per minute, a small trend, latency.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { timeAgo, universeApi, type Universe as UniverseData, type UniverseBarrio, type UniverseEdge, type UniverseNode, type UniverseSpan, type UniverseSystem, type UniverseWindow } from "../api";
+import { timeAgo, universeApi, type KeptTrace, type Universe as UniverseData, type UniverseBarrio, type UniverseEdge, type UniverseNode, type UniverseSpan, type UniverseSystem, type UniverseWindow } from "../api";
 import { Maqueta, ms, rate, worst, type Engine, type MapModel, type MapRoad, type MapView, type Pick, type Status } from "../components/maqueta";
 import { ErrorBox, usePoll } from "../components/ui";
 import { t, tn } from "../i18n";
@@ -640,6 +640,7 @@ function NodePanel({ n, world, setSel, traces, win }: { n: UniverseNode & Number
       {n.public?.map((u) => <a key={u} className="small" href={u} target="_blank" rel="noreferrer">{u}</a>)}
       <div><h3 className="u-h">{t("Latency")}</h3><Latency n={n} /></div>
       {traces && (n.kind === "service" || n.kind === "workload") && <Spans service={n.id} win={win} />}
+      {traces && (n.kind === "service" || n.kind === "workload") && <Requests service={n.id} />}
       {by.length > 0 && <EdgeRows title={t("Called by")} edges={by} world={world} side="in" setSel={setSel} />}
       {calls.length > 0 && <EdgeRows title={t("Calls")} edges={calls} world={world} side="out" setSel={setSel} />}
       {n.catalog && <Link className="small" to={`/services/${n.id}`}>{t("Open in Services")}</Link>}
@@ -700,6 +701,44 @@ function Spans({ service, win }: { service: string; win: UniverseWindow }) {
         );
       })}
     </>
+  );
+}
+
+export const reasonLabel: Record<KeptTrace["reason"], string> = { error: "it failed", slow: "it was slow", sample: "in the sample" };
+
+/**
+ * The requests the traces service kept that went through a service, newest
+ * first; each opens its waterfall.
+ */
+function Requests({ service }: { service: string }) {
+  const [errorsOnly, setErrorsOnly] = useState(false);
+  const [list, setList] = useState<KeptTrace[]>();
+  const [failed, setFailed] = useState<string>();
+  useEffect(() => {
+    let live = true;
+    setList(undefined); setFailed(undefined);
+    universeApi.traces(service, errorsOnly)
+      .then((r) => live && setList(r.traces))
+      .catch((e: Error) => live && setFailed(e.message));
+    return () => { live = false; };
+  }, [service, errorsOnly]);
+  return (
+    <div>
+      <h3 className="u-h">{t("Recent requests")}</h3>
+      <label className="small muted"><input type="checkbox" checked={errorsOnly} onChange={(e) => setErrorsOnly(e.target.checked)} /> {t("Only the failed ones")}</label>
+      {failed && <p className="small muted" style={{ margin: 0 }}>{failed}</p>}
+      {!list && !failed && <p className="small muted" style={{ margin: 0 }}>{t("Loading…")}</p>}
+      {list && !list.length && <p className="small muted" style={{ margin: 0 }}>{t("None kept yet. The traces service keeps every request that fails or is slow, and one in ten of the rest, for a week.")}</p>}
+      <div className="u-reqs">
+        {list?.slice(0, 12).map((r) => (
+          <Link key={r.id} to={`/universe/requests/${r.id}`} className="u-req">
+            <span className={`badge ${r.error ? "bad" : r.reason === "slow" ? "warn" : "ok"}`}>{t(reasonLabel[r.reason])}</span>
+            <span className="u-req-name">{r.name}</span>
+            <span className="small muted">{ms(r.durationUs / 1000)} · {timeAgo(r.startedAt)}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }
 

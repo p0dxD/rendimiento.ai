@@ -14,7 +14,6 @@ Las tareas están ordenadas por valor según el esfuerzo, primero para este clú
 | Tarea | Por qué |
 |---|---|
 | **Respaldos fuera de casa**: copiar la cubeta de respaldos de Garage a una cubeta en la nube (Cloudflare R2, Backblaze B2) | los respaldos sobreviven a perder todo el clúster |
-| **Cascada de una solicitud**: guardar las trazas (Tempo o Jaeger) y mostrar una solicitud a través de cada servicio, al estilo Zipkin, desde un camino del universo | ver en qué se le va el tiempo a una solicitud lenta |
 | **Versiones canario y A/B** con los pesos canario de ingress-nginx | publicar primero al 10 %; reversión automática ante errores |
 | **Contrato de extensiones**: un contenedor que recibe JSON y devuelve un veredicto en JSON, en los ganchos *antes del despliegue*, *después del despliegue* y *análisis* | compuertas de rendimiento con k6, experimentos de caos (Chaos Mesh), revisiones con IA, todo sin cambiar el núcleo |
 | **Generador con IA** detrás de `generate.Generator` | mejores `rendimiento.yaml` y Dockerfiles para repositorios poco comunes |

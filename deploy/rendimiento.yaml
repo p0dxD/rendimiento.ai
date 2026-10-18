@@ -30,7 +30,12 @@ data:
   LEADER_ELECTION: "true"
   # The platform's own Deployments, one per role: Entorno shows each one's
   # health, and Update moves them all to a new release.
-  SERVICES: rendimiento,rendimiento-control,rendimiento-worker
+  # The traces service keeps every request that failed or took TRACE_SLOW,
+  # and TRACE_SAMPLE of the rest, for TRACE_RETENTION_DAYS.
+  TRACE_SAMPLE: "0.1"
+  TRACE_SLOW: 1s
+  TRACE_RETENTION_DAYS: "7"
+  SERVICES: rendimiento,rendimiento-control,rendimiento-worker,rendimiento-traces
   CLUSTER_ISSUER: letsencrypt-prod
   INGRESS_CLASS: nginx
   STORAGE_CLASS: longhorn
@@ -267,6 +272,70 @@ spec:
             runAsGroup: 65532
             capabilities: { drop: [ALL] }
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rendimiento-traces
+  namespace: rendimiento-system
+spec:
+  # Keeps whole requests for the Universe's waterfall: the OpenTelemetry
+  # Collector sends it every span (OTLP/HTTP); it keeps the failed and slow
+  # requests and a sample of the rest, in Postgres, for TRACE_RETENTION_DAYS.
+  # One replica: a request's spans wait in its memory for a few seconds.
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: rendimiento-traces }
+  template:
+    metadata:
+      labels: { app: rendimiento-traces }
+    spec:
+      serviceAccountName: rendimiento
+      containers:
+        - name: rendimiento
+          image: registry.example.lan:5000/rendimiento:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef: { name: rendimiento }
+            # CLOUDFLARE_API_TOKEN and DNS_TARGET; optional until DNS automation is wanted.
+            - secretRef: { name: rendimiento-dns, optional: true }
+            # RESEND_API_KEY for notification emails; optional (no email without it).
+            - secretRef: { name: rendimiento-notify, optional: true }
+            # LOG_ARCHIVE_ACCESS_KEY / LOG_ARCHIVE_SECRET_KEY for the log archive.
+            - secretRef: { name: rendimiento-logs, optional: true }
+            # UMAMI_USERNAME / UMAMI_PASSWORD (a view-only Umami user) for visitor numbers.
+            - secretRef: { name: rendimiento-umami, optional: true }
+          env:
+            - name: ROLE
+              value: traces
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: rendimiento-db, key: password } }
+            - name: DATABASE_URL
+              value: postgres://rendimiento:$(DB_PASSWORD)@rendimiento-db:5432/rendimiento?sslmode=disable
+            - name: SETUP_TOKEN
+              valueFrom: { secretKeyRef: { name: rendimiento-setup, key: token } }
+          ports:
+            - { name: otlp, containerPort: 4318 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: otlp }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: otlp }
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            capabilities: { drop: [ALL] }
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -278,6 +347,17 @@ spec:
     - { name: http, port: 80, targetPort: http }
     # In-cluster only: the public stats (the Ingress routes only "http").
     - { name: stats, port: 8081, targetPort: stats }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rendimiento-traces
+  namespace: rendimiento-system
+spec:
+  # In-cluster only: where the OpenTelemetry Collector exports traces.
+  selector: { app: rendimiento-traces }
+  ports:
+    - { name: otlp, port: 4318, targetPort: otlp }
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

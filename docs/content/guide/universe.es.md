@@ -46,6 +46,7 @@ Cada aplicación queda en un barrio:
 - **Ir a una aplicación** lleva directo a una aplicación por su nombre.
 - **El panel** se lee como una pizarra de mercado: cada barrio, pueblo y servicio con sus llamadas por minuto, una pequeña tendencia del periodo y el cambio (▲▼) de su inicio a su final; **Pide atención** enlista lo que falla o va lento. **Abrir aplicación** lleva a la página de la aplicación; **Abrir en Servicios** lleva a su entrada en el catálogo.
 - **Los momentos de un servicio.** Toque un servicio observado y el panel enlista también lo que hace, según sus trazas: **sus propios momentos** (lo que las [bibliotecas observa](observa.md) marcan con `tramo`, y el trabajo del propio agente), las **rutas que atiende** (`GET /api/moments`) y las **llamadas y consultas que hace** (`SELECT wellness`), cada uno con llamadas por minuto, fallas, p95 y tendencia. Toque uno para ver su latencia en el periodo.
+- **Las solicitudes recientes de un servicio.** Debajo de sus momentos, el panel enlista las solicitudes que pasaron por ese servicio y que guardó el [servicio de trazas](#following-one-request), de la más nueva a la más vieja: si **falló**, **fue lenta** o es **de muestra**, cuánto tardó y cuándo. **Solo las que fallaron** acota la lista. Toque una para seguirla paso a paso.
 - **Actualizar** reconstruye el catálogo desde el clúster en ese momento (si no, tiene a lo más 30 segundos, y la página se recarga cada minuto).
 
 ## La latencia en cada camino {#latency-on-every-line}
@@ -56,7 +57,7 @@ Las llamadas **vistas solo en las trazas** (nadie las declaró) tienen sus propi
 
 ### Cómo activarla {#turning-it-on}
 
-1. Instale el complemento **OpenTelemetry Collector** (Complementos). Recibe las trazas y escribe solo los números, el grafo de servicios, en el almacén de métricas; las trazas mismas no se guardan. Ponga como dirección de escritura su VictoriaMetrics o Prometheus. Antes se descartan las revisiones de salud (las sondas de Kubernetes, `kube-probe/…`, y las revisiones de disponibilidad de rendimiento, `rendimiento-uptime/…`), para que no dibujen una línea desde Internet hacia cada servicio.
+1. Instale el complemento **OpenTelemetry Collector** (Complementos). Recibe las trazas y escribe los números, el grafo de servicios, en el almacén de métricas; con un exportador `otlphttp` hacia `rendimiento-traces`, también le envía cada tramo al [servicio de trazas](#following-one-request). Ponga como dirección de escritura su VictoriaMetrics o Prometheus. Antes se descartan las revisiones de salud (las sondas de Kubernetes, `kube-probe/…`, y las revisiones de disponibilidad de rendimiento, `rendimiento-uptime/…`), para que no dibujen una línea desde Internet hacia cada servicio.
 2. En la plataforma, defina `TELEMETRY_ENDPOINT` con el colector y `METRICS_URL` con el almacén de métricas ([Ajustes](../reference/config.md#traces-and-the-universe)).
 3. En el `rendimiento.yaml` de una aplicación, agregue `observe: true` (o `observe: true` en un solo servicio). El siguiente despliegue agrega las trazas.
 
@@ -75,5 +76,17 @@ Cada servicio observado se llama `aplicación/servicio` (`OTEL_SERVICE_NAME`); a
     El agente de Python está hecho para glibc. Un servicio con una imagen Alpine (musl) puede no cargarlo: use una imagen basada en Debian, o ponga `observe: false` en ese servicio.
 
 Un servicio en Go se mide de todos modos desde el otro lado: las llamadas *hacia* él desde un servicio observado las cronometra quien llama.
+
+## Seguir una solicitud {#following-one-request}
+
+Un camino dice cómo le va a un servicio en promedio; la **cascada de una solicitud** dice en qué se le fue el tiempo a una sola. Ábrala desde **Solicitudes recientes** de un servicio: cada paso (tramo) de la solicitud en el orden de las llamadas, cada uno debajo del que lo hizo, con una barra de cuándo corrió dentro de la solicitud y cuánto tardó. Los colores siguen al servicio, así que se ven los saltos entre servicios; un paso que falló está en rojo. Toque un paso para ver qué hizo (atendió una solicitud, hizo una llamada, un momento propio), cuándo empezó, su mensaje de estado, sus atributos (la ruta, la consulta, el código de estado) y sus eventos (una excepción con su pila, una bandera que anotaron las [bibliotecas observa](observa.md)).
+
+Las solicitudes las guarda el **servicio de trazas** (`rendimiento-traces`, [`ROLE=traces`](../architecture/overview.md#three-services)). El colector le envía cada tramo; espera 20 segundos a que lleguen los tramos de una solicitud y luego guarda:
+
+- cada solicitud en la que **falló** un paso;
+- cada solicitud que tardó **`TRACE_SLOW`** o más (1 segundo);
+- **`TRACE_SAMPLE`** de las demás (una de cada diez), elegidas por el identificador de la solicitud, así que una solicitud se guarda o se descarta completa.
+
+Van a Postgres, una partición por día, y un día se borra completo después de **`TRACE_RETENTION_DAYS`** (7). Al colector solo llega lo que muestrean los servicios (`TELEMETRY_SAMPLE_RATIO`, una cuarta parte), así que el servicio de trazas ve una cuarta parte de las solicitudes y guarda las interesantes entre ellas. Ponga la proporción en `1` para ver cada falla.
 
 Para agregar a las trazas los momentos que solo el código conoce (un pago, un reporte) y banderas de funciones, use las [bibliotecas](observa.md) para Node, Python y Java.

@@ -11,6 +11,7 @@ import { Setup } from "./pages/Setup";
 import { Environment } from "./pages/Environment";
 import { Services } from "./pages/Services";
 import { Universe } from "./pages/Universe";
+import { RequestPage } from "./pages/Request";
 import { Addons } from "./pages/Addons";
 import { AddonDetail } from "./pages/Installed";
 import { Problems, ProblemsNavLink } from "./pages/Problems";
@@ -85,6 +86,7 @@ function Shell() {
           <Route path="/mercado/:app" element={<PuestoEditor />} />
           <Route path="/environment" element={<Environment />} />
           <Route path="/universe" element={<Universe />} />
+          <Route path="/universe/requests/:id" element={<RequestPage />} />
           <Route path="/services" element={<Services />} />
           <Route path="/addons" element={<Addons />} />
           <Route path="/problems" element={<Problems />} />

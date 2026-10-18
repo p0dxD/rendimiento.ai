@@ -1,6 +1,6 @@
 # Ajustes
 
-rendimiento se configura solo con **variables de entorno**, que se leen una vez al arrancar en `cmd/rendimiento/main.go`. En un clúster vienen del ConfigMap `rendimiento` y de unos cuantos Secrets (`deploy/rendimiento.yaml` trae valores de ejemplo; guarde los valores de un clúster real en una capa privada, vea [Cómo se despliega la plataforma](../environment/deploy.md#your-own-settings)). Para cambiar un ajuste, edite el ConfigMap y corra `kubectl -n rendimiento-system rollout restart deploy` (los tres servicios).
+rendimiento se configura solo con **variables de entorno**, que se leen una vez al arrancar en `cmd/rendimiento/main.go`. En un clúster vienen del ConfigMap `rendimiento` y de unos cuantos Secrets (`deploy/rendimiento.yaml` trae valores de ejemplo; guarde los valores de un clúster real en una capa privada, vea [Cómo se despliega la plataforma](../environment/deploy.md#your-own-settings)). Para cambiar un ajuste, edite el ConfigMap y corra `kubectl -n rendimiento-system rollout restart deploy` (todos los servicios).
 
 ## Básicos {#core}
 
@@ -18,8 +18,8 @@ rendimiento se configura solo con **variables de entorno**, que se leen una vez 
 | `NAMESPACE` | `rendimiento-system` | | donde viven la plataforma y sus Secrets |
 | `LISTEN` | `:8080` | | la dirección HTTP (API, interfaz, avisos web) |
 | `METRICS_ADDR` | `:9090` | | métricas de Prometheus (controller-runtime) |
-| `ROLE` | `all` | por Deployment: `api`, `control`, `worker` | lo que corre este proceso ([tres servicios](../architecture/overview.md#three-services)): `api` la interfaz, la API, los avisos web y MCP; `control` los controladores y los ciclos de fondo; `worker` la cola de CI; `all` todo |
-| `SERVICES` | *(vacío)* | `rendimiento,rendimiento-control,rendimiento-worker` | los Deployments de la plataforma: Entorno muestra la salud de cada uno, y Actualizar los mueve todos a una versión |
+| `ROLE` | `all` | por Deployment: `api`, `control`, `worker`, `traces` | lo que corre este proceso ([sus servicios](../architecture/overview.md#three-services)): `api` la interfaz, la API, los avisos web y MCP; `control` los controladores y los ciclos de fondo; `worker` la cola de CI; `traces` guarda solicitudes para la cascada; `all` todo |
+| `SERVICES` | *(vacío)* | `rendimiento,rendimiento-control,rendimiento-worker,rendimiento-traces` | los Deployments de la plataforma: Entorno muestra la salud de cada uno, y Actualizar los mueve todos a una versión |
 | `LEADER_ELECTION` | `true` | `true` | el arrendamiento decide qué proceso de control corre los controladores y los ciclos de fondo; durante una actualización el pod anterior lo entrega al detenerse |
 
 ## GitHub {#github}
@@ -119,6 +119,10 @@ Los días y las horas se cuentan en `PUBLIC_STATS_TZ`.
 | `TELEMETRY_ENDPOINT` | *(vacío: `observe` no hace nada)* | `http://opentelemetry-collector.observa.svc.cluster.local:4318` | el colector de OpenTelemetry (OTLP por HTTP) al que los servicios con `observe` envían sus trazas; se instala con el complemento **OpenTelemetry Collector** |
 | `TELEMETRY_SAMPLE_RATIO` | `0.25` | `1` | la proporción de trazas que se conservan (una traza que empezó antes conserva la decisión de quien llamó) |
 | `TELEMETRY_AGENTS` | las imágenes de OpenTelemetry para `java`, `node`, `python` | `java=registry.example.lan/otel-java:2.32.0` | pares `lenguaje=imagen` que reemplazan la imagen de un agente |
+| `TRACES_LISTEN` | `:4318` | | donde el servicio de trazas recibe los tramos (OTLP por HTTP, protobuf) del colector |
+| `TRACE_SAMPLE` | `0.1` | | la proporción de solicitudes normales que guarda el servicio de trazas para la [cascada](../guide/universe.md#following-one-request); las que fallan y las lentas siempre se guardan |
+| `TRACE_SLOW` | `1s` | | una solicitud que tarda esto o más siempre se guarda (`0`: apagado) |
+| `TRACE_RETENTION_DAYS` | `7` | | días de solicitudes guardadas; los días anteriores se borran completos |
 | `METRICS_URL` | *(vacío: sin latencia en el mapa)* | `http://vmsingle.monitoring.svc.cluster.local:8428` | un almacén compatible con Prometheus (VictoriaMetrics) donde el colector escribe el grafo de servicios; el [universo](../guide/universe.md) lee de ahí las llamadas, los errores y la latencia |
 
 ## Archivo de registros {#log-archive}
