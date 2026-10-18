@@ -8,6 +8,7 @@ rendimiento is configured only through **environment variables**, read once at s
 |---|---|---|---|
 | `DATABASE_URL` | *(required)* | from Secret `rendimiento-db` | Postgres connection string |
 | `BASE_URL` | `http://localhost:8080` | `https://rendimiento.example.com` | public URL; used for OAuth callbacks, webhooks and links in GitHub checks |
+| `REDIRECT_HOSTS` | *(empty)* | `rendimiento.old.example.com` | old addresses of the platform (still routed to it): people visiting them are sent to `BASE_URL`, same path (308); GitHub's webhooks, MCP, `/api/public/` and `/healthz` keep answering there until each moves |
 | `BOOK_URL`, `BOOK_URL_ES` | *(empty: no link)* | `https://learn.example.com/`, `https://aprende.example.com/` | the book in English and in Spanish, linked from the welcome page that people see before they sign in |
 | `SELF_APP` | *(empty: no Update button)* | `rendimiento-ai` | the app rendimiento's own repository is onboarded as; its releases' `build:platform` images are the versions the Environment page can [update to](../environment/deploy.md#updating-from-the-environment-page) (`SELF_BUILD`, `SELF_DEPLOYMENT` and `SELF_CONTAINER` default to `platform`, `rendimiento` and `rendimiento`) |
 | `GITHUB_ACCOUNTS` | *(empty: every installation)* | `example-user,example-paginas` | the only accounts (users or organizations) whose installations of the GitHub App rendimiento uses: others are left out of the wizard and their pushes are ignored. Set it before making the App public, which lets anyone install it |

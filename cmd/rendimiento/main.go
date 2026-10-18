@@ -451,6 +451,9 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		prober.Notify, prober.BaseURL = notifier, baseURL
 	}
 	srv.Notify = notifier
+	// REDIRECT_HOSTS: old addresses of the platform; people visiting them
+	// go to BASE_URL, while webhooks, MCP and the public stats still answer.
+	srv.RedirectHosts = splitList(os.Getenv("REDIRECT_HOSTS"))
 	srv.PublicStats = env("PUBLIC_STATS", "false") == "true"
 	srv.PublicActivity = env("PUBLIC_ACTIVITY", "false") == "true"
 	srv.PublicOrigins = splitList(os.Getenv("PUBLIC_STATS_ORIGINS"))
