@@ -15,6 +15,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -64,7 +65,9 @@ type Server struct {
 	Credentials CredentialStore
 	DNS         dns.Provider
 	Log         *slog.Logger
-	BaseURL     string // https://rendimiento.joserod.space
+	BaseURL     string // https://rendimiento.example.com
+	// RedirectHosts are old addresses: people visiting them go to BaseURL.
+	RedirectHosts []string
 	// Notify sends notification emails (the test email; nil when off).
 	Notify *notify.Notifier
 	// PublicStats serves GET /api/public/stats without login, for a public
@@ -218,14 +221,45 @@ func (s *Server) Handler() http.Handler {
 
 	mux.Handle("/", s.ui())
 	if s.MCP == nil {
-		return s.guard(localized(mux))
+		return s.redirectHosts(s.guard(localized(mux)))
 	}
 	// /mcp has its own auth (agent keys) and speaks JSON-RPC, which the
 	// translating middleware must not touch.
 	outer := http.NewServeMux()
 	outer.Handle("/mcp", s.MCP)
 	outer.Handle("/", localized(mux))
-	return s.guard(outer)
+	return s.redirectHosts(s.guard(outer))
+}
+
+// machinePaths keep answering on a redirected host: what GitHub, agents
+// and websites call there is moved one by one, and machines do not all
+// follow redirects.
+var machinePaths = []string{"/api/webhooks/", "/mcp", "/api/public/", "/healthz"}
+
+// redirectHosts sends people who visit one of RedirectHosts (an old
+// address) to BaseURL, same path and query (308). Machine paths answer
+// there as before.
+func (s *Server) redirectHosts(next http.Handler) http.Handler {
+	if len(s.RedirectHosts) == 0 {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host := r.Host
+		if fh := r.Header.Get("X-Forwarded-Host"); fh != "" {
+			host = fh
+		}
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
+		}
+		if (r.Method == http.MethodGet || r.Method == http.MethodHead) && slices.ContainsFunc(s.RedirectHosts, func(h string) bool { return strings.EqualFold(h, host) }) &&
+			!slices.ContainsFunc(machinePaths, func(p string) bool {
+				return r.URL.Path == strings.TrimSuffix(p, "/") || strings.HasPrefix(r.URL.Path, p)
+			}) {
+			http.Redirect(w, r, s.BaseURL+r.URL.RequestURI(), http.StatusPermanentRedirect)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // guard adds security headers and rejects cross-site state changes. The

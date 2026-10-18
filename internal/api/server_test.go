@@ -626,3 +626,33 @@ func TestLoginStartsOnBaseURL(t *testing.T) {
 		}
 	}
 }
+
+// People visiting an old address go to BaseURL with the same path; what
+// machines call there (webhooks, MCP, public stats, health) still answers.
+func TestRedirectHosts(t *testing.T) {
+	s := &Server{BaseURL: "https://rendimiento.example", RedirectHosts: []string{"old.example"}}
+	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { io.WriteString(w, "here") })
+	h := s.redirectHosts(ok)
+	for _, c := range []struct{ method, host, path, want string }{
+		{"GET", "old.example", "/apps/shop/runs/7?tab=log", "https://rendimiento.example/apps/shop/runs/7?tab=log"},
+		{"GET", "OLD.example:443", "/", "https://rendimiento.example/"},
+		{"GET", "rendimiento.example", "/apps/shop", ""},
+		{"POST", "old.example", "/api/webhooks/github", ""},
+		{"POST", "old.example", "/mcp", ""},
+		{"GET", "old.example", "/mcp", ""},
+		{"GET", "old.example", "/api/public/stats", ""},
+		{"GET", "old.example", "/healthz", ""},
+		{"POST", "old.example", "/api/runs/1/cancel", ""},
+	} {
+		r := httptest.NewRequest(c.method, c.path, nil)
+		r.Host = c.host
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if got := w.Header().Get("Location"); got != c.want || (c.want != "" && w.Code != http.StatusPermanentRedirect) {
+			t.Errorf("%s %s%s: %d to %q, want %q", c.method, c.host, c.path, w.Code, got, c.want)
+		}
+	}
+	if (&Server{}).redirectHosts(ok) == nil {
+		t.Error("no hosts: the handler itself")
+	}
+}
