@@ -51,6 +51,8 @@ Agents reach the Ruta through **MCP** (Model Context Protocol), an open standard
 | `ruta_actualizar` | change an entry, or tick a to-do | read and write, with a cargo |
 | `cargo_entregar` | hand the cargo over | read and write, with a cargo |
 
+While the [Mercado](mercado.md#from-an-agent-mcp) is on, the same server also has its tools (`mercado_puestos`, `mercado_leer`, `mercado_editar`, `mercado_abrir`).
+
 ## Safety {#safety}
 
 - **Keys** are random, stored only as a SHA-256 hash, always expire, and can be revoked on the Keys tab; revoking closes the key's open cargo. A read-only key doesn't even see the writing tools.

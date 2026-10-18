@@ -290,7 +290,6 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		Catalog:  &catalog.Builder{Kube: kube},
 		Renovate: renovateRunner,
 		Addons:   addonSyncer,
-		MCP:      (&ruta.Server{Store: st, Log: log.With("component", "ruta")}).Handler(),
 		Environment: &environment.Checker{
 			Kube: kube, Discovery: clientset.Discovery(), DNS: dnsProvider, GitHub: holder, DB: st,
 			Config: environment.Config{
@@ -318,6 +317,13 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 			},
 		}
 	}
+	// La Ruta's MCP server, with the Mercado's tools when it is on (an unset
+	// *Mercado must stay a nil interface, or the tools would appear broken).
+	rutaSrv := &ruta.Server{Store: st, Log: log.With("component", "ruta")}
+	if srv.Mercado != nil {
+		rutaSrv.Mercado = srv.Mercado
+	}
+	srv.MCP = rutaSrv.Handler()
 	// Updates from rendimiento's own releases: SELF_APP is the app built
 	// from its repository, whose builds: entry SELF_BUILD is this image.
 	if self := os.Getenv("SELF_APP"); self != "" {

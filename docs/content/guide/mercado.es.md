@@ -27,6 +27,19 @@ Esa confirmación es un envío como cualquier otro: rendimiento construye la pá
 
 El formulario lee la página de `pagina.json` en la rama principal, así que un cambio hecho en GitHub aparece en el formulario. `index.html` se reescribe cada vez que se guarda: cambie la página con `pagina.json` o con el formulario, no editando el HTML.
 
+## Desde un agente (MCP) {#from-an-agent-mcp}
+
+Un agente conectado al servidor MCP de la Ruta (`/mcp`, con una [llave de agente](ruta.md)) puede cuidar los puestos desde una conversación; por ejemplo: «cambia el horario de la panadería» o «hazle una página al restaurante de mi tía». Las herramientas aparecen solo mientras el Mercado está encendido:
+
+| Herramienta | Qué hace | Llave |
+|---|---|---|
+| `mercado_puestos` | lista los puestos: nombre, tipo, dueño y dirección | cualquiera |
+| `mercado_leer` | lee la página completa de un puesto: textos, colores, detalles y enlaces (las fotos, como rutas) | cualquiera |
+| `mercado_editar` | cambia solo los campos que recibe (nombre, lema, sobre, paleta, detalles, enlaces) y publica; lo demás, fotos incluidas, se queda | que pueda escribir, con un cargo |
+| `mercado_abrir` | abre un puesto nuevo: su repositorio público y su página en su dirección, a nombre de quien creó la llave | que pueda escribir, con un cargo, y solo con `pedido_por_la_persona: true` |
+
+Las fotos se agregan desde la página del Mercado en la interfaz. Cada llamada queda registrada en la actividad de la Ruta, y por aquí solo se puede cambiar un puesto, nunca otra aplicación.
+
 ## Qué es seguro {#what-is-safe}
 
 Nada de lo que se escribe en el formulario se vuelve HTML:

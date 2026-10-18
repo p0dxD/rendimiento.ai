@@ -331,6 +331,8 @@ var catalog = map[string]string{
 	"release #%d was never deployed (a pre-deploy task failed), so it cannot be rolled back to": "la versión n.º %d nunca se desplegó (falló una tarea previa al despliegue), así que no se puede revertir a ella",
 	"Release #%d was rolled back":                  "Se revirtió la versión n.º %d",
 	"release failed: %s":                           "falló la publicación: %s",
+	"there is no stall named %q":                   "no hay ningún puesto llamado %q",
+	"%s is an app, not a stall of the Mercado":     "%s es una aplicación, no un puesto del Mercado",
 	"released #%d":                                 "publicada la n.º %d",
 	"rendimiento.ai · sent by your CI/CD platform": "rendimiento.ai · enviado por su plataforma de integración y despliegue continuos",
 	"rendimiento.yaml at %s: %s":                   "rendimiento.yaml en %s: %s",
