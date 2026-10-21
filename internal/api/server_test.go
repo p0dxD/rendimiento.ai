@@ -656,3 +656,14 @@ func TestRedirectHosts(t *testing.T) {
 		t.Error("no hosts: the handler itself")
 	}
 }
+
+// /llms.txt tells an agent how to connect, without naming apps or people.
+func TestLLMsTxt(t *testing.T) {
+	s := &Server{BaseURL: "https://rendimiento.example/", BookURL: "https://book.example"}
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/llms.txt", nil))
+	body := w.Body.String()
+	if w.Code != 200 || !strings.Contains(body, "https://rendimiento.example/mcp") || !strings.Contains(body, "https://book.example/guide/agents/") || !strings.HasPrefix(w.Header().Get("Content-Type"), "text/markdown") {
+		t.Fatalf("%d %s\n%s", w.Code, w.Header().Get("Content-Type"), body)
+	}
+}

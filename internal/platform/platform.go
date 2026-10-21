@@ -578,7 +578,7 @@ func (p *Platform) QueueRun(ctx context.Context, app *store.App, branch, sha, ev
 	}
 	raw, err := p.GitHub.FileAt(ctx, app.InstallationID, app.Repo, spec.FileName, ref)
 	if gh.IsNotFound(err) {
-		if event == "manual" {
+		if event == "manual" || event == "agent" {
 			return nil, fmt.Errorf("%s is not on %s yet; merge the onboarding PR first", spec.FileName, branch)
 		}
 		return nil, nil // repo not onboarded on this branch; ignore
@@ -722,6 +722,31 @@ func (p *Platform) work(ctx context.Context) {
 // CancelTopic carries requests to stop a run (its id) to the process that
 // runs it.
 const CancelTopic = "cancel"
+
+// ErrNotCancellable is CancelRun's answer for a run that already finished.
+var ErrNotCancellable = errors.New("run is not running or already finished")
+
+// CancelRun stops a run wherever it is: here, in the process running it
+// (through the hub), or in the queue before it starts.
+func (p *Platform) CancelRun(ctx context.Context, id int64) error {
+	if p.Cancel(id) {
+		return nil
+	}
+	run, err := p.Store.GetRun(ctx, id)
+	switch {
+	case errors.Is(err, store.ErrNotFound):
+		return ErrNotCancellable
+	case err != nil:
+		return err
+	case run.Status == store.RunQueued:
+		return p.Store.FinishRun(ctx, id, store.RunCancelled, "cancelled before it started")
+	case run.Status == store.RunRunning:
+		// Running in another process (the CI worker's): ask it to stop.
+		p.RequestCancel(id)
+		return nil
+	}
+	return ErrNotCancellable
+}
 
 // RequestCancel asks whichever process runs a run to stop it.
 func (p *Platform) RequestCancel(runID int64) {

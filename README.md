@@ -4,6 +4,8 @@ Connect a GitHub repo, press **Deploy**, get a live HTTPS URL. rendimiento is a 
 
 It runs a small home k3s cluster, and deploys every app on it, including its own documentation.
 
+**Built for people and AI agents together.** Agents are users of the platform: each connects over **MCP** with a key that has a role (reader or collaborator) and, if wanted, a set of apps. They read apps, runs, logs and request traces, test branches in CI, and keep what they learn in **la Ruta**, the platform's shared memory, in turns of work (*cargos*) they hand over to whoever comes next. People decide what reaches production. See [Built for agents](docs/content/guide/agents.md) and `/llms.txt`.
+
 ```mermaid
 flowchart LR
     gh[GitHub App] -- push webhook --> api[API + UI]

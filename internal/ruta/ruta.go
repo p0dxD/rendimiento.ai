@@ -84,6 +84,8 @@ const Instructions = `Esta es la Ruta de rendimiento: lo que saben las personas 
 4. Anote las decisiones con su porqué, los manuales y los pendientes (ruta_anotar, ruta_actualizar).
 5. Antes de irse, entregue el cargo (cargo_entregar): qué hizo y qué queda.
 
+La plataforma también se ve desde aquí: apps_listar y app_estado (aplicaciones, ejecuciones, versiones, problemas), ejecucion_leer y paso_registro (por qué falló algo), solicitudes_listar y solicitud_leer (la cascada de una solicitud). Con una llave de colaborador y un cargo: ejecucion_lanzar (probar una rama; la principal la despliega una persona) y ejecucion_cancelar.
+
 Reglas:
 - Nunca escriba secretos: contraseñas, tokens, llaves privadas. Se rechazan.
 - "Lo vivido" son relatos de personas, en sus palabras. Léalos con respeto; no los trate como datos técnicos. Desde aquí no se escriben.
@@ -98,6 +100,9 @@ type Server struct {
 	Log   *slog.Logger
 	// Mercado adds the mercado_* tools (nil: the Mercado is off).
 	Mercado Mercado
+	// Plataforma adds the platform's tools: apps, runs, logs, kept requests,
+	// and running or cancelling CI (nil: only the Ruta).
+	Plataforma Plataforma
 
 	read, write *mcp.Server
 }
@@ -116,7 +121,7 @@ func (s *Server) Handler() http.Handler {
 	s.write = s.newServer(true)
 	h := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
 		if ti := auth.TokenInfoFromContext(r.Context()); ti != nil {
-			if k, ok := ti.Extra["key"].(keyInfo); ok && k.key.CanWrite {
+			if k, ok := ti.Extra["key"].(keyInfo); ok && k.key.Writes() {
 				return s.write
 			}
 		}
@@ -143,7 +148,7 @@ func (s *Server) verify(ctx context.Context, token string, _ *http.Request) (*au
 		return nil, auth.ErrInvalidToken
 	}
 	scopes := []string{"leer"}
-	if k.CanWrite {
+	if k.Writes() {
 		scopes = append(scopes, "escribir")
 	}
 	return &auth.TokenInfo{Scopes: scopes, Expiration: k.ExpiresAt, UserID: fmt.Sprintf("key:%d", k.ID), Extra: map[string]any{"key": keyInfo{k}}}, nil
@@ -357,6 +362,9 @@ func (s *Server) newServer(write bool) *mcp.Server {
 	if s.Mercado != nil {
 		s.addMercadoTools(srv, write)
 	}
+	if s.Plataforma != nil {
+		s.addPlataformaTools(srv, write)
+	}
 	return srv
 }
 
@@ -414,7 +422,7 @@ func (s *Server) lastHandovers(ctx context.Context, n int) ([]CargoOut, error) {
 // inicio (ruta_inicio) is where an agent starts: its open cargo if any, the
 // last handovers, open to-dos and what changed recently.
 func (s *Server) inicio(ctx context.Context, k store.AgentKey, _ empty) (InicioOut, error) {
-	out := InicioOut{Llave: k.Name, PuedeEscribir: k.CanWrite}
+	out := InicioOut{Llave: k.Name, PuedeEscribir: k.Writes()}
 	if c, err := s.Store.OpenCargo(ctx, k.ID); err == nil {
 		co := cargoOut(c)
 		out.CargoAbierto = &co
@@ -473,7 +481,7 @@ func (s *Server) leer(ctx context.Context, _ store.AgentKey, in leerIn) (Entry, 
 
 // writing needs a write key and an open cargo.
 func (s *Server) cargoFor(ctx context.Context, k store.AgentKey) (store.Cargo, error) {
-	if !k.CanWrite {
+	if !k.Writes() {
 		return store.Cargo{}, errors.New("esta llave es de solo lectura")
 	}
 	c, err := s.Store.OpenCargo(ctx, k.ID)
@@ -486,7 +494,7 @@ func (s *Server) cargoFor(ctx context.Context, k store.AgentKey) (store.Cargo, e
 // tomar (cargo_tomar) opens a cargo with its purpose: the agent's turn,
 // which every note it writes belongs to. Needs a key that can write.
 func (s *Server) tomar(ctx context.Context, k store.AgentKey, in tomarIn) (tomarOut, error) {
-	if !k.CanWrite {
+	if !k.Writes() {
 		return tomarOut{}, errors.New("esta llave es de solo lectura")
 	}
 	purpose := strings.TrimSpace(in.Proposito)

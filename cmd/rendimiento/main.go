@@ -396,6 +396,8 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	// La Ruta's MCP server, with the Mercado's tools when it is on (an unset
 	// *Mercado must stay a nil interface, or the tools would appear broken).
 	rutaSrv := &ruta.Server{Store: st, Log: log.With("component", "ruta")}
+	// The platform's tools for agents: apps, runs, logs, kept requests, CI.
+	rutaSrv.Plataforma = plataformaMCP{Store: st, p: p, srv: srv}
 	if srv.Mercado != nil {
 		rutaSrv.Mercado = srv.Mercado
 	}
@@ -668,6 +670,24 @@ func tracesService(st *store.Store, log *slog.Logger) (*http.Server, *traces.Kee
 
 // ddnsTopic is where the control service answers for dynamic DNS's status.
 const ddnsTopic = "ddns/status"
+
+// plataformaMCP is what the agents' platform tools (ruta.Plataforma) read
+// and do: the store, plus logs (from the archive too) and the CI queue.
+type plataformaMCP struct {
+	*store.Store
+	p   *platform.Platform
+	srv *api.Server
+}
+
+func (m plataformaMCP) StepLog(ctx context.Context, runID int64, step string) (string, error) {
+	return m.srv.StepLogText(ctx, runID, step)
+}
+
+func (m plataformaMCP) QueueRun(ctx context.Context, app *store.App, branch string) (*store.Run, error) {
+	return m.p.QueueRun(ctx, app, branch, "", "agent")
+}
+
+func (m plataformaMCP) CancelRun(ctx context.Context, id int64) error { return m.p.CancelRun(ctx, id) }
 
 // ptr returns a pointer to a copy of v.
 func ptr[T any](v T) *T { return &v }

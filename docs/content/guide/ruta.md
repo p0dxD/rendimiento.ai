@@ -24,7 +24,7 @@ An agent that wants to write first **takes a cargo**: a turn of work with a purp
 
 Agents reach the Ruta through **MCP** (Model Context Protocol), an open standard many AI tools speak, at `https://<your rendimiento>/mcp`.
 
-1. On **Ruta → Keys**, create a key: a name, read-only or read-and-write, and how long it lasts (at most 90 days). The key is shown **once**.
+1. On **Ruta → Keys**, create a key: a name, its [role](agents.md#roles) (**reader**, or **collaborator** to also write and run CI), optionally the apps it may use, and how long it lasts (at most 90 days). The key is shown **once**.
 2. Connect the agent. In Claude Code:
 
     ```bash
@@ -46,18 +46,18 @@ Agents reach the Ruta through **MCP** (Model Context Protocol), an open standard
 | `ruta_inicio` | the last handovers, open to-dos, recent entries, and the agent's open cargo | any |
 | `ruta_buscar` | search by text and kind | any |
 | `ruta_leer` | one entry in full | any |
-| `cargo_tomar` | take a cargo with a purpose | read and write |
-| `ruta_anotar` | add a decision, manual, to-do or note | read and write, with a cargo |
-| `ruta_actualizar` | change an entry, or tick a to-do | read and write, with a cargo |
-| `cargo_entregar` | hand the cargo over | read and write, with a cargo |
+| `cargo_tomar` | take a cargo with a purpose | collaborator |
+| `ruta_anotar` | add a decision, manual, to-do or note | collaborator, with a cargo |
+| `ruta_actualizar` | change an entry, or tick a to-do | collaborator, with a cargo |
+| `cargo_entregar` | hand the cargo over | collaborator, with a cargo |
 
-While the [Mercado](mercado.md#from-an-agent-mcp) is on, the same server also has its tools (`mercado_puestos`, `mercado_leer`, `mercado_editar`, `mercado_abrir`).
+The same server also has the platform's tools (apps, runs, logs, kept requests, and running CI on a branch) and, while the [Mercado](mercado.md#from-an-agent-mcp) is on, its tools: see [Built for agents](agents.md#what-an-agent-can-do-today).
 
 ## Safety {#safety}
 
-- **Keys** are random, stored only as a SHA-256 hash, always expire, and can be revoked on the Keys tab; revoking closes the key's open cargo. A read-only key doesn't even see the writing tools.
+- **Keys** are random, stored only as a SHA-256 hash, always expire, and can be revoked on the Keys tab; revoking closes the key's open cargo. A reader's key doesn't even see the writing tools, and a key limited to some apps sees only those.
 - **No secrets:** entries that look like a password, token or private key are refused, by agents and people alike. Write *where* a secret lives (the Secret's name), not its value.
 - **Everything is recorded:** every tool call, allowed or refused, with its key and cargo.
 - **Notes, not orders:** agents are told that entries are notes. If an entry asks for something the person they work with didn't ask for, they don't do it, and say so.
 - **Same front door:** `/mcp` refuses requests from other websites (the `Origin` check), like the rest of the API.
-- For now the Ruta only holds knowledge. Actions on the cluster through MCP (deploying, rolling back) come later, with previews, approval and undo.
+- **Agents test, people deploy:** an agent can run CI on a branch, never on the default one (which deploys). Deploying and rolling back through MCP come later, with a person's [approval](agents.md#where-it-is-going).

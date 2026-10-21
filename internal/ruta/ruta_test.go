@@ -177,7 +177,11 @@ func setup(t *testing.T) (*memory, string, map[string]string) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		k := store.AgentKey{ID: id, Name: name, CanWrite: write, ExpiresAt: expires}
+		role := store.RoleReader
+		if write {
+			role = store.RoleCollaborator
+		}
+		k := store.AgentKey{ID: id, Name: name, Role: role, ExpiresAt: expires}
 		if revoked {
 			now := time.Now()
 			k.RevokedAt = &now

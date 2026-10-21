@@ -2,7 +2,7 @@
 // in any one agent's session. Agents read and write it over MCP (/mcp) with a
 // key made on the Keys tab; lo vivido (what people lived) only people write.
 import { useState } from "react";
-import { api, timeAgo, type AgentKey, type CreatedAgentKey, type RutaEntry, type RutaInput, type RutaKind } from "../api";
+import { api, timeAgo, type AgentKey, type AgentRole, type CreatedAgentKey, type RutaEntry, type RutaInput, type RutaKind } from "../api";
 import { ErrorBox, usePoll } from "../components/ui";
 import { t, tn } from "../i18n";
 
@@ -241,10 +241,23 @@ function Cargos() {
   );
 }
 
-/** The form to make an agent key: its name, whether it can write, and how many days it lasts. */
+export const roleLabel: Record<AgentRole, string> = { reader: "Reader", collaborator: "Collaborator", admin: "Administrator" };
+
+/** What a key may do and on which apps, as the keys table shows it. */
+function access(k: AgentKey) {
+  const apps = k.apps?.length ? k.apps.join(", ") : t("every app");
+  return `${t(roleLabel[k.role] ?? "Reader")} · ${apps}`;
+}
+
+/**
+ * The form to make an agent key: its name, what it may do (read, or also
+ * write the Ruta and run CI), on which apps, and how many days it lasts.
+ */
 function NewKey({ onCreated }: { onCreated: (k: CreatedAgentKey) => void }) {
   const [name, setName] = useState("");
-  const [canWrite, setCanWrite] = useState(true);
+  const [role, setRole] = useState<AgentRole>("collaborator");
+  const [apps, setApps] = useState<string[]>([]);
+  const { data: allApps } = usePoll(api.apps, [], 0);
   const [days, setDays] = useState(30);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>();
@@ -259,17 +272,23 @@ function NewKey({ onCreated }: { onCreated: (k: CreatedAgentKey) => void }) {
             {[7, 30, 90].map((d) => <option key={d} value={d}>{tn(d, "{n} day", "{n} days")}</option>)}
           </select>
         </label>
-        <label className="field"><span>{t("Access")}</span>
-          <select value={canWrite ? "w" : "r"} onChange={(e) => setCanWrite(e.target.value === "w")}>
-            <option value="w">{t("Read and write (with a cargo)")}</option>
-            <option value="r">{t("Read only")}</option>
+        <label className="field"><span>{t("Role")}</span>
+          <select value={role} onChange={(e) => setRole(e.target.value as AgentRole)}>
+            <option value="collaborator">{t("Collaborator: reads, writes the Ruta (with a cargo), runs and cancels CI")}</option>
+            <option value="reader">{t("Reader: reads the Ruta, apps, runs, logs and traces")}</option>
           </select>
+        </label>
+        <label className="field"><span>{t("Apps")}</span>
+          <select multiple value={apps} onChange={(e) => setApps(Array.from(e.target.selectedOptions, (o) => o.value))} size={Math.min(6, Math.max(2, allApps?.length ?? 2))}>
+            {allApps?.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
+          </select>
+          <span className="small muted">{apps.length ? tn(apps.length, "only {n} app", "only {n} apps") : t("none chosen: every app")}</span>
         </label>
       </div>
       <ErrorBox error={err} />
       <div><button className="primary" disabled={busy || !name.trim()} onClick={() => {
         setBusy(true); setErr(undefined);
-        api.createAgentKey({ name: name.trim(), canWrite, days }).then((k) => { setBusy(false); setName(""); onCreated(k); }, (e) => { setBusy(false); setErr(e); });
+        api.createAgentKey({ name: name.trim(), role, apps, days }).then((k) => { setBusy(false); setName(""); onCreated(k); }, (e) => { setBusy(false); setErr(e); });
       }}>{t("Create key")}</button></div>
     </div>
   );
@@ -315,7 +334,7 @@ function Keys() {
           {data?.map((k) => (
             <tr key={k.id} className={k.revokedAt ? "muted" : ""}>
               <td>{k.name}</td>
-              <td>{k.canWrite ? t("read and write") : t("read only")}</td>
+              <td>{access(k)}</td>
               <td>{state(k)}</td>
               <td>{new Date(k.expiresAt).toLocaleDateString()}</td>
               <td>{k.lastUsedAt ? timeAgo(k.lastUsedAt) : t("never")}</td>
