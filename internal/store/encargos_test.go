@@ -13,11 +13,11 @@ import (
 func TestEncargos(t *testing.T) {
 	s := open(t)
 	ctx := context.Background()
-	k1, err := s.CreateAgentKey(ctx, "uno", "h1", RoleCollaborator, nil, "p0dxD", time.Now().Add(time.Hour))
+	k1, err := s.CreateAgentKey(ctx, DefaultOrg, "uno", "h1", RoleCollaborator, nil, "p0dxD", time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatal(err)
 	}
-	k2, _ := s.CreateAgentKey(ctx, "dos", "h2", RoleCollaborator, nil, "p0dxD", time.Now().Add(time.Hour))
+	k2, _ := s.CreateAgentKey(ctx, DefaultOrg, "dos", "h2", RoleCollaborator, nil, "p0dxD", time.Now().Add(time.Hour))
 	c1, _ := s.TakeCargo(ctx, k1.ID, "arreglar")
 	c2, _ := s.TakeCargo(ctx, k2.ID, "también")
 
@@ -59,8 +59,8 @@ func TestEncargos(t *testing.T) {
 	if got := joinWords(steps); got != want {
 		t.Fatalf("log = %s", got)
 	}
-	open, _ := s.ListEncargos(ctx, true, 0)
-	all, _ := s.ListEncargos(ctx, false, 0)
+	open, _ := s.ListEncargos(ctx, DefaultOrg, true, 0)
+	all, _ := s.ListEncargos(ctx, DefaultOrg, false, 0)
 	if len(open) != 0 || len(all) != 1 {
 		t.Fatalf("open %d, all %d", len(open), len(all))
 	}

@@ -92,17 +92,18 @@ type App struct {
 	Repo           string    `json:"repo"`
 	InstallationID int64     `json:"installationId"`
 	DefaultBranch  string    `json:"defaultBranch"`
+	OrgID          int64     `json:"orgId"`
 	Spec           spec.Spec `json:"spec"`
 	CreatedAt      time.Time `json:"createdAt"`
 }
 
-const appCols = `id, name, repo, installation_id, default_branch, spec, created_at`
+const appCols = `id, name, repo, installation_id, default_branch, spec, created_at, org_id`
 
 // scanApp reads an app row (with its spec, stored as JSON).
 func scanApp(row pgx.Row) (*App, error) {
 	var a App
 	var raw []byte
-	if err := row.Scan(&a.ID, &a.Name, &a.Repo, &a.InstallationID, &a.DefaultBranch, &raw, &a.CreatedAt); err != nil {
+	if err := row.Scan(&a.ID, &a.Name, &a.Repo, &a.InstallationID, &a.DefaultBranch, &raw, &a.CreatedAt, &a.OrgID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -111,15 +112,19 @@ func scanApp(row pgx.Row) (*App, error) {
 	return &a, json.Unmarshal(raw, &a.Spec)
 }
 
-// CreateApp inserts an app; names are unique.
+// CreateApp inserts an app, in its organization (the default one when not
+// set); names are unique across organizations (an app is a namespace).
 func (s *Store) CreateApp(ctx context.Context, a *App) error {
 	raw, err := json.Marshal(a.Spec)
 	if err != nil {
 		return err
 	}
+	if a.OrgID == 0 {
+		a.OrgID = DefaultOrg
+	}
 	return s.pool.QueryRow(ctx,
-		`INSERT INTO apps (name, repo, installation_id, default_branch, spec) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at`,
-		a.Name, a.Repo, a.InstallationID, a.DefaultBranch, raw).Scan(&a.ID, &a.CreatedAt)
+		`INSERT INTO apps (name, repo, installation_id, default_branch, spec, org_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at`,
+		a.Name, a.Repo, a.InstallationID, a.DefaultBranch, raw, a.OrgID).Scan(&a.ID, &a.CreatedAt)
 }
 
 // UpdateAppSpec stores the latest rendimiento.yaml of the default branch.
@@ -145,6 +150,11 @@ func (s *Store) GetAppByID(ctx context.Context, id int64) (*App, error) {
 // AppsForRepo returns every app deployed from a repo (webhooks fan out to them).
 func (s *Store) AppsForRepo(ctx context.Context, repo string) ([]*App, error) {
 	return s.listApps(ctx, `SELECT `+appCols+` FROM apps WHERE lower(repo) = lower($1) ORDER BY name`, repo)
+}
+
+// ListAppsInOrg returns an organization's apps, by name.
+func (s *Store) ListAppsInOrg(ctx context.Context, orgID int64) ([]*App, error) {
+	return s.listApps(ctx, `SELECT `+appCols+` FROM apps WHERE org_id = $1 ORDER BY name`, orgID)
 }
 
 // ListApps returns every app, by name.
@@ -607,6 +617,22 @@ func (s *Store) ListReleases(ctx context.Context, appID int64, limit int) ([]*Re
 func (s *Store) CreateSession(ctx context.Context, tokenHash, login string, ttl time.Duration) error {
 	_, err := s.pool.Exec(ctx, `INSERT INTO sessions (token_hash, login, expires_at) VALUES ($1, $2, now() + $3::interval)`,
 		tokenHash, login, fmt.Sprintf("%d seconds", int(ttl.Seconds())))
+	return err
+}
+
+// SessionInfo returns a valid session's GitHub login and the organization
+// it works in, or ErrNotFound.
+func (s *Store) SessionInfo(ctx context.Context, tokenHash string) (login string, orgID int64, err error) {
+	err = s.pool.QueryRow(ctx, `SELECT login, org_id FROM sessions WHERE token_hash = $1 AND expires_at > now()`, tokenHash).Scan(&login, &orgID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", 0, ErrNotFound
+	}
+	return login, orgID, err
+}
+
+// SetSessionOrg moves a session to another organization.
+func (s *Store) SetSessionOrg(ctx context.Context, tokenHash string, orgID int64) error {
+	_, err := s.pool.Exec(ctx, `UPDATE sessions SET org_id = $2 WHERE token_hash = $1`, tokenHash, orgID)
 	return err
 }
 

@@ -289,6 +289,9 @@ type OnboardRequest struct {
 	Files         map[string]string `json:"files"` // generated files the user kept
 	// Adopt migrates an app already running in the namespace (see Migration).
 	Adopt bool `json:"adopt"`
+	// OrgID is the organization the app belongs to (set by the API from the
+	// person's current organization, never by the request).
+	OrgID int64 `json:"-"`
 }
 
 // OnboardResult is the created app and either the onboarding PR or the first run.
@@ -347,7 +350,7 @@ func (p *Platform) Register(ctx context.Context, req OnboardRequest) (*store.App
 		return nil, err
 	}
 	req.Name = generate.Slug(req.Name)
-	app := &store.App{Name: req.Name, Repo: req.Repo, InstallationID: req.Installation, DefaultBranch: req.DefaultBranch, Spec: req.Spec}
+	app := &store.App{Name: req.Name, Repo: req.Repo, InstallationID: req.Installation, DefaultBranch: req.DefaultBranch, Spec: req.Spec, OrgID: req.OrgID}
 	if err := p.Store.CreateApp(ctx, app); err != nil {
 		if store.IsUniqueViolation(err) {
 			return nil, fmt.Errorf("an app named %q already exists", req.Name)

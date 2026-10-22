@@ -257,6 +257,27 @@ export type AgentRole = "reader" | "collaborator" | "admin";
 // A person's role in the organization (internal/store.Member*).
 export type MemberRole = "guest" | "collaborator" | "admin";
 
+// An organization (internal/store.Org), with the person's role in it.
+export interface Org {
+  id: number;
+  slug: string;
+  name: string;
+  role?: MemberRole;
+}
+
+// Who is signed in (api.Me): their role in the organization they work in,
+// and whether they run the platform (its operators see the cluster's pages).
+export interface Me {
+  login: string;
+  role: MemberRole;
+  org: Org;
+  operator: boolean;
+}
+
+// The signed-in person, set once when the app loads (switching organization
+// reloads the page). Pages read it to show what the person may use.
+export const session: { operator: boolean; role: MemberRole } = { operator: false, role: "guest" };
+
 export interface Member {
   login: string;
   role: MemberRole;
@@ -557,7 +578,10 @@ export interface Caminos {
 }
 
 export const api = {
-  me: () => request<{ login: string; role: MemberRole }>("GET", "/api/me"),
+  me: () => request<Me>("GET", "/api/me"),
+  orgs: () => request<Org[]>("GET", "/api/orgs"),
+  createOrg: (slug: string, name: string) => request<Org>("POST", "/api/orgs", { slug, name }),
+  switchOrg: (id: number) => request<void>("POST", `/api/orgs/${id}/switch`),
   members: () => request<Member[]>("GET", "/api/members"),
   setMember: (login: string, role: MemberRole) => request<Member[]>("PUT", `/api/members/${encodeURIComponent(login)}`, { role }),
   removeMember: (login: string) => request<void>("DELETE", `/api/members/${encodeURIComponent(login)}`),

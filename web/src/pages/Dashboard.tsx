@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, envApi, timeAgo, type App } from "../api";
+import { api, envApi, timeAgo, type App, session } from "../api";
 import { ErrorBox, PhaseBadge, RunBadge, usePoll } from "../components/ui";
 import { fmtPct } from "../components/reliability";
 import { DeliveryPanel } from "../components/delivery";
@@ -106,7 +106,7 @@ export function Dashboard() {
           );
         })}
       </div>
-      {apps && apps.length > 0 && <div style={{ marginTop: 28 }}><VisitsPanel /><DeliveryPanel /></div>}
+      {apps && apps.length > 0 && <div style={{ marginTop: 28 }}><VisitsPanel />{session.operator && <DeliveryPanel />}</div>}
     </>
   );
 }

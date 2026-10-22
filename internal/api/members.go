@@ -14,7 +14,7 @@ var githubLogin = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9]|-[A-Za-z0-9]){0
 
 // listMembers lists the organization's people and their roles.
 func (s *Server) listMembers(w http.ResponseWriter, r *http.Request, _ string) {
-	ms, err := s.Store.Members(r.Context(), store.DefaultOrg)
+	ms, err := s.Store.Members(r.Context(), orgOf(r))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -43,7 +43,7 @@ func (s *Server) putMember(w http.ResponseWriter, r *http.Request, login string)
 		httpError(w, http.StatusBadRequest, "role must be guest, collaborator or admin")
 		return
 	}
-	if err := s.Store.SetMember(r.Context(), store.DefaultOrg, who, in.Role, login); errors.Is(err, store.ErrLastAdmin) {
+	if err := s.Store.SetMember(r.Context(), orgOf(r), who, in.Role, login); errors.Is(err, store.ErrLastAdmin) {
 		httpError(w, http.StatusConflict, "an organization needs at least one administrator")
 		return
 	} else if err != nil {
@@ -57,7 +57,7 @@ func (s *Server) putMember(w http.ResponseWriter, r *http.Request, login string)
 // deleteMember takes a person out; their sessions stop working at once.
 func (s *Server) deleteMember(w http.ResponseWriter, r *http.Request, login string) {
 	who := r.PathValue("login")
-	switch err := s.Store.RemoveMember(r.Context(), store.DefaultOrg, who); {
+	switch err := s.Store.RemoveMember(r.Context(), orgOf(r), who); {
 	case errors.Is(err, store.ErrLastAdmin):
 		httpError(w, http.StatusConflict, "an organization needs at least one administrator")
 		return

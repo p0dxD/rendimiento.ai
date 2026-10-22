@@ -197,6 +197,9 @@ func (s *Server) appFor(ctx context.Context, k store.AgentKey, name string) (*st
 		return nil, fmt.Errorf("esta llave no tiene acceso a la aplicación %s", name)
 	}
 	a, err := s.Plataforma.GetApp(ctx, name)
+	if err == nil && a.OrgID != k.OrgID {
+		err = store.ErrNotFound // another organization's app does not exist here
+	}
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, fmt.Errorf("no existe la aplicación %s", name)
 	}
@@ -215,6 +218,9 @@ func (s *Server) runFor(ctx context.Context, k store.AgentKey, id int64) (*store
 	a, err := s.Plataforma.GetAppByID(ctx, r.AppID)
 	if err != nil {
 		return nil, nil, err
+	}
+	if a.OrgID != k.OrgID {
+		return nil, nil, fmt.Errorf("no existe la ejecución %d", id)
 	}
 	if !k.AllowsApp(a.Name) {
 		return nil, nil, fmt.Errorf("esta llave no tiene acceso a la aplicación de la ejecución %d", id)
@@ -251,7 +257,7 @@ func (s *Server) appsListar(ctx context.Context, k store.AgentKey, _ empty) (app
 	}
 	out := appsOut{Apps: []AppResumen{}}
 	for _, a := range apps {
-		if !k.AllowsApp(a.Name) {
+		if a.OrgID != k.OrgID || !k.AllowsApp(a.Name) {
 			continue
 		}
 		r, err := s.resumen(ctx, a)
@@ -342,15 +348,27 @@ func (s *Server) pasoRegistro(ctx context.Context, k store.AgentKey, in registro
 	return out, nil
 }
 
-// traceAllowed says whether a key may see a request: it went through one of
-// the key's apps (services are app/service).
-func traceAllowed(k store.AgentKey, services []string) bool {
-	if len(k.Apps) == 0 {
-		return true
+// visibleApps are the apps a key may see: its organization's, narrowed to
+// the key's apps if it has a list.
+func (s *Server) visibleApps(ctx context.Context, k store.AgentKey) (map[string]bool, error) {
+	apps, err := s.Plataforma.ListApps(ctx)
+	if err != nil {
+		return nil, err
 	}
+	out := map[string]bool{}
+	for _, a := range apps {
+		if a.OrgID == k.OrgID && k.AllowsApp(a.Name) {
+			out[a.Name] = true
+		}
+	}
+	return out, nil
+}
+
+// traceAllowed says whether a request went through one of the visible apps
+// (services are app/service).
+func traceAllowed(visible map[string]bool, services []string) bool {
 	for _, svc := range services {
-		app, _, _ := strings.Cut(svc, "/")
-		if k.AllowsApp(app) {
+		if app, _, _ := strings.Cut(svc, "/"); visible[app] {
 			return true
 		}
 	}
@@ -359,9 +377,12 @@ func traceAllowed(k store.AgentKey, services []string) bool {
 
 // solicitudesListar (solicitudes_listar) lists kept requests.
 func (s *Server) solicitudesListar(ctx context.Context, k store.AgentKey, in solicitudesIn) (solicitudesOut, error) {
+	visible, err := s.visibleApps(ctx, k)
+	if err != nil {
+		return solicitudesOut{}, err
+	}
 	if in.Servicio != "" {
-		app, _, _ := strings.Cut(in.Servicio, "/")
-		if !k.AllowsApp(app) {
+		if app, _, _ := strings.Cut(in.Servicio, "/"); !visible[app] {
 			return solicitudesOut{}, fmt.Errorf("esta llave no tiene acceso a la aplicación %s", app)
 		}
 	}
@@ -371,7 +392,7 @@ func (s *Server) solicitudesListar(ctx context.Context, k store.AgentKey, in sol
 	}
 	out := solicitudesOut{Solicitudes: []store.Trace{}}
 	for _, t := range list {
-		if traceAllowed(k, t.Services) {
+		if traceAllowed(visible, t.Services) {
 			out.Solicitudes = append(out.Solicitudes, t)
 		}
 	}
@@ -387,7 +408,11 @@ func (s *Server) solicitudLeer(ctx context.Context, k store.AgentKey, in solicit
 	if err != nil {
 		return solicitudOut{}, err
 	}
-	if !traceAllowed(k, t.Services) {
+	visible, err := s.visibleApps(ctx, k)
+	if err != nil {
+		return solicitudOut{}, err
+	}
+	if !traceAllowed(visible, t.Services) {
 		return solicitudOut{}, errors.New("esta llave no tiene acceso a las aplicaciones de esa solicitud")
 	}
 	return solicitudOut{Solicitud: *t, Tramos: spans}, nil

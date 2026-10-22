@@ -18,4 +18,8 @@ A new platform has no members, so the `ALLOWED_USERS` setting names the first ad
 
 ## Organizations {#organizations}
 
-Today everything (apps, the Ruta, encargos, agent keys) belongs to one organization. The data already records which organization each thing is in, so a later version can hold several: each with its own people, apps, agents and AI budget, on a shared cluster, a dedicated one, or the organization's own.
+Everything belongs to an **organization**: its apps (with their runs, releases and requests), its Ruta, encargos, agent keys and members. People of one organization never see another's: lists leave them out, and their pages answer *not found*. A person can belong to several, with a role in each, and switches with the selector at the top; the role that counts is the one in the organization they are working in.
+
+The **platform's organization** (the first one) runs the platform. Its administrators are the **operators**: they alone see the cluster's pages (Environment, Add-ons, Services, Problems, the Mercado), update the platform, and, for now, create organizations (under Members → Organizations) and onboard apps, in whichever organization they are working in. An agent key belongs to the organization it was made in, and its tools see only that organization.
+
+Today all organizations share the platform's cluster. Organizations in a dedicated virtual cluster, or on their own cluster in any cloud, come later.

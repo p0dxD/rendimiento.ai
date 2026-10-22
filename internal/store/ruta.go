@@ -31,6 +31,7 @@ type AgentKey struct {
 	// Apps narrows the platform's tools to some apps (empty: all).
 	Role       string     `json:"role"`
 	Apps       []string   `json:"apps"`
+	OrgID      int64      `json:"orgId"`
 	CreatedBy  string     `json:"createdBy"`
 	CreatedAt  time.Time  `json:"createdAt"`
 	ExpiresAt  time.Time  `json:"expiresAt"`
@@ -93,6 +94,7 @@ type RutaEntry struct {
 	CreatedAt  time.Time  `json:"createdAt"`
 	UpdatedAt  time.Time  `json:"updatedAt"`
 	ArchivedAt *time.Time `json:"archivedAt,omitempty"`
+	OrgID      int64      `json:"orgId"`
 }
 
 // AgentAction is one tool call made through the MCP endpoint.
@@ -108,26 +110,26 @@ type AgentAction struct {
 // ---- agent keys ----
 
 // CreateAgentKey stores a new key by its token's hash.
-func (s *Store) CreateAgentKey(ctx context.Context, name, tokenHash, role string, apps []string, createdBy string, expires time.Time) (AgentKey, error) {
+func (s *Store) CreateAgentKey(ctx context.Context, orgID int64, name, tokenHash, role string, apps []string, createdBy string, expires time.Time) (AgentKey, error) {
 	if apps == nil {
 		apps = []string{}
 	}
-	k := AgentKey{Name: name, Role: role, Apps: apps, CreatedBy: createdBy, ExpiresAt: expires}
+	k := AgentKey{Name: name, Role: role, Apps: apps, OrgID: orgID, CreatedBy: createdBy, ExpiresAt: expires}
 	k.CanWrite = k.Writes()
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO agent_keys (name, token_hash, can_write, role, apps, created_by, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, created_at`,
-		name, tokenHash, k.CanWrite, role, apps, createdBy, expires).Scan(&k.ID, &k.CreatedAt)
+		INSERT INTO agent_keys (name, token_hash, can_write, role, apps, created_by, expires_at, org_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, created_at`,
+		name, tokenHash, k.CanWrite, role, apps, createdBy, expires, orgID).Scan(&k.ID, &k.CreatedAt)
 	return k, err
 }
 
-const agentKeyCols = `id, name, can_write, role, apps, created_by, created_at, expires_at, last_used_at, revoked_at`
+const agentKeyCols = `id, name, can_write, role, apps, org_id, created_by, created_at, expires_at, last_used_at, revoked_at`
 
 // scanAgentKey reads an agent key row (never the key: only its hash is
 // stored).
 func scanAgentKey(row pgx.Row) (AgentKey, error) {
 	var k AgentKey
-	err := row.Scan(&k.ID, &k.Name, &k.CanWrite, &k.Role, &k.Apps, &k.CreatedBy, &k.CreatedAt, &k.ExpiresAt, &k.LastUsedAt, &k.RevokedAt)
+	err := row.Scan(&k.ID, &k.Name, &k.CanWrite, &k.Role, &k.Apps, &k.OrgID, &k.CreatedBy, &k.CreatedAt, &k.ExpiresAt, &k.LastUsedAt, &k.RevokedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return k, ErrNotFound
 	}
@@ -158,8 +160,8 @@ func (s *Store) AgentKey(ctx context.Context, id int64) (AgentKey, error) {
 }
 
 // ListAgentKeys returns every key, newest first.
-func (s *Store) ListAgentKeys(ctx context.Context) ([]AgentKey, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+agentKeyCols+` FROM agent_keys ORDER BY created_at DESC`)
+func (s *Store) ListAgentKeys(ctx context.Context, orgID int64) ([]AgentKey, error) {
+	rows, err := s.pool.Query(ctx, `SELECT `+agentKeyCols+` FROM agent_keys WHERE org_id = $1 ORDER BY created_at DESC`, orgID)
 	if err != nil {
 		return nil, err
 	}
@@ -239,8 +241,8 @@ func (s *Store) HandOver(ctx context.Context, id int64, entrega, pendientes stri
 }
 
 // ListCargos returns cargos, newest first.
-func (s *Store) ListCargos(ctx context.Context, limit int) ([]Cargo, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+cargoCols+` FROM cargos c JOIN agent_keys k ON k.id = c.key_id ORDER BY c.started_at DESC LIMIT $1`, limit)
+func (s *Store) ListCargos(ctx context.Context, orgID int64, limit int) ([]Cargo, error) {
+	rows, err := s.pool.Query(ctx, `SELECT `+cargoCols+` FROM cargos c JOIN agent_keys k ON k.id = c.key_id WHERE k.org_id = $2 ORDER BY c.started_at DESC LIMIT $1`, limit, orgID)
 	if err != nil {
 		return nil, err
 	}
@@ -258,12 +260,12 @@ func (s *Store) ListCargos(ctx context.Context, limit int) ([]Cargo, error) {
 
 // ---- entries ----
 
-const rutaCols = `id, kind, title, body, tags, done, author, by_agent, cargo_id, created_at, updated_at, archived_at`
+const rutaCols = `id, kind, title, body, tags, done, author, by_agent, cargo_id, created_at, updated_at, archived_at, org_id`
 
 // scanRuta reads a Ruta entry row.
 func scanRuta(row pgx.Row) (RutaEntry, error) {
 	var e RutaEntry
-	err := row.Scan(&e.ID, &e.Kind, &e.Title, &e.Body, &e.Tags, &e.Done, &e.Author, &e.ByAgent, &e.CargoID, &e.CreatedAt, &e.UpdatedAt, &e.ArchivedAt)
+	err := row.Scan(&e.ID, &e.Kind, &e.Title, &e.Body, &e.Tags, &e.Done, &e.Author, &e.ByAgent, &e.CargoID, &e.CreatedAt, &e.UpdatedAt, &e.ArchivedAt, &e.OrgID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return e, ErrNotFound
 	}
@@ -279,9 +281,17 @@ func (s *Store) AddRuta(ctx context.Context, e RutaEntry) (RutaEntry, error) {
 		e.Tags = []string{}
 	}
 	return scanRuta(s.pool.QueryRow(ctx, `
-		INSERT INTO ruta_entries (kind, title, body, tags, done, author, by_agent, cargo_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING `+rutaCols,
-		e.Kind, e.Title, e.Body, e.Tags, e.Done, e.Author, e.ByAgent, e.CargoID))
+		INSERT INTO ruta_entries (kind, title, body, tags, done, author, by_agent, cargo_id, org_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING `+rutaCols,
+		e.Kind, e.Title, e.Body, e.Tags, e.Done, e.Author, e.ByAgent, e.CargoID, orgOr(e.OrgID)))
+}
+
+// orgOr is an organization, or the default one when unset.
+func orgOr(id int64) int64 {
+	if id == 0 {
+		return DefaultOrg
+	}
+	return id
 }
 
 // Ruta returns one entry.
@@ -332,12 +342,12 @@ func (s *Store) ArchiveRuta(ctx context.Context, id int64) error {
 
 // SearchRuta lists entries that are not archived, newest change first. kind
 // filters ("" for all); text matches the title, body or a tag, ignoring case.
-func (s *Store) SearchRuta(ctx context.Context, kind, text string, limit int) ([]RutaEntry, error) {
+func (s *Store) SearchRuta(ctx context.Context, orgID int64, kind, text string, limit int) ([]RutaEntry, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT `+rutaCols+` FROM ruta_entries
-		WHERE archived_at IS NULL AND ($1 = '' OR kind = $1)
+		WHERE archived_at IS NULL AND org_id = $4 AND ($1 = '' OR kind = $1)
 		  AND ($2 = '' OR title ILIKE '%' || $2 || '%' OR body ILIKE '%' || $2 || '%' OR $2 ILIKE ANY (tags))
-		ORDER BY updated_at DESC LIMIT $3`, kind, text, limit)
+		ORDER BY updated_at DESC LIMIT $3`, kind, text, limit, orgID)
 	if err != nil {
 		return nil, err
 	}
@@ -375,10 +385,10 @@ type AgentActionRow struct {
 }
 
 // ListAgentActions returns the latest tool calls, newest first.
-func (s *Store) ListAgentActions(ctx context.Context, limit int) ([]AgentActionRow, error) {
+func (s *Store) ListAgentActions(ctx context.Context, orgID int64, limit int) ([]AgentActionRow, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT a.id, k.name, a.cargo_id, a.tool, a.args, a.ok, a.error, a.at
-		FROM agent_actions a JOIN agent_keys k ON k.id = a.key_id ORDER BY a.at DESC LIMIT $1`, limit)
+		FROM agent_actions a JOIN agent_keys k ON k.id = a.key_id WHERE k.org_id = $2 ORDER BY a.at DESC LIMIT $1`, limit, orgID)
 	if err != nil {
 		return nil, err
 	}

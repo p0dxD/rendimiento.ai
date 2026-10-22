@@ -41,6 +41,7 @@ type Encargo struct {
 	Result     string       `json:"result,omitempty"`
 	Links      []string     `json:"links"`
 	Comment    string       `json:"comment,omitempty"`
+	OrgID      int64        `json:"orgId"`
 	CreatedAt  time.Time    `json:"createdAt"`
 	UpdatedAt  time.Time    `json:"updatedAt"`
 	Log        []EncargoLog `json:"log,omitempty"`
@@ -55,14 +56,14 @@ type EncargoLog struct {
 }
 
 const encargoCols = `e.id, e.title, e.body, e.app, e.run_id, e.status, e.created_by, e.by_agent, e.key_id, COALESCE(k.name, ''),
-	e.cargo_id, e.waiting_run, e.result, e.links, e.comment, e.created_at, e.updated_at`
+	e.cargo_id, e.waiting_run, e.result, e.links, e.comment, e.created_at, e.updated_at, e.org_id`
 
 const encargoFrom = ` FROM encargos e LEFT JOIN agent_keys k ON k.id = e.key_id`
 
 func scanEncargo(row pgx.Row) (Encargo, error) {
 	var e Encargo
 	err := row.Scan(&e.ID, &e.Title, &e.Body, &e.App, &e.RunID, &e.Status, &e.CreatedBy, &e.ByAgent, &e.KeyID, &e.KeyName,
-		&e.CargoID, &e.WaitingRun, &e.Result, &e.Links, &e.Comment, &e.CreatedAt, &e.UpdatedAt)
+		&e.CargoID, &e.WaitingRun, &e.Result, &e.Links, &e.Comment, &e.CreatedAt, &e.UpdatedAt, &e.OrgID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return e, ErrNotFound
 	}
@@ -77,8 +78,8 @@ func (s *Store) CreateEncargo(ctx context.Context, e Encargo) (Encargo, error) {
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	var id int64
-	if err := tx.QueryRow(ctx, `INSERT INTO encargos (title, body, app, run_id, created_by, by_agent) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-		e.Title, e.Body, e.App, e.RunID, e.CreatedBy, e.ByAgent).Scan(&id); err != nil {
+	if err := tx.QueryRow(ctx, `INSERT INTO encargos (title, body, app, run_id, created_by, by_agent, org_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+		e.Title, e.Body, e.App, e.RunID, e.CreatedBy, e.ByAgent, orgOr(e.OrgID)).Scan(&id); err != nil {
 		return e, err
 	}
 	if err := logEncargo(ctx, tx, id, e.CreatedBy, "created", ""); err != nil {
@@ -113,14 +114,14 @@ func (s *Store) Encargo(ctx context.Context, id int64) (Encargo, error) {
 	return e, err
 }
 
-// ListEncargos lists encargos, the most recently changed first: the open
-// ones (not reviewed or cancelled), or all.
-func (s *Store) ListEncargos(ctx context.Context, openOnly bool, limit int) ([]Encargo, error) {
+// ListEncargos lists an organization's encargos, the most recently changed
+// first: the open ones (not reviewed or cancelled), or all.
+func (s *Store) ListEncargos(ctx context.Context, orgID int64, openOnly bool, limit int) ([]Encargo, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 100
 	}
 	rows, err := s.pool.Query(ctx, `SELECT `+encargoCols+encargoFrom+`
-		WHERE NOT $1 OR e.status NOT IN ('reviewed', 'cancelled') ORDER BY e.updated_at DESC LIMIT $2`, openOnly, limit)
+		WHERE e.org_id = $3 AND (NOT $1 OR e.status NOT IN ('reviewed', 'cancelled')) ORDER BY e.updated_at DESC LIMIT $2`, openOnly, limit, orgID)
 	if err != nil {
 		return nil, err
 	}

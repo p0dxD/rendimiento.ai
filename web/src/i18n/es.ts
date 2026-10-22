@@ -860,6 +860,12 @@ export const es: Record<string, string> = {
   "rendimiento cannot tell yet whether make deploy is needed: it learns which commit was applied the next time make deploy runs.": "rendimiento todavía no sabe si hace falta make deploy: sabrá qué commit se aplicó la próxima vez que se ejecute make deploy.",
   // The Universe page.
   "Universe": "Universo",
+  "Organization": "Organización",
+  "Organizations": "Organizaciones",
+  "Each organization has its own apps, Ruta, encargos, agent keys and people. Switch between yours at the top.": "Cada organización tiene sus aplicaciones, su Ruta, sus encargos, sus llaves de agentes y su gente. Cambie entre las suyas arriba.",
+  "e.g. Panadería Ana": "p. ej. Panadería Ana",
+  "Create organization": "Crear la organización",
+  "You become its first administrator; switch to it at the top and add its people under Members.": "Usted queda como su primer administrador; cámbiese a ella arriba y agregue a su gente en Miembros.",
   "Members": "Miembros",
   "People who can sign in here, and what each may do. You are {role}.": "Las personas que pueden entrar aquí y lo que cada una puede hacer. Usted es {role}.",
   "GitHub username": "Usuario de GitHub",

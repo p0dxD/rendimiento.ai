@@ -56,7 +56,7 @@ func (s *Server) listRuta(w http.ResponseWriter, r *http.Request, _ string) {
 		httpError(w, http.StatusBadRequest, "unknown kind")
 		return
 	}
-	list, err := s.Store.SearchRuta(r.Context(), kind, strings.TrimSpace(q.Get("q")), 500)
+	list, err := s.Store.SearchRuta(r.Context(), orgOf(r), kind, strings.TrimSpace(q.Get("q")), 500)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -74,7 +74,7 @@ func (s *Server) addRuta(w http.ResponseWriter, r *http.Request, login string) {
 		httpError(w, http.StatusBadRequest, msg)
 		return
 	}
-	e, err := s.Store.AddRuta(r.Context(), store.RutaEntry{Kind: in.Kind, Title: in.Title, Body: in.Body, Tags: in.Tags, Done: in.Done, Author: login})
+	e, err := s.Store.AddRuta(r.Context(), store.RutaEntry{Kind: in.Kind, Title: in.Title, Body: in.Body, Tags: in.Tags, Done: in.Done, Author: login, OrgID: orgOf(r)})
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -103,6 +103,9 @@ func (s *Server) updateRuta(w http.ResponseWriter, r *http.Request, login string
 		return
 	}
 	e, err := s.Store.Ruta(r.Context(), id)
+	if err == nil && e.OrgID != orgOf(r) {
+		err = store.ErrNotFound
+	}
 	if errors.Is(err, store.ErrNotFound) {
 		httpError(w, http.StatusNotFound, "no such entry")
 		return
@@ -130,6 +133,10 @@ func (s *Server) archiveRuta(w http.ResponseWriter, r *http.Request, login strin
 	if !ok {
 		return
 	}
+	if e, err := s.Store.Ruta(r.Context(), id); err != nil || e.OrgID != orgOf(r) {
+		httpError(w, http.StatusNotFound, "no such entry")
+		return
+	}
 	if err := s.Store.ArchiveRuta(r.Context(), id); errors.Is(err, store.ErrNotFound) {
 		httpError(w, http.StatusNotFound, "no such entry")
 		return
@@ -150,12 +157,12 @@ type RutaActivity struct {
 // rutaActivity is the Ruta's Activity tab: agents' cargos and every tool
 // call they made.
 func (s *Server) rutaActivity(w http.ResponseWriter, r *http.Request, _ string) {
-	cargos, err := s.Store.ListCargos(r.Context(), 100)
+	cargos, err := s.Store.ListCargos(r.Context(), orgOf(r), 100)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	actions, err := s.Store.ListAgentActions(r.Context(), 200)
+	actions, err := s.Store.ListAgentActions(r.Context(), orgOf(r), 200)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -185,7 +192,7 @@ type CreatedAgentKey struct {
 
 // listAgentKeys lists the agents' keys (names and rights; never the keys).
 func (s *Server) listAgentKeys(w http.ResponseWriter, r *http.Request, _ string) {
-	keys, err := s.Store.ListAgentKeys(r.Context())
+	keys, err := s.Store.ListAgentKeys(r.Context(), orgOf(r))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -226,7 +233,7 @@ func (s *Server) createAgentKey(w http.ResponseWriter, r *http.Request, login st
 		if a == "" {
 			continue
 		}
-		if _, err := s.Store.GetApp(r.Context(), a); err != nil {
+		if app, err := s.Store.GetApp(r.Context(), a); err != nil || app.OrgID != orgOf(r) {
 			httpError(w, http.StatusBadRequest, "no such app: "+a)
 			return
 		}
@@ -237,7 +244,7 @@ func (s *Server) createAgentKey(w http.ResponseWriter, r *http.Request, login st
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	k, err := s.Store.CreateAgentKey(r.Context(), in.Name, hash, in.Role, apps, login, time.Now().Add(time.Duration(in.Days)*24*time.Hour))
+	k, err := s.Store.CreateAgentKey(r.Context(), orgOf(r), in.Name, hash, in.Role, apps, login, time.Now().Add(time.Duration(in.Days)*24*time.Hour))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -251,6 +258,10 @@ func (s *Server) revokeAgentKey(w http.ResponseWriter, r *http.Request, login st
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		httpError(w, http.StatusBadRequest, "bad key id")
+		return
+	}
+	if k, err := s.Store.AgentKey(r.Context(), id); err != nil || k.OrgID != orgOf(r) {
+		httpError(w, http.StatusNotFound, "no such key, or already revoked")
 		return
 	}
 	if err := s.Store.RevokeAgentKey(r.Context(), id); errors.Is(err, store.ErrNotFound) {

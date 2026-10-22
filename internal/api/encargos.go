@@ -21,7 +21,7 @@ type NewEncargo struct {
 
 // listEncargos lists the open encargos (?all=1: also reviewed and cancelled).
 func (s *Server) listEncargos(w http.ResponseWriter, r *http.Request, _ string) {
-	list, err := s.Store.ListEncargos(r.Context(), r.URL.Query().Get("all") != "1", 100)
+	list, err := s.Store.ListEncargos(r.Context(), orgOf(r), r.URL.Query().Get("all") != "1", 100)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -53,17 +53,22 @@ func (s *Server) createEncargo(w http.ResponseWriter, r *http.Request, login str
 			httpError(w, http.StatusBadRequest, "no such run")
 			return
 		}
-		if a, err := s.Store.GetAppByID(r.Context(), run.AppID); err == nil && in.App == "" {
+		a, err := s.Store.GetAppByID(r.Context(), run.AppID)
+		if err != nil || a.OrgID != orgOf(r) {
+			httpError(w, http.StatusBadRequest, "no such run")
+			return
+		}
+		if in.App == "" {
 			in.App = a.Name
 		}
 	}
 	if in.App != "" {
-		if _, err := s.Store.GetApp(r.Context(), in.App); err != nil {
+		if a, err := s.Store.GetApp(r.Context(), in.App); err != nil || a.OrgID != orgOf(r) {
 			httpError(w, http.StatusBadRequest, "no such app: "+in.App)
 			return
 		}
 	}
-	e, err := s.Store.CreateEncargo(r.Context(), store.Encargo{Title: in.Title, Body: in.Body, App: in.App, RunID: in.RunID, CreatedBy: login})
+	e, err := s.Store.CreateEncargo(r.Context(), store.Encargo{Title: in.Title, Body: in.Body, App: in.App, RunID: in.RunID, CreatedBy: login, OrgID: orgOf(r)})
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -72,18 +77,24 @@ func (s *Server) createEncargo(w http.ResponseWriter, r *http.Request, login str
 	writeJSONStatus(w, http.StatusCreated, e)
 }
 
-// encargoID reads {id}, or answers 400.
-func encargoID(w http.ResponseWriter, r *http.Request) (int64, bool) {
+// encargoID reads {id} of an encargo of the person's organization, or
+// answers 400 or 404.
+func (s *Server) encargoID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		httpError(w, http.StatusBadRequest, "bad encargo id")
+		return 0, false
 	}
-	return id, err == nil
+	if e, err := s.Store.Encargo(r.Context(), id); err == nil && e.OrgID != orgOf(r) {
+		httpError(w, http.StatusNotFound, "no such encargo")
+		return 0, false
+	}
+	return id, true
 }
 
 // getEncargo is one encargo with its history.
 func (s *Server) getEncargo(w http.ResponseWriter, r *http.Request, _ string) {
-	id, ok := encargoID(w, r)
+	id, ok := s.encargoID(w, r)
 	if !ok {
 		return
 	}
@@ -94,7 +105,7 @@ func (s *Server) getEncargo(w http.ResponseWriter, r *http.Request, _ string) {
 // reviewEncargo is the person's answer to a delivered encargo: accepted,
 // or sent back with a comment for the next agent.
 func (s *Server) reviewEncargo(w http.ResponseWriter, r *http.Request, login string) {
-	id, ok := encargoID(w, r)
+	id, ok := s.encargoID(w, r)
 	if !ok {
 		return
 	}
@@ -116,7 +127,7 @@ func (s *Server) reviewEncargo(w http.ResponseWriter, r *http.Request, login str
 
 // cancelEncargo cancels an encargo that is not finished.
 func (s *Server) cancelEncargo(w http.ResponseWriter, r *http.Request, login string) {
-	id, ok := encargoID(w, r)
+	id, ok := s.encargoID(w, r)
 	if !ok {
 		return
 	}

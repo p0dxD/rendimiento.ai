@@ -59,6 +59,6 @@ El Mercado está apagado hasta que se define `PAGES_ORG`. Una sola vez:
 3. **Instale la aplicación en la organización** para **todos los repositorios**, para que llegue a los repositorios que crea. Una aplicación privada solo se puede instalar en la cuenta de su dueño: primero ponga `GITHUB_ACCOUNTS` y hágala pública ([Instalar en una organización](../environment/deploy.md#the-github-app)).
 4. Ponga el nombre de la organización en `PAGES_ORG` y reinicie rendimiento.
 
-Quien pone un puesto inicia sesión como todos: con GitHub, como [miembro](members.md) con la función de colaborador o más.
+Quien pone un puesto inicia sesión como todos: con GitHub, como [miembros](members.md) de la organización de la plataforma: el Mercado es de quienes operan la plataforma.
 
 Borrar la aplicación de un puesto (Configuración → Borrar) quita la página de internet y del Mercado. Su repositorio se queda en la organización, para conservarlo o borrarlo en GitHub.

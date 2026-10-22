@@ -37,11 +37,11 @@ type Backend interface {
 	OpenCargo(ctx context.Context, keyID int64) (store.Cargo, error)
 	HandOver(ctx context.Context, id int64, entrega, pendientes string) error
 	Cargo(ctx context.Context, id int64) (store.Cargo, error)
-	ListCargos(ctx context.Context, limit int) ([]store.Cargo, error)
+	ListCargos(ctx context.Context, orgID int64, limit int) ([]store.Cargo, error)
 	AddRuta(ctx context.Context, e store.RutaEntry) (store.RutaEntry, error)
 	Ruta(ctx context.Context, id int64) (store.RutaEntry, error)
 	UpdateRuta(ctx context.Context, e store.RutaEntry, changedBy string) (store.RutaEntry, error)
-	SearchRuta(ctx context.Context, kind, text string, limit int) ([]store.RutaEntry, error)
+	SearchRuta(ctx context.Context, orgID int64, kind, text string, limit int) ([]store.RutaEntry, error)
 	RecordAgentAction(ctx context.Context, a store.AgentAction) error
 }
 
@@ -415,8 +415,8 @@ func (s *Server) audit(ctx context.Context, k store.AgentKey, tool string, in an
 }
 
 // lastHandovers are the n most recent handed-over cargos, newest first.
-func (s *Server) lastHandovers(ctx context.Context, n int) ([]CargoOut, error) {
-	cs, err := s.Store.ListCargos(ctx, 50)
+func (s *Server) lastHandovers(ctx context.Context, orgID int64, n int) ([]CargoOut, error) {
+	cs, err := s.Store.ListCargos(ctx, orgID, 50)
 	if err != nil {
 		return nil, err
 	}
@@ -440,10 +440,10 @@ func (s *Server) inicio(ctx context.Context, k store.AgentKey, _ empty) (InicioO
 		return out, err
 	}
 	var err error
-	if out.UltimasEntregas, err = s.lastHandovers(ctx, 3); err != nil {
+	if out.UltimasEntregas, err = s.lastHandovers(ctx, k.OrgID, 3); err != nil {
 		return out, err
 	}
-	pend, err := s.Store.SearchRuta(ctx, store.KindPendiente, "", 50)
+	pend, err := s.Store.SearchRuta(ctx, k.OrgID, store.KindPendiente, "", 50)
 	if err != nil {
 		return out, err
 	}
@@ -453,7 +453,7 @@ func (s *Server) inicio(ctx context.Context, k store.AgentKey, _ empty) (InicioO
 			out.Pendientes = append(out.Pendientes, summary(e))
 		}
 	}
-	recent, err := s.Store.SearchRuta(ctx, "", "", 10)
+	recent, err := s.Store.SearchRuta(ctx, k.OrgID, "", "", 10)
 	if err != nil {
 		return out, err
 	}
@@ -467,7 +467,7 @@ func (s *Server) inicio(ctx context.Context, k store.AgentKey, _ empty) (InicioO
 }
 
 // buscar (ruta_buscar) finds entries by text and kind, 20 by default.
-func (s *Server) buscar(ctx context.Context, _ store.AgentKey, in buscarIn) (listaOut, error) {
+func (s *Server) buscar(ctx context.Context, k store.AgentKey, in buscarIn) (listaOut, error) {
 	if in.Tipo != "" && !agentKinds[in.Tipo] && in.Tipo != store.KindVivido {
 		return listaOut{}, fmt.Errorf("tipo desconocido %q", in.Tipo)
 	}
@@ -478,14 +478,14 @@ func (s *Server) buscar(ctx context.Context, _ store.AgentKey, in buscarIn) (lis
 	if limit > 50 {
 		limit = 50
 	}
-	es, err := s.Store.SearchRuta(ctx, in.Tipo, strings.TrimSpace(in.Texto), limit)
+	es, err := s.Store.SearchRuta(ctx, k.OrgID, in.Tipo, strings.TrimSpace(in.Texto), limit)
 	return listaOut{Entradas: summaries(es)}, err
 }
 
 // leer (ruta_leer) reads one whole entry (not archived ones).
-func (s *Server) leer(ctx context.Context, _ store.AgentKey, in leerIn) (Entry, error) {
+func (s *Server) leer(ctx context.Context, k store.AgentKey, in leerIn) (Entry, error) {
 	e, err := s.Store.Ruta(ctx, in.ID)
-	if errors.Is(err, store.ErrNotFound) || (err == nil && e.ArchivedAt != nil) {
+	if errors.Is(err, store.ErrNotFound) || (err == nil && (e.ArchivedAt != nil || e.OrgID != k.OrgID)) {
 		return Entry{}, fmt.Errorf("no existe la entrada %d", in.ID)
 	}
 	if err != nil {
@@ -527,7 +527,7 @@ func (s *Server) tomar(ctx context.Context, k store.AgentKey, in tomarIn) (tomar
 	if err != nil {
 		return tomarOut{}, err
 	}
-	prev, err := s.lastHandovers(ctx, 3)
+	prev, err := s.lastHandovers(ctx, k.OrgID, 3)
 	return tomarOut{Cargo: cargoOut(c), UltimasEntregas: prev}, err
 }
 
@@ -560,7 +560,7 @@ func (s *Server) anotar(ctx context.Context, k store.AgentKey, in anotarIn) (Ent
 		return Entry{}, err
 	}
 	e, err := s.Store.AddRuta(ctx, store.RutaEntry{Kind: in.Tipo, Title: strings.TrimSpace(in.Titulo), Body: in.Cuerpo, Tags: tags,
-		Author: k.Name, ByAgent: true, CargoID: &c.ID})
+		Author: k.Name, ByAgent: true, CargoID: &c.ID, OrgID: k.OrgID})
 	if err != nil {
 		return Entry{}, err
 	}
@@ -574,7 +574,7 @@ func (s *Server) actualizar(ctx context.Context, k store.AgentKey, in actualizar
 		return Entry{}, err
 	}
 	e, err := s.Store.Ruta(ctx, in.ID)
-	if errors.Is(err, store.ErrNotFound) || (err == nil && e.ArchivedAt != nil) {
+	if errors.Is(err, store.ErrNotFound) || (err == nil && (e.ArchivedAt != nil || e.OrgID != k.OrgID)) {
 		return Entry{}, fmt.Errorf("no existe la entrada %d", in.ID)
 	}
 	if err != nil {
