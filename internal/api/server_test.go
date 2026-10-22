@@ -830,6 +830,9 @@ func TestOrgIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := e.store.SetMember(ctx, store.DefaultOrg, "solo-principal", store.MemberGuest, "p0dxD"); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := e.store.CreateAgentKey(ctx, store.DefaultOrg, "llave principal", "h-p", store.RoleCollaborator, nil, "p0dxD", time.Now().Add(time.Hour)); err != nil {
 		t.Fatal(err)
 	}
@@ -857,7 +860,7 @@ func TestOrgIsolation(t *testing.T) {
 		"/api/ruta":            "secreto de la principal",
 		"/api/encargos":        "de la principal",
 		"/api/agent-keys":      "llave principal",
-		"/api/members":         "p0dxD",
+		"/api/members":         "solo-principal",
 		"/api/universe/traces": "tienda",
 	} {
 		r, body := e.do(t, "GET", path, "", ana, nil)
