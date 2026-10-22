@@ -52,6 +52,11 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/agent-keys` | agent keys (never the tokens) |
 | POST | `/api/agent-keys` | create an agent key (`name`, `role`: `reader` or `collaborator`, `apps`: empty for all, `days`); the token is in this answer only |
 | DELETE | `/api/agent-keys/{id}` | revoke an agent key |
+| GET | `/api/encargos` | open encargos (`?all=1`: also reviewed and dropped) |
+| POST | `/api/encargos` | ask agents for something (`title`, `body`, `app`, `runId`) |
+| GET | `/api/encargos/{id}` | one encargo with its history |
+| POST | `/api/encargos/{id}/review` | accept a delivered encargo (`accept: true`) or send it back with a `comment` |
+| POST | `/api/encargos/{id}/cancel` | drop an encargo |
 | POST | `/api/notifications/test` | send a sample notification email now (the Environment page's button) |
 | POST | `/api/dns/sync` | re-create every app's DNS records now |
 | POST | `/api/propose` | detect a repo and return a proposed `rendimiento.yaml` + Dockerfile |

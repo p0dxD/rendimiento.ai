@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, duration, subscribe, timeAgo, type Run } from "../api";
 import { ErrorBox, PipelineGraph, RunBadge } from "../components/ui";
 import { t } from "../i18n";
@@ -56,6 +56,7 @@ export function RunPage() {
         {(run.status === "running" || run.status === "queued") && (
           <button className="danger" onClick={() => api.cancelRun(run.id).catch((e) => alert(e.message))}>{t("Cancel")}</button>
         )}
+        {run.status === "failed" && <AskAgent run={run} app={name} />}
       </div>
       <p className="sub">
         <span className="mono">{run.sha.slice(0, 7)}</span> {t("on")} <strong>{run.branch}</strong> · {t(run.event)}
@@ -104,4 +105,27 @@ export function RunPage() {
 function formatLog(s?: string) {
   if (!s) return "";
   return s.replace(/^::group::(.*)$/gm, "── $1 ──").replace(/^::endgroup::$\n?/gm, "");
+}
+
+/**
+ * On a failed run: hand it to agents as an encargo, with the failed steps
+ * and the run's message as its detail, then go to the encargos.
+ */
+function AskAgent({ run, app }: { run: Run; app: string }) {
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+  const failed = run.steps?.filter((s) => s.status === "failed") ?? [];
+  const body = [
+    t("Run #{n} of {app} failed on {branch} ({sha}).", { n: run.id, app, branch: run.branch, sha: run.sha.slice(0, 7) }),
+    ...failed.map((s) => `- ${s.id}: ${s.message || t("failed")}`),
+    run.message && !failed.length ? run.message : "",
+    t("Find out why (ejecucion_leer, paso_registro), fix it on a branch, test it there and hand it over with the link."),
+  ].filter(Boolean).join("\n");
+  return (
+    <button disabled={busy} title={t("Creates an encargo for an agent to take")} onClick={() => {
+      setBusy(true);
+      api.createEncargo({ title: t("Fix run #{n} of {app}", { n: run.id, app }), body, app, runId: run.id })
+        .then(() => navigate("/ruta?tab=encargos"), (e) => { setBusy(false); alert(e.message); });
+    }}>{t("Ask an agent")}</button>
+  );
 }

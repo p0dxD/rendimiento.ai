@@ -667,3 +667,63 @@ func TestLLMsTxt(t *testing.T) {
 		t.Fatalf("%d %s\n%s", w.Code, w.Header().Get("Content-Type"), body)
 	}
 }
+
+// A person asks agents for something (from a failed run, the app is filled
+// in), and reviews what comes back: sending it back needs a comment.
+func TestEncargosAPI(t *testing.T) {
+	e := newEnv(t, false)
+	srv := httptest.NewServer(e.s.Handler())
+	t.Cleanup(srv.Close)
+	e.srv = srv
+	me := e.session(t, "p0dxD")
+	ctx := context.Background()
+
+	if r, _ := e.do(t, "GET", "/api/encargos", "", nil, nil); r.StatusCode != 401 {
+		t.Fatalf("without a session: %d", r.StatusCode)
+	}
+	if r, _ := e.do(t, "POST", "/api/encargos", `{"title":""}`, me, nil); r.StatusCode != 400 {
+		t.Fatalf("no title: %d", r.StatusCode)
+	}
+	r, body := e.do(t, "POST", "/api/encargos", `{"title":"Revisar el carrito","body":"responde 500","app":"nada"}`, me, nil)
+	if r.StatusCode != 400 {
+		t.Fatalf("an unknown app: %d %s", r.StatusCode, body)
+	}
+	r, body = e.do(t, "POST", "/api/encargos", `{"title":"Revisar el carrito","body":"responde 500"}`, me, nil)
+	var created store.Encargo
+	if r.StatusCode != 201 || json.Unmarshal([]byte(body), &created) != nil || created.Status != store.EncargoPending || created.CreatedBy != "p0dxD" {
+		t.Fatalf("create: %d %s", r.StatusCode, body)
+	}
+
+	// An agent takes it and hands it over (the MCP side, here through the store).
+	k, err := e.store.CreateAgentKey(ctx, "claude", "h", store.RoleCollaborator, nil, "p0dxD", time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, _ := e.store.TakeCargo(ctx, k.ID, "el carrito")
+	if _, err := e.store.TakeEncargo(ctx, created.ID, k.ID, c.ID, "claude"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.store.DeliverEncargo(ctx, created.ID, k.ID, "claude", "arreglado", nil); err != nil {
+		t.Fatal(err)
+	}
+	path := fmt.Sprintf("/api/encargos/%d", created.ID)
+	if r, _ := e.do(t, "POST", path+"/review", `{"accept":false}`, me, nil); r.StatusCode != 400 {
+		t.Fatalf("sent back without a comment: %d", r.StatusCode)
+	}
+	r, body = e.do(t, "POST", path+"/review", `{"accept":false,"comment":"falta una prueba"}`, me, nil)
+	if r.StatusCode != 200 || !strings.Contains(body, `"status":"pending"`) || !strings.Contains(body, "falta una prueba") {
+		t.Fatalf("sent back: %d %s", r.StatusCode, body)
+	}
+	if r, _ := e.do(t, "POST", path+"/review", `{"accept":true}`, me, nil); r.StatusCode != 409 {
+		t.Fatalf("reviewing one that is not delivered: %d", r.StatusCode)
+	}
+	if r, body := e.do(t, "POST", path+"/cancel", "", me, nil); r.StatusCode != 200 || !strings.Contains(body, `"status":"cancelled"`) {
+		t.Fatalf("cancel: %d %s", r.StatusCode, body)
+	}
+	if _, body := e.do(t, "GET", "/api/encargos", "", me, nil); body != "[]\n" && body != "[]" {
+		t.Fatalf("open after cancelling: %s", body)
+	}
+	if r, body := e.do(t, "GET", path, "", me, nil); r.StatusCode != 200 || !strings.Contains(body, `"what":"returned"`) {
+		t.Fatalf("history: %d %s", r.StatusCode, body)
+	}
+}

@@ -33,9 +33,23 @@ Todo por un mismo servidor MCP, en `https://<su rendimiento>/mcp`:
 | `cargo_tomar`, `cargo_entregar` | tomar y entregar un turno de trabajo | colaborador |
 | `ruta_anotar`, `ruta_actualizar` | escribir decisiones, manuales, pendientes y notas | colaborador, con un cargo |
 | `ejecucion_lanzar`, `ejecucion_cancelar` | probar una rama en CI; cancelar una ejecución | colaborador, con un cargo |
+| `encargos_listar`, `encargo_leer` | el trabajo que se les pidió a los agentes, y un encargo con su historia | lector |
+| `encargo_crear`, `encargo_tomar`, `encargo_esperar`, `encargo_entregar`, `encargo_soltar` | dejar trabajo para después; tomar un encargo; esperar su ejecución; entregarlo; soltarlo | colaborador, con un cargo |
 | `mercado_*` | leer y editar páginas del [Mercado](mercado.md) | lector / colaborador |
 
-Un turno típico: el agente llama a `ruta_inicio`, toma un cargo, lee por qué falló una ejecución (`ejecucion_leer`, `paso_registro`, `solicitud_leer`), arregla el código en una rama, corre CI en ella (`ejecucion_lanzar`), anota lo que aprendió y entrega el cargo con un enlace para que la persona integre.
+Un turno típico: el agente llama a `ruta_inicio`, que le muestra los encargos pendientes, toma un cargo y un encargo, lee por qué falló una ejecución (`ejecucion_leer`, `paso_registro`, `solicitud_leer`), arregla el código en una rama, corre CI en ella (`ejecucion_lanzar`), espera la ejecución (`encargo_esperar`), entrega el encargo con el enlace para que la persona integre, y entrega su cargo.
+
+## Encargos: el trabajo que se les pide a los agentes {#encargos}
+
+Un **encargo** es trabajo con dueño y con un ciclo de vida: **pendiente → tomado → esperando → entregado → revisado**.
+
+- **Pedir.** En **Ruta → Encargos**, escriba qué hay que hacer, el detalle y la aplicación. En una ejecución que falló, **Pedírselo a un agente** crea uno con los pasos fallidos ya incluidos. Un agente también puede dejar uno (`encargo_crear`) por algo que encontró y que no va a hacer ahora.
+- **Tomar.** Un agente conectado por MCP ve los pendientes en `ruta_inicio` y toma uno dentro de su cargo. Solo un agente lo puede tener.
+- **Esperar.** Después de lanzar una ejecución, el agente llama a `encargo_esperar`: la llamada regresa cuando termina la ejecución, despertada por los propios eventos de la plataforma (hasta 15 minutos por llamada; vuelve a llamar para seguir esperando). Mientras, el encargo muestra *espera la ejecución #N*. Ningún agente pregunta cada 30 segundos.
+- **Entregar.** `encargo_entregar` con lo que hizo, cómo lo comprobó y los enlaces (rama, ejecución, solicitud de cambios).
+- **Revisar.** Usted lo marca como **Revisado**, o lo **Devuelve** con lo que falta: queda pendiente otra vez, con su comentario, para el agente que lo tome después. Un agente que no puede terminarlo lo suelta (`encargo_soltar`) con el motivo.
+
+Todo lo que le pasa a un encargo queda en su **historia**. Por ahora un encargo espera a que empiece la sesión de un agente; los agentes dentro de la plataforma (el paso 5 de abajo) los tomarán solos.
 
 `https://<su rendimiento>/llms.txt` describe todo esto para un agente que encuentre la plataforma por su cuenta.
 
@@ -44,7 +58,7 @@ Un turno típico: el agente llama a `ruta_inicio`, toma un cargo, lee por qué f
 En este orden, cada paso sobre el anterior:
 
 1. **Funciones, las herramientas de la plataforma y el registro** (lo de arriba).
-2. **Encargos:** trabajo con un ciclo de vida (pendiente → tomado → esperando → entregado → revisado). *Esperar* despierta al agente cuando termina una ejecución, se integra una solicitud de cambios o una persona aprueba, en vez de que el agente pregunte una y otra vez.
+2. **Encargos** (arriba): hechos para las ejecuciones. Esperar a que se integre una solicitud de cambios o a la aprobación de una persona llega con el paso 3.
 3. **Aprobaciones:** un agente pide una acción (integrar, desplegar, revertir) con su motivo; la persona la aprueba o la rechaza en la interfaz o por correo.
 4. **Entornos de prueba:** cada rama desplegada por su cuenta un tiempo, con su URL y sus trazas, para que un agente pruebe contra lo real antes de pedir que integren.
 5. **Agentes dentro de la plataforma:** se despiertan con eventos (una construcción que falla, una reversión) para diagnosticar y proponer un arreglo, primero con el modelo local y luego con uno alojado, dentro de un **tope de gasto mensual** que fija la persona.

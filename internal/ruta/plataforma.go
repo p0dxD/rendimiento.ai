@@ -30,6 +30,9 @@ type Plataforma interface {
 	// QueueRun puts a run of a branch in the CI queue.
 	QueueRun(ctx context.Context, app *store.App, branch string) (*store.Run, error)
 	CancelRun(ctx context.Context, id int64) error
+	// WaitRun returns a run once it has finished, or as it stands when ctx
+	// ends (with ctx's error).
+	WaitRun(ctx context.Context, id int64) (*store.Run, error)
 }
 
 // ---- inputs and outputs ----

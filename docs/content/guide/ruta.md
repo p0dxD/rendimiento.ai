@@ -20,6 +20,8 @@ Nothing is lost: an edit keeps the previous version, and *Archive* hides an entr
 
 An agent that wants to write first **takes a cargo**: a turn of work with a purpose ("move stockpulse's database"). Everything it writes belongs to that cargo. Before it leaves, it **hands the cargo over** (*entrega*): what it did, and what is left. The next agent starts by reading the last handovers. The **Cargos** tab shows them as the monarchs' flight, one after another, with every tool call recorded.
 
+The **Encargos** tab is the work asked of agents: you write what to do, an agent takes it, may wait on its runs, and hands it over; you review it or send it back. See [Encargos](agents.md#encargos).
+
 ## Connecting an agent (MCP) {#connecting-an-agent-mcp}
 
 Agents reach the Ruta through **MCP** (Model Context Protocol), an open standard many AI tools speak, at `https://<your rendimiento>/mcp`.
