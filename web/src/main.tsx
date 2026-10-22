@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, session, type MemberRole, type Org } from "./api";
 import { Members, OrgSwitch, memberRoleLabel } from "./pages/Members";
+import { IA } from "./pages/IA";
 import { t } from "./i18n";
 import { Dashboard } from "./pages/Dashboard";
 import { NewApp } from "./pages/NewApp";
@@ -71,6 +72,7 @@ function Shell() {
         {state.operator && <NavLink to="/addons" className="nav-link">{t("Add-ons")}</NavLink>}
         {state.operator && <EnvironmentNavLink />}
         <NavLink to="/ruta" className="nav-link">{t("Ruta")}</NavLink>
+        <NavLink to="/ia" className="nav-link">{t("AI")}</NavLink>
         {state.operator && <ProblemsNavLink />}
         <span className="spacer" />
         {state.role === "admin" && <Link to="/new" className="btn primary">{t("New app")}</Link>}
@@ -95,6 +97,7 @@ function Shell() {
           <Route path="/addons" element={<Addons />} />
           <Route path="/problems" element={<Problems />} />
           <Route path="/ruta" element={<Ruta />} />
+          <Route path="/ia" element={<IA />} />
           <Route path="/members" element={<Members me={state.login ?? ""} role={state.role ?? "guest"} />} />
           <Route path="/addons/:name" element={<AddonDetail />} />
           <Route path="/services/:ns/:name" element={<Services />} />

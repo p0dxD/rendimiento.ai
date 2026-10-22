@@ -35,6 +35,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
 	"github.com/p0dxD/rendimiento.ai/internal/events"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/p0dxD/rendimiento.ai/internal/ia"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/ruta"
@@ -897,5 +898,71 @@ func TestOrgIsolation(t *testing.T) {
 	}
 	if r, _ := e.do(t, "GET", "/api/problems", "", me, nil); r.StatusCode != 200 {
 		t.Fatalf("the operator keeps the platform's routes in any organization: %d", r.StatusCode)
+	}
+}
+
+type memIAKeys map[int64]string
+
+func (k memIAKeys) KeyHint(_ context.Context, org int64) (string, error) {
+	if v := k[org]; len(v) >= 8 {
+		return "…" + v[len(v)-4:], nil
+	}
+	return "", nil
+}
+func (k memIAKeys) OrgKey(_ context.Context, org int64) (string, error) { return k[org], nil }
+func (k memIAKeys) SetOrgKey(_ context.Context, org int64, key string) error {
+	if key == "" {
+		delete(k, org)
+	} else {
+		k[org] = key
+	}
+	return nil
+}
+
+// An organization's administrator picks the AI provider and keeps its own
+// key (shown only by its end); anyone collaborating tries it, measured; the
+// operator gives allowances of the platform's AI.
+func TestIAAPI(t *testing.T) {
+	e := newEnv(t, false)
+	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"message": map[string]any{"content": "hola desde el modelo local"}, "prompt_eval_count": 12, "eval_count": 5})
+	}))
+	defer local.Close()
+	keys := memIAKeys{}
+	e.s.IA = &ia.Gateway{Store: e.store, Keys: keys, LocalURL: local.URL, LocalModel: "qwen", PlatformCapMicros: 5_000_000}
+	e.s.IAKeys = keys
+	me := e.session(t, "p0dxD")
+
+	if _, body := e.do(t, "GET", "/api/ia", "", me, nil); !strings.Contains(body, `"provider":"local"`) || !strings.Contains(body, `"localModel":"qwen"`) {
+		t.Fatalf("defaults: %s", body)
+	}
+	for _, bad := range []string{`{"provider":"gratis"}`, `{"provider":"own","kind":"otro"}`, `{"provider":"own","kind":"openai","baseUrl":"http://x"}`, `{"provider":"local","capDollars":5000}`} {
+		if r, _ := e.do(t, "PUT", "/api/ia", bad, me, nil); r.StatusCode != 400 {
+			t.Errorf("%s: %d, want 400", bad, r.StatusCode)
+		}
+	}
+	r, body := e.do(t, "PUT", "/api/ia", `{"provider":"own","kind":"anthropic","capDollars":2.5,"key":"sk-ant-0123456789abcd"}`, me, nil)
+	if r.StatusCode != 200 || !strings.Contains(body, `"keyHint":"…abcd"`) || strings.Contains(body, "sk-ant") || !strings.Contains(body, `"capMicros":2500000`) {
+		t.Fatalf("save: %d %s", r.StatusCode, body)
+	}
+	// Back to the local model, and try it: the answer and the call are kept.
+	e.do(t, "PUT", "/api/ia", `{"provider":"local","capDollars":1,"removeKey":true}`, me, nil)
+	if len(keys) != 0 {
+		t.Fatalf("the key was not removed: %v", keys)
+	}
+	r, body = e.do(t, "POST", "/api/ia/test", `{"prompt":"¿estás ahí?"}`, me, nil)
+	if r.StatusCode != 200 || !strings.Contains(body, "hola desde el modelo local") || !strings.Contains(body, `"provider":"local"`) {
+		t.Fatalf("try: %d %s", r.StatusCode, body)
+	}
+	if _, body := e.do(t, "GET", "/api/ia", "", me, nil); !strings.Contains(body, `"source":"try: p0dxD"`) {
+		t.Fatalf("usage: %s", body)
+	}
+
+	// The operator's view and allowances.
+	if r, _ := e.do(t, "PUT", "/api/ia/orgs/1/allowance", `{"dollars":0.5}`, me, nil); r.StatusCode != 204 {
+		t.Fatalf("allowance: %d", r.StatusCode)
+	}
+	if _, body := e.do(t, "GET", "/api/ia/orgs", "", me, nil); !strings.Contains(body, `"allowanceMicros":500000`) || !strings.Contains(body, `"capMicros":5000000`) {
+		t.Fatalf("operator's view: %s", body)
 	}
 }

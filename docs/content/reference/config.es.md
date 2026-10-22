@@ -126,6 +126,16 @@ Los días y las horas se cuentan en `PUBLIC_STATS_TZ`.
 | `TRACE_RETENTION_DAYS` | `7` | | días de solicitudes guardadas; los días anteriores se borran completos |
 | `METRICS_URL` | *(vacío: sin latencia en el mapa)* | `http://vmsingle.monitoring.svc.cluster.local:8428` | un almacén compatible con Prometheus (VictoriaMetrics) donde el colector escribe el grafo de servicios; el [universo](../guide/universe.md) lee de ahí las llamadas, los errores y la latencia |
 
+## IA {#ai}
+
+| Variable | Predeterminado | Ejemplo | Qué es |
+|---|---|---|---|
+| `AI_LOCAL_URL` | *(vacío: sin modelo local)* | `http://ollama.ai.svc.cluster.local:11434` | el Ollama del modelo local: gratis, el predeterminado de cada organización, y al que caen las llamadas ([IA](../guide/ai.md)) |
+| `AI_LOCAL_MODEL` | `qwen3.5:4b` | | el modelo local |
+| `AI_PLATFORM_KEY` | *(vacío: ninguna)* | del Secret `rendimiento-ia` | la llave de Anthropic de la plataforma, que las organizaciones usan solo dentro de la asignación que les dan los operadores |
+| `AI_PLATFORM_MODEL` | `claude-haiku-5-5` | | el modelo de la llave de la plataforma |
+| `AI_PLATFORM_CAP` | `5` | | dólares al mes que puede gastar la llave de la plataforma, sumando todas las organizaciones |
+
 ## Archivo de registros {#log-archive}
 
 | Variable | Predeterminado | Ejemplo | Significado |

@@ -39,6 +39,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/environment"
 	"github.com/p0dxD/rendimiento.ai/internal/events"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/p0dxD/rendimiento.ai/internal/ia"
 	"github.com/p0dxD/rendimiento.ai/internal/logarchive"
 	"github.com/p0dxD/rendimiento.ai/internal/mercado"
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
@@ -87,15 +88,19 @@ type Server struct {
 	public       publicCache
 	activity     activityCache
 	AllowedUsers []string // the first administrators, when there are no members yet
-	routes       []route  // authenticated routes and their roles (see Handler)
-	SetupToken   string   // guards the one-time GitHub App setup
-	AppName      string   // name for the GitHub App, e.g. "rendimiento-joserod"
-	GitHubAPI    string   // overridden in tests
-	UI           fs.FS    // built web UI; nil serves a placeholder
-	Environment  *environment.Checker
-	Catalog      *catalog.Builder
-	Renovate     *renovate.Runner
-	Addons       *addon.Syncer
+	// IA is the AI gateway (nil: off), and IAKeys where organizations'
+	// own keys are kept.
+	IA          *ia.Gateway
+	IAKeys      IAKeys
+	routes      []route // authenticated routes and their roles (see Handler)
+	SetupToken  string  // guards the one-time GitHub App setup
+	AppName     string  // name for the GitHub App, e.g. "rendimiento-joserod"
+	GitHubAPI   string  // overridden in tests
+	UI          fs.FS   // built web UI; nil serves a placeholder
+	Environment *environment.Checker
+	Catalog     *catalog.Builder
+	Renovate    *renovate.Runner
+	Addons      *addon.Syncer
 	// MCP serves /mcp, the agents' door to the Ruta (nil: off).
 	MCP http.Handler
 	// Analytics reads visitor numbers from Umami (nil: off); AnalyticsURL
@@ -165,6 +170,11 @@ func (s *Server) Handler() http.Handler {
 	plat(store.MemberAdmin, "POST /api/orgs", s.createOrg)
 	auth(store.MemberGuest, "POST /api/orgs/{id}/switch", s.switchOrg)
 	auth(store.MemberGuest, "GET /api/members", s.listMembers)
+	auth(store.MemberGuest, "GET /api/ia", s.iaView)
+	auth(store.MemberAdmin, "PUT /api/ia", s.putIA)
+	auth(store.MemberCollaborator, "POST /api/ia/test", s.testIA)
+	plat(store.MemberAdmin, "GET /api/ia/orgs", s.iaOrgs)
+	plat(store.MemberAdmin, "PUT /api/ia/orgs/{id}/allowance", s.putIAAllowance)
 	auth(store.MemberAdmin, "PUT /api/members/{login}", s.putMember)
 	auth(store.MemberAdmin, "DELETE /api/members/{login}", s.deleteMember)
 	plat(store.MemberAdmin, "GET /api/installations", s.installations)

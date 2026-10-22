@@ -74,6 +74,15 @@ data:
   # cluster with a view-only user (the rendimiento-umami secret).
   # UMAMI_URL: http://umami.umami.svc.cluster.local:3000
   # UMAMI_PUBLIC_URL: https://umami.example.com
+  # The AI gateway (internal/ia): the local model, free, which organizations
+  # use by default and fall back to; and the platform's key (the
+  # rendimiento-ia secret), which organizations use only within the
+  # allowance an operator gives them, and AI_PLATFORM_CAP dollars a month in
+  # all.
+  # AI_LOCAL_URL: http://ollama.ai.svc.cluster.local:11434
+  # AI_LOCAL_MODEL: qwen3.5:4b
+  # AI_PLATFORM_MODEL: claude-haiku-5-5
+  AI_PLATFORM_CAP: "5"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -114,6 +123,8 @@ spec:
             - secretRef: { name: rendimiento-logs, optional: true }
             # UMAMI_USERNAME / UMAMI_PASSWORD (a view-only Umami user) for visitor numbers.
             - secretRef: { name: rendimiento-umami, optional: true }
+            # AI_PLATFORM_KEY: the platform's Anthropic key for the AI gateway; optional.
+            - secretRef: { name: rendimiento-ia, optional: true }
           env:
             - name: ROLE
               value: api
@@ -178,6 +189,8 @@ spec:
             - secretRef: { name: rendimiento-logs, optional: true }
             # UMAMI_USERNAME / UMAMI_PASSWORD (a view-only Umami user) for visitor numbers.
             - secretRef: { name: rendimiento-umami, optional: true }
+            # AI_PLATFORM_KEY: the platform's Anthropic key for the AI gateway; optional.
+            - secretRef: { name: rendimiento-ia, optional: true }
           env:
             - name: ROLE
               value: control
@@ -242,6 +255,8 @@ spec:
             - secretRef: { name: rendimiento-logs, optional: true }
             # UMAMI_USERNAME / UMAMI_PASSWORD (a view-only Umami user) for visitor numbers.
             - secretRef: { name: rendimiento-umami, optional: true }
+            # AI_PLATFORM_KEY: the platform's Anthropic key for the AI gateway; optional.
+            - secretRef: { name: rendimiento-ia, optional: true }
           env:
             - name: ROLE
               value: worker
@@ -307,6 +322,8 @@ spec:
             - secretRef: { name: rendimiento-logs, optional: true }
             # UMAMI_USERNAME / UMAMI_PASSWORD (a view-only Umami user) for visitor numbers.
             - secretRef: { name: rendimiento-umami, optional: true }
+            # AI_PLATFORM_KEY: the platform's Anthropic key for the AI gateway; optional.
+            - secretRef: { name: rendimiento-ia, optional: true }
           env:
             - name: ROLE
               value: traces

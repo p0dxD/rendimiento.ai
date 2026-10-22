@@ -227,3 +227,16 @@ func (s *Store) CreateOrg(ctx context.Context, slug, name, admin string) (Org, e
 	o.Role = MemberAdmin
 	return o, tx.Commit(ctx)
 }
+
+// AllOrgs lists every organization (for the platform's operators).
+func (s *Store) AllOrgs(ctx context.Context) ([]Org, error) {
+	rows, err := s.pool.Query(ctx, `SELECT id, slug, name, created_at FROM orgs ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Org, error) {
+		var o Org
+		err := r.Scan(&o.ID, &o.Slug, &o.Name, &o.CreatedAt)
+		return o, err
+	})
+}

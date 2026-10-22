@@ -11,12 +11,12 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 297 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 751 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 766 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1178 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
 | [`internal/analytics`](#internal-analytics) | 2 | 608 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
-| [`internal/api`](#internal-api) | 20 | 4911 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 21 | 5250 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/caminos`](#internal-caminos) | 2 | 310 | Package caminos builds an app's recent history as the Caminos tab draws it: the default branch is the camino real, every other branch is a vereda that leaves it at the commit it was branched from (or from its parent branch, for a stacked pull request) and comes back where its pull request was merged, with each run as a stop along the way. |
 | [`internal/catalog`](#internal-catalog) | 2 | 910 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 8 | 2906 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
@@ -26,7 +26,8 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/events`](#internal-events) | 5 | 549 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 282 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1426 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/i18n`](#internal-i18n) | 3 | 827 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
+| [`internal/i18n`](#internal-i18n) | 3 | 842 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
+| [`internal/ia`](#internal-ia) | 4 | 614 | Package ia is the AI gateway: every call the platform makes to a model goes through it. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 309 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
 | [`internal/mercado`](#internal-mercado) | 5 | 1009 | Package mercado makes web pages for people who don't write code. |
 | [`internal/notify`](#internal-notify) | 2 | 589 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
@@ -38,7 +39,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/ruta`](#internal-ruta) | 8 | 2561 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
 | [`internal/selfupdate`](#internal-selfupdate) | 2 | 477 | Package selfupdate moves rendimiento to an image it built and tested itself: its own repository's builds: entry (SELF_APP), released like any app's. |
 | [`internal/spec`](#internal-spec) | 2 | 1869 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 26 | 4172 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/store`](#internal-store) | 28 | 4362 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/testenv`](#internal-testenv) | 1 | 34 | Package testenv is the envtest (a real API server and etcd) the controller and platform tests run against, tuned for slow machines. |
 | [`internal/traces`](#internal-traces) | 3 | 621 | Package traces keeps whole requests for the Universe's waterfall. |
 | [`internal/universe`](#internal-universe) | 4 | 1356 | Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches. |
@@ -103,7 +104,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>740 lines</small>
+<small>755 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -345,6 +346,23 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `(*bufferedWriter) WriteHeader` | method |  |
 | `(*bufferedWriter) Write` | method |  |
 
+### `internal/api/ia.go`
+
+<small>259 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `IAKeys` | interface | IAKeys stores organizations' own AI keys (ia.SecretKeys). |
+| `IAView` | struct | IAView is the organization's AI page. |
+| `(*Server) iaView` | method | iaView is the organization's AI settings, spending and latest calls. |
+| `IAInput` | struct | IAInput is what an organization's administrator chooses. |
+| `micros` | func | micros turns dollars into millionths of a dollar. |
+| `(*Server) putIA` | method | putIA saves the organization's AI choices and, if given, its own key. |
+| `(*Server) testIA` | method | testIA asks the organization's model one question, to try the settings (measured like any call). |
+| `IAOrg` | struct | IAOrg is one organization on the operator's AI page. |
+| `(*Server) iaOrgs` | method | iaOrgs is the operator's view: every organization's allowance of the platform's AI and what it spent of it this month, and the platform's bill. |
+| `(*Server) putIAAllowance` | method | putIAAllowance is what the operator lets an organization spend of the platform's AI each month. |
+
 ### `internal/api/installed.go`
 
 <small>353 lines</small>
@@ -500,7 +518,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1726 lines</small>
+<small>1736 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -598,7 +616,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server_test.go`
 
-<small>898 lines · tests</small>
+<small>968 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -624,6 +642,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `TestRouteRoles` | func | Every route takes at least the role it declares: a guest may read, but not act or administer; a collaborator may act, but not administer; a stranger with a session is not let in at all. |
 | `TestMembersAPI` | func | An administrator adds and removes people; the last administrator stays. |
 | `TestOrgIsolation` | func | Two organizations: nothing of one is seen from the other (apps, runs, the Ruta, encargos, agent keys, members), the platform's routes are for its operators only, and a person switches between their organizations. |
+| `TestIAAPI` | func | An organization's administrator picks the AI provider and keeps its own key (shown only by its end); anyone collaborating tries it, measured; the operator gives allowances of the platform's AI. |
 
 ## `internal/caminos` {#internal-caminos}
 
@@ -1285,7 +1304,7 @@ Package i18n translates the platform's messages for people: the API's answers to
 
 ### `internal/i18n/es.go`
 
-<small>502 lines</small>
+<small>517 lines</small>
 
 ### `internal/i18n/i18n.go`
 
@@ -1315,6 +1334,69 @@ Package i18n translates the platform's messages for people: the API's answers to
 | `TestCatalog` | func | Every format the platform passes to M has its Spanish, with as many values; a new message without a translation fails here. |
 | `TestTranslate` | func |  |
 | `TestParse` | func |  |
+
+## `internal/ia` {#internal-ia}
+
+Package ia is the AI gateway: every call the platform makes to a model goes through it.
+
+### `internal/ia/clients.go`
+
+<small>147 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `modelClient` | interface | modelClient is one way to reach a model: text, tokens in and out. |
+| `post` | func | post sends JSON and decodes the JSON answer, with the API's message on an error status. |
+| `ollama` | struct | ollama is the local model, through Ollama's chat API (thinking off: the platform's questions are short). |
+| `(ollama) complete` | method |  |
+| `anthropic` | struct | anthropic is Anthropic's Messages API. |
+| `(anthropic) complete` | method |  |
+| `openai` | struct | openai is any OpenAI-compatible chat completions API (OpenAI, and the many services that speak it). |
+| `(openai) complete` | method |  |
+
+### `internal/ia/ia.go`
+
+<small>233 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Message` | struct | Message is one turn of a conversation: role user or assistant. |
+| `Request` | struct | Request is what to ask a model. |
+| `Response` | struct | Response is a model's answer and what it cost. |
+| `Store` | interface | Store is what the gateway keeps and reads (the platform's store). |
+| `Keys` | interface | Keys holds organizations' own API keys (never in the database). |
+| `Gateway` | struct | Gateway is the AI gateway. |
+| `Price` | struct | Price is a model's price in millionths of a dollar per million tokens. |
+| `(*Gateway) cost` | method | cost is a call's price, rounded up to the next millionth of a dollar. |
+| `(*Gateway) clock` | method |  |
+| `(*Gateway) http` | method |  |
+| `target` | struct | target is where a call goes and who pays. |
+| `(*Gateway) choose` | method | choose picks the organization's provider, or the local model with the reason when that one cannot be used (no key, a cap reached). |
+| `(*Gateway) Complete` | method | Complete asks a model for an organization, from source (a feature, or an agent key's name), and records the call. |
+| `(*Gateway) call` | method | call asks one target and records it. |
+| `Dollars` | func | Dollars writes millionths of a dollar as dollars: $0.15, $5.00. |
+| `or` | func |  |
+
+### `internal/ia/keys.go`
+
+<small>63 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `SecretKeys` | struct | SecretKeys keeps each organization's own AI key in a Secret of the platform's namespace (rendimiento-ia-org-<id>), never in the database; the UI only ever sees its last four characters. |
+| `secretName` | func |  |
+| `(SecretKeys) OrgKey` | method | OrgKey is the organization's key ("" when it has none). |
+| `(SecretKeys) KeyHint` | method | KeyHint is the key's last four characters, for the UI ("" when none). |
+| `(SecretKeys) SetOrgKey` | method | SetOrgKey stores the organization's key; an empty one removes it. |
+
+### `internal/ia/ia_test.go`
+
+<small>171 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestGateway` | func | The local model by default; an organization's own key until its cap; the platform's key within the operator's allowance and the platform's cap; the local model whenever one of those cannot be used, with the reason. |
+| `TestDollars` | func |  |
 
 ## `internal/logarchive` {#internal-logarchive}
 
@@ -2290,6 +2372,23 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) GetAddonRun` | method | GetAddonRun returns one run with its log. |
 | `prefixed` | func | prefixed qualifies a column list with a table alias ("a.id, a.name"). |
 
+### `internal/store/ai.go`
+
+<small>123 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `AISettings` | struct | AISettings is an organization's choice of AI provider and its caps. |
+| `AIUsage` | struct | AIUsage is one measured call to a model. |
+| `(*Store) AISettingsOf` | method | AISettingsOf is an organization's AI settings (the defaults when it has none yet: the local model, a $1 cap, no allowance). |
+| `(*Store) SaveAISettings` | method | SaveAISettings stores an organization's choices (not the allowance, which is the operator's: see SetAIAllowance). |
+| `(*Store) SetAIAllowance` | method | SetAIAllowance is what the operator lets an organization spend of the platform's key each month. |
+| `(*Store) RecordAIUsage` | method | RecordAIUsage keeps one call. |
+| `monthStart` | func | monthStart is the first instant of now's month (UTC): caps are monthly. |
+| `(*Store) AISpent` | method | AISpent is what an organization spent this month, by who paid: its own key, or the platform's. |
+| `(*Store) AIPlatformSpent` | method | AIPlatformSpent is what every organization spent of the platform's key this month: the operator's bill. |
+| `(*Store) AIUsageOf` | method | AIUsageOf lists an organization's latest calls. |
+
 ### `internal/store/caminos.go`
 
 <small>40 lines</small>
@@ -2335,7 +2434,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/orgs.go`
 
-<small>229 lines</small>
+<small>242 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2352,6 +2451,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) OrgsOf` | method | OrgsOf lists the organizations a person belongs to, with their role, the default one first. |
 | `(*Store) GetOrg` | method | GetOrg returns one organization. |
 | `(*Store) CreateOrg` | method | CreateOrg makes an organization with its first administrator. |
+| `(*Store) AllOrgs` | method | AllOrgs lists every organization (for the platform's operators). |
 
 ### `internal/store/problems.go`
 
@@ -2557,6 +2657,14 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) UptimeSummary` | method | UptimeSummary is the share of successful checks per app since a time: the dashboard's uptime badges. |
 | `CheckStats` | struct | CheckStats summarizes one check's results over a period. |
 | `(*Store) ProbeStats` | method | ProbeStats summarizes an app's checks in [from, to), per service and check kind: the baseline a new release is compared with. |
+
+### `internal/store/ai_test.go`
+
+<small>54 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestAI` | func | AI settings default to the local model; spending adds up by who paid, this month only, and the platform's bill sums every organization. |
 
 ### `internal/store/caminos_test.go`
 
@@ -2865,7 +2973,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>1099 lines</small>
+<small>1163 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2899,6 +3007,13 @@ Package web embeds the built UI (npm run build → web/dist).
 | `Org` | interface | An organization (internal/store.Org), with the person's role in it. |
 | `Me` | interface | Who is signed in (api.Me): their role in the organization they work in, and whether they run the platform (its operators see the cluster's pages). |
 | `session` | const | The signed-in person, set once when the app loads (switching organization reloads the page). |
+| `AIProvider` | type | The AI gateway (internal/ia, api.IAView). |
+| `AISettings` | interface |  |
+| `AIUsage` | interface |  |
+| `IAView` | interface |  |
+| `IAAnswer` | interface |  |
+| `IAOrgs` | interface |  |
+| `dollars` | const | Millionths of a dollar as dollars: $0.15. |
 | `Member` | interface |  |
 | `EncargoStatus` | type |  |
 | `Encargo` | interface | Work asked of agents (internal/store.Encargo). |
@@ -3225,7 +3340,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>1153 lines</small>
+<small>1193 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3233,7 +3348,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/main.tsx`
 
-<small>119 lines</small>
+<small>122 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3309,6 +3424,20 @@ Package web embeds the built UI (npm run build → web/dist).
 | `gib` | const |  |
 | `cores` | const |  |
 | `NodeCard` | component | One node: ready or not, pressure, its CPU and memory in use, and what it runs on. |
+
+### `web/src/pages/IA.tsx`
+
+<small>193 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `providerLabel` | const |  |
+| `IA` | component |  |
+| `Settings` | component |  |
+| `Spending` | component |  |
+| `Try` | component |  |
+| `Calls` | component |  |
+| `Operator` | component | For the platform's operators: each organization's allowance of the platform's AI, and the bill. |
 
 ### `web/src/pages/Installed.tsx`
 

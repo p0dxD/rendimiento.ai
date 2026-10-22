@@ -126,6 +126,16 @@ Days and hours are counted in `PUBLIC_STATS_TZ`.
 | `TRACE_RETENTION_DAYS` | `7` | | days of kept requests; older days are dropped whole |
 | `METRICS_URL` | *(empty: no latency on the map)* | `http://vmsingle.monitoring.svc.cluster.local:8428` | a Prometheus-compatible store (VictoriaMetrics) where the collector writes the service graph; the [Universe](../guide/universe.md) reads calls, errors and latency from it |
 
+## AI {#ai}
+
+| Variable | Default | Example | Meaning |
+|---|---|---|---|
+| `AI_LOCAL_URL` | *(empty: no local model)* | `http://ollama.ai.svc.cluster.local:11434` | the local model's Ollama: free, every organization's default, and where calls fall back ([AI](../guide/ai.md)) |
+| `AI_LOCAL_MODEL` | `qwen3.5:4b` | | the local model |
+| `AI_PLATFORM_KEY` | *(empty: none)* | from Secret `rendimiento-ia` | the platform's Anthropic key, which organizations use only within the allowance operators give them |
+| `AI_PLATFORM_MODEL` | `claude-haiku-5-5` | | the model of the platform's key |
+| `AI_PLATFORM_CAP` | `5` | | dollars a month the platform's key may spend, across every organization |
+
 ## Log archive
 
 | Variable | Default | Example | Meaning |
