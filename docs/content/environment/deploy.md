@@ -150,7 +150,7 @@ kubectl -n rendimiento-system rollout restart deploy   # every service
 kubectl -n rendimiento-system rollout status deploy/rendimiento
 ```
 
-The platform runs as [services from one image](../architecture/overview.md#three-services): `rendimiento` (`ROLE=api`, two replicas behind the Service), `rendimiento-control`, `rendimiento-worker` and `rendimiento-traces`. Each pulls `:latest` with `imagePullPolicy: Always` and updates with **no downtime**: a `RollingUpdate` with `maxUnavailable: 0` starts the new pod next to the old one, and the old one keeps working until the new one is ready. For those seconds both versions run:
+The platform runs as [services from one image](../architecture/overview.md#three-services): `rendimiento` (`ROLE=api`, two replicas behind the Service), `rendimiento-control`, `rendimiento-worker`, `rendimiento-traces` and `rendimiento-agents`. Each pulls `:latest` with `imagePullPolicy: Always` and updates with **no downtime**: a `RollingUpdate` with `maxUnavailable: 0` starts the new pod next to the old one, and the old one keeps working until the new one is ready. For those seconds both versions run:
 
 - **live events** (log lines, step changes, cancels) cross between them through Postgres ([Live updates](../architecture/api-ui.md#live-updates-server-sent-events)), so a run page served by one shows the build the other runs;
 - the old control pod hands the **leader lease** to the new one as it stops; only the leader runs the controllers, Renovate, the add-on sync, the uptime prober, release verification and dynamic DNS;

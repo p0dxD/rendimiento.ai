@@ -843,3 +843,6 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 .ia-own { padding-left: 26px; }
 .ia-spend .card { min-width: 200px; }
 .ia-answer { border-left: 3px solid var(--border); padding-left: 10px; }
+
+/* «Why did it fail?» on a run (pages/RunPage.tsx). */
+.why-failed { border-left: 4px solid var(--bad); margin-bottom: 16px; }

@@ -1,6 +1,6 @@
 # IA: la pasarela, los proveedores y los topes {#ai-the-gateway-providers-and-caps}
 
-Toda llamada que la plataforma le hace a un modelo pasa por una sola **pasarela** (`internal/ia`): la de los agentes que trabajarán dentro de la plataforma y la de las explicaciones de lo que falló. Decide qué modelo contesta para cada organización, mantiene a todos bajo sus topes mensuales y registra cada llamada.
+Toda llamada que la plataforma le hace a un modelo pasa por una sola **pasarela** (`internal/ia`): la de los [agentes dentro de la plataforma](agents.md#agents-inside-the-platform), como el diagnosticador que explica las ejecuciones que fallan. Decide qué modelo contesta para cada organización, mantiene a todos bajo sus topes mensuales y registra cada llamada.
 
 ## Quién contesta {#who-answers}
 

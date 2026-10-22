@@ -150,7 +150,7 @@ kubectl -n rendimiento-system rollout restart deploy   # todos los servicios
 kubectl -n rendimiento-system rollout status deploy/rendimiento
 ```
 
-La plataforma corre como [servicios de una misma imagen](../architecture/overview.md#three-services): `rendimiento` (`ROLE=api`, dos réplicas detrás del Service), `rendimiento-control`, `rendimiento-worker` y `rendimiento-traces`. Cada uno descarga `:latest` con `imagePullPolicy: Always` y se actualiza **sin cortes**: un `RollingUpdate` con `maxUnavailable: 0` arranca el pod nuevo junto al anterior, y el anterior sigue trabajando hasta que el nuevo está listo. Durante esos segundos corren las dos versiones:
+La plataforma corre como [servicios de una misma imagen](../architecture/overview.md#three-services): `rendimiento` (`ROLE=api`, dos réplicas detrás del Service), `rendimiento-control`, `rendimiento-worker`, `rendimiento-traces` y `rendimiento-agents`. Cada uno descarga `:latest` con `imagePullPolicy: Always` y se actualiza **sin cortes**: un `RollingUpdate` con `maxUnavailable: 0` arranca el pod nuevo junto al anterior, y el anterior sigue trabajando hasta que el nuevo está listo. Durante esos segundos corren las dos versiones:
 
 - los **eventos en vivo** (líneas de registro, cambios de paso, cancelaciones) pasan de una a otra por Postgres ([Actualizaciones en vivo](../architecture/api-ui.md#live-updates-server-sent-events)), así que una página de ejecución que atiende una muestra la construcción que corre la otra;
 - el pod de control anterior le entrega el **arrendamiento de líder** al nuevo al detenerse; solo el líder corre los controladores, Renovate, la sincronización de complementos, el sondeo de disponibilidad, la verificación de versiones y el DNS dinámico;

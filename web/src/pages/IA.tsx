@@ -35,15 +35,16 @@ function Settings({ v, onSaved }: { v: IAView; onSaved: () => void }) {
   const [model, setModel] = useState(v.settings.model ?? "");
   const [cap, setCap] = useState(v.settings.capMicros / 1e6);
   const [key, setKey] = useState("");
+  const [auto, setAuto] = useState(v.settings.autoDiagnose);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>();
   useEffect(() => {
     setProvider(v.settings.provider); setKind(v.settings.kind ?? "anthropic"); setBaseUrl(v.settings.baseUrl ?? "");
-    setModel(v.settings.model ?? ""); setCap(v.settings.capMicros / 1e6);
+    setModel(v.settings.model ?? ""); setCap(v.settings.capMicros / 1e6); setAuto(v.settings.autoDiagnose);
   }, [v.settings]);
   const save = (extra: { removeKey?: boolean } = {}) => {
     setBusy(true); setErr(undefined);
-    api.saveIA({ provider, kind, baseUrl, model, capDollars: cap, key: key || undefined, ...extra })
+    api.saveIA({ provider, kind, baseUrl, model, capDollars: cap, key: key || undefined, autoDiagnose: auto, ...extra })
       .then(() => { setBusy(false); setKey(""); onSaved(); }, (e) => { setBusy(false); setErr(e); });
   };
   return (
@@ -81,6 +82,9 @@ function Settings({ v, onSaved }: { v: IAView; onSaved: () => void }) {
         <span><strong>{t("The platform's")}</strong> {v.platformAvailable
           ? <span className="muted">({v.platformModel}) · {t("up to {allowance} a month, the allowance the platform's operators give you", { allowance: dollars(v.settings.allowanceMicros) })}</span>
           : <span className="muted">{t("not offered on this platform")}</span>}</span>
+      </label>
+      <label className="row ia-choice"><input type="checkbox" disabled={!admin} checked={auto} onChange={(e) => setAuto(e.target.checked)} />
+        <span><strong>{t("Explain every failed run")}</strong> <span className="muted">{t("the diagnostician agent reads the failed steps and their logs, and says why and how to fix it, on the run's page")}</span></span>
       </label>
       <label className="field" style={{ maxWidth: 260 }}><span>{t("Monthly cap (dollars)")}</span>
         <input disabled={!admin} type="number" min={0} max={1000} step={0.5} value={cap} onChange={(e) => setCap(Number(e.target.value))} />

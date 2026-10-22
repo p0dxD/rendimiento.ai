@@ -33,6 +33,7 @@ import (
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/addon"
+	"github.com/p0dxD/rendimiento.ai/internal/agentes"
 	"github.com/p0dxD/rendimiento.ai/internal/analytics"
 	"github.com/p0dxD/rendimiento.ai/internal/api"
 	"github.com/p0dxD/rendimiento.ai/internal/catalog"
@@ -96,8 +97,8 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	// on the elected leader), worker (the CI queue), traces (keeps requests
 	// for the Universe's waterfall), or all of them.
 	role := env("ROLE", "all")
-	if !slices.Contains([]string{"all", "api", "control", "worker", "traces"}, role) {
-		return fmt.Errorf("ROLE must be all, api, control, worker or traces, got %q", role)
+	if !slices.Contains([]string{"all", "api", "control", "worker", "traces", "agents"}, role) {
+		return fmt.Errorf("ROLE must be all, api, control, worker, traces or agents, got %q", role)
 	}
 	runs := func(r string) bool { return role == "all" || role == r }
 	log = log.With("role", role)
@@ -568,6 +569,23 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 			_ = p.Hub.Ask(ctx, ddnsTopic, nil, &st)
 			return st
 		}
+	}
+
+	// The agents inside the platform (ROLE=agents): the diagnostician explains
+	// every failed run through the AI gateway, within each organization's
+	// caps. One process runs them at a time (a lock in Postgres).
+	if runs("agents") {
+		diag := &agentes.Diagnostician{Store: st, Model: srv.IA, Logs: srv.StepLogText, Changes: holder,
+			Lang: env("NOTIFY_LANG", "en"), Log: log.With("component", "agents")}
+		go func() {
+			release, err := st.LockAgents(ctx, 5*time.Second)
+			if err != nil {
+				return // ctx ended while waiting
+			}
+			defer release()
+			log.Info("starting the agents: the diagnostician")
+			diag.Run(ctx)
+		}()
 	}
 
 	handler := srv.Handler()

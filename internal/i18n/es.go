@@ -78,6 +78,8 @@ var catalog = map[string]string{
 	"the platform has no AI key": "la plataforma no tiene llave de IA",
 	"this organization's share of the platform's AI (%s this month) was reached": "se alcanzó lo que esta organización tiene de la IA de la plataforma (%s este mes)",
 	"the platform's monthly AI budget was reached": "se alcanzó el presupuesto mensual de IA de la plataforma",
+	"this run has no diagnosis": "esta ejecución no tiene diagnóstico",
+	"only a failed run is diagnosed": "solo se diagnostica una ejecución que falló",
 	"stopped: %s failed":                                                                              "detenido: falló %s",
 	"%s failed two checks in a row. rendimiento keeps checking every minute and will email you when it recovers.": "Fallaron dos comprobaciones seguidas de %s. rendimiento sigue comprobando cada minuto y le enviará un correo cuando se recupere.",
 	"%s installed on %s": "%s instalada en %s",

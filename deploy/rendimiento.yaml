@@ -35,7 +35,7 @@ data:
   TRACE_SAMPLE: "0.1"
   TRACE_SLOW: 1s
   TRACE_RETENTION_DAYS: "7"
-  SERVICES: rendimiento,rendimiento-control,rendimiento-worker,rendimiento-traces
+  SERVICES: rendimiento,rendimiento-control,rendimiento-worker,rendimiento-traces,rendimiento-agents
   CLUSTER_ISSUER: letsencrypt-prod
   INGRESS_CLASS: nginx
   STORAGE_CLASS: longhorn
@@ -260,6 +260,72 @@ spec:
           env:
             - name: ROLE
               value: worker
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: rendimiento-db, key: password } }
+            - name: DATABASE_URL
+              value: postgres://rendimiento:$(DB_PASSWORD)@rendimiento-db:5432/rendimiento?sslmode=disable
+            - name: SETUP_TOKEN
+              valueFrom: { secretKeyRef: { name: rendimiento-setup, key: token } }
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: metrics, containerPort: 9090 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            capabilities: { drop: [ALL] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rendimiento-agents
+  namespace: rendimiento-system
+spec:
+  # The agents inside the platform: the diagnostician explains every failed
+  # run through the AI gateway (within each organization's caps). One is
+  # active at a time (a lock in Postgres), so nothing is done twice.
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: rendimiento-agents }
+  template:
+    metadata:
+      labels: { app: rendimiento-agents }
+    spec:
+      serviceAccountName: rendimiento
+      containers:
+        - name: rendimiento
+          image: registry.example.lan:5000/rendimiento:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef: { name: rendimiento }
+            # CLOUDFLARE_API_TOKEN and DNS_TARGET; optional until DNS automation is wanted.
+            - secretRef: { name: rendimiento-dns, optional: true }
+            # RESEND_API_KEY for notification emails; optional (no email without it).
+            - secretRef: { name: rendimiento-notify, optional: true }
+            # LOG_ARCHIVE_ACCESS_KEY / LOG_ARCHIVE_SECRET_KEY for the log archive.
+            - secretRef: { name: rendimiento-logs, optional: true }
+            # UMAMI_USERNAME / UMAMI_PASSWORD (a view-only Umami user) for visitor numbers.
+            - secretRef: { name: rendimiento-umami, optional: true }
+            # AI_PLATFORM_KEY: the platform's Anthropic key for the AI gateway; optional.
+            - secretRef: { name: rendimiento-ia, optional: true }
+          env:
+            - name: ROLE
+              value: agents
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: rendimiento-db, key: password } }
             - name: DATABASE_URL

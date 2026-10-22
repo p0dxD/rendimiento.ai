@@ -19,8 +19,8 @@ rendimiento is configured only through **environment variables**, read once at s
 | `NAMESPACE` | `rendimiento-system` | | where the platform and its Secrets live |
 | `LISTEN` | `:8080` | | HTTP address (API, UI, webhooks) |
 | `METRICS_ADDR` | `:9090` | | Prometheus metrics (controller-runtime) |
-| `ROLE` | `all` | per Deployment: `api`, `control`, `worker`, `traces` | what this process runs ([its services](../architecture/overview.md#three-services)): `api` the UI, API, webhooks and MCP; `control` the controllers and background loops; `worker` the CI queue; `traces` keeps requests for the waterfall; `all` everything |
-| `SERVICES` | *(empty)* | `rendimiento,rendimiento-control,rendimiento-worker,rendimiento-traces` | the platform's Deployments: Entorno shows each one's health, and Update moves them all to a release |
+| `ROLE` | `all` | per Deployment: `api`, `control`, `worker`, `traces`, `agents` | what this process runs ([its services](../architecture/overview.md#three-services)): `api` the UI, API, webhooks and MCP; `control` the controllers and background loops; `worker` the CI queue; `traces` keeps requests for the waterfall; `agents` the agents inside the platform; `all` everything |
+| `SERVICES` | *(empty)* | `rendimiento,rendimiento-control,rendimiento-worker,rendimiento-traces,rendimiento-agents` | the platform's Deployments: Entorno shows each one's health, and Update moves them all to a release |
 | `LEADER_ELECTION` | `true` | `true` | the lease decides which control process runs the controllers and the background loops; during an update the old pod hands it over as it stops |
 
 ## GitHub

@@ -19,8 +19,8 @@ rendimiento se configura solo con **variables de entorno**, que se leen una vez 
 | `NAMESPACE` | `rendimiento-system` | | donde viven la plataforma y sus Secrets |
 | `LISTEN` | `:8080` | | la dirección HTTP (API, interfaz, avisos web) |
 | `METRICS_ADDR` | `:9090` | | métricas de Prometheus (controller-runtime) |
-| `ROLE` | `all` | por Deployment: `api`, `control`, `worker`, `traces` | lo que corre este proceso ([sus servicios](../architecture/overview.md#three-services)): `api` la interfaz, la API, los avisos web y MCP; `control` los controladores y los ciclos de fondo; `worker` la cola de CI; `traces` guarda solicitudes para la cascada; `all` todo |
-| `SERVICES` | *(vacío)* | `rendimiento,rendimiento-control,rendimiento-worker,rendimiento-traces` | los Deployments de la plataforma: Entorno muestra la salud de cada uno, y Actualizar los mueve todos a una versión |
+| `ROLE` | `all` | por Deployment: `api`, `control`, `worker`, `traces`, `agents` | lo que corre este proceso ([sus servicios](../architecture/overview.md#three-services)): `api` la interfaz, la API, los avisos web y MCP; `control` los controladores y los ciclos de fondo; `worker` la cola de CI; `traces` guarda solicitudes para la cascada; `agents` los agentes dentro de la plataforma; `all` todo |
+| `SERVICES` | *(vacío)* | `rendimiento,rendimiento-control,rendimiento-worker,rendimiento-traces,rendimiento-agents` | los Deployments de la plataforma: Entorno muestra la salud de cada uno, y Actualizar los mueve todos a una versión |
 | `LEADER_ELECTION` | `true` | `true` | el arrendamiento decide qué proceso de control corre los controladores y los ciclos de fondo; durante una actualización el pod anterior lo entrega al detenerse |
 
 ## GitHub {#github}

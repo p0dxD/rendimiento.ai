@@ -52,6 +52,7 @@ The same image runs as four Deployments, chosen by the `ROLE` setting, so a fail
 | `api` | `rendimiento` (2 replicas) | the UI, the API, webhooks, MCP, the public stats | nothing: every replica serves |
 | `control` | `rendimiento-control` | the App and Addon controllers, Renovate, the add-on sync, the uptime prober, release verification, the log archive, dynamic DNS | the leader lease |
 | `worker` | `rendimiento-worker` | the CI queue: build and test pods, deploys | the queue's lock in Postgres |
+| `agents` | `rendimiento-agents` | the agents inside the platform: the [diagnostician](../guide/agents.md#agents-inside-the-platform) explains every failed run through the AI gateway | the agents' lock in Postgres |
 | `traces` | `rendimiento-traces` | receives every span from the OpenTelemetry Collector and keeps whole requests for the Universe's [waterfall](../guide/universe.md#following-one-request) | one replica (a request's spans wait in its memory) |
 
 `ROLE=all` (the default) runs everything in one process, as on a laptop. The services share nothing but Postgres and Kubernetes:
