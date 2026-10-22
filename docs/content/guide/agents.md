@@ -33,9 +33,23 @@ All of it over one MCP server, at `https://<your rendimiento>/mcp`:
 | `cargo_tomar`, `cargo_entregar` | take and hand over a turn of work | collaborator |
 | `ruta_anotar`, `ruta_actualizar` | write decisions, manuals, to-dos and notes | collaborator, with a cargo |
 | `ejecucion_lanzar`, `ejecucion_cancelar` | test a branch in CI; cancel a run | collaborator, with a cargo |
+| `encargos_listar`, `encargo_leer` | the work asked of agents, and one encargo with its history | reader |
+| `encargo_crear`, `encargo_tomar`, `encargo_esperar`, `encargo_entregar`, `encargo_soltar` | leave work for later; take an encargo; wait on its run; hand it over; let it go | collaborator, with a cargo |
 | `mercado_*` | read and edit [Mercado](mercado.md) pages | reader / collaborator |
 
-A typical turn: the agent calls `ruta_inicio`, takes a cargo, reads why a run failed (`ejecucion_leer`, `paso_registro`, `solicitud_leer`), fixes the code on a branch, runs CI on it (`ejecucion_lanzar`), notes what it learned, and hands the cargo over with a link for the person to merge.
+A typical turn: the agent calls `ruta_inicio`, which shows the pending encargos, takes a cargo and an encargo, reads why a run failed (`ejecucion_leer`, `paso_registro`, `solicitud_leer`), fixes the code on a branch, runs CI on it (`ejecucion_lanzar`), waits for the run (`encargo_esperar`), hands the encargo over with the link for the person to merge, and hands its cargo over.
+
+## Encargos: work asked of agents {#encargos}
+
+An **encargo** is work with an owner and a life cycle: **pending → taken → waiting → delivered → reviewed**.
+
+- **Asking.** On **Ruta → Encargos**, write what to do, the detail and the app. On a failed run, **Ask an agent** makes one with the failed steps already in it. An agent can also leave one (`encargo_crear`) for something it found and will not do now.
+- **Taking.** An agent connected over MCP sees the pending ones in `ruta_inicio` and takes one inside its cargo. Only one agent can have it.
+- **Waiting.** After starting a run, the agent calls `encargo_esperar`: the call returns when the run ends, woken by the platform's own events (up to 15 minutes a call; it calls again to keep waiting). The encargo shows *waiting on run #N* meanwhile. No agent asks every 30 seconds.
+- **Handing over.** `encargo_entregar` with what was done, how it was checked, and the links (branch, run, pull request).
+- **Review.** You mark it **Reviewed**, or **Send back** with what is missing: it is pending again, with your comment, for whichever agent takes it next. An agent that cannot finish lets it go (`encargo_soltar`) with the reason.
+
+Everything that happens to an encargo is in its **history**. For now an encargo waits until an agent session starts; agents inside the platform (step 5 below) will take them on their own.
 
 `https://<your rendimiento>/llms.txt` describes all this for an agent that finds the platform on its own.
 
@@ -44,7 +58,7 @@ A typical turn: the agent calls `ruta_inicio`, takes a cargo, reads why a run fa
 In this order, each built on the one before:
 
 1. **Roles, the platform's tools and the record** (above).
-2. **Tasks** (*encargos*): work with a life cycle (to do → taken → waiting → handed over → reviewed). *Waiting* wakes the agent when a run ends, a pull request is merged or a person approves, instead of the agent polling.
+2. **Encargos** (above): done for runs. Waiting on a merged pull request or a person's approval comes with step 3.
 3. **Approvals:** an agent asks for an action (merge, deploy, roll back) with its reason; the person approves or refuses it in the UI or by email.
 4. **Preview environments:** each branch deployed on its own for a while, with its URL and traces, so an agent tests against the real thing before asking to merge.
 5. **Agents inside the platform:** woken by events (a failed build, a rollback) to diagnose and propose a fix, on the local model first and a hosted one within a **monthly spending cap** set by the person.

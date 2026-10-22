@@ -825,3 +825,11 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
   .wf-head, .wf-row { grid-template-columns: 1fr; gap: 4px; }
   .wf-head { display: none; }
 }
+
+/* Encargos (components/encargos.tsx). */
+.encargo { display: grid; gap: 6px; }
+.encargo-title { overflow-wrap: anywhere; }
+.encargo-who { margin: 0; }
+.encargo-result { border-left: 3px solid var(--border); padding-left: 10px; }
+.encargo-result p { margin: 0 0 4px; white-space: pre-wrap; }
+.encargo-log { border-top: 1px solid var(--border); padding-top: 6px; display: grid; gap: 3px; }

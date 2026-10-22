@@ -53,6 +53,11 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | GET | `/api/agent-keys` | las llaves de agente (nunca los tokens) |
 | POST | `/api/agent-keys` | crea una llave de agente (`name`, `role`: `reader` o `collaborator`, `apps`: vacío para todas, `days`); el token solo viene en esta respuesta |
 | DELETE | `/api/agent-keys/{id}` | revoca una llave de agente |
+| GET | `/api/encargos` | los encargos abiertos (`?all=1`: también los revisados y descartados) |
+| POST | `/api/encargos` | pedirles algo a los agentes (`title`, `body`, `app`, `runId`) |
+| GET | `/api/encargos/{id}` | un encargo con su historia |
+| POST | `/api/encargos/{id}/review` | aceptar un encargo entregado (`accept: true`) o devolverlo con un `comment` |
+| POST | `/api/encargos/{id}/cancel` | descartar un encargo |
 | POST | `/api/notifications/test` | mandar ahora un correo de aviso de muestra (el botón de la página Entorno) |
 | POST | `/api/dns/sync` | volver a crear ahora los registros DNS de cada aplicación |
 | POST | `/api/propose` | detectar un repositorio y devolver un `rendimiento.yaml` + Dockerfile propuestos |

@@ -2,11 +2,14 @@
 // in any one agent's session. Agents read and write it over MCP (/mcp) with a
 // key made on the Keys tab; lo vivido (what people lived) only people write.
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, timeAgo, type AgentKey, type AgentRole, type CreatedAgentKey, type RutaEntry, type RutaInput, type RutaKind } from "../api";
+import { Encargos } from "../components/encargos";
 import { ErrorBox, usePoll } from "../components/ui";
 import { t, tn } from "../i18n";
 
-type Tab = "ruta" | "vivido" | "cargos" | "llaves";
+type Tab = "ruta" | "encargos" | "vivido" | "cargos" | "llaves";
+const tabIds: Tab[] = ["ruta", "encargos", "vivido", "cargos", "llaves"];
 
 const kinds: { id: RutaKind; label: string }[] = [
   { id: "decision", label: "Decisions" },
@@ -351,9 +354,13 @@ function Keys() {
 
 /** The Ruta page: the platform's memory, kept by people and agents, in four tabs. */
 export function Ruta() {
-  const [tab, setTab] = useState<Tab>("ruta");
+  // ?tab=encargos opens a tab (a run's "Ask an agent" lands there).
+  const [params, setParams] = useSearchParams();
+  const asked = params.get("tab") as Tab;
+  const tab: Tab = tabIds.includes(asked) ? asked : "ruta";
+  const setTab = (id: Tab) => setParams(id === "ruta" ? {} : { tab: id }, { replace: true });
   const tabs: { id: Tab; label: string }[] = [
-    { id: "ruta", label: "The Ruta" }, { id: "vivido", label: "Lived" }, { id: "cargos", label: "Cargos" }, { id: "llaves", label: "Keys" },
+    { id: "ruta", label: "The Ruta" }, { id: "encargos", label: "Encargos" }, { id: "vivido", label: "Lived" }, { id: "cargos", label: "Cargos" }, { id: "llaves", label: "Keys" },
   ];
   return (
     <>
@@ -365,6 +372,7 @@ export function Ruta() {
         ))}
       </nav>
       {tab === "ruta" && <Entries />}
+      {tab === "encargos" && <Encargos />}
       {tab === "vivido" && <Vivido />}
       {tab === "cargos" && <Cargos />}
       {tab === "llaves" && <Keys />}

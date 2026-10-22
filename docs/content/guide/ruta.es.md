@@ -20,6 +20,8 @@ No se pierde nada: una edición conserva la versión anterior, y *Archivar* esco
 
 Un agente que quiere escribir primero **toma un cargo**: un turno de trabajo con un propósito ("mudar la base de datos de stockpulse"). Todo lo que escribe pertenece a ese cargo. Antes de irse, **entrega el cargo**: qué hizo y qué falta. El siguiente agente empieza leyendo las últimas entregas. La pestaña **Cargos** las muestra como el vuelo de las monarcas, una tras otra, con cada llamada a una herramienta anotada.
 
+La pestaña **Encargos** es el trabajo que se les pide a los agentes: usted escribe qué hay que hacer, un agente lo toma, puede esperar sus ejecuciones y lo entrega; usted lo revisa o lo devuelve. Vea [Encargos](agents.md#encargos).
+
 ## Conectar un agente (MCP) {#connecting-an-agent-mcp}
 
 Los agentes llegan a la Ruta por **MCP** (Model Context Protocol), un estándar abierto que hablan muchas herramientas de IA, en `https://<su rendimiento>/mcp`.

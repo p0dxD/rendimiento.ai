@@ -254,6 +254,28 @@ export interface AgentAction {
 
 export type AgentRole = "reader" | "collaborator" | "admin";
 
+export type EncargoStatus = "pending" | "taken" | "waiting" | "delivered" | "reviewed" | "cancelled";
+
+// Work asked of agents (internal/store.Encargo).
+export interface Encargo {
+  id: number;
+  title: string;
+  body: string;
+  app?: string;
+  runId?: number;
+  status: EncargoStatus;
+  createdBy: string;
+  byAgent: boolean;
+  keyName?: string; // the agent that has it
+  waitingRun?: number;
+  result?: string;
+  links: string[];
+  comment?: string;
+  createdAt: string;
+  updatedAt: string;
+  log?: { at: string; who: string; what: string; note?: string }[];
+}
+
 export interface AgentKey {
   id: number;
   name: string;
@@ -575,6 +597,11 @@ export const api = {
   archiveRuta: (id: number) => request<void>("POST", `/api/ruta/${id}/archive`),
   rutaActivity: () => request<{ cargos: Cargo[]; actions: AgentAction[] }>("GET", "/api/ruta/activity"),
   agentKeys: () => request<AgentKey[]>("GET", "/api/agent-keys"),
+  encargos: (all = false) => request<Encargo[]>("GET", `/api/encargos${all ? "?all=1" : ""}`),
+  encargo: (id: number) => request<Encargo>("GET", `/api/encargos/${id}`),
+  createEncargo: (e: { title: string; body: string; app?: string; runId?: number }) => request<Encargo>("POST", "/api/encargos", e),
+  reviewEncargo: (id: number, accept: boolean, comment = "") => request<Encargo>("POST", `/api/encargos/${id}/review`, { accept, comment }),
+  cancelEncargo: (id: number) => request<Encargo>("POST", `/api/encargos/${id}/cancel`),
   createAgentKey: (k: { name: string; role: AgentRole; apps: string[]; days: number }) => request<CreatedAgentKey>("POST", "/api/agent-keys", k),
   revokeAgentKey: (id: number) => request<void>("DELETE", `/api/agent-keys/${id}`),
   reliability: (app: string, range: ReliabilityRange) => request<Reliability>("GET", `/api/apps/${app}/reliability?range=${range}`),

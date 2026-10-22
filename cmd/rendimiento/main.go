@@ -398,6 +398,8 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	rutaSrv := &ruta.Server{Store: st, Log: log.With("component", "ruta")}
 	// The platform's tools for agents: apps, runs, logs, kept requests, CI.
 	rutaSrv.Plataforma = plataformaMCP{Store: st, p: p, srv: srv}
+	// Encargos: work asked of agents, taken, waited on and handed over.
+	rutaSrv.Encargos = st
 	if srv.Mercado != nil {
 		rutaSrv.Mercado = srv.Mercado
 	}
@@ -688,6 +690,37 @@ func (m plataformaMCP) QueueRun(ctx context.Context, app *store.App, branch stri
 }
 
 func (m plataformaMCP) CancelRun(ctx context.Context, id int64) error { return m.p.CancelRun(ctx, id) }
+
+// WaitRun wakes on the run's live events (from whichever process runs it)
+// and checks the database every 20 seconds too, in case an event is lost.
+func (m plataformaMCP) WaitRun(ctx context.Context, id int64) (*store.Run, error) {
+	events, stop := m.p.Hub.Subscribe(platform.RunTopic(id))
+	defer stop()
+	check := time.NewTicker(20 * time.Second)
+	defer check.Stop()
+	for {
+		r, err := m.GetRun(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		switch r.Status {
+		case store.RunSucceeded, store.RunFailed, store.RunCancelled:
+			return r, nil
+		}
+		// Log lines and steps mean the run goes on: wait for a change to the
+		// run itself.
+		for waiting := true; waiting; {
+			select {
+			case <-ctx.Done():
+				return r, ctx.Err()
+			case e := <-events:
+				waiting = e.Type != "run"
+			case <-check.C:
+				waiting = false
+			}
+		}
+	}
+}
 
 // ptr returns a pointer to a copy of v.
 func ptr[T any](v T) *T { return &v }

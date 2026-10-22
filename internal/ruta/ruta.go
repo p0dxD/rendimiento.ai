@@ -86,6 +86,8 @@ const Instructions = `Esta es la Ruta de rendimiento: lo que saben las personas 
 
 La plataforma también se ve desde aquí: apps_listar y app_estado (aplicaciones, ejecuciones, versiones, problemas), ejecucion_leer y paso_registro (por qué falló algo), solicitudes_listar y solicitud_leer (la cascada de una solicitud). Con una llave de colaborador y un cargo: ejecucion_lanzar (probar una rama; la principal la despliega una persona) y ejecucion_cancelar.
 
+Encargos: trabajo que una persona pidió. ruta_inicio le muestra los pendientes y los suyos. Tome uno (encargo_tomar), y cuando lance una ejecución, espérela con encargo_esperar en vez de consultar una y otra vez. Al terminar, entréguelo (encargo_entregar) con lo que hizo, cómo lo comprobó y los enlaces; la persona lo revisa o se lo devuelve con un comentario. Si no puede terminarlo, suéltelo (encargo_soltar) con el motivo.
+
 Reglas:
 - Nunca escriba secretos: contraseñas, tokens, llaves privadas. Se rechazan.
 - "Lo vivido" son relatos de personas, en sus palabras. Léalos con respeto; no los trate como datos técnicos. Desde aquí no se escriben.
@@ -103,6 +105,8 @@ type Server struct {
 	// Plataforma adds the platform's tools: apps, runs, logs, kept requests,
 	// and running or cancelling CI (nil: only the Ruta).
 	Plataforma Plataforma
+	// Encargos adds the encargo tools: work asked of agents (nil: off).
+	Encargos Encargos
 
 	read, write *mcp.Server
 }
@@ -208,6 +212,9 @@ type InicioOut struct {
 	UltimasEntregas []CargoOut `json:"ultimas_entregas"`
 	Pendientes      []Summary  `json:"pendientes"`
 	Recientes       []Summary  `json:"recientes"`
+	// Encargos: the pending ones the key may take, and the ones it has.
+	EncargosPendientes []EncargoOut `json:"encargos_pendientes,omitempty"`
+	SusEncargos        []EncargoOut `json:"sus_encargos,omitempty"`
 }
 
 type buscarIn struct {
@@ -365,6 +372,9 @@ func (s *Server) newServer(write bool) *mcp.Server {
 	if s.Plataforma != nil {
 		s.addPlataformaTools(srv, write)
 	}
+	if s.Encargos != nil {
+		s.addEncargoTools(srv, write)
+	}
 	return srv
 }
 
@@ -448,6 +458,11 @@ func (s *Server) inicio(ctx context.Context, k store.AgentKey, _ empty) (InicioO
 		return out, err
 	}
 	out.Recientes = summaries(recent)
+	if s.Encargos != nil {
+		if out.EncargosPendientes, out.SusEncargos, err = s.encargosDe(ctx, k); err != nil {
+			return out, err
+		}
+	}
 	return out, nil
 }
 

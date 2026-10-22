@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 )
 
 type fakePlataforma struct {
+	mu        sync.Mutex
 	apps      []*store.App
 	runs      map[int64]*store.Run
 	queued    []string // app + " " + branch
@@ -48,8 +50,11 @@ func (f *fakePlataforma) ListRuns(_ context.Context, appID int64, _ int) ([]*sto
 	return out, nil
 }
 func (f *fakePlataforma) GetRun(_ context.Context, id int64) (*store.Run, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if r, ok := f.runs[id]; ok {
-		return r, nil
+		c := *r
+		return &c, nil
 	}
 	return nil, store.ErrNotFound
 }
@@ -79,12 +84,38 @@ func (f *fakePlataforma) ListProblems(context.Context, string, time.Time, bool, 
 	return []store.Problem{{Level: "error", Component: "verify", Message: "web did not answer", Count: 2}}, nil
 }
 func (f *fakePlataforma) QueueRun(_ context.Context, a *store.App, branch string) (*store.Run, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.queued = append(f.queued, a.Name+" "+branch)
 	r := &store.Run{ID: 99, AppID: a.ID, Branch: branch, Status: store.RunQueued}
 	f.runs[r.ID] = r
 	return r, nil
 }
+func (f *fakePlataforma) WaitRun(ctx context.Context, id int64) (*store.Run, error) {
+	for {
+		f.mu.Lock()
+		r := *f.runs[id]
+		f.mu.Unlock()
+		if finished(r.Status) {
+			return &r, nil
+		}
+		select {
+		case <-ctx.Done():
+			return &r, ctx.Err()
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+}
+
+func (f *fakePlataforma) finish(id int64, status string) {
+	f.mu.Lock()
+	f.runs[id].Status = status
+	f.mu.Unlock()
+}
+
 func (f *fakePlataforma) CancelRun(_ context.Context, id int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.cancelled = append(f.cancelled, id)
 	f.runs[id].Status = store.RunCancelled
 	return nil
