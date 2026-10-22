@@ -278,6 +278,64 @@ export interface Me {
 // reloads the page). Pages read it to show what the person may use.
 export const session: { operator: boolean; role: MemberRole } = { operator: false, role: "guest" };
 
+// The AI gateway (internal/ia, api.IAView).
+export type AIProvider = "local" | "own" | "platform";
+
+export interface AISettings {
+  orgId: number;
+  provider: AIProvider;
+  kind?: "anthropic" | "openai";
+  baseUrl?: string;
+  model?: string;
+  capMicros: number;
+  allowanceMicros: number;
+  updatedBy?: string;
+}
+
+export interface AIUsage {
+  id: number;
+  at: string;
+  source: string;
+  provider: AIProvider;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  costMicros: number;
+  ok: boolean;
+  note?: string;
+}
+
+export interface IAView {
+  settings: AISettings;
+  keyHint?: string;
+  spentOwnMicros: number;
+  spentPlatformMicros: number;
+  localModel?: string;
+  platformAvailable: boolean;
+  platformModel?: string;
+  usage: AIUsage[];
+}
+
+export interface IAAnswer {
+  text: string;
+  provider: AIProvider;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  costMicros: number;
+  note?: string;
+}
+
+export interface IAOrgs {
+  orgs: { org: Org; settings: AISettings; spentPlatformMicros: number }[];
+  spentMicros: number;
+  capMicros: number;
+  platformKeySet: boolean;
+}
+
+/** Millionths of a dollar as dollars: $0.15. */
+export const dollars = (micros: number) => `$${(micros / 1e6).toFixed(micros > 0 && micros < 10_000 ? 4 : 2)}`;
+
 export interface Member {
   login: string;
   role: MemberRole;
@@ -583,6 +641,12 @@ export const api = {
   createOrg: (slug: string, name: string) => request<Org>("POST", "/api/orgs", { slug, name }),
   switchOrg: (id: number) => request<void>("POST", `/api/orgs/${id}/switch`),
   members: () => request<Member[]>("GET", "/api/members"),
+  ia: () => request<IAView>("GET", "/api/ia"),
+  saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean }) =>
+    request<IAView>("PUT", "/api/ia", v),
+  testIA: (prompt: string) => request<IAAnswer>("POST", "/api/ia/test", { prompt }),
+  iaOrgs: () => request<IAOrgs>("GET", "/api/ia/orgs"),
+  setIAAllowance: (org: number, dollars: number) => request<void>("PUT", `/api/ia/orgs/${org}/allowance`, { dollars }),
   setMember: (login: string, role: MemberRole) => request<Member[]>("PUT", `/api/members/${encodeURIComponent(login)}`, { role }),
   removeMember: (login: string) => request<void>("DELETE", `/api/members/${encodeURIComponent(login)}`),
   logout: () => request<void>("POST", "/api/auth/logout"),

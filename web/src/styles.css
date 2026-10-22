@@ -836,3 +836,10 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 
 /* The organization selector in the top bar (pages/Members.tsx). */
 .org-switch { max-width: 180px; font-size: 13px; padding: 4px 8px; }
+
+/* The AI page (pages/IA.tsx). */
+.ia-choice { align-items: flex-start; gap: 8px; }
+.ia-choice input { margin-top: 4px; }
+.ia-own { padding-left: 26px; }
+.ia-spend .card { min-width: 200px; }
+.ia-answer { border-left: 3px solid var(--border); padding-left: 10px; }

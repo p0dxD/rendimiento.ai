@@ -55,6 +55,11 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/orgs` | the organizations the person belongs to, with their role |
 | POST | `/api/orgs` | create an organization (`slug`, `name`); the platform's operators only; the creator is its first administrator |
 | POST | `/api/orgs/{id}/switch` | work in another of the person's organizations |
+| GET | `/api/ia` | the organization's AI: provider, model, cap, the end of its own key, this month's spending, the latest calls |
+| PUT | `/api/ia` | change it (`provider`: `local`, `own`, `platform`; `kind`, `baseUrl`, `model`, `capDollars`, `key`, `removeKey`); administrators |
+| POST | `/api/ia/test` | ask the organization's model one question (`prompt`), measured; collaborators |
+| GET | `/api/ia/orgs` | every organization's allowance of the platform's AI and spending, and the platform's bill; operators |
+| PUT | `/api/ia/orgs/{id}/allowance` | an organization's monthly allowance of the platform's AI (`dollars`); operators |
 | GET | `/api/members` | the organization's people and their roles |
 | PUT | `/api/members/{login}` | add a person by GitHub login, or change their role (`role`: `guest`, `collaborator`, `admin`); administrators only |
 | DELETE | `/api/members/{login}` | remove a person; the last administrator stays |

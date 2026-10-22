@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -42,6 +43,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/generate"
 	gh "github.com/p0dxD/rendimiento.ai/internal/github"
 	"github.com/p0dxD/rendimiento.ai/internal/i18n"
+	"github.com/p0dxD/rendimiento.ai/internal/ia"
 	"github.com/p0dxD/rendimiento.ai/internal/logarchive"
 	"github.com/p0dxD/rendimiento.ai/internal/mercado"
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
@@ -402,6 +404,19 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 			},
 		}
 	}
+	// The AI gateway: the local model (AI_LOCAL_URL), each organization's
+	// own key, and the platform's key (AI_PLATFORM_KEY) within the
+	// operator's allowances and AI_PLATFORM_CAP dollars a month in all.
+	aiCap, err := strconv.ParseFloat(env("AI_PLATFORM_CAP", "5"), 64)
+	if err != nil || aiCap < 0 {
+		return fmt.Errorf("AI_PLATFORM_CAP must be dollars a month, such as 5, got %q", os.Getenv("AI_PLATFORM_CAP"))
+	}
+	aiKeys := ia.SecretKeys{Kube: kube, Namespace: ns}
+	srv.IA = &ia.Gateway{Store: st, Keys: aiKeys,
+		LocalURL: os.Getenv("AI_LOCAL_URL"), LocalModel: env("AI_LOCAL_MODEL", ia.DefaultLocalModel),
+		PlatformKey: os.Getenv("AI_PLATFORM_KEY"), PlatformModel: env("AI_PLATFORM_MODEL", ia.DefaultAnthropicModel),
+		PlatformCapMicros: int64(math.Round(aiCap * 1e6))}
+	srv.IAKeys = aiKeys
 	// La Ruta's MCP server, with the Mercado's tools when it is on (an unset
 	// *Mercado must stay a nil interface, or the tools would appear broken).
 	rutaSrv := &ruta.Server{Store: st, Log: log.With("component", "ruta")}

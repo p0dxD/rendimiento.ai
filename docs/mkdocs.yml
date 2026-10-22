@@ -92,6 +92,7 @@ plugins:
             Visits (Umami): Visitas (Umami)
             The Mercado (pages without code): El Mercado (páginas sin código)
             Members and roles (who can sign in and do what): Miembros y funciones (quién entra y qué puede hacer)
+            "AI: the gateway, providers and caps": "IA: la pasarela, los proveedores y los topes"
             Built for agents (roles, tools, where it is going): Hecha para agentes (funciones, herramientas, hacia dónde va)
             La Ruta (memory for people and agents, over MCP): La Ruta (la memoria de personas y agentes, por MCP)
             Languages (English, Spanish): Idiomas (inglés y español)
@@ -182,6 +183,7 @@ nav:
       - Notifications (email): guide/notifications.md
       - Problems (what went wrong in the platform): guide/problems.md
       - Members and roles (who can sign in and do what): guide/members.md
+      - "AI: the gateway, providers and caps": guide/ai.md
       - Built for agents (roles, tools, where it is going): guide/agents.md
       - La Ruta (memory for people and agents, over MCP): guide/ruta.md
       - Languages (English, Spanish): guide/languages.md
