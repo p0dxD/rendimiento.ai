@@ -750,12 +750,23 @@ func TestRouteRoles(t *testing.T) {
 		method, path, _ := strings.Cut(rt.pattern, " ")
 		path = fill.Replace(path)
 		for who, c := range map[string]*http.Cookie{store.MemberGuest: guest, store.MemberCollaborator: collab} {
-			r, body := e.do(t, method, path, "{}", c, nil)
-			allowed := store.RoleRank(who) >= store.RoleRank(rt.role)
-			if !allowed && r.StatusCode != http.StatusForbidden {
-				t.Errorf("%s as %s: %d, want 403 (%s)", rt.pattern, who, r.StatusCode, body)
+			// Live routes (/events) stream until the client leaves: one that
+			// is still open after 3 seconds got past the role check.
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			req, _ := http.NewRequestWithContext(ctx, method, e.srv.URL+path, strings.NewReader("{}"))
+			req.AddCookie(c)
+			status, body := 0, ""
+			if res, err := http.DefaultClient.Do(req); err == nil {
+				b, _ := io.ReadAll(res.Body)
+				res.Body.Close()
+				status, body = res.StatusCode, string(b)
 			}
-			if allowed && r.StatusCode == http.StatusForbidden && strings.Contains(body, "role") {
+			cancel()
+			allowed := store.RoleRank(who) >= store.RoleRank(rt.role)
+			if !allowed && status != http.StatusForbidden {
+				t.Errorf("%s as %s: %d, want 403 (%s)", rt.pattern, who, status, body)
+			}
+			if allowed && status == http.StatusForbidden && strings.Contains(body, "role") {
 				t.Errorf("%s as %s: refused by role, but the route allows %s", rt.pattern, who, rt.role)
 			}
 			checked++
