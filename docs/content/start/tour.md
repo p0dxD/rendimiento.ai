@@ -1,6 +1,6 @@
 # A tour of the UI
 
-The dashboard is at **https://rendimiento.joserod.space**. You sign in with GitHub; only accounts listed in `ALLOWED_USERS` get in. The top bar has five places: **Apps**, **Services**, **Add-ons**, **Environment**, and the **New app** button.
+The dashboard is at **https://rendimiento.joserod.space**. You sign in with GitHub; only [members](../guide/members.md) get in, each with a role. The top bar has five places: **Apps**, **Services**, **Add-ons**, **Environment**, and the **New app** button.
 
 ```mermaid
 flowchart TB

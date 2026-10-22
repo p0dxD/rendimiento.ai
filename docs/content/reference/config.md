@@ -14,7 +14,7 @@ rendimiento is configured only through **environment variables**, read once at s
 | `GITHUB_ACCOUNTS` | *(empty: every installation)* | `example-user,example-paginas` | the only accounts (users or organizations) whose installations of the GitHub App rendimiento uses: others are left out of the wizard and their pushes are ignored. Set it before making the App public, which lets anyone install it |
 | `PARALLEL_RUNS` | `3` | `2` | how many runs go at once, each of a different app (an app's runs wait their turn, so its releases keep their order); `MAX_PARALLEL_STEPS` still bounds the steps of all of them |
 | `PAGES_ORG` | *(empty: the Mercado is off)* | `example-paginas` | the GitHub organization where the [Mercado](../guide/mercado.md) creates each page's repository (the App needs Administration there) |
-| `ALLOWED_USERS` | *(empty: nobody)* | `your-github-login` | GitHub logins allowed to sign in (comma- or space-separated) |
+| `ALLOWED_USERS` | *(empty)* | `your-github-login` | the first administrators (comma- or space-separated GitHub logins), added only while there are no [members](../guide/members.md) yet; then people are managed on the Members page |
 | `SETUP_TOKEN` | — | from Secret `rendimiento-setup` | protects `/api/setup/github` until the GitHub App exists |
 | `NAMESPACE` | `rendimiento-system` | | where the platform and its Secrets live |
 | `LISTEN` | `:8080` | | HTTP address (API, UI, webhooks) |

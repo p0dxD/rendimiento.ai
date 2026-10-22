@@ -11,36 +11,38 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 297 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 525 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 751 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
-| [`internal/addon`](#internal-addon) | 5 | 1138 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
+| [`internal/addon`](#internal-addon) | 5 | 1178 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
 | [`internal/analytics`](#internal-analytics) | 2 | 608 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
-| [`internal/api`](#internal-api) | 16 | 3990 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 19 | 4592 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/caminos`](#internal-caminos) | 2 | 310 | Package caminos builds an app's recent history as the Caminos tab draws it: the default branch is the camino real, every other branch is a vereda that leaves it at the commit it was branched from (or from its parent branch, for a stacked pull request) and comes back where its pull request was merged, with each run as a stop along the way. |
 | [`internal/catalog`](#internal-catalog) | 2 | 910 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
-| [`internal/controller`](#internal-controller) | 7 | 2824 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
+| [`internal/controller`](#internal-controller) | 8 | 2906 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
 | [`internal/detect`](#internal-detect) | 2 | 453 | Package detect inspects a repository tree and guesses how each deployable service in it is built, tested and served. |
 | [`internal/dns`](#internal-dns) | 4 | 779 | Package dns manages the public DNS record for each app domain. |
-| [`internal/environment`](#internal-environment) | 6 | 1641 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
-| [`internal/events`](#internal-events) | 2 | 80 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
+| [`internal/environment`](#internal-environment) | 6 | 1720 | Package environment inspects the cluster and integrations rendimiento depends on and reports what is installed, what is missing and how to fix it, plus node and workload health. |
+| [`internal/events`](#internal-events) | 5 | 549 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 282 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
-| [`internal/github`](#internal-github) | 5 | 1339 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/i18n`](#internal-i18n) | 3 | 793 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
+| [`internal/github`](#internal-github) | 5 | 1426 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
+| [`internal/i18n`](#internal-i18n) | 3 | 822 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 309 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
-| [`internal/mercado`](#internal-mercado) | 4 | 937 | Package mercado makes web pages for people who don't write code. |
-| [`internal/notify`](#internal-notify) | 2 | 450 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
+| [`internal/mercado`](#internal-mercado) | 5 | 1009 | Package mercado makes web pages for people who don't write code. |
+| [`internal/notify`](#internal-notify) | 2 | 589 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
 | [`internal/pipeline`](#internal-pipeline) | 7 | 2080 | Package pipeline plans and executes CI runs. |
-| [`internal/platform`](#internal-platform) | 8 | 3303 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
+| [`internal/platform`](#internal-platform) | 9 | 3680 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/problems`](#internal-problems) | 2 | 289 | Package problems keeps the platform's own warnings and errors for the Problems page: a slog handler passes every record on to the real log and also queues warnings and errors; a Recorder stores them, folding repeats of the same problem into one row with a count. |
-| [`internal/render`](#internal-render) | 5 | 1438 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
-| [`internal/renovate`](#internal-renovate) | 2 | 808 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
-| [`internal/ruta`](#internal-ruta) | 2 | 938 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
-| [`internal/selfupdate`](#internal-selfupdate) | 2 | 433 | Package selfupdate moves rendimiento to an image it built and tested itself: its own repository's builds: entry (SELF_APP), released like any app's. |
+| [`internal/render`](#internal-render) | 5 | 1451 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
+| [`internal/renovate`](#internal-renovate) | 2 | 853 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
+| [`internal/ruta`](#internal-ruta) | 8 | 2512 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
+| [`internal/selfupdate`](#internal-selfupdate) | 2 | 477 | Package selfupdate moves rendimiento to an image it built and tested itself: its own repository's builds: entry (SELF_APP), released like any app's. |
 | [`internal/spec`](#internal-spec) | 2 | 1869 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 16 | 3003 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
-| [`internal/testenv`](#internal-testenv) | 1 | 23 | Package testenv is the envtest (a real API server and etcd) the controller and platform tests run against, tuned for slow machines. |
+| [`internal/store`](#internal-store) | 26 | 4074 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/testenv`](#internal-testenv) | 1 | 34 | Package testenv is the envtest (a real API server and etcd) the controller and platform tests run against, tuned for slow machines. |
+| [`internal/traces`](#internal-traces) | 3 | 621 | Package traces keeps whole requests for the Universe's waterfall. |
 | [`internal/universe`](#internal-universe) | 4 | 1356 | Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches. |
-| [`internal/uptime`](#internal-uptime) | 2 | 658 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
+| [`internal/uptime`](#internal-uptime) | 2 | 853 | Package uptime checks every app's services once a minute and keeps the results: whether each answered, how fast, and when it was down. |
 | [`templates`](#templates) | 1 | 7 | Package templates embeds the Dockerfile templates used for repos that do not ship one. |
 | [`web`](#web) | 1 | 22 | Package web embeds the built UI (npm run build → web/dist). |
 
@@ -101,13 +103,19 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>514 lines</small>
+<small>740 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `env` | func | env is the environment variable key, or def when it is unset or empty. |
 | `main` | func | main runs the platform until it is stopped, logging why if it fails. |
 | `run` | func | run reads the configuration from the environment, connects to Kubernetes, Postgres and GitHub, wires every part of the platform together and runs them: the API and UI, the controllers, and (on the leader) the CI workers, schedulers and checks. |
+| `tracesService` | func | tracesService is the traces service's receiver (TRACES_LISTEN) and keeper, from TRACE_SAMPLE, TRACE_SLOW and TRACE_RETENTION_DAYS. |
+| `plataformaMCP` | struct | plataformaMCP is what the agents' platform tools (ruta.Plataforma) read and do: the store, plus logs (from the archive too) and the CI queue. |
+| `(plataformaMCP) StepLog` | method |  |
+| `(plataformaMCP) QueueRun` | method |  |
+| `(plataformaMCP) CancelRun` | method |  |
+| `(plataformaMCP) WaitRun` | method | WaitRun wakes on the run's live events (from whichever process runs it) and checks the database every 20 seconds too, in case an event is lost. |
 | `ptr` | func | ptr returns a pointer to a copy of v. |
 | `splitList` | func | splitList splits a comma- or space-separated setting. |
 
@@ -160,7 +168,7 @@ Package addon renders add-ons (Helm charts or kustomize folders in git) into Kub
 
 ### `internal/addon/gitops.go`
 
-<small>380 lines</small>
+<small>420 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -175,6 +183,7 @@ Package addon renders add-ons (Helm charts or kustomize folders in git) into Kub
 | `SyncResult` | struct | SyncResult is the outcome of one pass of Syncer.Sync, shown on the Add-ons page. |
 | `(*Syncer) init` | method | init makes the trigger channel once. |
 | `(*Syncer) Trigger` | method | Trigger asks the loop to sync soon (e.g. |
+| `(*Syncer) Serve` | method | Serve takes the other processes' Trigger and Last (see Remote) until ctx ends. |
 | `(*Syncer) Last` | method | Last returns the most recent sync's outcome. |
 | `(*Syncer) Loop` | method | Loop syncs every few minutes and whenever triggered, until ctx ends. |
 | `(*Syncer) Sync` | method | Sync makes the Addon objects match the definitions at the head of the gitops repository: it creates and updates them, and deletes those whose file is gone (their software keeps running unless marked for uninstall). |
@@ -308,6 +317,21 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `DeliveryReport` | struct | DeliveryReport is the dashboard's delivery health: the last 30 days, the 30 before them, and twelve weeks of history. |
 | `(*Server) delivery` | method | delivery is the dashboard's delivery health: deploys, builds and their times, verifications, rollbacks and outages of the last 30 days next to the 30 before, and twelve weeks of history. |
 
+### `internal/api/encargos.go`
+
+<small>138 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `NewEncargo` | struct | NewEncargo asks agents for something: what, the detail, and the app or run it is about. |
+| `(*Server) listEncargos` | method | listEncargos lists the open encargos (?all=1: also reviewed and cancelled). |
+| `(*Server) createEncargo` | method | createEncargo leaves work for agents, pending until one takes it. |
+| `encargoID` | func | encargoID reads {id}, or answers 400. |
+| `(*Server) getEncargo` | method | getEncargo is one encargo with its history. |
+| `(*Server) reviewEncargo` | method | reviewEncargo is the person's answer to a delivered encargo: accepted, or sent back with a comment for the next agent. |
+| `(*Server) cancelEncargo` | method | cancelEncargo cancels an encargo that is not finished. |
+| `(*Server) encargoAnswer` | method |  |
+
 ### `internal/api/i18n.go`
 
 <small>90 lines</small>
@@ -341,14 +365,33 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `deepMerge` | func | deepMerge copies src into dst, merging nested maps. |
 | `(*Server) patchInstalled` | method | patchInstalled flips switches in an add-on's definition (suspend, allow adoption changes) and commits it. |
 
-### `internal/api/logs.go`
+### `internal/api/llms.go`
 
-<small>54 lines</small>
+<small>50 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `(*Server) archivedLog` | method | archivedLog reads a step log from the log archive, or explains why it cannot: expired by the retention rule, or the archive is unreachable. |
+| `(*Server) llmsTxt` | method | llmsTxt is /llms.txt (llmstxt.org): what an AI agent that finds this platform should know, in plain Markdown: what rendimiento is, how agents connect (MCP, with a key a person makes), what they may do, and the rules. |
+
+### `internal/api/logs.go`
+
+<small>64 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `(*Server) StepLogText` | method | archivedLog reads a step log from the log archive, or explains why it cannot: expired by the retention rule, or the archive is unreachable. |
+| `(*Server) archivedLog` | method |  |
 | `(*Server) releaseTaskLog` | method | releaseTaskLog serves the log of a release's post-deploy task. |
+
+### `internal/api/members.go`
+
+<small>73 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `(*Server) listMembers` | method | listMembers lists the organization's people and their roles. |
+| `(*Server) putMember` | method | putMember adds a person by their GitHub login, or changes their role. |
+| `(*Server) deleteMember` | method | deleteMember takes a person out; their sessions stop working at once. |
 
 ### `internal/api/mercado.go`
 
@@ -415,7 +458,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/ruta.go`
 
-<small>239 lines</small>
+<small>265 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -445,7 +488,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1489 lines</small>
+<small>1625 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -453,12 +496,15 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `Server` | struct | Server holds everything the HTTP API needs; Handler returns its routes. |
 | `Analytics` | interface | Analytics is where visitor numbers come from (Umami). |
 | `(*Server) Handler` | method | Handler returns the HTTP handler: public routes (health, webhooks, login, setup), session-protected /api routes and the embedded UI. |
+| `(*Server) redirectHosts` | method | redirectHosts sends people who visit one of RedirectHosts (an old address) to BaseURL, same path and query (308). |
 | `(*Server) guard` | method | guard adds security headers and rejects cross-site state changes. |
 | `sameOrigin` | func | sameOrigin reports whether a browser's Origin header names the host the request came in on (behind the ingress, X-Forwarded-Host). |
 | `hashToken` | func | hashToken is what the database keeps of a session token: its SHA-256, so a copy of the sessions table cannot be used to sign in. |
 | `randomToken` | func | randomToken is 32 random bytes in hex: session tokens and OAuth states. |
-| `(*Server) requireSession` | method | requireSession wraps a handler for signed-in people: it reads the session cookie, finds whose it is, checks that login is still in ALLOWED_USERS, and passes the login on (or answers 401). |
-| `(*Server) allowed` | method | allowed reports whether a GitHub login is in ALLOWED_USERS (any case). |
+| `route` | struct | route is an authenticated route and the least role it takes. |
+| `roleKey` | struct |  |
+| `roleOf` | func | roleOf is the signed-in person's role in the organization (set by requireRole). |
+| `(*Server) requireRole` | method | requireRole wraps a handler for signed-in members: it reads the session cookie, finds whose it is and their role in the organization, answers 401 without a session or membership and 403 below the route's role, and passes the login on. |
 | `(*Server) secureCookies` | method | secureCookies: cookies are HTTPS-only when the platform is served on HTTPS. |
 | `(*Server) login` | method | login starts "Sign in with GitHub": it sets a random state in a cookie and sends the browser to GitHub, which comes back to callback with a code. |
 | `(*Server) loginElsewhere` | method | loginElsewhere is BaseURL's login address when r came in on another host (an old or extra domain of the platform), or "". |
@@ -477,6 +523,8 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `(*Server) services` | method | services is the Services page: everything running in the cluster, apps and not, with what calls what (cached; ?refresh=1 rebuilds it). |
 | `(*Server) universe` | method | universe is the Universe page: every app from above, with its services, what they use and call, what the internet reaches, and their health. |
 | `(*Server) universeSpans` | method | universeSpans lists what one observed service does, from its traces: the routes it serves, its own moments (the observa libraries' tramos) and the calls it makes, each with calls per minute, errors and latency over ?window=. |
+| `(*Server) universeTraces` | method | universeTraces lists the requests the traces service kept, newest first: those that went through ?service=app/service (all without it), only the failed ones with ?errors=1, older than ?before= (RFC 3339) to page back. |
+| `(*Server) universeTrace` | method | universeTrace is one kept request with its spans: the waterfall. |
 | `(*Server) environment` | method | environment is the Environment page's report: what the cluster has, what rendimiento needs from it, and what is wrong (cached; ?refresh=1 checks again). |
 | `(*Server) dnsSync` | method | dnsSync re-detects the public IP now and repoints records that follow it. |
 | `(*Server) migration` | method | migration tells the wizard whether an app name matches a namespace that already runs something (so it can be migrated instead of duplicated). |
@@ -491,6 +539,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `(*Server) deleteImpact` | method | deleteImpact lists what deleting the app would remove, for the confirmation dialog. |
 | `(*Server) disconnectApp` | method | disconnectApp stops managing the app but leaves it running. |
 | `(*Server) listRuns` | method | listRuns is an app's Runs tab: its last 50 runs. |
+| `(*Server) appCaminos` | method | appCaminos is the Caminos tab: the app's last two weeks of runs, drawn as the default branch and the branches that leave and rejoin it. |
 | `(*Server) triggerRun` | method | triggerRun queues a run by hand ("Run now"), of the default branch unless another is given. |
 | `(*Server) listReleases` | method | listReleases is an app's Releases tab: its last 50 releases, each with its deploy tasks. |
 | `(*Server) rollback` | method | rollback makes a new release with the images of an earlier one; the controller then deploys it like any other. |
@@ -533,7 +582,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server_test.go`
 
-<small>628 lines · tests</small>
+<small>797 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -553,6 +602,40 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `TestVisitsAPI` | func |  |
 | `TestPublicActivity` | func | The welcome page's activity is off unless asked for, and names only the app. |
 | `TestLoginStartsOnBaseURL` | func |  |
+| `TestRedirectHosts` | func | People visiting an old address go to BaseURL with the same path; what machines call there (webhooks, MCP, public stats, health) still answers. |
+| `TestLLMsTxt` | func | /llms.txt tells an agent how to connect, without naming apps or people. |
+| `TestEncargosAPI` | func | A person asks agents for something (from a failed run, the app is filled in), and reviews what comes back: sending it back needs a comment. |
+| `TestRouteRoles` | func | Every route takes at least the role it declares: a guest may read, but not act or administer; a collaborator may act, but not administer; a stranger with a session is not let in at all. |
+| `TestMembersAPI` | func | An administrator adds and removes people; the last administrator stays. |
+
+## `internal/caminos` {#internal-caminos}
+
+Package caminos builds an app's recent history as the Caminos tab draws it: the default branch is the camino real, every other branch is a vereda that leaves it at the commit it was branched from (or from its parent branch, for a stacked pull request) and comes back where its pull request was merged, with each run as a stop along the way.
+
+### `internal/caminos/caminos.go`
+
+<small>184 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Run` | struct | Run is one build, as a stop on the road. |
+| `PullRequest` | struct | PullRequest is what the history needs of a pull request. |
+| `Fork` | struct | Fork is the commit a branch was started from. |
+| `Source` | interface | Source answers what only GitHub knows. |
+| `Branch` | struct | Branch is one vereda. |
+| `History` | struct | History is everything the tab draws. |
+| `Build` | func | Build makes the history of runs (any order) of a repository whose default branch is def. |
+| `last` | func |  |
+
+### `internal/caminos/caminos_test.go`
+
+<small>126 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestBuild` | func |  |
+| `TestBuildWithoutGitHub` | func |  |
+| `TestBuildCapsBranches` | func |  |
 
 ## `internal/catalog` {#internal-catalog}
 
@@ -693,7 +776,7 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 
 ### `internal/controller/addon_controller_test.go`
 
-<small>252 lines · tests</small>
+<small>242 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -709,7 +792,7 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 
 ### `internal/controller/app_controller_test.go`
 
-<small>927 lines · tests</small>
+<small>915 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -727,6 +810,14 @@ Package controller reconciles App objects into running workloads: the GitOps hal
 | `TestAppNeeds` | func |  |
 | `TestAppLANURL` | func |  |
 | `TestAppObserve` | func | The app-wide observe goes through the API server (the CRD must keep it) and reaches the rendered pods. |
+
+### `internal/controller/env_test.go`
+
+<small>104 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestMain` | func |  |
 
 ## `internal/detect` {#internal-detect}
 
@@ -848,12 +939,13 @@ Package environment inspects the cluster and integrations rendimiento depends on
 
 ### `internal/environment/checks.go`
 
-<small>607 lines</small>
+<small>654 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `checkFunc` | type |  |
 | `(*Checker) checks` | method | checks is every check of the Environment page, in the order shown; they run in parallel, from one snapshot of the cluster where they can. |
+| `(*Checker) checkServices` | method | checkServices: each of the platform's own services (Deployments) has its pods ready. |
 | `(*Checker) checkAPI` | method | checkAPI: the Kubernetes API answers, and which version it is. |
 | `checkNodes` | func | checkNodes: how many nodes are ready, of which architectures (builds are made for them). |
 | `checkMetrics` | func | checkMetrics: whether the metrics server gives live CPU and memory use. |
@@ -892,7 +984,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 
 ### `internal/environment/environment.go`
 
-<small>296 lines</small>
+<small>308 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -926,7 +1018,7 @@ Package environment inspects the cluster and integrations rendimiento depends on
 
 ### `internal/environment/environment_test.go`
 
-<small>251 lines · tests</small>
+<small>271 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -934,14 +1026,45 @@ Package environment inspects the cluster and integrations rendimiento depends on
 | `TestBareCluster` | func |  |
 | `TestReportIsCached` | func |  |
 | `TestDistribution` | func |  |
+| `TestPlatformServices` | func | Each of the platform's services shows its ready pods; one that is down fails the check, one that is not deployed is skipped. |
 
 ## `internal/events` {#internal-events}
 
 Package events fans out live updates (step status, log lines) to UI subscribers over SSE.
 
+### `internal/events/ask.go`
+
+<small>104 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `request` | struct | request is an Ask: the data and the topic the answer goes to. |
+| `answer` | struct | answer is the reply to an Ask: data, or an error's message. |
+| `RemoteError` | struct | RemoteError is an error returned by the process that answered. |
+| `(*RemoteError) Error` | method |  |
+| `(*Hub) Ask` | method | Ask publishes a request on topic and waits for an answer (see Answer) until ctx ends. |
+| `(*Hub) Answer` | method | Answer serves the requests published on topic with fn until ctx ends. |
+| `Decode` | func | Decode reads an event's data into v: a value published in this process, or JSON that came from another. |
+
+### `internal/events/bridge.go`
+
+<small>157 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Wire` | interface | Wire is what the bridge needs from the database (the store). |
+| `Bridge` | struct | Bridge joins the hubs of the platform's processes through Postgres, so a run's log lines reach the UI from whichever process runs it, and two versions overlapping during an update see the same events. |
+| `wireOut` | struct |  |
+| `message` | struct | message is what travels on the channel: the event itself, or (when too large) the id of the row that holds it. |
+| `(*Bridge) Run` | method | Run relays this process's events and delivers the others' until ctx ends. |
+| `(*Bridge) Origin` | method | Origin identifies this process on the channel (set by Run). |
+| `(*Bridge) send` | method |  |
+| `(*Bridge) publish` | method |  |
+| `(*Bridge) receive` | method |  |
+
 ### `internal/events/hub.go`
 
-<small>55 lines</small>
+<small>79 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -949,7 +1072,18 @@ Package events fans out live updates (step status, log lines) to UI subscribers 
 | `Hub` | struct | Hub is an in-process publish/subscribe fan-out keyed by topic ("run/42", "app/shop"). |
 | `NewHub` | func | NewHub returns an empty hub. |
 | `(*Hub) Subscribe` | method | Subscribe returns a channel for topic and a cancel func that must be called. |
-| `(*Hub) Publish` | method | Publish sends e to every subscriber of topic without blocking: a subscriber that is behind misses it and refetches on reconnect. |
+| `(*Hub) SetRelay` | method | SetRelay passes every event published here to relay as well (it must not block: CI publishes log lines). |
+| `(*Hub) Publish` | method | Publish sends e to every subscriber of topic without blocking (a subscriber that is behind misses it and refetches on reconnect), and to the relay, if any. |
+| `(*Hub) Deliver` | method | Deliver sends e to this process's subscribers only: an event that came from another process. |
+
+### `internal/events/bridge_test.go`
+
+<small>184 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestBridge` | func | Two processes: what one publishes reaches the other's subscribers, large events through a stored row, and nobody gets an event twice. |
+| `TestAsk` | func | A question asked in one process is answered by the other, and errors and silence come back as such. |
 
 ### `internal/events/hub_test.go`
 
@@ -1029,7 +1163,7 @@ Package github talks to GitHub as a GitHub App: short-lived installation tokens 
 
 ### `internal/github/client.go`
 
-<small>539 lines</small>
+<small>598 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1068,6 +1202,10 @@ Package github talks to GitHub as a GitHub App: short-lived installation tokens 
 | `(*Client) FileAt` | method | FileAt returns a file at a ref, or IsNotFound. |
 | `(*Client) ChangedFiles` | method | ChangedFiles lists files that differ between two commits. |
 | `(*Client) BranchSHA` | method | BranchSHA returns the commit a branch points at. |
+| `PullInfo` | struct | PullInfo is what the Caminos tab needs of a pull request. |
+| `(*Client) RecentPullRequests` | method | RecentPullRequests lists a repo's 100 most recently updated pull requests, open and closed. |
+| `(*Client) MergeBase` | method | MergeBase is the best common ancestor of two commits or branches, with its commit time. |
+| `(*Client) FirstParent` | method | FirstParent returns a commit's first parent ("" for a root commit). |
 | `(*Client) PutFile` | method | PutFile creates or updates one file on a branch as a single commit and returns the commit's SHA. |
 | `(*Client) DeleteFile` | method | DeleteFile removes one file on a branch as a single commit. |
 | `(*Client) fileSHA` | method | fileSHA is the blob SHA of a file on a branch, which GitHub asks for to replace it. |
@@ -1077,7 +1215,7 @@ Package github talks to GitHub as a GitHub App: short-lived installation tokens 
 
 ### `internal/github/holder.go`
 
-<small>138 lines</small>
+<small>166 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1093,6 +1231,9 @@ Package github talks to GitHub as a GitHub App: short-lived installation tokens 
 | `(*Holder) CloneToken` | method | CloneToken returns an installation token for cloning in build pods. |
 | `(*Holder) ChangedFiles` | method | ChangedFiles lists files that differ between two commits (for change detection). |
 | `(*Holder) BranchSHA` | method | BranchSHA resolves a branch to its head commit. |
+| `(*Holder) RecentPullRequests` | method | RecentPullRequests lists a repo's most recently updated pull requests. |
+| `(*Holder) MergeBase` | method | MergeBase is the best common ancestor of two commits or branches. |
+| `(*Holder) FirstParent` | method | FirstParent returns a commit's first parent. |
 | `(*Holder) ForOwner` | method | ForOwner returns an API client for the installation on an account (user or organization), found by the account's login. |
 
 ### `internal/github/oauth.go`
@@ -1127,7 +1268,7 @@ Package i18n translates the platform's messages for people: the API's answers to
 
 ### `internal/i18n/es.go`
 
-<small>468 lines</small>
+<small>497 lines</small>
 
 ### `internal/i18n/i18n.go`
 
@@ -1246,6 +1387,18 @@ Package mercado makes web pages for people who don't write code.
 | `Fotos` | func | Fotos takes the photos just added in the form (data: URLs) out of the page: it returns them as files of the repository, named by their content, and leaves their paths in the page. |
 | `fotosDe` | func | fotosDe lists the repository photos a page uses. |
 
+### `internal/mercado/tools.go`
+
+<small>72 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `PuestoBrief` | struct | PuestoBrief is a stall as the agents' MCP tools list it. |
+| `(*Mercado) Puestos` | method | Puestos lists the stalls, most recently changed first. |
+| `(*Mercado) puesto` | method | puesto finds a stall's app by its name; an app that is not a stall is not the Mercado's to change. |
+| `(*Mercado) LeerPuesto` | method | LeerPuesto reads a stall's page by the stall's name. |
+| `(*Mercado) GuardarPuesto` | method | GuardarPuesto saves a stall's changed page by the stall's name (see Guardar). |
+
 ### `internal/mercado/mercado_test.go`
 
 <small>190 lines · tests</small>
@@ -1265,7 +1418,7 @@ Package notify emails the platform's owner about what needs attention: releases 
 
 ### `internal/notify/notify.go`
 
-<small>321 lines</small>
+<small>411 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1275,8 +1428,12 @@ Package notify emails the platform's owner about what needs attention: releases 
 | `Sender` | interface | Sender delivers a rendered email. |
 | `Notifier` | struct | Notifier renders messages and sends them, de-duplicated and rate-limited. |
 | `(*Notifier) Enabled` | method | Enabled reports whether messages are actually sent. |
-| `(*Notifier) Notify` | method | Notify sends m in the background (a slow mail API never delays the caller). |
-| `(*Notifier) allow` | method | allow keeps email from flooding: the same message (by its key) at most once every 30 minutes, and 20 emails an hour in all, by default. |
+| `(*Notifier) Notify` | method | Notify sends m in the background (a slow mail API never delays the caller); a message with a Group waits GroupWait for others of its group, and they go out as one email. |
+| `(*Notifier) flush` | method | flush sends a group's waiting messages: one as it is, several as one email. |
+| `(*Notifier) sendLater` | method | sendLater sends m in the background, within the hourly cap. |
+| `(*Notifier) fresh` | method | fresh drops a message whose key was sent within Cooldown (30 minutes by default), and every message when notifications are off. |
+| `(*Notifier) underCap` | method | underCap keeps a bad night from flooding the inbox: 20 emails an hour in all, by default (a grouped email counts once). |
+| `Combine` | func | Combine makes one email of several notices of a group: the most severe tone, the first subject "and N more", and one row per notice (its title and summary), with their details one after another. |
 | `(*Notifier) Send` | method | Send renders and sends m now, without de-duplication (the test email). |
 | `Localize` | func | Localize translates a message's text for people into lang: subject, title, summary, facts, details (line by line) and the action. |
 | `Render` | func | Render returns m as an email-safe HTML page and as plain text, in English. |
@@ -1286,7 +1443,7 @@ Package notify emails the platform's owner about what needs attention: releases 
 
 ### `internal/notify/notify_test.go`
 
-<small>129 lines · tests</small>
+<small>178 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1294,6 +1451,8 @@ Package notify emails the platform's owner about what needs attention: releases 
 | `TestNotifierDedupAndCap` | func |  |
 | `TestResend` | func |  |
 | `TestOnSent` | func |  |
+| `TestNotifierGroups` | func | Like Alertmanager's group_wait: notices of one group that arrive together go out as one email; other groups and ungrouped notices are not held back. |
+| `TestCombine` | func |  |
 
 ## `internal/pipeline` {#internal-pipeline}
 
@@ -1421,9 +1580,24 @@ Package pipeline plans and executes CI runs.
 
 Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys.
 
+### `internal/platform/caminos.go`
+
+<small>156 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `caminosCache` | struct | caminosCache keeps each app's last history, and what GitHub said about commits, which never changes: a merge commit's first parent, and the merge base of two commits. |
+| `caminosEntry` | struct |  |
+| `(*Platform) Caminos` | method | Caminos is an app's history of the last CaminosDays: its runs on the default branch and on every other branch, and where each branch left and rejoined it. |
+| `ghSource` | struct | ghSource answers caminos.Build from GitHub, remembering what cannot change. |
+| `(*ghSource) PullRequests` | method |  |
+| `(*ghSource) FirstParent` | method |  |
+| `(*ghSource) MergeBase` | method |  |
+| `isSHA` | func | isSHA reports whether s is a full commit SHA (40 hex digits). |
+
 ### `internal/platform/platform.go`
 
-<small>1111 lines</small>
+<small>1183 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1452,6 +1626,9 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `(*Platform) rejectRun` | method | rejectRun records a push whose rendimiento.yaml is invalid as a failed run, so it shows where pushes are looked for: on the app page, as a red check on the commit in GitHub and, for the default branch, in an email. |
 | `(*Platform) Work` | method | Work claims queued runs until ctx ends. |
 | `(*Platform) work` | method | work takes the oldest queued run of an app with no run going (so an app's runs, and its releases, keep their order) until ctx ends. |
+| `(*Platform) CancelRun` | method | CancelRun stops a run wherever it is: here, in the process running it (through the hub), or in the queue before it starts. |
+| `(*Platform) RequestCancel` | method | RequestCancel asks whichever process runs a run to stop it. |
+| `runIDOf` | func | runIDOf reads a run id from an event's data: an int64 in this process, JSON when it came from another. |
 | `(*Platform) Cancel` | method | Cancel stops a run in progress in this process; it reports whether one was found. |
 | `(*Platform) execute` | method | execute does one run from start to end: it reads the app's spec (a branch's own, from its commit), plans the steps, leaves out what has not changed since the last release (its images are reused) and the tasks that do not apply, runs the rest, and records the result. |
 | `(*Platform) release` | method | release records a release from a successful run: the images it built (by digest), the ones it reused, and ready-made images as given. |
@@ -1512,7 +1689,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/verify.go`
 
-<small>550 lines</small>
+<small>600 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1520,6 +1697,8 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 | `RolloutState` | type | RolloutState is where a release's rollout stands. |
 | `(*Platform) startVerification` | method | startVerification watches a new release in the background. |
 | `(*Platform) stopVerification` | method | stopVerification ends an app's running verification as superseded (a newer release, or a rollback by hand, replaced the release). |
+| `verifyRequest` | struct | verifyRequest names the app and, to start, the release to watch. |
+| `(*Platform) ServeVerifications` | method | ServeVerifications watches the releases the other processes send (see VerifyElsewhere) until ctx ends. |
 | `(*Platform) verify` | method | verify watches a release once it is deployed: it waits for every pod to run the new version, runs the post-deploy tasks, checks each service every few seconds for the window, and then decides. |
 | `(*Platform) verificationFailed` | method | verificationFailed rolls back to the last good release, or only reports when rollback is off or there is nothing to return to. |
 | `(*Platform) verifyMessage` | method | verifyMessage is the email for a release that failed verification: rolled back (to = {good release, new release number}) or kept (why). |
@@ -1540,16 +1719,19 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/platform_test.go`
 
-<small>700 lines · tests</small>
+<small>799 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
+| `TestMain` | func |  |
 | `TestOnboardPushDeployRollback` | func |  |
+| `TestProposeRepoWithoutCode` | func | A repo with no code, only rendimiento.yaml with a ready-made image (p0dxD/ai, Ollama): the wizard got "detected": null and crashed on it. |
 | `TestProposeDetectsExistingDeployment` | func |  |
 | `TestChangeDetection` | func | Only what changed since the last release is tested, built and rolled. |
 | `TestTasks` | func |  |
 | `TestDisconnectAndSuggestedName` | func | Disconnect leaves everything running and unowned; the wizard suggests the namespace that already serves a repo's hosts. |
 | `TestInvalidSpecIsAFailedRun` | func | A push whose rendimiento.yaml is invalid is a failed run with the reason, a failed check on the commit and an email; the app's spec is unchanged and nothing is built. |
+| `TestCaminos` | func | The Caminos tab: an app's runs by branch, rebuilt only when a newer run appears (or after caminosTTL). |
 
 ### `internal/platform/posttask_test.go`
 
@@ -1647,7 +1829,7 @@ Package render turns an app's spec plus its released images into the Kubernetes 
 
 ### `internal/render/render.go`
 
-<small>624 lines</small>
+<small>633 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1687,7 +1869,7 @@ Package render turns an app's spec plus its released images into the Kubernetes 
 
 ### `internal/render/render_test.go`
 
-<small>435 lines · tests</small>
+<small>439 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1708,7 +1890,7 @@ Package renovate is the Renovate add-on: it keeps the dependencies of the apps i
 
 ### `internal/renovate/renovate.go`
 
-<small>715 lines</small>
+<small>760 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1718,6 +1900,7 @@ Package renovate is the Renovate add-on: it keeps the dependencies of the apps i
 | `(Settings) Next` | method | Next is the first scheduled time after t. |
 | `Load` | func | Load returns the add-on's state, with defaults if it was never set up. |
 | `Runner` | struct | Runner starts Renovate runs on schedule or on request, one at a time. |
+| `(*Runner) Serve` | method | Serve answers the other processes' Start and Running (see Remote) until ctx ends. |
 | `(*Runner) Loop` | method | Loop starts scheduled runs until ctx ends. |
 | `(*Runner) tick` | method | tick starts a scheduled Renovate run when its time has come. |
 | `target` | struct |  |
@@ -1757,9 +1940,101 @@ Package renovate is the Renovate add-on: it keeps the dependencies of the apps i
 
 Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session.
 
+### `internal/ruta/encargos.go`
+
+<small>369 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Encargos` | interface | Encargos is where encargos live (the store): work asked of agents, with an owner and a life cycle. |
+| `EncargoOut` | struct | EncargoOut is an encargo as agents see it. |
+| `SucesoOut` | struct | SucesoOut is one step of an encargo's history. |
+| `encargoOut` | func |  |
+| `encargosIn` | struct |  |
+| `encargosOut` | struct |  |
+| `encargoIn` | struct |  |
+| `crearEncargoIn` | struct |  |
+| `esperarIn` | struct |  |
+| `esperarOut` | struct |  |
+| `entregarEncargoIn` | struct |  |
+| `soltarIn` | struct |  |
+| `(*Server) addEncargoTools` | method | addEncargoTools registers the encargo tools: reading them for any key; creating, taking, waiting, handing over and letting go for keys that write, inside a cargo. |
+| `(*Server) encargoFor` | method | encargoFor reads an encargo the key may see (its app, if any). |
+| `stateErr` | func | stateErr explains a change the encargo's state does not allow. |
+| `(*Server) encargosListar` | method | encargosListar (encargos_listar) lists encargos the key may see. |
+| `(*Server) encargoLeer` | method | encargoLeer (encargo_leer) is one encargo with its history. |
+| `(*Server) encargoCrear` | method | encargoCrear (encargo_crear) leaves work for later, in the agent's cargo. |
+| `(*Server) encargoTomar` | method | encargoTomar (encargo_tomar) takes a pending encargo in the agent's cargo. |
+| `(*Server) mine` | method | mine checks the encargo is the agent's, taken or waiting. |
+| `finished` | func |  |
+| `(*Server) encargoEsperar` | method | encargoEsperar (encargo_esperar) waits for a run of the agent's encargo to finish, up to 15 minutes a call: the encargo shows it is waiting, and the run's end (from the platform's events) wakes the call. |
+| `(*Server) encargoEntregar` | method | encargoEntregar (encargo_entregar) hands the agent's encargo over. |
+| `(*Server) encargoSoltar` | method | encargoSoltar (encargo_soltar) lets go of the agent's encargo, with why. |
+| `(*Server) encargosDe` | method | encargosDe summarizes encargos for ruta_inicio: pending ones the key may take, and the ones it has. |
+
+### `internal/ruta/mercado.go`
+
+<small>154 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Mercado` | interface | Mercado is what the mercado_* tools need (a *mercado.Mercado); without it (PAGES_ORG unset) the tools are left out. |
+| `(*Server) addMercadoTools` | method | addMercadoTools registers the Mercado's tools: listing and reading stalls for every key; changing and opening them for a key that can write, within a cargo. |
+| `puestosOut` | struct |  |
+| `puestoIn` | struct |  |
+| `paginaOut` | struct |  |
+| `editarPuestoIn` | struct |  |
+| `abrirPuestoIn` | struct |  |
+| `nuevaPaginaIn` | struct | nuevaPaginaIn is a new page as an agent writes it: only the kind and the name are required; the Mercado fills in the rest (language, palette…). |
+| `abrirPuestoOut` | struct |  |
+| `(*Server) puestos` | method |  |
+| `(*Server) leerPuesto` | method |  |
+| `(*Server) editarPuesto` | method |  |
+| `(*Server) abrirPuesto` | method |  |
+
+### `internal/ruta/plataforma.go`
+
+<small>440 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Plataforma` | interface | Plataforma is what the platform's tools read and do: the apps, their runs, releases, logs, kept requests and problems, and running or cancelling CI. |
+| `appIn` | struct |  |
+| `ejecucionIn` | struct |  |
+| `registroIn` | struct |  |
+| `solicitudesIn` | struct |  |
+| `solicitudIn` | struct |  |
+| `lanzarIn` | struct |  |
+| `Corrida` | struct | Corrida is a run as agents see it. |
+| `Paso` | struct | Paso is one step of a run. |
+| `Version` | struct | Version is a release as agents see it. |
+| `AppResumen` | struct | AppResumen is one app in apps_listar. |
+| `appsOut` | struct |  |
+| `Problema` | struct | Problema is a problem the platform recorded. |
+| `estadoOut` | struct |  |
+| `registroOut` | struct |  |
+| `solicitudesOut` | struct |  |
+| `solicitudOut` | struct |  |
+| `corrida` | func |  |
+| `version` | func |  |
+| `short` | func |  |
+| `(*Server) addPlataformaTools` | method | addPlataformaTools registers the platform's tools: reading for any key, running and cancelling CI for keys that write (with a cargo). |
+| `(*Server) appFor` | method | appFor finds an app the key may use. |
+| `(*Server) runFor` | method | runFor finds a run of an app the key may use. |
+| `(*Server) resumen` | method |  |
+| `(*Server) appsListar` | method | appsListar (apps_listar) lists the apps the key may see. |
+| `(*Server) appEstado` | method | appEstado (app_estado) is one app: services, recent runs and releases, and its open problems. |
+| `(*Server) ejecucionLeer` | method | ejecucionLeer (ejecucion_leer) is one run with its steps. |
+| `(*Server) pasoRegistro` | method | pasoRegistro (paso_registro) is the end of a step's log. |
+| `traceAllowed` | func | traceAllowed says whether a key may see a request: it went through one of the key's apps (services are app/service). |
+| `(*Server) solicitudesListar` | method | solicitudesListar (solicitudes_listar) lists kept requests. |
+| `(*Server) solicitudLeer` | method | solicitudLeer (solicitud_leer) is one kept request with its spans. |
+| `(*Server) ejecucionLanzar` | method | ejecucionLanzar (ejecucion_lanzar) queues a run of a branch other than the default one: agents test; deploying stays with people. |
+| `(*Server) ejecucionCancelar` | method | ejecucionCancelar (ejecucion_cancelar) cancels a queued or running run. |
+
 ### `internal/ruta/ruta.go`
 
-<small>605 lines</small>
+<small>633 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1803,9 +2078,33 @@ Package ruta is the MCP endpoint (/mcp) through which agents read and write la R
 | `(*Server) actualizar` | method | actualizar (ruta_actualizar) changes an entry, or marks a to-do done, within the agent's open cargo. |
 | `(*Server) entregar` | method | entregar (cargo_entregar) closes the agent's cargo with what it did and what is left, for the next one. |
 
+### `internal/ruta/encargos_test.go`
+
+<small>212 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestEncargoTools` | func | An agent finds a pending encargo at the start, takes it (and nobody else can), tests a branch, waits on the run (woken when it ends) and hands the encargo over with links. |
+
+### `internal/ruta/mercado_test.go`
+
+<small>137 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestMercadoTools` | func |  |
+
+### `internal/ruta/plataforma_test.go`
+
+<small>230 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestPlataformaTools` | func | Agents read the platform (apps, runs, logs, kept requests) and, with a collaborator key and a cargo, test a branch or cancel a run; never the default branch, which deploys. |
+
 ### `internal/ruta/ruta_test.go`
 
-<small>333 lines · tests</small>
+<small>337 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1819,7 +2118,7 @@ Package selfupdate moves rendimiento to an image it built and tested itself: its
 
 ### `internal/selfupdate/selfupdate.go`
 
-<small>254 lines</small>
+<small>269 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1832,19 +2131,21 @@ Package selfupdate moves rendimiento to an image it built and tested itself: its
 | `(*Updater) Status` | method | Status says which release runs (by the pod's image digest) and whether the newest release holds another image. |
 | `(*Updater) manifests` | method | manifests compares the commit `make deploy` last applied with head. |
 | `isManifest` | func | isManifest says whether `make deploy` applies the file: the YAML under deploy/ (not, say, the Railpack image's Dockerfile). |
-| `(*Updater) Update` | method | Update points the Deployment at release's image. |
+| `(*Updater) Update` | method | Update points the platform's Deployments at release's image. |
+| `(*Updater) patch` | method | patch points one Deployment's container at v's image. |
 | `(*Updater) versions` | method | versions are the app's releases that hold a platform image, newest first. |
 | `(*Updater) running` | method | running is the digest of the image this pod runs ("" when unknown: not in a pod, or the image is still being pulled). |
 | `digest` | func | digest is the sha256:… of an image reference or a container's image ID. |
 
 ### `internal/selfupdate/selfupdate_test.go`
 
-<small>179 lines · tests</small>
+<small>208 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `TestStatus` | func |  |
 | `TestUpdate` | func |  |
+| `TestUpdateEveryService` | func | The platform's other services move to the same image; one that is not deployed (everything in one Deployment) is skipped. |
 | `TestManifests` | func |  |
 
 ## `internal/spec` {#internal-spec}
@@ -1970,6 +2271,65 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) GetAddonRun` | method | GetAddonRun returns one run with its log. |
 | `prefixed` | func | prefixed qualifies a column list with a table alias ("a.id, a.name"). |
 
+### `internal/store/caminos.go`
+
+<small>40 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `HistoryRun` | struct | HistoryRun is a run as the Caminos tab draws it: the run, the steps that failed, and the release it made (0 if none). |
+| `(*Store) RunHistory` | method | RunHistory lists an app's runs created since a time, oldest first (at most 2,000), each with its failed steps and the release it made. |
+
+### `internal/store/encargos.go`
+
+<small>215 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Encargo` | struct | Encargo is work asked of agents. |
+| `EncargoLog` | struct | EncargoLog is one thing that happened to an encargo. |
+| `scanEncargo` | func |  |
+| `(*Store) CreateEncargo` | method | CreateEncargo adds an encargo, pending. |
+| `logEncargo` | func |  |
+| `(*Store) Encargo` | method | Encargo returns one encargo with its history. |
+| `(*Store) ListEncargos` | method | ListEncargos lists encargos, the most recently changed first: the open ones (not reviewed or cancelled), or all. |
+| `(*Store) change` | method | change applies one state change in a transaction: the update must touch the row (else ErrEncargoState), and it is logged. |
+| `(*Store) TakeEncargo` | method | TakeEncargo gives a pending encargo to an agent, in its cargo. |
+| `(*Store) WaitEncargo` | method | WaitEncargo notes that the agent that has it waits on a run. |
+| `(*Store) ResumeEncargo` | method | ResumeEncargo is the end of a wait: the run finished (note says how). |
+| `(*Store) DeliverEncargo` | method | DeliverEncargo hands an encargo over with its result and links. |
+| `(*Store) ReviewEncargo` | method | ReviewEncargo is the person's answer to a delivered encargo: accepted (reviewed), or sent back with a comment, pending again for any agent. |
+| `(*Store) ReleaseEncargo` | method | ReleaseEncargo gives a taken encargo back (pending), e.g. |
+| `(*Store) CancelEncargo` | method | CancelEncargo cancels an encargo that is not finished. |
+
+### `internal/store/events.go`
+
+<small>66 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `(*Store) Notify` | method | Notify sends payload on a NOTIFY channel. |
+| `(*Store) Listen` | method | Listen calls fn with each notification on channel, on a connection of its own, until ctx ends or the connection fails. |
+| `(*Store) PutEvent` | method | PutEvent stores a large event and returns its id. |
+| `(*Store) GetEvent` | method | GetEvent reads a stored event. |
+| `(*Store) PruneEvents` | method | PruneEvents deletes stored events older than before. |
+
+### `internal/store/orgs.go`
+
+<small>168 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `RoleRank` | func | RoleRank orders roles: a route asks for a minimum rank (0 for unknown). |
+| `Member` | struct | Member is a person in an organization. |
+| `(*Store) MemberRole` | method | MemberRole is a person's role in an organization (ErrNotFound when they are not in it). |
+| `(*Store) Members` | method | Members lists an organization's people, administrators first. |
+| `(*Store) SetMember` | method | SetMember adds a person to an organization, or changes their role; an organization never loses its last administrator. |
+| `(*Store) RemoveMember` | method | RemoveMember takes a person out of an organization (not its last administrator). |
+| `lastAdmin` | func | lastAdmin refuses a change that would take away the organization's only administrator (login is the person losing the role). |
+| `(*Store) IsMemberAnywhere` | method | IsMemberAnywhere reports whether a person belongs to any organization: who may sign in. |
+| `(*Store) SeedAdmins` | method | SeedAdmins makes the logins administrators of the default organization when it has no members yet: ALLOWED_USERS, the way people were let in before organizations, starts it off. |
+
 ### `internal/store/problems.go`
 
 <small>110 lines</small>
@@ -2019,11 +2379,13 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/ruta.go`
 
-<small>358 lines</small>
+<small>395 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `AgentKey` | struct | AgentKey is a bearer token for the MCP endpoint (the token itself is never stored). |
+| `(AgentKey) Writes` | method | Writes reports whether the key may write (any role above reader). |
+| `(AgentKey) AllowsApp` | method | AllowsApp reports whether the key may see and act on an app. |
 | `(AgentKey) Usable` | method | Usable reports whether the key may be used now. |
 | `Cargo` | struct | Cargo is an agent's turn of work. |
 | `RutaEntry` | struct | RutaEntry is one thing the platform knows: a decision, a manual, a pending task, a note, or something a person lived. |
@@ -2126,9 +2488,27 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) ResetForTests` | method | ResetForTests drops every table. |
 | `(*Store) Ping` | method | Ping checks the database connection. |
 
+### `internal/store/traces.go`
+
+<small>208 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Trace` | struct | Trace is one kept request: its root span and what it went through. |
+| `Span` | struct | Span is one step of a trace. |
+| `SpanEvent` | struct | SpanEvent is something a span recorded at a moment (an exception, a log). |
+| `partition` | func | partition names a day's partition of a trace table: traces_20261018. |
+| `(*Store) EnsureTracePartitions` | method | EnsureTracePartitions creates the partitions of the days around now (UTC): yesterday, today and tomorrow. |
+| `(*Store) DropTracePartitions` | method | DropTracePartitions drops the days before before (UTC) and says how many partitions went. |
+| `(*Store) SaveTraces` | method | SaveTraces writes kept traces and their spans (spans of traces already saved may come later on their own). |
+| `orEmpty` | func |  |
+| `TraceQuery` | struct | TraceQuery narrows ListTraces. |
+| `(*Store) ListTraces` | method | ListTraces lists kept requests, newest first. |
+| `(*Store) GetTrace` | method | GetTrace returns a request's summary and its spans in start order (ErrNotFound when it was not kept or has expired). |
+
 ### `internal/store/uptime.go`
 
-<small>308 lines</small>
+<small>330 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2145,10 +2525,35 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `UptimeBucket` | struct | UptimeBucket is one point of a chart: the checks in [At, At+bucket). |
 | `UptimeSeries` | struct | UptimeSeries is one check's history over a range: totals, response time percentiles (of successful checks) and the chart's buckets. |
 | `(*Store) Uptime` | method | Uptime returns every check of an app over [since, now] in buckets of the given size. |
+| `(*Store) AnsweredChecks` | method | AnsweredChecks lists the checks (app, service and kind) that have succeeded at least once in the kept history (400 days of hourly summaries, plus the checks not summarized yet). |
 | `(*Store) LatestProbes` | method | LatestProbes is the newest check since a time of every app, service and kind: the health the Universe page shows on each service. |
 | `(*Store) UptimeSummary` | method | UptimeSummary is the share of successful checks per app since a time: the dashboard's uptime badges. |
 | `CheckStats` | struct | CheckStats summarizes one check's results over a period. |
 | `(*Store) ProbeStats` | method | ProbeStats summarizes an app's checks in [from, to), per service and check kind: the baseline a new release is compared with. |
+
+### `internal/store/caminos_test.go`
+
+<small>55 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestRunHistory` | func |  |
+
+### `internal/store/encargos_test.go`
+
+<small>84 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestEncargos` | func | An encargo goes pending → taken → waiting → taken → delivered → returned → taken → delivered → reviewed; only one agent has it, and every step is in its history. |
+
+### `internal/store/events_test.go`
+
+<small>56 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestEventsWire` | func |  |
 
 ### `internal/store/logarchive_test.go`
 
@@ -2157,6 +2562,14 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | Name | Kind | Summary |
 |---|---|---|
 | `TestLogArchiveBookkeeping` | func |  |
+
+### `internal/store/orgs_test.go`
+
+<small>51 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestMembers` | func | ALLOWED_USERS seeds the first administrators once; members are then managed, and an organization never loses its last administrator. |
 
 ### `internal/store/puestos_test.go`
 
@@ -2206,9 +2619,17 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `TestFinishAndCancelCloseSteps` | func |  |
 | `TestAddons` | func |  |
 
+### `internal/store/traces_test.go`
+
+<small>54 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestTraces` | func | Traces are kept in day partitions: saved, listed by service, read back with their spans, and gone once their day is dropped. |
+
 ### `internal/store/uptime_test.go`
 
-<small>107 lines · tests</small>
+<small>122 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2220,11 +2641,58 @@ Package testenv is the envtest (a real API server and etcd) the controller and p
 
 ### `internal/testenv/testenv.go`
 
-<small>23 lines</small>
+<small>34 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `New` | func | New is an envtest with the CRDs in crdDirs. |
+
+## `internal/traces` {#internal-traces}
+
+Package traces keeps whole requests for the Universe's waterfall.
+
+### `internal/traces/receiver.go`
+
+<small>165 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `(*Keeper) Handler` | method | Handler serves OTLP/HTTP (protobuf, optionally gzip) on POST /v1/traces, as the Collector's otlphttp exporter sends it, and /healthz. |
+| `Spans` | func | Spans turns an OTLP export into the store's spans; the service is the resource's service.name (app/service for rendimiento's apps). |
+| `kind` | func |  |
+| `attributes` | func |  |
+| `value` | func |  |
+| `cut` | func |  |
+
+### `internal/traces/traces.go`
+
+<small>275 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Store` | interface | Store is where kept requests go (the platform's store). |
+| `Keeper` | struct | Keeper buffers spans by request and decides which requests to keep. |
+| `pending` | struct |  |
+| `decision` | struct |  |
+| `(*Keeper) Add` | method | Add takes spans as they arrive (from the receiver). |
+| `(*Keeper) pendingOf` | method |  |
+| `(*Keeper) Run` | method | Run decides and saves every few seconds, and keeps the day partitions, until ctx ends. |
+| `(*Keeper) partitions` | method | partitions creates the days around now and drops the expired ones. |
+| `(*Keeper) Flush` | method | Flush decides the requests that have waited long enough (or the oldest, when too many wait) and saves the kept ones. |
+| `(*Keeper) decide` | method | decide summarizes a request and says whether to keep it: always when it failed or was slow, otherwise for the sampled share (by its ID, so every span of it gets the same answer). |
+| `health` | func | health says whether a request is a health check, by its root span's route or name ("GET /api/health"). |
+| `sampled` | func | sampled says whether a request falls in the sampled share, by the low bits of its (random) ID. |
+
+### `internal/traces/traces_test.go`
+
+<small>181 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestKeeper` | func | Failed and slow requests are kept whole, normal ones by sample, and a span arriving after its request was kept joins it. |
+| `TestHealthChecks` | func | Health checks are not sampled, but still kept when they fail or are slow. |
+| `TestSampled` | func |  |
+| `TestReceiver` | func | The Collector's export (protobuf, gzip) becomes spans with the resource's service name, kinds, status and attributes. |
 
 ## `internal/universe` {#internal-universe}
 
@@ -2305,7 +2773,7 @@ Package uptime checks every app's services once a minute and keeps the results: 
 
 ### `internal/uptime/uptime.go`
 
-<small>463 lines</small>
+<small>545 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2322,6 +2790,8 @@ Package uptime checks every app's services once a minute and keeps the results: 
 | `key` | func | key identifies one check: app, service and kind (public or internal). |
 | `(*Prober) Run` | method | Run checks until ctx is done. |
 | `(*Prober) Round` | method | Round checks every target once, records the results and updates outages. |
+| `(*Prober) loadAnswered` | method | loadAnswered learns which checks have ever succeeded, so a restart does not treat a long-working domain as new. |
+| `(*Prober) markDNSPending` | method | markDNSPending rewrites the error of a public check that has never answered and fails its DNS lookup, for its first DNSGrace: a new domain whose record is still spreading. |
 | `(*Prober) notifyChanges` | method | notifyChanges sends one email per app for the outages that started, and one for those that ended, this round. |
 | `checkName` | func | checkName is a check as emails and pages name it. |
 | `joinAnd` | func | joinAnd lists names as "a and b and c", one translatable pair at a time. |
@@ -2333,7 +2803,7 @@ Package uptime checks every app's services once a minute and keeps the results: 
 
 ### `internal/uptime/uptime_test.go`
 
-<small>195 lines · tests</small>
+<small>308 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2341,6 +2811,8 @@ Package uptime checks every app's services once a minute and keeps the results: 
 | `TestCheck` | func |  |
 | `TestIncidents` | func |  |
 | `TestRound` | func |  |
+| `TestDNSPending` | func | A new domain whose DNS record is still spreading is "DNS pending" for an hour, not an outage; one that has answered before is down at once. |
+| `TestNotifyAfter` | func | Like Alertmanager's "for": an outage is emailed once it has lasted NotifyAfter; a shorter one (the router's nightly restart) is recorded but sends neither the outage nor the recovery email. |
 
 ## `templates` {#templates}
 
@@ -2366,7 +2838,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>960 lines</small>
+<small>1075 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2395,6 +2867,11 @@ Package web embeds the built UI (npm run build → web/dist).
 | `RutaInput` | interface |  |
 | `Cargo` | interface |  |
 | `AgentAction` | interface |  |
+| `AgentRole` | type |  |
+| `MemberRole` | type | A person's role in the organization (internal/store.Member*). |
+| `Member` | interface |  |
+| `EncargoStatus` | type |  |
+| `Encargo` | interface | Work asked of agents (internal/store.Encargo). |
 | `AgentKey` | interface |  |
 | `CreatedAgentKey` | interface |  |
 | `Problem` | interface | ---- problems (the platform's own warnings and errors) ---- |
@@ -2423,6 +2900,9 @@ Package web embeds the built UI (npm run build → web/dist).
 | `Installation` | interface |  |
 | `Repo` | interface |  |
 | `request` | function |  |
+| `CaminosRun` | interface | ---- caminos: an app's branches as roads (the Caminos tab) ---- One run, as a stop on the road. |
+| `CaminosBranch` | interface | One branch: a vereda that leaves the default branch and, if merged, comes back. |
+| `Caminos` | interface | The last two weeks of an app: its default branch and the branches around it. |
 | `api` | const |  |
 | `subscribe` | function | Subscribes to server-sent events; returns an unsubscribe function. |
 | `PublicActivity` | interface | The welcome page's "right now": runs going on and the latest releases, by app name only. |
@@ -2447,6 +2927,8 @@ Package web embeds the built UI (npm run build → web/dist).
 | `Universe` | interface |  |
 | `UniverseWindow` | type |  |
 | `UniverseSpan` | interface | What one observed service does, from its traces (internal/universe.SpanMetrics): the routes it serves, its own moments, the calls it makes. |
+| `KeptTrace` | interface | A request the traces service kept (internal/store.Trace): it failed, was slow, or fell in the sample. |
+| `TraceSpan` | interface | One step of a kept request (internal/store.Span). |
 | `universeApi` | const |  |
 | `catalogApi` | const |  |
 | `RenovateSettings` | interface | ---- add-ons ---- |
@@ -2483,6 +2965,47 @@ Package web embeds the built UI (npm run build → web/dist).
 | `Flor` | component | A cempasúchil: alive (it breathes), withered (it droops and drops |
 | `LluviaDePetalos` | component | A burst of petals over the page, for a release that just went live. |
 
+### `web/src/components/caminos-tab.tsx`
+
+<small>264 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `when` | const |  |
+| `secs` | const |  |
+| `dur` | function |  |
+| `STATUS` | const |  |
+| `statusOf` | const |  |
+| `KIND` | const |  |
+| `stepLabel` | const | "platform:test" → "platform: tests". |
+| `CaminosTab` | component | The Caminos tab. |
+| `CaminosView` | component |  |
+| `lastAt` | const |  |
+| `Panel` | component |  |
+| `Summary` | component |  |
+| `RunItem` | component |  |
+| `BranchPanel` | component |  |
+| `RunPanel` | component |  |
+| `Tile` | component |  |
+
+### `web/src/components/caminos.ts`
+
+<small>795 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `CaminosSel` | type |  |
+| `PlayState` | type |  |
+| `Stop` | interface | A run placed on the map. |
+| `Road` | interface | A branch placed on the map. |
+| `EXTRA` | const |  |
+| `Colors` | type |  |
+| `rng` | function |  |
+| `sec` | const |  |
+| `Fx` | interface |  |
+| `Hit` | type |  |
+| `CaminosHandlers` | interface |  |
+
 ### `web/src/components/delivery.tsx`
 
 <small>192 lines</small>
@@ -2497,9 +3020,22 @@ Package web embeds the built UI (npm run build → web/dist).
 | `Spark` | component | Twelve weeks as a line; gaps where a week has no data; a dot on the last. |
 | `DeliveryPanel` | component | The dashboard's delivery health: the numbers of the last 30 days and a chart of twelve weeks. |
 
+### `web/src/components/encargos.tsx`
+
+<small>127 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `statusLabel` | const |  |
+| `statusClass` | const |  |
+| `eventLabel` | const |  |
+| `NewEncargo` | component | The form to ask agents for something: what, the detail, and the app. |
+| `EncargoCard` | component | One encargo: what was asked, who has it, what it waits on, what came back, and its history. |
+| `Encargos` | component |  |
+
 ### `web/src/components/maqueta.ts`
 
-<small>783 lines</small>
+<small>1013 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2514,6 +3050,7 @@ Package web embeds the built UI (npm run build → web/dist).
 | `HitKind` | type |  |
 | `Pick` | interface |  |
 | `MapView` | interface |  |
+| `Engine` | interface | What the page asks of a maqueta, in 2.5D or in 3D. |
 | `RANK` | const |  |
 | `worst` | const |  |
 | `rate` | function | Calls per minute, short: "12/min", "1.2k/min". |
@@ -2527,6 +3064,7 @@ Package web embeds the built UI (npm run build → web/dist).
 | `Box` | interface |  |
 | `Cam` | interface |  |
 | `Road3` | interface |  |
+| `Decor` | interface |  |
 | `PlacedBarrio` | interface |  |
 | `PlacedPueblo` | interface |  |
 | `Inside` | interface |  |
@@ -2539,9 +3077,30 @@ Package web embeds the built UI (npm run build → web/dist).
 | `roadGeom` | function |  |
 | `roadWidth` | const |  |
 | `INTERNET_AT` | const |  |
+| `palette` | function | The village's colors for day or night, with the page's own tokens. |
+| `placeWorld` | function | Where every barrio and pueblo goes, in tiles; both the 2.5D and the 3D maqueta use it. |
+| `placeInside` | function | Inside a pueblo: its houses in a ring around the plaza, the arch, and one signpost per app called. |
+| `drawLabels` | function | Draws labels in screen space, the most important first, skipping any that would cover another. |
+| `paseo` | function | Where the people walking round the plaza are at a time (seconds): half go one way, half the other, as in the old paseo. |
+| `shade` | function | Lightens (k > 0) or darkens (k < 0) a #rrggbb color. |
 | `badge` | function | The letters on a house: its language, like the Services page. |
 | `distSeg` | function |  |
 | `inPoly` | function |  |
+
+### `web/src/components/maqueta3d.ts`
+
+<small>943 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Anchor` | interface |  |
+| `Flow` | interface |  |
+| `Proxy` | interface |  |
+| `RoadHit` | interface |  |
+| `Badge` | interface |  |
+| `Pose` | interface |  |
+| `mix` | function | Mixes two #rrggbb colors. |
+| `distSeg` | function |  |
 
 ### `web/src/components/marca.tsx`
 
@@ -2554,7 +3113,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/components/reliability.tsx`
 
-<small>408 lines</small>
+<small>411 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2636,7 +3195,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>983 lines</small>
+<small>1147 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2644,7 +3203,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/main.tsx`
 
-<small>112 lines</small>
+<small>116 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2662,7 +3221,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/AppPage.tsx`
 
-<small>499 lines</small>
+<small>502 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2739,6 +3298,17 @@ Package web embeds the built UI (npm run build → web/dist).
 | `InstallForm` | component |  |
 | `AddonDetail` | component | One installed add-on: status, what a sync would change, and actions. |
 
+### `web/src/pages/Members.tsx`
+
+<small>74 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `memberRoleLabel` | const |  |
+| `roleHelp` | const |  |
+| `RoleSelect` | component | The roles as choices, with what each allows. |
+| `Members` | component |  |
+
 ### `web/src/pages/Mercado.tsx`
 
 <small>372 lines</small>
@@ -2783,18 +3353,32 @@ Package web embeds the built UI (npm run build → web/dist).
 | `AppProblems` | component | Open problems about one app, as a banner on its page. |
 | `ProblemsNavLink` | component | The navigation link, with the number of open problems. |
 
+### `web/src/pages/Request.tsx`
+
+<small>138 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Row` | interface |  |
+| `rows` | function | The spans in call order: each one under its parent, siblings by start. |
+| `hue` | function | A steady color per service, so a request's hops between services show. |
+| `RequestPage` | component |  |
+| `kindLabel` | const |  |
+| `SpanDetail` | component |  |
+
 ### `web/src/pages/RunPage.tsx`
 
-<small>107 lines</small>
+<small>131 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `RunPage` | component | A run's page: its graph of steps, live as they go, and the log of the step chosen. |
 | `formatLog` | function | Drops the ::group:: markers the executor uses to separate clone and step output. |
+| `AskAgent` | component |  |
 
 ### `web/src/pages/Ruta.tsx`
 
-<small>354 lines</small>
+<small>381 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2808,7 +3392,9 @@ Package web embeds the built UI (npm run build → web/dist).
 | `Entries` | component | The Ruta tab: entries by kind and text (all but "lived"), and a button to write one. |
 | `Vivido` | component | The "Lived" tab: what people wrote about working here, in their words (agents cannot write these). |
 | `Cargos` | component |  |
-| `NewKey` | component | The form to make an agent key: its name, whether it can write, and how many days it lasts. |
+| `roleLabel` | const |  |
+| `access` | function | What a key may do and on which apps, as the keys table shows it. |
+| `NewKey` | component |  |
 | `Connect` | component |  |
 | `Keys` | component |  |
 | `Ruta` | component | The Ruta page: the platform's memory, kept by people and agents, in four tabs. |
@@ -2836,12 +3422,14 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Universe.tsx`
 
-<small>745 lines</small>
+<small>830 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `kindLabel` | const |  |
 | `sourceLabel` | const |  |
+| `Mode` | type | The way the map is drawn, remembered on this device: flat at an angle (2.5D) or in 3D. |
+| `savedMode` | function |  |
 | `statusLabel` | const |  |
 | `Numbers` | interface | Numbers for anything on the map: its calls, how they went, and their trends. |
 | `Road` | interface | A road between pueblos or barrios: the calls it is made of. |
@@ -2874,6 +3462,8 @@ Package web embeds the built UI (npm run build → web/dist).
 | `NodePanel` | component |  |
 | `spanStatus` | const |  |
 | `Spans` | component |  |
+| `reasonLabel` | const |  |
+| `Requests` | component |  |
 | `nodeName` | function |  |
 | `EdgeRows` | component |  |
 | `EdgeList` | component |  |
@@ -2892,5 +3482,5 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/vite.config.ts`
 
-<small>8 lines</small>
+<small>9 lines</small>
 

@@ -26,12 +26,12 @@ sequenceDiagram
     You->>G: autoriza la aplicación de GitHub
     G->>R: /api/auth/callback?code=…&state=…
     R->>G: cambia el código por un token de usuario → ¿quién es?
-    R->>R: ¿cuenta en ALLOWED_USERS? crea la sesión (se guarda la huella, 7 días)
+    R->>R: ¿es miembro? crea la sesión (se guarda la huella, 7 días)
     R->>You: galleta de sesión (HttpOnly, Secure, SameSite=Lax)
 ```
 
 - Las sesiones son tokens aleatorios de 32 bytes; solo se guarda su **SHA-256**, así que una fuga de la base de datos no filtra sesiones.
-- `requireSession` comprueba la galleta **y** la lista de permitidos en cada petición, así que quitar a alguien de `ALLOWED_USERS` le cierra el paso de inmediato.
+- `requireRole` comprueba la galleta, la membresía y la función de la persona en cada petición: cada ruta declara la función mínima que pide (invitado, colaborador, administrador), y quitar a alguien de **Miembros** le cierra el paso de inmediato. Una prueba recorre todas las rutas como invitado y como colaborador.
 - `guard` agrega encabezados de seguridad (`nosniff`, marcos en `DENY`, referencias del mismo origen) y rechaza las peticiones **de otro origen** que cambian el estado (el encabezado `Origin` debe coincidir), además de las galletas `SameSite=Lax`.
 
 ## Avisos web {#webhooks}

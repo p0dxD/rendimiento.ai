@@ -91,9 +91,9 @@ flowchart LR
 
 ## Users and teams
 
-**Today:** a GitHub login allowlist (`ALLOWED_USERS`), where everyone can do everything.
+**Today:** [members](../guide/members.md) with a role (guest, collaborator, admin) that every API route checks, all in one organization.
 
-**Next:** roles (viewer, deployer, admin) per app, taken from GitHub team membership; an audit log table recording who deployed, rolled back or changed a secret; and per-namespace RBAC for the platform itself instead of broad cluster rights.
+**Next:** several organizations, each with its own apps, Ruta, agents and AI budget, isolated on a shared cluster, in a dedicated virtual cluster, or on the organization's own cluster; an audit log of who deployed, rolled back or changed a secret; and per-namespace RBAC for the platform itself instead of broad cluster rights.
 
 ## Numbers to watch
 

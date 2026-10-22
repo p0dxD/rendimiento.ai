@@ -72,6 +72,9 @@ func newEnv(t *testing.T, withApp bool) *testEnv {
 	if err := st.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := st.SeedAdmins(ctx, []string{"p0dxD"}); err != nil {
+		t.Fatal(err)
+	}
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = v1alpha1.AddToScheme(scheme)
@@ -725,5 +728,81 @@ func TestEncargosAPI(t *testing.T) {
 	}
 	if r, body := e.do(t, "GET", path, "", me, nil); r.StatusCode != 200 || !strings.Contains(body, `"what":"returned"`) {
 		t.Fatalf("history: %d %s", r.StatusCode, body)
+	}
+}
+
+// Every route takes at least the role it declares: a guest may read, but
+// not act or administer; a collaborator may act, but not administer; a
+// stranger with a session is not let in at all.
+func TestRouteRoles(t *testing.T) {
+	e := newEnv(t, false)
+	ctx := context.Background()
+	for login, role := range map[string]string{"invitada": store.MemberGuest, "colabora": store.MemberCollaborator} {
+		if err := e.store.SetMember(ctx, store.DefaultOrg, login, role, "p0dxD"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	guest, collab := e.session(t, "invitada"), e.session(t, "colabora")
+	fill := strings.NewReplacer("{app}", "nada", "{id}", "1", "{name}", "nada", "{addon}", "nada", "{number}", "1",
+		"{task}", "nada", "{secret}", "nada", "{step}", "nada", "{login}", "nadie")
+	checked := 0
+	for _, rt := range e.s.routes {
+		method, path, _ := strings.Cut(rt.pattern, " ")
+		path = fill.Replace(path)
+		for who, c := range map[string]*http.Cookie{store.MemberGuest: guest, store.MemberCollaborator: collab} {
+			// Live routes (/events) stream until the client leaves: one that
+			// is still open after 3 seconds got past the role check.
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			req, _ := http.NewRequestWithContext(ctx, method, e.srv.URL+path, strings.NewReader("{}"))
+			req.AddCookie(c)
+			status, body := 0, ""
+			if res, err := http.DefaultClient.Do(req); err == nil {
+				b, _ := io.ReadAll(res.Body)
+				res.Body.Close()
+				status, body = res.StatusCode, string(b)
+			}
+			cancel()
+			allowed := store.RoleRank(who) >= store.RoleRank(rt.role)
+			if !allowed && status != http.StatusForbidden {
+				t.Errorf("%s as %s: %d, want 403 (%s)", rt.pattern, who, status, body)
+			}
+			if allowed && status == http.StatusForbidden && strings.Contains(body, "role") {
+				t.Errorf("%s as %s: refused by role, but the route allows %s", rt.pattern, who, rt.role)
+			}
+			checked++
+		}
+	}
+	if checked < 150 {
+		t.Fatalf("only %d checks: are the routes registered?", checked)
+	}
+	if r, _ := e.do(t, "GET", "/api/me", "", e.session(t, "extraña"), nil); r.StatusCode != 401 {
+		t.Fatalf("a stranger: %d", r.StatusCode)
+	}
+	if _, body := e.do(t, "GET", "/api/me", "", guest, nil); !strings.Contains(body, `"role":"guest"`) {
+		t.Fatalf("me: %s", body)
+	}
+}
+
+// An administrator adds and removes people; the last administrator stays.
+func TestMembersAPI(t *testing.T) {
+	e := newEnv(t, false)
+	me := e.session(t, "p0dxD")
+	if r, _ := e.do(t, "PUT", "/api/members/no%20vale", `{"role":"guest"}`, me, nil); r.StatusCode != 400 {
+		t.Fatalf("a bad login: %d", r.StatusCode)
+	}
+	if r, _ := e.do(t, "PUT", "/api/members/ana", `{"role":"jefa"}`, me, nil); r.StatusCode != 400 {
+		t.Fatalf("a bad role: %d", r.StatusCode)
+	}
+	if r, body := e.do(t, "PUT", "/api/members/ana", `{"role":"guest"}`, me, nil); r.StatusCode != 200 || !strings.Contains(body, `"login":"ana"`) {
+		t.Fatalf("add: %d %s", r.StatusCode, body)
+	}
+	if r, _ := e.do(t, "PUT", "/api/members/p0dxD", `{"role":"guest"}`, me, nil); r.StatusCode != 409 {
+		t.Fatalf("demoting the last admin: %d", r.StatusCode)
+	}
+	if r, _ := e.do(t, "DELETE", "/api/members/ana", "", me, nil); r.StatusCode != 204 {
+		t.Fatalf("remove: %d", r.StatusCode)
+	}
+	if r, _ := e.do(t, "DELETE", "/api/members/ana", "", me, nil); r.StatusCode != 404 {
+		t.Fatalf("remove again: %d", r.StatusCode)
 	}
 }

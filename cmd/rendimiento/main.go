@@ -107,10 +107,9 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	if dsn == "" {
 		return errors.New("DATABASE_URL is required")
 	}
+	// ALLOWED_USERS names the first administrators; then people are
+	// members, managed on the Members page.
 	users := strings.FieldsFunc(os.Getenv("ALLOWED_USERS"), func(r rune) bool { return r == ',' || r == ' ' })
-	if len(users) == 0 {
-		return errors.New("ALLOWED_USERS is required (comma-separated GitHub logins)")
-	}
 
 	st, err := store.Open(ctx, dsn)
 	if err != nil {
@@ -121,6 +120,16 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		return fmt.Errorf("migrate: %w", err)
 	}
 	go problemLog.Run(ctx, st, plain)
+	if n, err := st.SeedAdmins(ctx, users); err != nil {
+		return fmt.Errorf("members: %w", err)
+	} else if n > 0 {
+		log.Info("the first administrators come from ALLOWED_USERS; from now on, manage people on the Members page", "admins", n)
+	}
+	if ms, err := st.Members(ctx, store.DefaultOrg); err != nil {
+		return fmt.Errorf("members: %w", err)
+	} else if len(ms) == 0 {
+		return errors.New("nobody can sign in: set ALLOWED_USERS to the GitHub logins of the first administrators")
+	}
 
 	// --8<-- [end:startup]
 

@@ -6,7 +6,7 @@ A deployment platform can run anyone's code and change anything in the cluster, 
 
 | Identity | Can | Used by |
 |---|---|---|
-| **You** (a GitHub login in `ALLOWED_USERS`) | everything in the UI and API | the dashboard |
+| **People** ([members](../guide/members.md), by GitHub login) | by role: guests read; collaborators also run CI, write the Ruta and ask agents; administrators also deploy, roll back, and manage secrets, keys, add-ons and members | the dashboard |
 | **The GitHub App** (installation tokens, 1 hour) | read code, push branches, open PRs, write checks, manage issues (Renovate), in installed repos only | the platform, build pods (clone), Renovate |
 | **`rendimiento`** service account | manage App/Addon objects; namespaces, Deployments, Services, Ingresses, CronJobs, PVCs, Secrets cluster-wide; build pods in `rendimiento-builds`; read nodes, metrics, CRDs; **impersonate `rendimiento-addons` only** | the platform process |
 | **`rendimiento-addons`** service account | `cluster-admin`; no pod runs as it | the add-on controller, by impersonation |
@@ -34,7 +34,7 @@ BuildKit daemons themselves run **privileged** (they create containers); build p
 
 ## The web surface
 
-- GitHub OAuth login; sessions are random tokens stored hashed, valid 7 days, checked against the allowlist on every request.
+- GitHub OAuth login; sessions are random tokens stored hashed, valid 7 days, checked on every request against the person's membership and the route's role.
 - Cookies are `HttpOnly`, `Secure` (on HTTPS) and `SameSite=Lax`; state-changing requests from another origin are refused.
 - Webhooks are verified by HMAC signature with a constant-time comparison.
 - The GitHub App setup page needs a one-time setup token.

@@ -6,7 +6,7 @@ Una plataforma de despliegue puede ejecutar el código de cualquiera y cambiar c
 
 | Identidad | Puede | La usa |
 |---|---|---|
-| **Usted** (una cuenta de GitHub en `ALLOWED_USERS`) | todo en la interfaz y en la API | el panel |
+| **Las personas** ([miembros](../guide/members.md), por su cuenta de GitHub) | según su función: los invitados leen; los colaboradores además lanzan CI, escriben en la Ruta y les piden cosas a los agentes; los administradores además despliegan, revierten, y manejan secretos, llaves, complementos y miembros | el panel |
 | **La aplicación de GitHub** (tokens de instalación, 1 hora) | leer código, enviar ramas, abrir solicitudes de incorporación, escribir comprobaciones y administrar incidencias (Renovate), solo en los repositorios donde está instalada | la plataforma, los pods de construcción (para clonar), Renovate |
 | Cuenta de servicio **`rendimiento`** | administrar objetos App y Addon; espacios de nombres, Deployments, Services, Ingresses, CronJobs, PVCs y Secrets en todo el clúster; pods de construcción en `rendimiento-builds`; leer nodos, métricas y CRD; **suplantar solo a `rendimiento-addons`** | el proceso de la plataforma |
 | Cuenta de servicio **`rendimiento-addons`** | `cluster-admin`; ningún pod se ejecuta con ella | el controlador de complementos, por suplantación |
@@ -34,7 +34,7 @@ Los demonios de BuildKit corren en modo **privilegiado** (crean contenedores); l
 
 ## La superficie web {#the-web-surface}
 
-- Inicio de sesión con OAuth de GitHub; las sesiones son tokens aleatorios guardados como huella, válidos 7 días y comprobados contra la lista de permitidos en cada petición.
+- Inicio de sesión con OAuth de GitHub; las sesiones son tokens aleatorios guardados como huella, válidos 7 días y comprobados en cada petición contra la membresía de la persona y la función que pide la ruta.
 - Las galletas son `HttpOnly`, `Secure` (en HTTPS) y `SameSite=Lax`; las peticiones que cambian el estado desde otro origen se rechazan.
 - Los avisos web se verifican con su firma HMAC, comparada en tiempo constante.
 - La página de configuración de la aplicación de GitHub requiere un token de configuración de un solo uso.

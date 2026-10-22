@@ -14,7 +14,7 @@ rendimiento se configura solo con **variables de entorno**, que se leen una vez 
 | `GITHUB_ACCOUNTS` | *(vacío: todas las instalaciones)* | `example-user,example-paginas` | las únicas cuentas (usuarios u organizaciones) cuyas instalaciones de la aplicación de GitHub usa rendimiento: las demás no aparecen en el asistente y sus envíos se ignoran. Póngalo antes de hacer pública la aplicación, lo que permite que cualquiera la instale |
 | `PARALLEL_RUNS` | `3` | `2` | cuántas ejecuciones van a la vez, cada una de una aplicación distinta (las de una misma aplicación esperan su turno, así sus versiones conservan el orden); `MAX_PARALLEL_STEPS` sigue limitando los pasos de todas |
 | `PAGES_ORG` | *(vacío: el Mercado está apagado)* | `example-paginas` | la organización de GitHub donde el [Mercado](../guide/mercado.md) crea el repositorio de cada página (ahí la aplicación necesita el permiso de administración) |
-| `ALLOWED_USERS` | *(vacío: nadie)* | `su-cuenta-de-github` | las cuentas de GitHub que pueden iniciar sesión (separadas por comas o espacios) |
+| `ALLOWED_USERS` | *(vacío)* | `su-cuenta-de-github` | los primeros administradores (cuentas de GitHub separadas por comas o espacios), que se agregan solo mientras no haya [miembros](../guide/members.md); después, las personas se manejan en la página Miembros |
 | `SETUP_TOKEN` | — | del Secret `rendimiento-setup` | protege `/api/setup/github` hasta que exista la aplicación de GitHub |
 | `NAMESPACE` | `rendimiento-system` | | donde viven la plataforma y sus Secrets |
 | `LISTEN` | `:8080` | | la dirección HTTP (API, interfaz, avisos web) |

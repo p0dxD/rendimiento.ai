@@ -2,7 +2,7 @@
 
 All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI uses this API and nothing else, so anything the UI does can be scripted.
 
-- **Auth:** a session cookie set by GitHub login (`/api/auth/login`). Routes marked 🔒 return `401` without one, and `403` for users not in `ALLOWED_USERS`.
+- **Auth:** a session cookie set by GitHub login (`/api/auth/login`). Routes marked 🔒 return `401` without one or for people who are not [members](../guide/members.md), and `403` when the person's role is below the route's.
 - **Format:** JSON in and out. Errors are `{"error": "message"}` with a matching status code.
 - **Live updates:** `…/events` routes are **Server-Sent Events** streams (`text/event-stream`). The ingress disables buffering for them.
 
@@ -52,6 +52,9 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/agent-keys` | agent keys (never the tokens) |
 | POST | `/api/agent-keys` | create an agent key (`name`, `role`: `reader` or `collaborator`, `apps`: empty for all, `days`); the token is in this answer only |
 | DELETE | `/api/agent-keys/{id}` | revoke an agent key |
+| GET | `/api/members` | the organization's people and their roles |
+| PUT | `/api/members/{login}` | add a person by GitHub login, or change their role (`role`: `guest`, `collaborator`, `admin`); administrators only |
+| DELETE | `/api/members/{login}` | remove a person; the last administrator stays |
 | GET | `/api/encargos` | open encargos (`?all=1`: also reviewed and dropped) |
 | POST | `/api/encargos` | ask agents for something (`title`, `body`, `app`, `runId`) |
 | GET | `/api/encargos/{id}` | one encargo with its history |
