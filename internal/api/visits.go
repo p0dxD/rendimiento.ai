@@ -143,7 +143,7 @@ func (s *Server) visitsSummary(w http.ResponseWriter, r *http.Request, _ string)
 		umamiError(w, err)
 		return
 	}
-	apps, err := s.Store.ListApps(ctx)
+	apps, err := s.Store.ListAppsInOrg(ctx, orgOf(r))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return

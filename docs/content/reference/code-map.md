@@ -16,7 +16,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1178 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
 | [`internal/analytics`](#internal-analytics) | 2 | 608 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
-| [`internal/api`](#internal-api) | 19 | 4592 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 20 | 4911 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/caminos`](#internal-caminos) | 2 | 310 | Package caminos builds an app's recent history as the Caminos tab draws it: the default branch is the camino real, every other branch is a vereda that leaves it at the commit it was branched from (or from its parent branch, for a stacked pull request) and comes back where its pull request was merged, with each run as a stop along the way. |
 | [`internal/catalog`](#internal-catalog) | 2 | 910 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 8 | 2906 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
@@ -26,19 +26,19 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/events`](#internal-events) | 5 | 549 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 282 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1426 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/i18n`](#internal-i18n) | 3 | 822 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
+| [`internal/i18n`](#internal-i18n) | 3 | 827 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 309 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
 | [`internal/mercado`](#internal-mercado) | 5 | 1009 | Package mercado makes web pages for people who don't write code. |
 | [`internal/notify`](#internal-notify) | 2 | 589 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
 | [`internal/pipeline`](#internal-pipeline) | 7 | 2080 | Package pipeline plans and executes CI runs. |
-| [`internal/platform`](#internal-platform) | 9 | 3680 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
+| [`internal/platform`](#internal-platform) | 9 | 3683 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/problems`](#internal-problems) | 2 | 289 | Package problems keeps the platform's own warnings and errors for the Problems page: a slog handler passes every record on to the real log and also queues warnings and errors; a Recorder stores them, folding repeats of the same problem into one row with a count. |
 | [`internal/render`](#internal-render) | 5 | 1451 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 853 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
-| [`internal/ruta`](#internal-ruta) | 8 | 2512 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
+| [`internal/ruta`](#internal-ruta) | 8 | 2561 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
 | [`internal/selfupdate`](#internal-selfupdate) | 2 | 477 | Package selfupdate moves rendimiento to an image it built and tested itself: its own repository's builds: entry (SELF_APP), released like any app's. |
 | [`internal/spec`](#internal-spec) | 2 | 1869 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 26 | 4074 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/store`](#internal-store) | 26 | 4172 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/testenv`](#internal-testenv) | 1 | 34 | Package testenv is the envtest (a real API server and etcd) the controller and platform tests run against, tuned for slow machines. |
 | [`internal/traces`](#internal-traces) | 3 | 621 | Package traces keeps whole requests for the Universe's waterfall. |
 | [`internal/universe`](#internal-universe) | 4 | 1356 | Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches. |
@@ -319,14 +319,14 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/encargos.go`
 
-<small>138 lines</small>
+<small>149 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `NewEncargo` | struct | NewEncargo asks agents for something: what, the detail, and the app or run it is about. |
 | `(*Server) listEncargos` | method | listEncargos lists the open encargos (?all=1: also reviewed and cancelled). |
 | `(*Server) createEncargo` | method | createEncargo leaves work for agents, pending until one takes it. |
-| `encargoID` | func | encargoID reads {id}, or answers 400. |
+| `(*Server) encargoID` | method | encargoID reads {id} of an encargo of the person's organization, or answers 400 or 404. |
 | `(*Server) getEncargo` | method | getEncargo is one encargo with its history. |
 | `(*Server) reviewEncargo` | method | reviewEncargo is the person's answer to a delivered encargo: accepted, or sent back with a comment for the next agent. |
 | `(*Server) cancelEncargo` | method | cancelEncargo cancels an encargo that is not finished. |
@@ -417,6 +417,18 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 |---|---|---|
 | `(*Server) testNotification` | method | testNotification sends a sample email now, so the setup can be checked from the Environment page. |
 
+### `internal/api/orgs.go`
+
+<small>95 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Me` | struct | Me is who is signed in: their role in the organization they work in, and whether they also run the platform (its organization's administrators). |
+| `(*Server) me` | method | me is the signed-in person, for the top bar. |
+| `(*Server) listOrgs` | method | listOrgs lists the organizations the person belongs to, with their role. |
+| `(*Server) createOrg` | method | createOrg makes an organization with the person as its administrator (the platform's operators only, while organizations are by invitation). |
+| `(*Server) switchOrg` | method | switchOrg moves the session to another organization the person belongs to. |
+
 ### `internal/api/problems.go`
 
 <small>64 lines</small>
@@ -458,7 +470,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/ruta.go`
 
-<small>265 lines</small>
+<small>276 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -488,7 +500,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1625 lines</small>
+<small>1726 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -501,9 +513,11 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `sameOrigin` | func | sameOrigin reports whether a browser's Origin header names the host the request came in on (behind the ingress, X-Forwarded-Host). |
 | `hashToken` | func | hashToken is what the database keeps of a session token: its SHA-256, so a copy of the sessions table cannot be used to sign in. |
 | `randomToken` | func | randomToken is 32 random bytes in hex: session tokens and OAuth states. |
-| `route` | struct | route is an authenticated route and the least role it takes. |
+| `route` | struct | route is an authenticated route, the least role it takes, and whether that role counts in the platform's organization rather than the person's current one. |
 | `roleKey` | struct |  |
-| `roleOf` | func | roleOf is the signed-in person's role in the organization (set by requireRole). |
+| `orgKey` | struct |  |
+| `roleOf` | func | roleOf is the signed-in person's role in their current organization (set by requireRole). |
+| `orgOf` | func | orgOf is the organization the signed-in person works in (set by requireRole). |
 | `(*Server) requireRole` | method | requireRole wraps a handler for signed-in members: it reads the session cookie, finds whose it is and their role in the organization, answers 401 without a session or membership and 403 below the route's role, and passes the login on. |
 | `(*Server) secureCookies` | method | secureCookies: cookies are HTTPS-only when the platform is served on HTTPS. |
 | `(*Server) login` | method | login starts "Sign in with GitHub": it sets a random state in a cookie and sends the browser to GitHub, which comes back to callback with a code. |
@@ -524,6 +538,8 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `(*Server) universe` | method | universe is the Universe page: every app from above, with its services, what they use and call, what the internet reaches, and their health. |
 | `(*Server) universeSpans` | method | universeSpans lists what one observed service does, from its traces: the routes it serves, its own moments (the observa libraries' tramos) and the calls it makes, each with calls per minute, errors and latency over ?window=. |
 | `(*Server) universeTraces` | method | universeTraces lists the requests the traces service kept, newest first: those that went through ?service=app/service (all without it), only the failed ones with ?errors=1, older than ?before= (RFC 3339) to page back. |
+| `(*Server) orgApps` | method | orgApps are the names of the apps in the person's organization. |
+| `throughOrg` | func | throughOrg says whether a request went through one of the organization's apps (services are app/service). |
 | `(*Server) universeTrace` | method | universeTrace is one kept request with its spans: the waterfall. |
 | `(*Server) environment` | method | environment is the Environment page's report: what the cluster has, what rendimiento needs from it, and what is wrong (cached; ?refresh=1 checks again). |
 | `(*Server) dnsSync` | method | dnsSync re-detects the public IP now and repoints records that follow it. |
@@ -582,7 +598,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server_test.go`
 
-<small>797 lines · tests</small>
+<small>898 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -607,6 +623,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `TestEncargosAPI` | func | A person asks agents for something (from a failed run, the app is filled in), and reviews what comes back: sending it back needs a comment. |
 | `TestRouteRoles` | func | Every route takes at least the role it declares: a guest may read, but not act or administer; a collaborator may act, but not administer; a stranger with a session is not let in at all. |
 | `TestMembersAPI` | func | An administrator adds and removes people; the last administrator stays. |
+| `TestOrgIsolation` | func | Two organizations: nothing of one is seen from the other (apps, runs, the Ruta, encargos, agent keys, members), the platform's routes are for its operators only, and a person switches between their organizations. |
 
 ## `internal/caminos` {#internal-caminos}
 
@@ -1268,7 +1285,7 @@ Package i18n translates the platform's messages for people: the API's answers to
 
 ### `internal/i18n/es.go`
 
-<small>497 lines</small>
+<small>502 lines</small>
 
 ### `internal/i18n/i18n.go`
 
@@ -1597,7 +1614,7 @@ Package platform is the orchestration core: it turns GitHub events into CI runs,
 
 ### `internal/platform/platform.go`
 
-<small>1183 lines</small>
+<small>1186 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1942,7 +1959,7 @@ Package ruta is the MCP endpoint (/mcp) through which agents read and write la R
 
 ### `internal/ruta/encargos.go`
 
-<small>369 lines</small>
+<small>372 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1974,7 +1991,7 @@ Package ruta is the MCP endpoint (/mcp) through which agents read and write la R
 
 ### `internal/ruta/mercado.go`
 
-<small>154 lines</small>
+<small>175 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1991,10 +2008,11 @@ Package ruta is the MCP endpoint (/mcp) through which agents read and write la R
 | `(*Server) leerPuesto` | method |  |
 | `(*Server) editarPuesto` | method |  |
 | `(*Server) abrirPuesto` | method |  |
+| `mercadoKey` | func | mercadoKey refuses the Mercado to keys of other organizations: the Mercado's stalls are the platform's own (its organization's). |
 
 ### `internal/ruta/plataforma.go`
 
-<small>440 lines</small>
+<small>465 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2026,7 +2044,8 @@ Package ruta is the MCP endpoint (/mcp) through which agents read and write la R
 | `(*Server) appEstado` | method | appEstado (app_estado) is one app: services, recent runs and releases, and its open problems. |
 | `(*Server) ejecucionLeer` | method | ejecucionLeer (ejecucion_leer) is one run with its steps. |
 | `(*Server) pasoRegistro` | method | pasoRegistro (paso_registro) is the end of a step's log. |
-| `traceAllowed` | func | traceAllowed says whether a key may see a request: it went through one of the key's apps (services are app/service). |
+| `(*Server) visibleApps` | method | visibleApps are the apps a key may see: its organization's, narrowed to the key's apps if it has a list. |
+| `traceAllowed` | func | traceAllowed says whether a request went through one of the visible apps (services are app/service). |
 | `(*Server) solicitudesListar` | method | solicitudesListar (solicitudes_listar) lists kept requests. |
 | `(*Server) solicitudLeer` | method | solicitudLeer (solicitud_leer) is one kept request with its spans. |
 | `(*Server) ejecucionLanzar` | method | ejecucionLanzar (ejecucion_lanzar) queues a run of a branch other than the default one: agents test; deploying stays with people. |
@@ -2282,7 +2301,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/encargos.go`
 
-<small>215 lines</small>
+<small>216 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2292,7 +2311,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) CreateEncargo` | method | CreateEncargo adds an encargo, pending. |
 | `logEncargo` | func |  |
 | `(*Store) Encargo` | method | Encargo returns one encargo with its history. |
-| `(*Store) ListEncargos` | method | ListEncargos lists encargos, the most recently changed first: the open ones (not reviewed or cancelled), or all. |
+| `(*Store) ListEncargos` | method | ListEncargos lists an organization's encargos, the most recently changed first: the open ones (not reviewed or cancelled), or all. |
 | `(*Store) change` | method | change applies one state change in a transaction: the update must touch the row (else ErrEncargoState), and it is logged. |
 | `(*Store) TakeEncargo` | method | TakeEncargo gives a pending encargo to an agent, in its cargo. |
 | `(*Store) WaitEncargo` | method | WaitEncargo notes that the agent that has it waits on a run. |
@@ -2316,7 +2335,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/orgs.go`
 
-<small>168 lines</small>
+<small>229 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2329,6 +2348,10 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `lastAdmin` | func | lastAdmin refuses a change that would take away the organization's only administrator (login is the person losing the role). |
 | `(*Store) IsMemberAnywhere` | method | IsMemberAnywhere reports whether a person belongs to any organization: who may sign in. |
 | `(*Store) SeedAdmins` | method | SeedAdmins makes the logins administrators of the default organization when it has no members yet: ALLOWED_USERS, the way people were let in before organizations, starts it off. |
+| `Org` | struct | Org is an organization, with the role of the person asking when listed for them. |
+| `(*Store) OrgsOf` | method | OrgsOf lists the organizations a person belongs to, with their role, the default one first. |
+| `(*Store) GetOrg` | method | GetOrg returns one organization. |
+| `(*Store) CreateOrg` | method | CreateOrg makes an organization with its first administrator. |
 
 ### `internal/store/problems.go`
 
@@ -2379,7 +2402,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/ruta.go`
 
-<small>395 lines</small>
+<small>405 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2404,6 +2427,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) ListCargos` | method | ListCargos returns cargos, newest first. |
 | `scanRuta` | func | scanRuta reads a Ruta entry row. |
 | `(*Store) AddRuta` | method | AddRuta stores a new entry. |
+| `orgOr` | func | orgOr is an organization, or the default one when unset. |
 | `(*Store) Ruta` | method | Ruta returns one entry. |
 | `(*Store) UpdateRuta` | method | UpdateRuta replaces an entry's title, body, tags and done, keeping the previous version in ruta_history. |
 | `(*Store) ArchiveRuta` | method | ArchiveRuta hides an entry from lists (it is never deleted). |
@@ -2434,7 +2458,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/store.go`
 
-<small>649 lines</small>
+<small>675 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2444,11 +2468,12 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) Migrate` | method | Migrate applies embedded migrations in filename order, each once. |
 | `App` | struct | App is an onboarded application: its repo, installation and the rendimiento.yaml of its default branch. |
 | `scanApp` | func | scanApp reads an app row (with its spec, stored as JSON). |
-| `(*Store) CreateApp` | method | CreateApp inserts an app; names are unique. |
+| `(*Store) CreateApp` | method | CreateApp inserts an app, in its organization (the default one when not set); names are unique across organizations (an app is a namespace). |
 | `(*Store) UpdateAppSpec` | method | UpdateAppSpec stores the latest rendimiento.yaml of the default branch. |
 | `(*Store) GetApp` | method | GetApp returns an app by name, or ErrNotFound. |
 | `(*Store) GetAppByID` | method | GetAppByID returns an app by ID, or ErrNotFound. |
 | `(*Store) AppsForRepo` | method | AppsForRepo returns every app deployed from a repo (webhooks fan out to them). |
+| `(*Store) ListAppsInOrg` | method | ListAppsInOrg returns an organization's apps, by name. |
 | `(*Store) ListApps` | method | ListApps returns every app, by name. |
 | `(*Store) ListReleasedApps` | method | ListReleasedApps lists the apps with at least one release: the ones that have been live. |
 | `(*Store) listApps` | method | listApps runs a query that returns app rows. |
@@ -2481,6 +2506,8 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) LatestRelease` | method | LatestRelease returns the app's newest release, or ErrNotFound. |
 | `(*Store) ListReleases` | method | ListReleases returns an app's most recent releases, newest first. |
 | `(*Store) CreateSession` | method | CreateSession stores a login session by the hash of its token. |
+| `(*Store) SessionInfo` | method | SessionInfo returns a valid session's GitHub login and the organization it works in, or ErrNotFound. |
+| `(*Store) SetSessionOrg` | method | SetSessionOrg moves a session to another organization. |
 | `(*Store) SessionLogin` | method | SessionLogin returns the GitHub login of a valid session, or ErrNotFound. |
 | `(*Store) DeleteSession` | method | DeleteSession ends a session and removes expired ones. |
 | `nullTime` | func | nullTime is nil for the zero time, so it is stored as NULL. |
@@ -2838,7 +2865,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>1075 lines</small>
+<small>1099 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2869,6 +2896,9 @@ Package web embeds the built UI (npm run build → web/dist).
 | `AgentAction` | interface |  |
 | `AgentRole` | type |  |
 | `MemberRole` | type | A person's role in the organization (internal/store.Member*). |
+| `Org` | interface | An organization (internal/store.Org), with the person's role in it. |
+| `Me` | interface | Who is signed in (api.Me): their role in the organization they work in, and whether they run the platform (its operators see the cluster's pages). |
+| `session` | const | The signed-in person, set once when the app loads (switching organization reloads the page). |
 | `Member` | interface |  |
 | `EncargoStatus` | type |  |
 | `Encargo` | interface | Work asked of agents (internal/store.Encargo). |
@@ -3195,7 +3225,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>1147 lines</small>
+<small>1153 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3203,7 +3233,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/main.tsx`
 
-<small>116 lines</small>
+<small>119 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3300,7 +3330,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Members.tsx`
 
-<small>74 lines</small>
+<small>131 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3308,6 +3338,8 @@ Package web embeds the built UI (npm run build → web/dist).
 | `roleHelp` | const |  |
 | `RoleSelect` | component | The roles as choices, with what each allows. |
 | `Members` | component |  |
+| `OrgSwitch` | component |  |
+| `Orgs` | component |  |
 
 ### `web/src/pages/Mercado.tsx`
 

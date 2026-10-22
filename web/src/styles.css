@@ -833,3 +833,6 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 .encargo-result { border-left: 3px solid var(--border); padding-left: 10px; }
 .encargo-result p { margin: 0 0 4px; white-space: pre-wrap; }
 .encargo-log { border-top: 1px solid var(--border); padding-top: 6px; display: grid; gap: 3px; }
+
+/* The organization selector in the top bar (pages/Members.tsx). */
+.org-switch { max-width: 180px; font-size: 13px; padding: 4px 8px; }

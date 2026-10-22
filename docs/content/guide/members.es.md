@@ -18,4 +18,8 @@ Una plataforma nueva no tiene miembros, así que el ajuste `ALLOWED_USERS` nombr
 
 ## Organizaciones {#organizations}
 
-Hoy todo (las aplicaciones, la Ruta, los encargos y las llaves de agentes) pertenece a una organización. Los datos ya anotan en qué organización está cada cosa, así que una versión posterior podrá tener varias: cada una con sus personas, sus aplicaciones, sus agentes y su presupuesto de IA, en un clúster compartido, uno dedicado o el propio de la organización.
+Todo pertenece a una **organización**: sus aplicaciones (con sus ejecuciones, versiones y solicitudes), su Ruta, sus encargos, sus llaves de agentes y sus miembros. Las personas de una organización nunca ven lo de otra: las listas no lo incluyen y sus páginas responden *no existe*. Una persona puede pertenecer a varias, con una función en cada una, y cambia con el selector de arriba; cuenta la función en la organización en la que está trabajando.
+
+La **organización de la plataforma** (la primera) es la que la opera. Sus administradores son los **operadores**: solo ellos ven las páginas del clúster (Entorno, Complementos, Servicios, Problemas, el Mercado), actualizan la plataforma y, por ahora, crean organizaciones (en Miembros → Organizaciones) e incorporan aplicaciones, en la organización en la que estén trabajando. Una llave de agente pertenece a la organización en la que se creó, y sus herramientas solo ven esa organización.
+
+Hoy todas las organizaciones comparten el clúster de la plataforma. Las organizaciones en un clúster virtual dedicado, o en su propio clúster en cualquier nube, llegan después.

@@ -166,3 +166,64 @@ func (s *Store) SeedAdmins(ctx context.Context, logins []string) (int, error) {
 	}
 	return added, tx.Commit(ctx)
 }
+
+// Org is an organization, with the role of the person asking when listed
+// for them.
+type Org struct {
+	ID        int64     `json:"id"`
+	Slug      string    `json:"slug"`
+	Name      string    `json:"name"`
+	Role      string    `json:"role,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// ErrSlugTaken is a new organization's address already in use.
+var ErrSlugTaken = errors.New("that address is taken by another organization")
+
+// OrgsOf lists the organizations a person belongs to, with their role, the
+// default one first.
+func (s *Store) OrgsOf(ctx context.Context, login string) ([]Org, error) {
+	rows, err := s.pool.Query(ctx, `SELECT o.id, o.slug, o.name, m.role, o.created_at FROM orgs o
+		JOIN org_members m ON m.org_id = o.id WHERE lower(m.login) = lower($1) ORDER BY o.id`, login)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Org, error) {
+		var o Org
+		err := r.Scan(&o.ID, &o.Slug, &o.Name, &o.Role, &o.CreatedAt)
+		return o, err
+	})
+}
+
+// GetOrg returns one organization.
+func (s *Store) GetOrg(ctx context.Context, id int64) (Org, error) {
+	var o Org
+	err := s.pool.QueryRow(ctx, `SELECT id, slug, name, created_at FROM orgs WHERE id = $1`, id).Scan(&o.ID, &o.Slug, &o.Name, &o.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return o, ErrNotFound
+	}
+	return o, err
+}
+
+// CreateOrg makes an organization with its first administrator.
+func (s *Store) CreateOrg(ctx context.Context, slug, name, admin string) (Org, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Org{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	var o Org
+	err = tx.QueryRow(ctx, `INSERT INTO orgs (slug, name) VALUES ($1, $2) ON CONFLICT (slug) DO NOTHING RETURNING id, slug, name, created_at`,
+		slug, name).Scan(&o.ID, &o.Slug, &o.Name, &o.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return o, ErrSlugTaken
+	}
+	if err != nil {
+		return o, err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO org_members (org_id, login, role, added_by) VALUES ($1, $2, 'admin', $2)`, o.ID, admin); err != nil {
+		return o, err
+	}
+	o.Role = MemberAdmin
+	return o, tx.Commit(ctx)
+}

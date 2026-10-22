@@ -11,7 +11,7 @@ func TestRuta(t *testing.T) {
 	s := open(t)
 	ctx := context.Background()
 
-	k, err := s.CreateAgentKey(ctx, "claude", "hash-1", RoleCollaborator, nil, "p0dxD", time.Now().Add(time.Hour))
+	k, err := s.CreateAgentKey(ctx, DefaultOrg, "claude", "hash-1", RoleCollaborator, nil, "p0dxD", time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestRuta(t *testing.T) {
 		kind, text string
 		want       int
 	}{{"", "", 2}, {KindVivido, "", 1}, {"", "RECREOS", 1}, {"", "respaldos", 1}, {"", "nada", 0}} {
-		list, err := s.SearchRuta(ctx, tc.kind, tc.text, 50)
+		list, err := s.SearchRuta(ctx, DefaultOrg, tc.kind, tc.text, 50)
 		if err != nil || len(list) != tc.want {
 			t.Errorf("search %q %q = %d entries (%v), want %d", tc.kind, tc.text, len(list), err, tc.want)
 		}
@@ -63,14 +63,14 @@ func TestRuta(t *testing.T) {
 	if err := s.ArchiveRuta(ctx, e.ID); err != nil {
 		t.Fatal(err)
 	}
-	if list, _ := s.SearchRuta(ctx, "", "", 50); len(list) != 1 {
+	if list, _ := s.SearchRuta(ctx, DefaultOrg, "", "", 50); len(list) != 1 {
 		t.Errorf("archived entries are listed: %d", len(list))
 	}
 
 	if err := s.RecordAgentAction(ctx, AgentAction{KeyID: k.ID, CargoID: &c.ID, Tool: "ruta_anotar", Args: "{}", OK: true}); err != nil {
 		t.Fatal(err)
 	}
-	if acts, err := s.ListAgentActions(ctx, 10); err != nil || len(acts) != 1 || acts[0].KeyName != "claude" {
+	if acts, err := s.ListAgentActions(ctx, DefaultOrg, 10); err != nil || len(acts) != 1 || acts[0].KeyName != "claude" {
 		t.Fatalf("actions: %+v %v", acts, err)
 	}
 

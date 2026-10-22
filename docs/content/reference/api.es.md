@@ -53,6 +53,9 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | GET | `/api/agent-keys` | las llaves de agente (nunca los tokens) |
 | POST | `/api/agent-keys` | crea una llave de agente (`name`, `role`: `reader` o `collaborator`, `apps`: vacío para todas, `days`); el token solo viene en esta respuesta |
 | DELETE | `/api/agent-keys/{id}` | revoca una llave de agente |
+| GET | `/api/orgs` | las organizaciones a las que pertenece la persona, con su función |
+| POST | `/api/orgs` | crea una organización (`slug`, `name`); solo los operadores de la plataforma; quien la crea es su primer administrador |
+| POST | `/api/orgs/{id}/switch` | trabajar en otra de las organizaciones de la persona |
 | GET | `/api/members` | las personas de la organización y sus funciones |
 | PUT | `/api/members/{login}` | agrega a una persona por su cuenta de GitHub, o cambia su función (`role`: `guest`, `collaborator`, `admin`); solo administradores |
 | DELETE | `/api/members/{login}` | quita a una persona; el último administrador se queda |

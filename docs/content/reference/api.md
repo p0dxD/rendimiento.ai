@@ -52,6 +52,9 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/agent-keys` | agent keys (never the tokens) |
 | POST | `/api/agent-keys` | create an agent key (`name`, `role`: `reader` or `collaborator`, `apps`: empty for all, `days`); the token is in this answer only |
 | DELETE | `/api/agent-keys/{id}` | revoke an agent key |
+| GET | `/api/orgs` | the organizations the person belongs to, with their role |
+| POST | `/api/orgs` | create an organization (`slug`, `name`); the platform's operators only; the creator is its first administrator |
+| POST | `/api/orgs/{id}/switch` | work in another of the person's organizations |
 | GET | `/api/members` | the organization's people and their roles |
 | PUT | `/api/members/{login}` | add a person by GitHub login, or change their role (`role`: `guest`, `collaborator`, `admin`); administrators only |
 | DELETE | `/api/members/{login}` | remove a person; the last administrator stays |

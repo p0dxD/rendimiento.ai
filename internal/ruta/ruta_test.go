@@ -82,7 +82,7 @@ func (m *memory) Cargo(_ context.Context, id int64) (store.Cargo, error) {
 	return m.cargos[id-1], nil
 }
 
-func (m *memory) ListCargos(_ context.Context, limit int) ([]store.Cargo, error) {
+func (m *memory) ListCargos(_ context.Context, _ int64, limit int) ([]store.Cargo, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	out := append([]store.Cargo(nil), m.cargos...)
@@ -114,7 +114,7 @@ func (m *memory) UpdateRuta(_ context.Context, e store.RutaEntry, _ string) (sto
 	return e, nil
 }
 
-func (m *memory) SearchRuta(_ context.Context, kind, text string, limit int) ([]store.RutaEntry, error) {
+func (m *memory) SearchRuta(_ context.Context, _ int64, kind, text string, limit int) ([]store.RutaEntry, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	out := []store.RutaEntry{}

@@ -151,26 +151,34 @@ func (s *Server) Handler() http.Handler {
 	s.routes = nil
 	auth := func(role, pattern string, h func(http.ResponseWriter, *http.Request, string)) {
 		s.routes = append(s.routes, route{pattern: pattern, role: role})
-		mux.Handle(pattern, s.requireRole(role, h))
+		mux.Handle(pattern, s.requireRole(false, role, h))
 	}
-	auth(store.MemberGuest, "GET /api/me", func(w http.ResponseWriter, r *http.Request, login string) {
-		writeJSON(w, map[string]string{"login": login, "role": roleOf(r)})
-	})
+	// plat is a platform route: the cluster, add-ons, the platform itself.
+	// It takes the role in the platform's own (default) organization, so
+	// people of other organizations never see the cluster's insides.
+	plat := func(role, pattern string, h func(http.ResponseWriter, *http.Request, string)) {
+		s.routes = append(s.routes, route{pattern: pattern, role: role, platform: true})
+		mux.Handle(pattern, s.requireRole(true, role, h))
+	}
+	auth(store.MemberGuest, "GET /api/me", s.me)
+	auth(store.MemberGuest, "GET /api/orgs", s.listOrgs)
+	plat(store.MemberAdmin, "POST /api/orgs", s.createOrg)
+	auth(store.MemberGuest, "POST /api/orgs/{id}/switch", s.switchOrg)
 	auth(store.MemberGuest, "GET /api/members", s.listMembers)
 	auth(store.MemberAdmin, "PUT /api/members/{login}", s.putMember)
 	auth(store.MemberAdmin, "DELETE /api/members/{login}", s.deleteMember)
-	auth(store.MemberAdmin, "GET /api/installations", s.installations)
-	auth(store.MemberAdmin, "GET /api/installations/{id}/repos", s.repos)
-	auth(store.MemberAdmin, "GET /api/zones", s.zones)
-	auth(store.MemberGuest, "GET /api/environment", s.environment)
-	auth(store.MemberGuest, "GET /api/platform/version", s.platformVersion)
-	auth(store.MemberAdmin, "POST /api/platform/update", s.updatePlatform)
-	auth(store.MemberGuest, "GET /api/services", s.services)
-	auth(store.MemberGuest, "GET /api/stats/delivery", s.delivery)
+	plat(store.MemberAdmin, "GET /api/installations", s.installations)
+	plat(store.MemberAdmin, "GET /api/installations/{id}/repos", s.repos)
+	plat(store.MemberAdmin, "GET /api/zones", s.zones)
+	plat(store.MemberGuest, "GET /api/environment", s.environment)
+	plat(store.MemberGuest, "GET /api/platform/version", s.platformVersion)
+	plat(store.MemberAdmin, "POST /api/platform/update", s.updatePlatform)
+	plat(store.MemberGuest, "GET /api/services", s.services)
+	plat(store.MemberGuest, "GET /api/stats/delivery", s.delivery)
 	auth(store.MemberGuest, "GET /api/stats/visits", s.visitsSummary)
-	auth(store.MemberGuest, "GET /api/problems", s.listProblems)
-	auth(store.MemberGuest, "GET /api/problems/count", s.problemCount)
-	auth(store.MemberCollaborator, "POST /api/problems/{id}/dismiss", s.dismissProblem)
+	plat(store.MemberGuest, "GET /api/problems", s.listProblems)
+	plat(store.MemberGuest, "GET /api/problems/count", s.problemCount)
+	plat(store.MemberCollaborator, "POST /api/problems/{id}/dismiss", s.dismissProblem)
 	auth(store.MemberGuest, "GET /api/ruta", s.listRuta)
 	auth(store.MemberCollaborator, "POST /api/ruta", s.addRuta)
 	auth(store.MemberCollaborator, "PUT /api/ruta/{id}", s.updateRuta)
@@ -184,32 +192,32 @@ func (s *Server) Handler() http.Handler {
 	auth(store.MemberAdmin, "GET /api/agent-keys", s.listAgentKeys)
 	auth(store.MemberAdmin, "POST /api/agent-keys", s.createAgentKey)
 	auth(store.MemberAdmin, "DELETE /api/agent-keys/{id}", s.revokeAgentKey)
-	auth(store.MemberGuest, "GET /api/addon-catalog", s.addonCatalog)
-	auth(store.MemberGuest, "GET /api/installed", s.listInstalled)
-	auth(store.MemberGuest, "GET /api/installed/{name}", s.getInstalled)
-	auth(store.MemberAdmin, "PUT /api/installed/{name}", s.putInstalled)
-	auth(store.MemberAdmin, "POST /api/installed/{name}/sync", s.syncInstalled)
-	auth(store.MemberAdmin, "PATCH /api/installed/{name}", s.patchInstalled)
-	auth(store.MemberAdmin, "DELETE /api/installed/{name}", s.deleteInstalled)
-	auth(store.MemberGuest, "GET /api/addons", s.listAddons)
-	auth(store.MemberGuest, "GET /api/addons/{addon}", s.getAddon)
-	auth(store.MemberAdmin, "PUT /api/addons/{addon}", s.putAddon)
-	auth(store.MemberGuest, "GET /api/addons/{addon}/runs", s.listAddonRuns)
-	auth(store.MemberCollaborator, "POST /api/addons/{addon}/runs", s.startAddonRun)
-	auth(store.MemberGuest, "GET /api/addons/{addon}/runs/{id}", s.getAddonRun)
+	plat(store.MemberGuest, "GET /api/addon-catalog", s.addonCatalog)
+	plat(store.MemberGuest, "GET /api/installed", s.listInstalled)
+	plat(store.MemberGuest, "GET /api/installed/{name}", s.getInstalled)
+	plat(store.MemberAdmin, "PUT /api/installed/{name}", s.putInstalled)
+	plat(store.MemberAdmin, "POST /api/installed/{name}/sync", s.syncInstalled)
+	plat(store.MemberAdmin, "PATCH /api/installed/{name}", s.patchInstalled)
+	plat(store.MemberAdmin, "DELETE /api/installed/{name}", s.deleteInstalled)
+	plat(store.MemberGuest, "GET /api/addons", s.listAddons)
+	plat(store.MemberGuest, "GET /api/addons/{addon}", s.getAddon)
+	plat(store.MemberAdmin, "PUT /api/addons/{addon}", s.putAddon)
+	plat(store.MemberGuest, "GET /api/addons/{addon}/runs", s.listAddonRuns)
+	plat(store.MemberCollaborator, "POST /api/addons/{addon}/runs", s.startAddonRun)
+	plat(store.MemberGuest, "GET /api/addons/{addon}/runs/{id}", s.getAddonRun)
 	auth(store.MemberGuest, "GET /api/apps/{app}/addons", s.appAddons)
 	auth(store.MemberCollaborator, "PUT /api/apps/{app}/addons/{addon}", s.putAppAddon)
-	auth(store.MemberAdmin, "POST /api/dns/sync", s.dnsSync)
-	auth(store.MemberAdmin, "POST /api/notifications/test", s.testNotification)
-	auth(store.MemberAdmin, "POST /api/propose", s.propose)
-	auth(store.MemberAdmin, "GET /api/namespaces/{name}/migration", s.migration)
-	auth(store.MemberGuest, "GET /api/mercado", s.listMercado)
-	auth(store.MemberCollaborator, "POST /api/mercado", s.openPuesto)
-	auth(store.MemberCollaborator, "POST /api/mercado/preview", s.previewMercado)
-	auth(store.MemberGuest, "GET /api/mercado/{app}", s.getPuesto)
-	auth(store.MemberCollaborator, "PUT /api/mercado/{app}", s.savePuesto)
+	plat(store.MemberAdmin, "POST /api/dns/sync", s.dnsSync)
+	plat(store.MemberAdmin, "POST /api/notifications/test", s.testNotification)
+	plat(store.MemberAdmin, "POST /api/propose", s.propose)
+	plat(store.MemberAdmin, "GET /api/namespaces/{name}/migration", s.migration)
+	plat(store.MemberGuest, "GET /api/mercado", s.listMercado)
+	plat(store.MemberCollaborator, "POST /api/mercado", s.openPuesto)
+	plat(store.MemberCollaborator, "POST /api/mercado/preview", s.previewMercado)
+	plat(store.MemberGuest, "GET /api/mercado/{app}", s.getPuesto)
+	plat(store.MemberCollaborator, "PUT /api/mercado/{app}", s.savePuesto)
 	auth(store.MemberGuest, "GET /api/apps", s.listApps)
-	auth(store.MemberAdmin, "POST /api/apps", s.createApp)
+	plat(store.MemberAdmin, "POST /api/apps", s.createApp)
 	auth(store.MemberGuest, "GET /api/apps/{app}", s.getApp)
 	auth(store.MemberAdmin, "DELETE /api/apps/{app}", s.deleteApp)
 	auth(store.MemberGuest, "GET /api/apps/{app}/impact", s.deleteImpact)
@@ -327,51 +335,84 @@ func randomToken() string {
 	return hex.EncodeToString(b)
 }
 
-// route is an authenticated route and the least role it takes.
-type route struct{ pattern, role string }
+// route is an authenticated route, the least role it takes, and whether
+// that role counts in the platform's organization rather than the person's
+// current one.
+type route struct {
+	pattern, role string
+	platform      bool
+}
 
 type roleKey struct{}
+type orgKey struct{}
 
-// roleOf is the signed-in person's role in the organization (set by
-// requireRole).
+// roleOf is the signed-in person's role in their current organization (set
+// by requireRole).
 func roleOf(r *http.Request) string {
 	role, _ := r.Context().Value(roleKey{}).(string)
 	return role
+}
+
+// orgOf is the organization the signed-in person works in (set by
+// requireRole).
+func orgOf(r *http.Request) int64 {
+	if id, ok := r.Context().Value(orgKey{}).(int64); ok {
+		return id
+	}
+	return store.DefaultOrg
 }
 
 // requireRole wraps a handler for signed-in members: it reads the session
 // cookie, finds whose it is and their role in the organization, answers 401
 // without a session or membership and 403 below the route's role, and
 // passes the login on.
-func (s *Server) requireRole(min string, h func(http.ResponseWriter, *http.Request, string)) http.Handler {
+func (s *Server) requireRole(platform bool, min string, h func(http.ResponseWriter, *http.Request, string)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(sessionCookie)
 		if err != nil {
 			httpError(w, http.StatusUnauthorized, "sign in with GitHub first")
 			return
 		}
-		login, err := s.Store.SessionLogin(r.Context(), hashToken(c.Value))
+		ctx, hash := r.Context(), hashToken(c.Value)
+		login, org, err := s.Store.SessionInfo(ctx, hash)
 		if err != nil {
 			httpError(w, http.StatusUnauthorized, "session expired; sign in again")
 			return
 		}
-		role, err := s.Store.MemberRole(r.Context(), store.DefaultOrg, login)
+		role, err := s.Store.MemberRole(ctx, org, login)
 		if errors.Is(err, store.ErrNotFound) {
-			httpError(w, http.StatusUnauthorized, "you are no longer a member here; ask an administrator")
-			return
+			// Taken out of the organization the session worked in: go on in
+			// another one the person still belongs to, if any.
+			orgs, oerr := s.Store.OrgsOf(ctx, login)
+			if oerr != nil || len(orgs) == 0 {
+				httpError(w, http.StatusUnauthorized, "you are no longer a member here; ask an administrator")
+				return
+			}
+			org, role, err = orgs[0].ID, orgs[0].Role, s.Store.SetSessionOrg(ctx, hash, orgs[0].ID)
 		}
 		if err != nil {
 			httpError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		if store.RoleRank(role) < store.RoleRank(min) {
+		need := role
+		if platform {
+			// The platform's own organization decides (not the current one).
+			if need, err = s.Store.MemberRole(ctx, store.DefaultOrg, login); errors.Is(err, store.ErrNotFound) {
+				httpError(w, http.StatusForbidden, "this belongs to the platform's operators")
+				return
+			} else if err != nil {
+				httpError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+		}
+		if store.RoleRank(need) < store.RoleRank(min) {
 			httpError(w, http.StatusForbidden, "your role here does not allow this; ask an administrator")
 			return
 		}
-		h(w, r.WithContext(context.WithValue(r.Context(), roleKey{}, role)), login)
+		ctx = context.WithValue(context.WithValue(ctx, roleKey{}, role), orgKey{}, org)
+		h(w, r.WithContext(ctx), login)
 	})
 }
-
 
 // secureCookies: cookies are HTTPS-only when the platform is served on HTTPS.
 func (s *Server) secureCookies() bool { return strings.HasPrefix(s.BaseURL, "https://") }
@@ -744,7 +785,7 @@ func (s *Server) services(w http.ResponseWriter, r *http.Request, _ string) {
 // map is still served when the metrics store does not answer.
 func (s *Server) universe(w http.ResponseWriter, r *http.Request, _ string) {
 	ctx := r.Context()
-	apps, err := s.Store.ListApps(ctx)
+	apps, err := s.Store.ListAppsInOrg(ctx, orgOf(r))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -788,6 +829,11 @@ func (s *Server) universe(w http.ResponseWriter, r *http.Request, _ string) {
 // (app/service). Without metrics the list is empty.
 func (s *Server) universeSpans(w http.ResponseWriter, r *http.Request, _ string) {
 	service := r.URL.Query().Get("service")
+	if org, err := s.orgApps(r); err == nil && service != "" {
+		if app, _, _ := strings.Cut(service, "/"); !org[app] {
+			service = "" // another organization's service: as if none was asked for
+		}
+	}
 	if service == "" || len(service) > 200 {
 		httpError(w, http.StatusBadRequest, "service is required (app/service)")
 		return
@@ -830,20 +876,64 @@ func (s *Server) universeTraces(w http.ResponseWriter, r *http.Request, _ string
 		}
 		q.Before = t
 	}
-	list, err := s.Store.ListTraces(r.Context(), q)
+	org, err := s.orgApps(r)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if list == nil {
-		list = []store.Trace{}
+	if app, _, _ := strings.Cut(q.Service, "/"); q.Service != "" && !org[app] {
+		writeJSON(w, map[string]any{"traces": []store.Trace{}})
+		return
+	}
+	all, err := s.Store.ListTraces(r.Context(), q)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	list := []store.Trace{}
+	for _, t := range all {
+		if throughOrg(org, t.Services) {
+			list = append(list, t)
+		}
 	}
 	writeJSON(w, map[string]any{"traces": list})
+}
+
+// orgApps are the names of the apps in the person's organization.
+func (s *Server) orgApps(r *http.Request) (map[string]bool, error) {
+	apps, err := s.Store.ListAppsInOrg(r.Context(), orgOf(r))
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]bool{}
+	for _, a := range apps {
+		out[a.Name] = true
+	}
+	return out, nil
+}
+
+// throughOrg says whether a request went through one of the organization's
+// apps (services are app/service).
+func throughOrg(org map[string]bool, services []string) bool {
+	for _, svc := range services {
+		if app, _, _ := strings.Cut(svc, "/"); org[app] {
+			return true
+		}
+	}
+	return false
 }
 
 // universeTrace is one kept request with its spans: the waterfall.
 func (s *Server) universeTrace(w http.ResponseWriter, r *http.Request, _ string) {
 	t, spans, err := s.Store.GetTrace(r.Context(), r.PathValue("id"))
+	if err == nil {
+		org, oerr := s.orgApps(r)
+		if oerr != nil {
+			err = oerr
+		} else if !throughOrg(org, t.Services) {
+			err = store.ErrNotFound // another organization's request does not exist here
+		}
+	}
 	if errors.Is(err, store.ErrNotFound) {
 		httpError(w, http.StatusNotFound, "this request was not kept, or its day has expired")
 		return
@@ -953,7 +1043,7 @@ func (s *Server) view(ctx context.Context, a *store.App) appView {
 // listApps is the Apps page: every app with its status, last run, uptime of
 // the last 24 hours and any checks failing right now.
 func (s *Server) listApps(w http.ResponseWriter, r *http.Request, _ string) {
-	apps, err := s.Store.ListApps(r.Context())
+	apps, err := s.Store.ListAppsInOrg(r.Context(), orgOf(r))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -990,6 +1080,7 @@ func (s *Server) createApp(w http.ResponseWriter, r *http.Request, login string)
 	if !s.installationAllowed(w, r, req.Installation) {
 		return
 	}
+	req.OnboardRequest.OrgID = orgOf(r)
 	res, err := s.Platform.Onboard(r.Context(), req.OnboardRequest, req.Existing)
 	if err != nil {
 		httpError(w, http.StatusUnprocessableEntity, err.Error())
@@ -1003,6 +1094,9 @@ func (s *Server) createApp(w http.ResponseWriter, r *http.Request, login string)
 // nil result means the answer was already written.
 func (s *Server) app(w http.ResponseWriter, r *http.Request) *store.App {
 	a, err := s.Store.GetApp(r.Context(), r.PathValue("app"))
+	if err == nil && a.OrgID != orgOf(r) {
+		err = store.ErrNotFound // another organization's app does not exist here
+	}
 	if errors.Is(err, store.ErrNotFound) {
 		httpError(w, http.StatusNotFound, "no such app")
 		return nil
@@ -1448,6 +1542,13 @@ func (s *Server) runID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	if err != nil {
 		httpError(w, http.StatusBadRequest, "bad run id")
 		return 0, false
+	}
+	// A run of another organization's app does not exist here.
+	if run, err := s.Store.GetRun(r.Context(), id); err == nil {
+		if a, err := s.Store.GetAppByID(r.Context(), run.AppID); err == nil && a.OrgID != orgOf(r) {
+			httpError(w, http.StatusNotFound, "no such run")
+			return 0, false
+		}
 	}
 	return id, true
 }

@@ -53,6 +53,6 @@ The Mercado is off until `PAGES_ORG` is set. Once:
 3. **Install the App on the organization** for **all repositories**, so it reaches the repositories it creates. A private App can only be installed on its owner's account: set `GITHUB_ACCOUNTS` and make it public first ([Installing on an organization](../environment/deploy.md#the-github-app)).
 4. Set `PAGES_ORG` to the organization's name and restart rendimiento.
 
-People who open stalls sign in like everyone else: with GitHub, as [members](members.md) with the collaborator role or above.
+People who open stalls sign in like everyone else: with GitHub, as [members](members.md) of the platform's organization: the Mercado belongs to the platform's operators.
 
 Deleting the app of a stall (Settings → Delete) takes the page offline and out of the Mercado; its repository stays in the organization, to keep or delete in GitHub.

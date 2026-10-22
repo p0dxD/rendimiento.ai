@@ -17,7 +17,7 @@ import (
 type Encargos interface {
 	CreateEncargo(ctx context.Context, e store.Encargo) (store.Encargo, error)
 	Encargo(ctx context.Context, id int64) (store.Encargo, error)
-	ListEncargos(ctx context.Context, openOnly bool, limit int) ([]store.Encargo, error)
+	ListEncargos(ctx context.Context, orgID int64, openOnly bool, limit int) ([]store.Encargo, error)
 	TakeEncargo(ctx context.Context, id, keyID, cargoID int64, who string) (store.Encargo, error)
 	WaitEncargo(ctx context.Context, id, keyID, runID int64, who string) (store.Encargo, error)
 	ResumeEncargo(ctx context.Context, id, keyID int64, who, note string) (store.Encargo, error)
@@ -145,6 +145,9 @@ func (s *Server) encargoFor(ctx context.Context, k store.AgentKey, id int64) (st
 	if errors.Is(err, store.ErrNotFound) {
 		return e, fmt.Errorf("no existe el encargo %d", id)
 	}
+	if err == nil && e.OrgID != k.OrgID {
+		return e, fmt.Errorf("no existe el encargo %d", id)
+	}
 	if err != nil {
 		return e, err
 	}
@@ -166,7 +169,7 @@ func stateErr(e store.Encargo, k store.AgentKey, want string) error {
 
 // encargosListar (encargos_listar) lists encargos the key may see.
 func (s *Server) encargosListar(ctx context.Context, k store.AgentKey, in encargosIn) (encargosOut, error) {
-	list, err := s.Encargos.ListEncargos(ctx, !in.Todos, 50)
+	list, err := s.Encargos.ListEncargos(ctx, k.OrgID, !in.Todos, 50)
 	if err != nil {
 		return encargosOut{}, err
 	}
@@ -202,7 +205,7 @@ func (s *Server) encargoCrear(ctx context.Context, k store.AgentKey, in crearEnc
 	if err := checkText(in.Titulo, in.Cuerpo, nil); err != nil {
 		return EncargoOut{}, err
 	}
-	e, err := s.Encargos.CreateEncargo(ctx, store.Encargo{Title: strings.TrimSpace(in.Titulo), Body: in.Cuerpo, App: app, CreatedBy: k.Name, ByAgent: true})
+	e, err := s.Encargos.CreateEncargo(ctx, store.Encargo{Title: strings.TrimSpace(in.Titulo), Body: in.Cuerpo, App: app, CreatedBy: k.Name, ByAgent: true, OrgID: k.OrgID})
 	if err != nil {
 		return EncargoOut{}, err
 	}
@@ -349,7 +352,7 @@ func (s *Server) encargoSoltar(ctx context.Context, k store.AgentKey, in soltarI
 // encargosDe summarizes encargos for ruta_inicio: pending ones the key may
 // take, and the ones it has.
 func (s *Server) encargosDe(ctx context.Context, k store.AgentKey) (pendientes, suyos []EncargoOut, err error) {
-	list, err := s.Encargos.ListEncargos(ctx, true, 50)
+	list, err := s.Encargos.ListEncargos(ctx, k.OrgID, true, 50)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -80,12 +80,18 @@ type abrirPuestoOut struct {
 	Nota   string `json:"nota"`
 }
 
-func (s *Server) puestos(ctx context.Context, _ store.AgentKey, _ empty) (puestosOut, error) {
+func (s *Server) puestos(ctx context.Context, k store.AgentKey, _ empty) (puestosOut, error) {
+	if err := mercadoKey(k); err != nil {
+		return puestosOut{}, err
+	}
 	ps, err := s.Mercado.Puestos(ctx)
 	return puestosOut{Puestos: ps}, err
 }
 
-func (s *Server) leerPuesto(ctx context.Context, _ store.AgentKey, in puestoIn) (paginaOut, error) {
+func (s *Server) leerPuesto(ctx context.Context, k store.AgentKey, in puestoIn) (paginaOut, error) {
+	if err := mercadoKey(k); err != nil {
+		return paginaOut{}, err
+	}
 	p, err := s.Mercado.LeerPuesto(ctx, strings.TrimSpace(in.Puesto))
 	if err != nil {
 		return paginaOut{}, err
@@ -94,6 +100,9 @@ func (s *Server) leerPuesto(ctx context.Context, _ store.AgentKey, in puestoIn) 
 }
 
 func (s *Server) editarPuesto(ctx context.Context, k store.AgentKey, in editarPuestoIn) (paginaOut, error) {
+	if err := mercadoKey(k); err != nil {
+		return paginaOut{}, err
+	}
 	if _, err := s.cargoFor(ctx, k); err != nil {
 		return paginaOut{}, err
 	}
@@ -131,6 +140,9 @@ func (s *Server) editarPuesto(ctx context.Context, k store.AgentKey, in editarPu
 }
 
 func (s *Server) abrirPuesto(ctx context.Context, k store.AgentKey, in abrirPuestoIn) (abrirPuestoOut, error) {
+	if err := mercadoKey(k); err != nil {
+		return abrirPuestoOut{}, err
+	}
 	if _, err := s.cargoFor(ctx, k); err != nil {
 		return abrirPuestoOut{}, err
 	}
@@ -151,4 +163,13 @@ func (s *Server) abrirPuesto(ctx context.Context, k store.AgentKey, in abrirPues
 	}
 	return abrirPuestoOut{Puesto: app.Name, Repo: app.Repo,
 		Nota: "La página se construye y se publica en unos minutos. Las fotos se agregan desde Mercado → el puesto, en la interfaz."}, nil
+}
+
+// mercadoKey refuses the Mercado to keys of other organizations: the
+// Mercado's stalls are the platform's own (its organization's).
+func mercadoKey(k store.AgentKey) error {
+	if k.OrgID != store.DefaultOrg && k.OrgID != 0 {
+		return errors.New("el Mercado es de la organización de la plataforma")
+	}
+	return nil
 }

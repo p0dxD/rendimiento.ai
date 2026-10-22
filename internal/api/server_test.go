@@ -698,7 +698,7 @@ func TestEncargosAPI(t *testing.T) {
 	}
 
 	// An agent takes it and hands it over (the MCP side, here through the store).
-	k, err := e.store.CreateAgentKey(ctx, "claude", "h", store.RoleCollaborator, nil, "p0dxD", time.Now().Add(time.Hour))
+	k, err := e.store.CreateAgentKey(ctx, store.DefaultOrg, "claude", "h", store.RoleCollaborator, nil, "p0dxD", time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -804,5 +804,95 @@ func TestMembersAPI(t *testing.T) {
 	}
 	if r, _ := e.do(t, "DELETE", "/api/members/ana", "", me, nil); r.StatusCode != 404 {
 		t.Fatalf("remove again: %d", r.StatusCode)
+	}
+}
+
+// Two organizations: nothing of one is seen from the other (apps, runs,
+// the Ruta, encargos, agent keys, members), the platform's routes are for
+// its operators only, and a person switches between their organizations.
+func TestOrgIsolation(t *testing.T) {
+	e := newEnv(t, false)
+	ctx := context.Background()
+	sp := spec.Spec{Services: []spec.Service{{Name: "web"}}}
+	sp.Default()
+	app := &store.App{Name: "tienda", Repo: "p0dxD/tienda", DefaultBranch: "main", Spec: sp}
+	if err := e.store.CreateApp(ctx, app); err != nil {
+		t.Fatal(err)
+	}
+	run := &store.Run{AppID: app.ID, SHA: "abc123def", Branch: "main", Event: "push"}
+	if err := e.store.CreateRun(ctx, run, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.store.AddRuta(ctx, store.RutaEntry{Kind: store.KindNota, Title: "secreto de la principal", Author: "p0dxD"}); err != nil {
+		t.Fatal(err)
+	}
+	enc, err := e.store.CreateEncargo(ctx, store.Encargo{Title: "de la principal", CreatedBy: "p0dxD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.store.CreateAgentKey(ctx, store.DefaultOrg, "llave principal", "h-p", store.RoleCollaborator, nil, "p0dxD", time.Now().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+
+	// The operator makes an organization for someone else.
+	me := e.session(t, "p0dxD")
+	r, body := e.do(t, "POST", "/api/orgs", `{"slug":"otra","name":"Otra"}`, me, nil)
+	var otra store.Org
+	if r.StatusCode != 201 || json.Unmarshal([]byte(body), &otra) != nil {
+		t.Fatalf("create org: %d %s", r.StatusCode, body)
+	}
+	if r, _ := e.do(t, "POST", "/api/orgs", `{"slug":"otra","name":"Otra vez"}`, me, nil); r.StatusCode != 409 {
+		t.Fatalf("a taken address: %d", r.StatusCode)
+	}
+	if err := e.store.SetMember(ctx, otra.ID, "ana", store.MemberAdmin, "p0dxD"); err != nil {
+		t.Fatal(err)
+	}
+	ana := e.session(t, "ana") // not in the principal one: lands in hers
+
+	if _, body := e.do(t, "GET", "/api/me", "", ana, nil); !strings.Contains(body, `"slug":"otra"`) || !strings.Contains(body, `"operator":false`) {
+		t.Fatalf("me: %s", body)
+	}
+	for path, leak := range map[string]string{
+		"/api/apps":            "tienda",
+		"/api/ruta":            "secreto de la principal",
+		"/api/encargos":        "de la principal",
+		"/api/agent-keys":      "llave principal",
+		"/api/members":         "p0dxD",
+		"/api/universe/traces": "tienda",
+	} {
+		r, body := e.do(t, "GET", path, "", ana, nil)
+		if r.StatusCode != 200 || strings.Contains(body, leak) {
+			t.Errorf("%s from the other organization: %d %s", path, r.StatusCode, body)
+		}
+	}
+	for _, path := range []string{"/api/apps/tienda", fmt.Sprintf("/api/runs/%d", run.ID), fmt.Sprintf("/api/encargos/%d", enc.ID)} {
+		if r, _ := e.do(t, "GET", path, "", ana, nil); r.StatusCode != 404 {
+			t.Errorf("%s from the other organization: %d, want 404", path, r.StatusCode)
+		}
+	}
+	for _, path := range []string{"/api/environment", "/api/problems", "/api/mercado", "/api/installed"} {
+		if r, _ := e.do(t, "GET", path, "", ana, nil); r.StatusCode != 403 {
+			t.Errorf("platform route %s for another organization's admin: %d, want 403", path, r.StatusCode)
+		}
+	}
+	if r, _ := e.do(t, "POST", "/api/orgs", `{"slug":"tercera","name":"Tercera"}`, ana, nil); r.StatusCode != 403 {
+		t.Fatalf("only operators make organizations: %d", r.StatusCode)
+	}
+	if r, _ := e.do(t, "POST", "/api/orgs/1/switch", "", ana, nil); r.StatusCode != 404 {
+		t.Fatalf("switching to an organization she is not in: %d", r.StatusCode)
+	}
+
+	// The operator is in both, and switches.
+	if _, body := e.do(t, "GET", "/api/orgs", "", me, nil); !strings.Contains(body, `"slug":"principal"`) || !strings.Contains(body, `"slug":"otra"`) {
+		t.Fatalf("operator's orgs: %s", body)
+	}
+	if r, _ := e.do(t, "POST", fmt.Sprintf("/api/orgs/%d/switch", otra.ID), "", me, nil); r.StatusCode != 204 {
+		t.Fatalf("switch: %d", r.StatusCode)
+	}
+	if _, body := e.do(t, "GET", "/api/apps", "", me, nil); strings.Contains(body, "tienda") {
+		t.Fatalf("after switching, the principal's apps: %s", body)
+	}
+	if r, _ := e.do(t, "GET", "/api/problems", "", me, nil); r.StatusCode != 200 {
+		t.Fatalf("the operator keeps the platform's routes in any organization: %d", r.StatusCode)
 	}
 }

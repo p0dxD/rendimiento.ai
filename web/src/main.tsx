@@ -1,8 +1,8 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, type MemberRole } from "./api";
-import { Members, memberRoleLabel } from "./pages/Members";
+import { api, ApiError, session, type MemberRole, type Org } from "./api";
+import { Members, OrgSwitch, memberRoleLabel } from "./pages/Members";
 import { t } from "./i18n";
 import { Dashboard } from "./pages/Dashboard";
 import { NewApp } from "./pages/NewApp";
@@ -28,7 +28,7 @@ import "./styles.css";
  * The app's frame: setup until the GitHub App exists, the welcome page until you sign in, then the menu and pages.
  */
 function Shell() {
-  const [state, setState] = useState<{ login?: string; role?: MemberRole; configured?: boolean; book?: BookLinks; activity?: boolean; loading: boolean }>({ loading: true });
+  const [state, setState] = useState<{ login?: string; role?: MemberRole; org?: Org; operator?: boolean; configured?: boolean; book?: BookLinks; activity?: boolean; loading: boolean }>({ loading: true });
 
   useEffect(() => {
     (async () => {
@@ -36,7 +36,9 @@ function Shell() {
       if (!setup.configured) return setState({ configured: false, loading: false });
       try {
         const me = await api.me();
-        setState({ login: me.login, role: me.role, configured: true, loading: false });
+        session.operator = me.operator;
+        session.role = me.role;
+        setState({ login: me.login, role: me.role, org: me.org, operator: me.operator, configured: true, loading: false });
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) setState({ configured: true, book: setup.book, activity: setup.activity, loading: false });
         else throw e;
@@ -63,16 +65,17 @@ function Shell() {
       <header className="topbar">
         <Link to="/" className="brand"><Logo /> <span className="brand-name">rendimiento</span></Link>
         <NavLink to="/" end className="nav-link">{t("Apps")}</NavLink>
-        <NavLink to="/mercado" className="nav-link">{t("Mercado")}</NavLink>
+        {state.operator && <NavLink to="/mercado" className="nav-link">{t("Mercado")}</NavLink>}
         <NavLink to="/universe" className="nav-link">{t("Universe")}</NavLink>
-        <NavLink to="/services" className="nav-link">{t("Services")}</NavLink>
-        <NavLink to="/addons" className="nav-link">{t("Add-ons")}</NavLink>
-        <EnvironmentNavLink />
+        {state.operator && <NavLink to="/services" className="nav-link">{t("Services")}</NavLink>}
+        {state.operator && <NavLink to="/addons" className="nav-link">{t("Add-ons")}</NavLink>}
+        {state.operator && <EnvironmentNavLink />}
         <NavLink to="/ruta" className="nav-link">{t("Ruta")}</NavLink>
-        <ProblemsNavLink />
+        {state.operator && <ProblemsNavLink />}
         <span className="spacer" />
         {state.role === "admin" && <Link to="/new" className="btn primary">{t("New app")}</Link>}
-        <Link to="/members" className="muted small hide-sm" title={t(memberRoleLabel[state.role ?? "guest"])}>{state.login}</Link>
+        <OrgSwitch current={state.org} />
+        <NavLink to="/members" className="nav-link small" title={t(memberRoleLabel[state.role ?? "guest"])}>{state.login}</NavLink>
         <TemaSwitch />
         <MovimientoSwitch />
         <LangSwitch />

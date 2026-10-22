@@ -56,7 +56,7 @@ func (f *fakeEncargos) Encargo(_ context.Context, id int64) (store.Encargo, erro
 	}
 	return *e, nil
 }
-func (f *fakeEncargos) ListEncargos(_ context.Context, openOnly bool, _ int) ([]store.Encargo, error) {
+func (f *fakeEncargos) ListEncargos(_ context.Context, _ int64, openOnly bool, _ int) ([]store.Encargo, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	var out []store.Encargo
