@@ -91,9 +91,9 @@ flowchart LR
 
 ## Usuarios y equipos {#users-and-teams}
 
-**Hoy:** una lista de cuentas de GitHub permitidas (`ALLOWED_USERS`), donde todos pueden hacer todo.
+**Hoy:** [miembros](../guide/members.md) con una función (invitado, colaborador, administrador) que cada ruta de la API comprueba, todos en una organización.
 
-**Después:** roles por aplicación (observador, quien despliega, administrador), tomados de los equipos de GitHub; una tabla de bitácora de auditoría que anote quién desplegó, revirtió o cambió un secreto; y RBAC por espacio de nombres para la propia plataforma en lugar de permisos amplios en el clúster.
+**Después:** varias organizaciones, cada una con sus aplicaciones, su Ruta, sus agentes y su presupuesto de IA, aisladas en un clúster compartido, en un clúster virtual dedicado o en el clúster propio de la organización; una bitácora de quién desplegó, revirtió o cambió un secreto; y RBAC por espacio de nombres para la propia plataforma en lugar de permisos amplios en el clúster.
 
 ## Números que vigilar {#numbers-to-watch}
 

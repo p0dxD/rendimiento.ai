@@ -1,6 +1,6 @@
 # Un recorrido por la interfaz
 
-El panel está en **https://rendimiento.joserod.space**. Se entra con GitHub; solo las cuentas que aparecen en `ALLOWED_USERS` pueden pasar. La barra superior tiene cinco lugares: **Aplicaciones**, **Servicios**, **Complementos**, **Entorno** y el botón **Nueva aplicación**.
+El panel está en **https://rendimiento.joserod.space**. Se entra con GitHub; solo pasan los [miembros](../guide/members.md), cada uno con su función. La barra superior tiene cinco lugares: **Aplicaciones**, **Servicios**, **Complementos**, **Entorno** y el botón **Nueva aplicación**.
 
 ```mermaid
 flowchart TB

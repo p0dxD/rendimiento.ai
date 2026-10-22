@@ -1,7 +1,8 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError } from "./api";
+import { api, ApiError, type MemberRole } from "./api";
+import { Members, memberRoleLabel } from "./pages/Members";
 import { t } from "./i18n";
 import { Dashboard } from "./pages/Dashboard";
 import { NewApp } from "./pages/NewApp";
@@ -27,7 +28,7 @@ import "./styles.css";
  * The app's frame: setup until the GitHub App exists, the welcome page until you sign in, then the menu and pages.
  */
 function Shell() {
-  const [state, setState] = useState<{ login?: string; configured?: boolean; book?: BookLinks; activity?: boolean; loading: boolean }>({ loading: true });
+  const [state, setState] = useState<{ login?: string; role?: MemberRole; configured?: boolean; book?: BookLinks; activity?: boolean; loading: boolean }>({ loading: true });
 
   useEffect(() => {
     (async () => {
@@ -35,7 +36,7 @@ function Shell() {
       if (!setup.configured) return setState({ configured: false, loading: false });
       try {
         const me = await api.me();
-        setState({ login: me.login, configured: true, loading: false });
+        setState({ login: me.login, role: me.role, configured: true, loading: false });
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) setState({ configured: true, book: setup.book, activity: setup.activity, loading: false });
         else throw e;
@@ -70,8 +71,8 @@ function Shell() {
         <NavLink to="/ruta" className="nav-link">{t("Ruta")}</NavLink>
         <ProblemsNavLink />
         <span className="spacer" />
-        <Link to="/new" className="btn primary">{t("New app")}</Link>
-        <span className="muted small hide-sm">{state.login}</span>
+        {state.role === "admin" && <Link to="/new" className="btn primary">{t("New app")}</Link>}
+        <Link to="/members" className="muted small hide-sm" title={t(memberRoleLabel[state.role ?? "guest"])}>{state.login}</Link>
         <TemaSwitch />
         <MovimientoSwitch />
         <LangSwitch />
@@ -91,6 +92,7 @@ function Shell() {
           <Route path="/addons" element={<Addons />} />
           <Route path="/problems" element={<Problems />} />
           <Route path="/ruta" element={<Ruta />} />
+          <Route path="/members" element={<Members me={state.login ?? ""} role={state.role ?? "guest"} />} />
           <Route path="/addons/:name" element={<AddonDetail />} />
           <Route path="/services/:ns/:name" element={<Services />} />
           <Route path="/apps/:name" element={<AppPage />} />

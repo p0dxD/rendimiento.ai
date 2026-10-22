@@ -254,6 +254,16 @@ export interface AgentAction {
 
 export type AgentRole = "reader" | "collaborator" | "admin";
 
+// A person's role in the organization (internal/store.Member*).
+export type MemberRole = "guest" | "collaborator" | "admin";
+
+export interface Member {
+  login: string;
+  role: MemberRole;
+  addedBy: string;
+  createdAt: string;
+}
+
 export type EncargoStatus = "pending" | "taken" | "waiting" | "delivered" | "reviewed" | "cancelled";
 
 // Work asked of agents (internal/store.Encargo).
@@ -547,7 +557,10 @@ export interface Caminos {
 }
 
 export const api = {
-  me: () => request<{ login: string }>("GET", "/api/me"),
+  me: () => request<{ login: string; role: MemberRole }>("GET", "/api/me"),
+  members: () => request<Member[]>("GET", "/api/members"),
+  setMember: (login: string, role: MemberRole) => request<Member[]>("PUT", `/api/members/${encodeURIComponent(login)}`, { role }),
+  removeMember: (login: string) => request<void>("DELETE", `/api/members/${encodeURIComponent(login)}`),
   logout: () => request<void>("POST", "/api/auth/logout"),
   setupStatus: () => request<{ configured: boolean; appSlug?: string; installURL?: string; book?: { en?: string; es?: string }; activity?: boolean }>("GET", "/api/setup/status"),
   publicActivity: () => request<PublicActivity>("GET", "/api/public/activity"),

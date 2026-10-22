@@ -86,7 +86,8 @@ type Server struct {
 	Logs         *logarchive.Archive
 	public       publicCache
 	activity     activityCache
-	AllowedUsers []string // GitHub logins allowed to sign in
+	AllowedUsers []string // the first administrators, when there are no members yet
+	routes       []route  // authenticated routes and their roles (see Handler)
 	SetupToken   string   // guards the one-time GitHub App setup
 	AppName      string   // name for the GitHub App, e.g. "rendimiento-joserod"
 	GitHubAPI    string   // overridden in tests
@@ -143,87 +144,96 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/setup/github/callback", s.setupCallback)
 
 	// Everything else requires a session.
-	auth := func(pattern string, h func(http.ResponseWriter, *http.Request, string)) {
-		mux.Handle(pattern, s.requireSession(h))
+	// Everything else requires a session, and each route says the least
+	// role it takes in the organization (guest reads; collaborator also
+	// acts; admin also deploys and administers). Routes is what the test
+	// walks to check no route is open to less than it should be.
+	s.routes = nil
+	auth := func(role, pattern string, h func(http.ResponseWriter, *http.Request, string)) {
+		s.routes = append(s.routes, route{pattern: pattern, role: role})
+		mux.Handle(pattern, s.requireRole(role, h))
 	}
-	auth("GET /api/me", func(w http.ResponseWriter, _ *http.Request, login string) {
-		writeJSON(w, map[string]string{"login": login})
+	auth(store.MemberGuest, "GET /api/me", func(w http.ResponseWriter, r *http.Request, login string) {
+		writeJSON(w, map[string]string{"login": login, "role": roleOf(r)})
 	})
-	auth("GET /api/installations", s.installations)
-	auth("GET /api/installations/{id}/repos", s.repos)
-	auth("GET /api/zones", s.zones)
-	auth("GET /api/environment", s.environment)
-	auth("GET /api/platform/version", s.platformVersion)
-	auth("POST /api/platform/update", s.updatePlatform)
-	auth("GET /api/services", s.services)
-	auth("GET /api/stats/delivery", s.delivery)
-	auth("GET /api/stats/visits", s.visitsSummary)
-	auth("GET /api/problems", s.listProblems)
-	auth("GET /api/problems/count", s.problemCount)
-	auth("POST /api/problems/{id}/dismiss", s.dismissProblem)
-	auth("GET /api/ruta", s.listRuta)
-	auth("POST /api/ruta", s.addRuta)
-	auth("PUT /api/ruta/{id}", s.updateRuta)
-	auth("POST /api/ruta/{id}/archive", s.archiveRuta)
-	auth("GET /api/ruta/activity", s.rutaActivity)
-	auth("GET /api/encargos", s.listEncargos)
-	auth("POST /api/encargos", s.createEncargo)
-	auth("GET /api/encargos/{id}", s.getEncargo)
-	auth("POST /api/encargos/{id}/review", s.reviewEncargo)
-	auth("POST /api/encargos/{id}/cancel", s.cancelEncargo)
-	auth("GET /api/agent-keys", s.listAgentKeys)
-	auth("POST /api/agent-keys", s.createAgentKey)
-	auth("DELETE /api/agent-keys/{id}", s.revokeAgentKey)
-	auth("GET /api/addon-catalog", s.addonCatalog)
-	auth("GET /api/installed", s.listInstalled)
-	auth("GET /api/installed/{name}", s.getInstalled)
-	auth("PUT /api/installed/{name}", s.putInstalled)
-	auth("POST /api/installed/{name}/sync", s.syncInstalled)
-	auth("PATCH /api/installed/{name}", s.patchInstalled)
-	auth("DELETE /api/installed/{name}", s.deleteInstalled)
-	auth("GET /api/addons", s.listAddons)
-	auth("GET /api/addons/{addon}", s.getAddon)
-	auth("PUT /api/addons/{addon}", s.putAddon)
-	auth("GET /api/addons/{addon}/runs", s.listAddonRuns)
-	auth("POST /api/addons/{addon}/runs", s.startAddonRun)
-	auth("GET /api/addons/{addon}/runs/{id}", s.getAddonRun)
-	auth("GET /api/apps/{app}/addons", s.appAddons)
-	auth("PUT /api/apps/{app}/addons/{addon}", s.putAppAddon)
-	auth("POST /api/dns/sync", s.dnsSync)
-	auth("POST /api/notifications/test", s.testNotification)
-	auth("POST /api/propose", s.propose)
-	auth("GET /api/namespaces/{name}/migration", s.migration)
-	auth("GET /api/mercado", s.listMercado)
-	auth("POST /api/mercado", s.openPuesto)
-	auth("POST /api/mercado/preview", s.previewMercado)
-	auth("GET /api/mercado/{app}", s.getPuesto)
-	auth("PUT /api/mercado/{app}", s.savePuesto)
-	auth("GET /api/apps", s.listApps)
-	auth("POST /api/apps", s.createApp)
-	auth("GET /api/apps/{app}", s.getApp)
-	auth("DELETE /api/apps/{app}", s.deleteApp)
-	auth("GET /api/apps/{app}/impact", s.deleteImpact)
-	auth("POST /api/apps/{app}/disconnect", s.disconnectApp)
-	auth("GET /api/apps/{app}/runs", s.listRuns)
-	auth("GET /api/apps/{app}/caminos", s.appCaminos)
-	auth("POST /api/apps/{app}/runs", s.triggerRun)
-	auth("GET /api/universe", s.universe)
-	auth("GET /api/universe/spans", s.universeSpans)
-	auth("GET /api/universe/traces", s.universeTraces)
-	auth("GET /api/universe/traces/{id}", s.universeTrace)
-	auth("GET /api/apps/{app}/releases", s.listReleases)
-	auth("GET /api/apps/{app}/reliability", s.reliability)
-	auth("GET /api/apps/{app}/visits", s.visits)
-	auth("GET /api/apps/{app}/releases/{number}/tasks/{task}/log", s.releaseTaskLog)
-	auth("POST /api/apps/{app}/rollback", s.rollback)
-	auth("GET /api/apps/{app}/resources", s.resources)
-	auth("GET /api/apps/{app}/secrets/{secret}", s.getSecret)
-	auth("PUT /api/apps/{app}/secrets/{secret}", s.putSecret)
-	auth("GET /api/apps/{app}/events", s.appEvents)
-	auth("GET /api/runs/{id}", s.getRun)
-	auth("POST /api/runs/{id}/cancel", s.cancelRun)
-	auth("GET /api/runs/{id}/steps/{step}/log", s.stepLog)
-	auth("GET /api/runs/{id}/events", s.runEvents)
+	auth(store.MemberGuest, "GET /api/members", s.listMembers)
+	auth(store.MemberAdmin, "PUT /api/members/{login}", s.putMember)
+	auth(store.MemberAdmin, "DELETE /api/members/{login}", s.deleteMember)
+	auth(store.MemberAdmin, "GET /api/installations", s.installations)
+	auth(store.MemberAdmin, "GET /api/installations/{id}/repos", s.repos)
+	auth(store.MemberAdmin, "GET /api/zones", s.zones)
+	auth(store.MemberGuest, "GET /api/environment", s.environment)
+	auth(store.MemberGuest, "GET /api/platform/version", s.platformVersion)
+	auth(store.MemberAdmin, "POST /api/platform/update", s.updatePlatform)
+	auth(store.MemberGuest, "GET /api/services", s.services)
+	auth(store.MemberGuest, "GET /api/stats/delivery", s.delivery)
+	auth(store.MemberGuest, "GET /api/stats/visits", s.visitsSummary)
+	auth(store.MemberGuest, "GET /api/problems", s.listProblems)
+	auth(store.MemberGuest, "GET /api/problems/count", s.problemCount)
+	auth(store.MemberCollaborator, "POST /api/problems/{id}/dismiss", s.dismissProblem)
+	auth(store.MemberGuest, "GET /api/ruta", s.listRuta)
+	auth(store.MemberCollaborator, "POST /api/ruta", s.addRuta)
+	auth(store.MemberCollaborator, "PUT /api/ruta/{id}", s.updateRuta)
+	auth(store.MemberCollaborator, "POST /api/ruta/{id}/archive", s.archiveRuta)
+	auth(store.MemberGuest, "GET /api/ruta/activity", s.rutaActivity)
+	auth(store.MemberGuest, "GET /api/encargos", s.listEncargos)
+	auth(store.MemberCollaborator, "POST /api/encargos", s.createEncargo)
+	auth(store.MemberGuest, "GET /api/encargos/{id}", s.getEncargo)
+	auth(store.MemberCollaborator, "POST /api/encargos/{id}/review", s.reviewEncargo)
+	auth(store.MemberCollaborator, "POST /api/encargos/{id}/cancel", s.cancelEncargo)
+	auth(store.MemberAdmin, "GET /api/agent-keys", s.listAgentKeys)
+	auth(store.MemberAdmin, "POST /api/agent-keys", s.createAgentKey)
+	auth(store.MemberAdmin, "DELETE /api/agent-keys/{id}", s.revokeAgentKey)
+	auth(store.MemberGuest, "GET /api/addon-catalog", s.addonCatalog)
+	auth(store.MemberGuest, "GET /api/installed", s.listInstalled)
+	auth(store.MemberGuest, "GET /api/installed/{name}", s.getInstalled)
+	auth(store.MemberAdmin, "PUT /api/installed/{name}", s.putInstalled)
+	auth(store.MemberAdmin, "POST /api/installed/{name}/sync", s.syncInstalled)
+	auth(store.MemberAdmin, "PATCH /api/installed/{name}", s.patchInstalled)
+	auth(store.MemberAdmin, "DELETE /api/installed/{name}", s.deleteInstalled)
+	auth(store.MemberGuest, "GET /api/addons", s.listAddons)
+	auth(store.MemberGuest, "GET /api/addons/{addon}", s.getAddon)
+	auth(store.MemberAdmin, "PUT /api/addons/{addon}", s.putAddon)
+	auth(store.MemberGuest, "GET /api/addons/{addon}/runs", s.listAddonRuns)
+	auth(store.MemberCollaborator, "POST /api/addons/{addon}/runs", s.startAddonRun)
+	auth(store.MemberGuest, "GET /api/addons/{addon}/runs/{id}", s.getAddonRun)
+	auth(store.MemberGuest, "GET /api/apps/{app}/addons", s.appAddons)
+	auth(store.MemberCollaborator, "PUT /api/apps/{app}/addons/{addon}", s.putAppAddon)
+	auth(store.MemberAdmin, "POST /api/dns/sync", s.dnsSync)
+	auth(store.MemberAdmin, "POST /api/notifications/test", s.testNotification)
+	auth(store.MemberAdmin, "POST /api/propose", s.propose)
+	auth(store.MemberAdmin, "GET /api/namespaces/{name}/migration", s.migration)
+	auth(store.MemberGuest, "GET /api/mercado", s.listMercado)
+	auth(store.MemberCollaborator, "POST /api/mercado", s.openPuesto)
+	auth(store.MemberCollaborator, "POST /api/mercado/preview", s.previewMercado)
+	auth(store.MemberGuest, "GET /api/mercado/{app}", s.getPuesto)
+	auth(store.MemberCollaborator, "PUT /api/mercado/{app}", s.savePuesto)
+	auth(store.MemberGuest, "GET /api/apps", s.listApps)
+	auth(store.MemberAdmin, "POST /api/apps", s.createApp)
+	auth(store.MemberGuest, "GET /api/apps/{app}", s.getApp)
+	auth(store.MemberAdmin, "DELETE /api/apps/{app}", s.deleteApp)
+	auth(store.MemberGuest, "GET /api/apps/{app}/impact", s.deleteImpact)
+	auth(store.MemberAdmin, "POST /api/apps/{app}/disconnect", s.disconnectApp)
+	auth(store.MemberGuest, "GET /api/apps/{app}/runs", s.listRuns)
+	auth(store.MemberGuest, "GET /api/apps/{app}/caminos", s.appCaminos)
+	auth(store.MemberCollaborator, "POST /api/apps/{app}/runs", s.triggerRun)
+	auth(store.MemberGuest, "GET /api/universe", s.universe)
+	auth(store.MemberGuest, "GET /api/universe/spans", s.universeSpans)
+	auth(store.MemberGuest, "GET /api/universe/traces", s.universeTraces)
+	auth(store.MemberGuest, "GET /api/universe/traces/{id}", s.universeTrace)
+	auth(store.MemberGuest, "GET /api/apps/{app}/releases", s.listReleases)
+	auth(store.MemberGuest, "GET /api/apps/{app}/reliability", s.reliability)
+	auth(store.MemberGuest, "GET /api/apps/{app}/visits", s.visits)
+	auth(store.MemberGuest, "GET /api/apps/{app}/releases/{number}/tasks/{task}/log", s.releaseTaskLog)
+	auth(store.MemberAdmin, "POST /api/apps/{app}/rollback", s.rollback)
+	auth(store.MemberGuest, "GET /api/apps/{app}/resources", s.resources)
+	auth(store.MemberAdmin, "GET /api/apps/{app}/secrets/{secret}", s.getSecret)
+	auth(store.MemberAdmin, "PUT /api/apps/{app}/secrets/{secret}", s.putSecret)
+	auth(store.MemberGuest, "GET /api/apps/{app}/events", s.appEvents)
+	auth(store.MemberGuest, "GET /api/runs/{id}", s.getRun)
+	auth(store.MemberCollaborator, "POST /api/runs/{id}/cancel", s.cancelRun)
+	auth(store.MemberGuest, "GET /api/runs/{id}/steps/{step}/log", s.stepLog)
+	auth(store.MemberGuest, "GET /api/runs/{id}/events", s.runEvents)
 
 	mux.Handle("/", s.ui())
 	if s.MCP == nil {
@@ -317,10 +327,23 @@ func randomToken() string {
 	return hex.EncodeToString(b)
 }
 
-// requireSession wraps a handler for signed-in people: it reads the session
-// cookie, finds whose it is, checks that login is still in ALLOWED_USERS,
-// and passes the login on (or answers 401).
-func (s *Server) requireSession(h func(http.ResponseWriter, *http.Request, string)) http.Handler {
+// route is an authenticated route and the least role it takes.
+type route struct{ pattern, role string }
+
+type roleKey struct{}
+
+// roleOf is the signed-in person's role in the organization (set by
+// requireRole).
+func roleOf(r *http.Request) string {
+	role, _ := r.Context().Value(roleKey{}).(string)
+	return role
+}
+
+// requireRole wraps a handler for signed-in members: it reads the session
+// cookie, finds whose it is and their role in the organization, answers 401
+// without a session or membership and 403 below the route's role, and
+// passes the login on.
+func (s *Server) requireRole(min string, h func(http.ResponseWriter, *http.Request, string)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(sessionCookie)
 		if err != nil {
@@ -328,18 +351,27 @@ func (s *Server) requireSession(h func(http.ResponseWriter, *http.Request, strin
 			return
 		}
 		login, err := s.Store.SessionLogin(r.Context(), hashToken(c.Value))
-		if err != nil || !s.allowed(login) {
+		if err != nil {
 			httpError(w, http.StatusUnauthorized, "session expired; sign in again")
 			return
 		}
-		h(w, r, login)
+		role, err := s.Store.MemberRole(r.Context(), store.DefaultOrg, login)
+		if errors.Is(err, store.ErrNotFound) {
+			httpError(w, http.StatusUnauthorized, "you are no longer a member here; ask an administrator")
+			return
+		}
+		if err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if store.RoleRank(role) < store.RoleRank(min) {
+			httpError(w, http.StatusForbidden, "your role here does not allow this; ask an administrator")
+			return
+		}
+		h(w, r.WithContext(context.WithValue(r.Context(), roleKey{}, role)), login)
 	})
 }
 
-// allowed reports whether a GitHub login is in ALLOWED_USERS (any case).
-func (s *Server) allowed(login string) bool {
-	return slices.ContainsFunc(s.AllowedUsers, func(u string) bool { return strings.EqualFold(u, login) })
-}
 
 // secureCookies: cookies are HTTPS-only when the platform is served on HTTPS.
 func (s *Server) secureCookies() bool { return strings.HasPrefix(s.BaseURL, "https://") }
@@ -402,9 +434,9 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadGateway, "GitHub login failed")
 		return
 	}
-	if !s.allowed(login) {
+	if ok, err := s.Store.IsMemberAnywhere(r.Context(), login); err != nil || !ok {
 		s.Log.Warn("login refused", "login", login)
-		httpError(w, http.StatusForbidden, fmt.Sprintf("%s is not allowed to use this rendimiento instance", login))
+		httpError(w, http.StatusForbidden, fmt.Sprintf("%s is not a member here; ask an administrator to add you", login))
 		return
 	}
 	token := randomToken()

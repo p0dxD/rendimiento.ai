@@ -26,12 +26,12 @@ sequenceDiagram
     You->>G: authorize the GitHub App
     G->>R: /api/auth/callback?code=…&state=…
     R->>G: exchange code → user token → who is this?
-    R->>R: login in ALLOWED_USERS? create session (hash stored, 7 days)
+    R->>R: a member? create session (hash stored, 7 days)
     R->>You: session cookie (HttpOnly, Secure, SameSite=Lax)
 ```
 
 - Sessions are random 32-byte tokens; only their **SHA-256** is stored, so a database leak does not leak sessions.
-- `requireSession` checks the cookie **and** the allowlist on every request, so removing someone from `ALLOWED_USERS` locks them out immediately.
+- `requireRole` checks the cookie, the person's membership and their role on every request: each route declares the least role it takes (guest, collaborator, admin), and removing someone from **Members** locks them out immediately. A test walks every route as a guest and as a collaborator.
 - `guard` adds security headers (`nosniff`, `DENY` framing, same-origin referrer) and refuses **cross-origin** state-changing requests (the `Origin` header must match), on top of `SameSite=Lax` cookies.
 
 ## Webhooks

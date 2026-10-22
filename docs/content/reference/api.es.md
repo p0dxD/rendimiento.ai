@@ -2,7 +2,7 @@
 
 Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La interfaz usa esta API y nada más, así que todo lo que hace la interfaz se puede automatizar con guiones.
 
-- **Autenticación:** una galleta de sesión que pone el inicio de sesión con GitHub (`/api/auth/login`). Las rutas marcadas con 🔒 devuelven `401` sin ella, y `403` para los usuarios que no están en `ALLOWED_USERS`.
+- **Autenticación:** una galleta de sesión que pone el inicio de sesión con GitHub (`/api/auth/login`). Las rutas marcadas con 🔒 devuelven `401` sin ella o para quien no es [miembro](../guide/members.md), y `403` cuando la función de la persona es menor que la que pide la ruta.
 - **Formato:** JSON de entrada y de salida. Los errores son `{"error": "mensaje"}` con el código de estado correspondiente.
 - **Actualizaciones en vivo:** las rutas `…/events` son flujos de **eventos enviados por el servidor** (`text/event-stream`). La entrada desactiva el búfer para ellas.
 - **Idioma:** con `Accept-Language: es`, los mensajes de la plataforma llegan en español de México.
@@ -53,6 +53,9 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | GET | `/api/agent-keys` | las llaves de agente (nunca los tokens) |
 | POST | `/api/agent-keys` | crea una llave de agente (`name`, `role`: `reader` o `collaborator`, `apps`: vacío para todas, `days`); el token solo viene en esta respuesta |
 | DELETE | `/api/agent-keys/{id}` | revoca una llave de agente |
+| GET | `/api/members` | las personas de la organización y sus funciones |
+| PUT | `/api/members/{login}` | agrega a una persona por su cuenta de GitHub, o cambia su función (`role`: `guest`, `collaborator`, `admin`); solo administradores |
+| DELETE | `/api/members/{login}` | quita a una persona; el último administrador se queda |
 | GET | `/api/encargos` | los encargos abiertos (`?all=1`: también los revisados y descartados) |
 | POST | `/api/encargos` | pedirles algo a los agentes (`title`, `body`, `app`, `runId`) |
 | GET | `/api/encargos/{id}` | un encargo con su historia |
