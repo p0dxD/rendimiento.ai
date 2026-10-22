@@ -252,10 +252,14 @@ export interface AgentAction {
   at: string;
 }
 
+export type AgentRole = "reader" | "collaborator" | "admin";
+
 export interface AgentKey {
   id: number;
   name: string;
   canWrite: boolean;
+  role: AgentRole;
+  apps: string[]; // empty: every app
   createdBy: string;
   createdAt: string;
   expiresAt: string;
@@ -571,7 +575,7 @@ export const api = {
   archiveRuta: (id: number) => request<void>("POST", `/api/ruta/${id}/archive`),
   rutaActivity: () => request<{ cargos: Cargo[]; actions: AgentAction[] }>("GET", "/api/ruta/activity"),
   agentKeys: () => request<AgentKey[]>("GET", "/api/agent-keys"),
-  createAgentKey: (k: { name: string; canWrite: boolean; days: number }) => request<CreatedAgentKey>("POST", "/api/agent-keys", k),
+  createAgentKey: (k: { name: string; role: AgentRole; apps: string[]; days: number }) => request<CreatedAgentKey>("POST", "/api/agent-keys", k),
   revokeAgentKey: (id: number) => request<void>("DELETE", `/api/agent-keys/${id}`),
   reliability: (app: string, range: ReliabilityRange) => request<Reliability>("GET", `/api/apps/${app}/reliability?range=${range}`),
   rollback: (app: string, release: number) => request<Release>("POST", `/api/apps/${app}/rollback`, { release }),

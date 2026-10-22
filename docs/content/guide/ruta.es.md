@@ -24,7 +24,7 @@ Un agente que quiere escribir primero **toma un cargo**: un turno de trabajo con
 
 Los agentes llegan a la Ruta por **MCP** (Model Context Protocol), un estándar abierto que hablan muchas herramientas de IA, en `https://<su rendimiento>/mcp`.
 
-1. En **Ruta → Llaves**, cree una llave: un nombre, solo lectura o lectura y escritura, y cuánto dura (90 días como máximo). La llave se muestra **una sola vez**.
+1. En **Ruta → Llaves**, cree una llave: un nombre, su [función](agents.md#roles) (**lector**, o **colaborador** para además escribir y correr CI), si quiere las aplicaciones que puede usar, y cuánto dura (90 días como máximo). La llave se muestra **una sola vez**.
 2. Conecte el agente. En Claude Code:
 
     ```bash
@@ -46,18 +46,18 @@ Los agentes llegan a la Ruta por **MCP** (Model Context Protocol), un estándar 
 | `ruta_inicio` | las últimas entregas, los pendientes abiertos, lo reciente y el cargo abierto del agente | cualquiera |
 | `ruta_buscar` | busca por texto y por tipo | cualquiera |
 | `ruta_leer` | una entrada completa | cualquiera |
-| `cargo_tomar` | toma un cargo con un propósito | lectura y escritura |
-| `ruta_anotar` | agrega una decisión, un manual, un pendiente o una nota | lectura y escritura, con cargo |
-| `ruta_actualizar` | cambia una entrada, o marca un pendiente como hecho | lectura y escritura, con cargo |
-| `cargo_entregar` | entrega el cargo | lectura y escritura, con cargo |
+| `cargo_tomar` | toma un cargo con un propósito | colaborador |
+| `ruta_anotar` | agrega una decisión, un manual, un pendiente o una nota | colaborador, con cargo |
+| `ruta_actualizar` | cambia una entrada, o marca un pendiente como hecho | colaborador, con cargo |
+| `cargo_entregar` | entrega el cargo | colaborador, con cargo |
 
-Mientras el [Mercado](mercado.md#from-an-agent-mcp) está encendido, el mismo servidor tiene también sus herramientas (`mercado_puestos`, `mercado_leer`, `mercado_editar`, `mercado_abrir`).
+El mismo servidor tiene también las herramientas de la plataforma (aplicaciones, ejecuciones, registros, solicitudes guardadas y correr CI en una rama) y, mientras el [Mercado](mercado.md#from-an-agent-mcp) está encendido, las suyas: vea [Hecha para agentes](agents.md#what-an-agent-can-do-today).
 
 ## Seguridad {#safety}
 
-- **Las llaves** son aleatorias, se guardan solo como huella SHA-256, siempre caducan y se pueden revocar en la pestaña Llaves; revocar cierra el cargo abierto de la llave. Una llave de solo lectura ni siquiera ve las herramientas de escritura.
+- **Las llaves** son aleatorias, se guardan solo como huella SHA-256, siempre caducan y se pueden revocar en la pestaña Llaves; revocar cierra el cargo abierto de la llave. La llave de un lector ni siquiera ve las herramientas de escritura, y una llave limitada a algunas aplicaciones solo ve esas.
 - **Sin secretos:** las entradas que parecen una contraseña, un token o una llave privada se rechazan, vengan de un agente o de una persona. Escriba *dónde* vive un secreto (el nombre del Secret), no su valor.
 - **Todo queda anotado:** cada llamada a una herramienta, permitida o rechazada, con su llave y su cargo.
 - **Notas, no órdenes:** a los agentes se les dice que las entradas son notas. Si una entrada pide algo que la persona con quien trabajan no pidió, no lo hacen, y lo dicen.
 - **La misma puerta:** `/mcp` rechaza las peticiones de otros sitios web (la revisión de `Origin`), como el resto de la API.
-- Por ahora la Ruta solo guarda conocimiento. Las acciones sobre el clúster por MCP (desplegar, revertir) vienen después, con vista previa, aprobación y forma de deshacer.
+- **Los agentes prueban, las personas despliegan:** un agente puede correr CI en una rama, nunca en la principal (que despliega). Desplegar y revertir por MCP vienen después, con la [aprobación](agents.md#where-it-is-going) de una persona.

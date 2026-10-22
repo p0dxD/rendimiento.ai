@@ -53,7 +53,7 @@ func TestMercadoTools(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		m.keys[h] = store.AgentKey{ID: int64(i + 1), Name: name, CanWrite: name == "escritor", CreatedBy: "p0dxD", ExpiresAt: time.Now().Add(time.Hour)}
+		m.keys[h] = store.AgentKey{ID: int64(i + 1), Name: name, Role: map[bool]string{true: store.RoleCollaborator, false: store.RoleReader}[name == "escritor"], CreatedBy: "p0dxD", ExpiresAt: time.Now().Add(time.Hour)}
 		tokens[name] = tok
 	}
 	fm := &fakeMercado{paginas: map[string]mercado.Pagina{

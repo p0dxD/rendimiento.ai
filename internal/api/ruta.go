@@ -167,9 +167,13 @@ func (s *Server) rutaActivity(w http.ResponseWriter, r *http.Request, _ string) 
 
 // NewAgentKey asks for a key.
 type NewAgentKey struct {
-	Name     string `json:"name"`
-	CanWrite bool   `json:"canWrite"`
-	Days     int    `json:"days"` // 1 to 90
+	Name string `json:"name"`
+	// Role is reader or collaborator (admin is reserved for what will need
+	// a person's approval); without it, CanWrite picks one (older clients).
+	Role     string   `json:"role"`
+	CanWrite bool     `json:"canWrite"`
+	Apps     []string `json:"apps"` // empty: every app
+	Days     int      `json:"days"` // 1 to 90
 }
 
 // CreatedAgentKey is the answer: the token appears here once and never again.
@@ -206,17 +210,39 @@ func (s *Server) createAgentKey(w http.ResponseWriter, r *http.Request, login st
 		httpError(w, http.StatusBadRequest, "a key lives 1 to 90 days")
 		return
 	}
+	if in.Role == "" {
+		in.Role = store.RoleReader
+		if in.CanWrite {
+			in.Role = store.RoleCollaborator
+		}
+	}
+	if in.Role != store.RoleReader && in.Role != store.RoleCollaborator {
+		httpError(w, http.StatusBadRequest, "role must be reader or collaborator")
+		return
+	}
+	apps := []string{}
+	for _, a := range in.Apps {
+		a = strings.TrimSpace(a)
+		if a == "" {
+			continue
+		}
+		if _, err := s.Store.GetApp(r.Context(), a); err != nil {
+			httpError(w, http.StatusBadRequest, "no such app: "+a)
+			return
+		}
+		apps = append(apps, a)
+	}
 	token, hash, err := ruta.NewToken()
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	k, err := s.Store.CreateAgentKey(r.Context(), in.Name, hash, in.CanWrite, login, time.Now().Add(time.Duration(in.Days)*24*time.Hour))
+	k, err := s.Store.CreateAgentKey(r.Context(), in.Name, hash, in.Role, apps, login, time.Now().Add(time.Duration(in.Days)*24*time.Hour))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	s.Log.Info("agent key created", "id", k.ID, "name", k.Name, "write", k.CanWrite, "by", login)
+	s.Log.Info("agent key created", "id", k.ID, "name", k.Name, "role", k.Role, "apps", k.Apps, "by", login)
 	writeJSONStatus(w, http.StatusCreated, CreatedAgentKey{Key: k, Token: token, Endpoint: strings.TrimRight(s.BaseURL, "/") + "/mcp"})
 }
 

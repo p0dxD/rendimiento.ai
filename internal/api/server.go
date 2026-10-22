@@ -127,6 +127,7 @@ const sessionCookie = "rendimiento_session"
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { io.WriteString(w, "ok") })
+	mux.HandleFunc("GET /llms.txt", s.llmsTxt)
 
 	// Public endpoints.
 	mux.HandleFunc("POST /api/webhooks/github", s.webhook)
@@ -1439,18 +1440,12 @@ func (s *Server) cancelRun(w http.ResponseWriter, r *http.Request, _ string) {
 	if !ok {
 		return
 	}
-	if !s.Platform.Cancel(id) {
-		run, err := s.Store.GetRun(r.Context(), id)
-		switch {
-		case err == nil && run.Status == store.RunQueued:
-			_ = s.Store.FinishRun(r.Context(), id, store.RunCancelled, "cancelled before it started")
-		case err == nil && run.Status == store.RunRunning:
-			// Running in another process (the CI worker's): ask it to stop.
-			s.Platform.RequestCancel(id)
-		default:
-			httpError(w, http.StatusConflict, "run is not running or already finished")
-			return
-		}
+	if err := s.Platform.CancelRun(r.Context(), id); errors.Is(err, platform.ErrNotCancellable) {
+		httpError(w, http.StatusConflict, "run is not running or already finished")
+		return
+	} else if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 	w.WriteHeader(http.StatusAccepted)
 }

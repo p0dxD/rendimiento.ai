@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -23,14 +24,41 @@ var ErrCargoOpen = errors.New("this key already has an open cargo")
 
 // AgentKey is a bearer token for the MCP endpoint (the token itself is never stored).
 type AgentKey struct {
-	ID         int64      `json:"id"`
-	Name       string     `json:"name"`
-	CanWrite   bool       `json:"canWrite"`
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	CanWrite bool   `json:"canWrite"`
+	// Role is what the key may do (RoleReader, RoleCollaborator, RoleAdmin);
+	// Apps narrows the platform's tools to some apps (empty: all).
+	Role       string     `json:"role"`
+	Apps       []string   `json:"apps"`
 	CreatedBy  string     `json:"createdBy"`
 	CreatedAt  time.Time  `json:"createdAt"`
 	ExpiresAt  time.Time  `json:"expiresAt"`
 	LastUsedAt *time.Time `json:"lastUsedAt,omitempty"`
 	RevokedAt  *time.Time `json:"revokedAt,omitempty"`
+}
+
+// What an agent key may do.
+const (
+	RoleReader       = "reader"       // read the Ruta and the platform
+	RoleCollaborator = "collaborator" // also write the Ruta, run and cancel CI
+	RoleAdmin        = "admin"        // also what needs a person's trust (later: without approval)
+)
+
+// Writes reports whether the key may write (any role above reader).
+func (k AgentKey) Writes() bool { return k.Role == RoleCollaborator || k.Role == RoleAdmin }
+
+// AllowsApp reports whether the key may see and act on an app.
+func (k AgentKey) AllowsApp(app string) bool {
+	if len(k.Apps) == 0 {
+		return true
+	}
+	for _, a := range k.Apps {
+		if strings.EqualFold(a, app) {
+			return true
+		}
+	}
+	return false
 }
 
 // Usable reports whether the key may be used now.
@@ -80,25 +108,34 @@ type AgentAction struct {
 // ---- agent keys ----
 
 // CreateAgentKey stores a new key by its token's hash.
-func (s *Store) CreateAgentKey(ctx context.Context, name, tokenHash string, canWrite bool, createdBy string, expires time.Time) (AgentKey, error) {
-	k := AgentKey{Name: name, CanWrite: canWrite, CreatedBy: createdBy, ExpiresAt: expires}
+func (s *Store) CreateAgentKey(ctx context.Context, name, tokenHash, role string, apps []string, createdBy string, expires time.Time) (AgentKey, error) {
+	if apps == nil {
+		apps = []string{}
+	}
+	k := AgentKey{Name: name, Role: role, Apps: apps, CreatedBy: createdBy, ExpiresAt: expires}
+	k.CanWrite = k.Writes()
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO agent_keys (name, token_hash, can_write, created_by, expires_at)
-		VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at`,
-		name, tokenHash, canWrite, createdBy, expires).Scan(&k.ID, &k.CreatedAt)
+		INSERT INTO agent_keys (name, token_hash, can_write, role, apps, created_by, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, created_at`,
+		name, tokenHash, k.CanWrite, role, apps, createdBy, expires).Scan(&k.ID, &k.CreatedAt)
 	return k, err
 }
 
-const agentKeyCols = `id, name, can_write, created_by, created_at, expires_at, last_used_at, revoked_at`
+const agentKeyCols = `id, name, can_write, role, apps, created_by, created_at, expires_at, last_used_at, revoked_at`
 
 // scanAgentKey reads an agent key row (never the key: only its hash is
 // stored).
 func scanAgentKey(row pgx.Row) (AgentKey, error) {
 	var k AgentKey
-	err := row.Scan(&k.ID, &k.Name, &k.CanWrite, &k.CreatedBy, &k.CreatedAt, &k.ExpiresAt, &k.LastUsedAt, &k.RevokedAt)
+	err := row.Scan(&k.ID, &k.Name, &k.CanWrite, &k.Role, &k.Apps, &k.CreatedBy, &k.CreatedAt, &k.ExpiresAt, &k.LastUsedAt, &k.RevokedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return k, ErrNotFound
 	}
+	// A key the previous version made during an update has only can_write.
+	if k.Role == RoleReader && k.CanWrite {
+		k.Role = RoleCollaborator
+	}
+	k.CanWrite = k.Writes()
 	return k, err
 }
 

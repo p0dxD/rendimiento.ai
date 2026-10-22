@@ -11,7 +11,7 @@ func TestRuta(t *testing.T) {
 	s := open(t)
 	ctx := context.Background()
 
-	k, err := s.CreateAgentKey(ctx, "claude", "hash-1", true, "p0dxD", time.Now().Add(time.Hour))
+	k, err := s.CreateAgentKey(ctx, "claude", "hash-1", RoleCollaborator, nil, "p0dxD", time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatal(err)
 	}

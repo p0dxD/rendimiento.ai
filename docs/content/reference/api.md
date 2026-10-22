@@ -11,6 +11,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | Method | Path | Does |
 |---|---|---|
 | GET | `/healthz` | `ok`; readiness and liveness probes |
+| GET | `/llms.txt` | for AI agents: what the platform is, how to connect over MCP, roles and rules ([Built for agents](../guide/agents.md)) |
 | GET | `/api/public/stats` | aggregate numbers for a public page; only with `PUBLIC_STATS=true`, and only on the internal `STATS_LISTEN` port when that is set ([what it contains](../guide/reliability.md#public-stats)) |
 | GET | `/api/public/activity` | the welcome page's *Right now*: runs queued or running and the 8 latest releases, by app name and time only (no repositories, commits, branches or messages); only with `PUBLIC_ACTIVITY=true` |
 | POST | `/api/webhooks/github` | GitHub App webhooks (push, pull request, installation), verified by HMAC |
@@ -49,7 +50,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | POST | `/api/ruta/{id}/archive` | hide an entry from lists |
 | GET | `/api/ruta/activity` | agents' cargos and their latest tool calls |
 | GET | `/api/agent-keys` | agent keys (never the tokens) |
-| POST | `/api/agent-keys` | create an agent key; the token is in this answer only |
+| POST | `/api/agent-keys` | create an agent key (`name`, `role`: `reader` or `collaborator`, `apps`: empty for all, `days`); the token is in this answer only |
 | DELETE | `/api/agent-keys/{id}` | revoke an agent key |
 | POST | `/api/notifications/test` | send a sample notification email now (the Environment page's button) |
 | POST | `/api/dns/sync` | re-create every app's DNS records now |

@@ -14,6 +14,16 @@ import (
 
 // archivedLog reads a step log from the log archive, or explains why it
 // cannot: expired by the retention rule, or the archive is unreachable.
+// StepLogText is a step's whole log, from the database or, once archived,
+// from object storage (for the agents' paso_registro).
+func (s *Server) StepLogText(ctx context.Context, runID int64, step string) (string, error) {
+	log, ref, err := s.Store.StepLog(ctx, runID, step)
+	if err != nil || ref == "" {
+		return log, err
+	}
+	return s.archivedLog(ctx, ref), nil
+}
+
 func (s *Server) archivedLog(ctx context.Context, ref string) string {
 	if s.Logs == nil {
 		return fmt.Sprintf("rendimiento: this log was archived to %s, but the log archive is not configured on this platform (LOG_ARCHIVE_ENDPOINT).\n", ref)

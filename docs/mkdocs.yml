@@ -91,6 +91,7 @@ plugins:
             Problems (what went wrong in the platform): Problemas (lo que salió mal en la plataforma)
             Visits (Umami): Visitas (Umami)
             The Mercado (pages without code): El Mercado (páginas sin código)
+            Built for agents (roles, tools, where it is going): Hecha para agentes (funciones, herramientas, hacia dónde va)
             La Ruta (memory for people and agents, over MCP): La Ruta (la memoria de personas y agentes, por MCP)
             Languages (English, Spanish): Idiomas (inglés y español)
             Needs and the services catalog: Necesidades y catálogo de servicios
@@ -179,6 +180,7 @@ nav:
       - The Mercado (pages without code): guide/mercado.md
       - Notifications (email): guide/notifications.md
       - Problems (what went wrong in the platform): guide/problems.md
+      - Built for agents (roles, tools, where it is going): guide/agents.md
       - La Ruta (memory for people and agents, over MCP): guide/ruta.md
       - Languages (English, Spanish): guide/languages.md
       - Needs and the services catalog: guide/needs.md
