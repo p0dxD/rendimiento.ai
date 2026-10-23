@@ -15,6 +15,11 @@ import (
 // 5-second election timeout the limit is 15 seconds (5 + 2 × 5); one etcd
 // never holds an election anyway.
 //
+// Even so, writes still timed out now and then (runs 612 and 681): the
+// wait was etcd's fsync on a busy worker's disk. A test's etcd is thrown
+// away at the end, so it does not sync to disk at all (unsafe-no-fsync):
+// writes no longer wait for the disk.
+//
 // Starting also gets longer than envtest's 20 seconds: with several builds
 // on the same worker, etcd sometimes took longer than that to answer and the
 // test failed with "timeout waiting for process etcd to start".
@@ -22,7 +27,8 @@ func New(crdDirs ...string) *envtest.Environment {
 	etcd := &envtest.Etcd{}
 	etcd.Configure().
 		Set("election-timeout", "5000").
-		Set("heartbeat-interval", "500")
+		Set("heartbeat-interval", "500").
+		Set("unsafe-no-fsync", "true")
 	return &envtest.Environment{
 		CRDDirectoryPaths:     crdDirs,
 		ErrorIfCRDPathMissing: true,
