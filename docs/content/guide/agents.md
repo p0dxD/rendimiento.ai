@@ -58,6 +58,7 @@ Everything that happens to an encargo is in its **history**. For now an encargo 
 Some agents don't wait for a person's session: they run inside the platform (the `rendimiento-agents` service, `ROLE=agents`) and wake on what happens in it. Each asks the organization's model through the [AI gateway](ai.md), so it stays within the organization's caps, and falls back to the local model.
 
 - **The diagnostician.** When a run fails, it reads the failed steps, the end of their logs and the files changed since the branch's last good run, and writes **Why did it fail?** on the run's page: the most likely cause, quoting the log line, and how to fix it. Lines that look like secrets never leave the platform. An organization turns it off on its AI page; a collaborator asks for an explanation (again) on any failed run. **Ask an agent** then carries the explanation into the encargo.
+- **It learns from you.** Under each explanation, **Useful** or **Not useful…** with the real cause and fix. Either answer becomes a **known failure** in the Ruta (a manual tagged `falla-conocida` and the app, with the telling log line). Before answering, the diagnostician looks for known failures sharing words with the new failure's error lines and gives them to the model first, so a small local model answers like someone who has seen it before.
 
 Only one copy of the agents works at a time (a lock in Postgres), so nothing is done twice during an update.
 

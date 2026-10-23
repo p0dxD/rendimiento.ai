@@ -26,13 +26,21 @@ type Diagnosis struct {
 	Note       string    `json:"note,omitempty"`
 	AskedBy    string    `json:"askedBy,omitempty"`
 	UpdatedAt  time.Time `json:"updatedAt"`
+	// Signature is the failure's telling log line; Feedback what a person
+	// said of the answer (useful, wrong), and RutaEntry the known failure
+	// it became in the Ruta.
+	Signature  string `json:"signature,omitempty"`
+	Feedback   string `json:"feedback,omitempty"`
+	FeedbackBy string `json:"feedbackBy,omitempty"`
+	RutaEntry  *int64 `json:"rutaEntry,omitempty"`
 }
 
 // GetDiagnosis is a run's diagnosis (ErrNotFound when there is none).
 func (s *Store) GetDiagnosis(ctx context.Context, runID int64) (Diagnosis, error) {
 	d := Diagnosis{RunID: runID}
-	err := s.pool.QueryRow(ctx, `SELECT status, text, provider, model, cost_micros, note, asked_by, updated_at FROM run_diagnoses WHERE run_id = $1`, runID).
-		Scan(&d.Status, &d.Text, &d.Provider, &d.Model, &d.CostMicros, &d.Note, &d.AskedBy, &d.UpdatedAt)
+	err := s.pool.QueryRow(ctx, `SELECT status, text, provider, model, cost_micros, note, asked_by, updated_at, signature, feedback, feedback_by, ruta_entry
+		FROM run_diagnoses WHERE run_id = $1`, runID).
+		Scan(&d.Status, &d.Text, &d.Provider, &d.Model, &d.CostMicros, &d.Note, &d.AskedBy, &d.UpdatedAt, &d.Signature, &d.Feedback, &d.FeedbackBy, &d.RutaEntry)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return d, ErrNotFound
 	}
@@ -49,10 +57,11 @@ func (s *Store) AskDiagnosis(ctx context.Context, runID int64, by string) error 
 
 // SaveDiagnosis keeps the agent's answer.
 func (s *Store) SaveDiagnosis(ctx context.Context, d Diagnosis) error {
-	_, err := s.pool.Exec(ctx, `INSERT INTO run_diagnoses (run_id, status, text, provider, model, cost_micros, note, asked_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		ON CONFLICT (run_id) DO UPDATE SET status = $2, text = $3, provider = $4, model = $5, cost_micros = $6, note = $7, updated_at = now()`,
-		d.RunID, d.Status, d.Text, d.Provider, d.Model, d.CostMicros, d.Note, d.AskedBy)
+	_, err := s.pool.Exec(ctx, `INSERT INTO run_diagnoses (run_id, status, text, provider, model, cost_micros, note, asked_by, signature)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (run_id) DO UPDATE SET status = $2, text = $3, provider = $4, model = $5, cost_micros = $6, note = $7, signature = $9,
+		  feedback = '', feedback_by = '', updated_at = now()`,
+		d.RunID, d.Status, d.Text, d.Provider, d.Model, d.CostMicros, d.Note, d.AskedBy, d.Signature)
 	return err
 }
 
@@ -95,4 +104,14 @@ func (s *Store) LastGoodSHA(ctx context.Context, appID int64, branch string, bef
 		return "", ErrNotFound
 	}
 	return sha, err
+}
+
+// SetDiagnosisFeedback keeps what a person said of a diagnosis, and the
+// known failure it became in the Ruta.
+func (s *Store) SetDiagnosisFeedback(ctx context.Context, runID int64, feedback, by string, entry int64) error {
+	tag, err := s.pool.Exec(ctx, `UPDATE run_diagnoses SET feedback = $2, feedback_by = $3, ruta_entry = $4 WHERE run_id = $1`, runID, feedback, by, entry)
+	if err == nil && tag.RowsAffected() == 0 {
+		err = ErrNotFound
+	}
+	return err
 }

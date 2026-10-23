@@ -160,8 +160,59 @@ function WhyFailed({ run, d, setD }: { run: Run; d: Diagnosis | null | undefined
       {d?.status === "pending" && <p className="muted small">{t("The diagnostician agent is reading the logs…")}</p>}
       {d?.status === "done" && <p style={{ whiteSpace: "pre-wrap", margin: "8px 0" }}>{d.text}</p>}
       {d?.status === "failed" && <p className="small">{t("It could not explain it: {why}", { why: d.note ?? "" })}</p>}
+      {d?.status === "done" && <Judge run={run} d={d} setD={setD} />}
       {d && d.status !== "pending" && d.model && (
         <p className="small muted" style={{ margin: 0 }}>{t("By the diagnostician agent")} · {d.model} · {dollars(d.costMicros)} · {timeAgo(d.updatedAt)}{d.note && d.status === "done" && <> · {d.note}</>}</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Did the explanation help? Either answer becomes a known failure in the
+ * Ruta, which the diagnostician reads next time a failure looks alike: that
+ * is how it learns.
+ */
+function Judge({ run, d, setD }: { run: Run; d: Diagnosis; setD: (d: Diagnosis) => void }) {
+  const [wrong, setWrong] = useState(false);
+  const [cause, setCause] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (session.role === "guest") return null;
+  const send = (useful: boolean) => {
+    setBusy(true);
+    api.judgeDiagnosis(run.id, useful, cause.trim()).then((r) => {
+      setBusy(false); setWrong(false);
+      setD({ ...d, feedback: useful ? "useful" : "wrong", feedbackBy: session.role, rutaEntry: r.rutaEntry });
+    }, (e) => { setBusy(false); alert(e.message); });
+  };
+  if (d.feedback && !wrong) {
+    return (
+      <p className="small judge">
+        {d.feedback === "useful" ? t("Marked useful.") : t("Corrected.")}{" "}
+        {d.rutaEntry && <Link to="/ruta">{t("Kept in the Ruta as a known failure (#{n}): the diagnostician reads it next time.", { n: d.rutaEntry })}</Link>}{" "}
+        <button className="link small" onClick={() => setWrong(true)}>{t("Change")}</button>
+      </p>
+    );
+  }
+  return (
+    <div className="judge stack">
+      {!wrong ? (
+        <div className="row" style={{ gap: 8 }}>
+          <span className="small muted">{t("Did it help?")}</span>
+          <button className="small" disabled={busy} onClick={() => send(true)}>{t("Useful")}</button>
+          <button className="small" disabled={busy} onClick={() => setWrong(true)}>{t("Not useful…")}</button>
+        </div>
+      ) : (
+        <>
+          <label className="field"><span>{t("What was the real cause, and the fix?")}</span>
+            <textarea rows={3} value={cause} maxLength={4000} onChange={(e) => setCause(e.target.value)}
+              placeholder={t("e.g. The test's etcd is slow on a busy node: it is transient, run it again. Fixed for good with unsafe-no-fsync.")} />
+          </label>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="primary small" disabled={busy || !cause.trim()} onClick={() => send(false)}>{t("Teach the diagnostician")}</button>
+            <button className="link small" onClick={() => setWrong(false)}>{t("Cancel")}</button>
+          </div>
+        </>
       )}
     </div>
   );

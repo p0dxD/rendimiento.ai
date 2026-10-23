@@ -304,6 +304,10 @@ export interface Diagnosis {
   note?: string;
   askedBy?: string;
   updatedAt: string;
+  signature?: string;
+  feedback?: "useful" | "wrong" | "";
+  feedbackBy?: string;
+  rutaEntry?: number;
 }
 
 export interface AIUsage {
@@ -658,6 +662,8 @@ export const api = {
   ia: () => request<IAView>("GET", "/api/ia"),
   diagnosis: (run: number) => request<Diagnosis>("GET", `/api/runs/${run}/diagnosis`),
   askDiagnosis: (run: number) => request<void>("POST", `/api/runs/${run}/diagnosis`),
+  judgeDiagnosis: (run: number, useful: boolean, cause = "") =>
+    request<{ feedback: string; rutaEntry: number }>("POST", `/api/runs/${run}/diagnosis/feedback`, { useful, cause }),
   saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean; autoDiagnose?: boolean }) =>
     request<IAView>("PUT", "/api/ia", v),
   testIA: (prompt: string) => request<IAAnswer>("POST", "/api/ia/test", { prompt }),

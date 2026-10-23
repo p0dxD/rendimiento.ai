@@ -16,6 +16,14 @@ import (
 type fakeStore struct {
 	runs  map[int64]*store.Run
 	saved map[int64]store.Diagnosis
+	ruta  []store.RutaEntry
+}
+
+func (f *fakeStore) SearchRuta(_ context.Context, _ int64, _, text string, _ int) ([]store.RutaEntry, error) {
+	if text != KnownTag {
+		return nil, fmt.Errorf("searched %q", text)
+	}
+	return f.ruta, nil
 }
 
 func (f *fakeStore) RunsToDiagnose(context.Context, time.Time, int) ([]int64, error) {
@@ -113,5 +121,32 @@ func TestDiagnose(t *testing.T) {
 	}
 	if err := d.Diagnose(context.Background(), 8); err != nil || st.saved[8].Status != store.DiagnosisFailed {
 		t.Fatalf("a run that did not fail: %+v %v", st.saved[8], err)
+	}
+}
+
+// The diagnostician keeps the failure's telling line, and passes the model
+// the known failures of the Ruta that look alike (not the others).
+func TestKnownFailures(t *testing.T) {
+	st := &fakeStore{saved: map[int64]store.Diagnosis{}, runs: map[int64]*store.Run{
+		7: {ID: 7, AppID: 1, Branch: "main", SHA: "badsha5678", Status: store.RunFailed,
+			Steps: []store.Step{{ID: "platform:test", Kind: "test", Status: "failed", Message: "step exited with code 1"}}},
+	}, ruta: []store.RutaEntry{
+		{Title: "Falla conocida: etcdserver: request timed out", Body: "El etcd de envtest tarda en nodos ocupados: es transitorio; vuelva a correr.", Tags: []string{KnownTag, "rendimiento-ai"}},
+		{Title: "Falla conocida: npm ERR! peer dependency", Body: "Fije la versión.", Tags: []string{KnownTag, "secplus"}},
+	}}
+	m := &fakeModel{}
+	d := &Diagnostician{Store: st, Model: m, Lang: "es", Log: slog.Default(),
+		Logs: func(context.Context, int64, string) (string, error) {
+			return "=== RUN   TestAppLifecycle\n    app_controller_test.go:124: etcdserver: request timed out\n--- FAIL: TestAppLifecycle (16.55s)\nrendimiento: step failed\n", nil
+		}}
+	if err := d.Diagnose(context.Background(), 7); err != nil {
+		t.Fatal(err)
+	}
+	if sig := st.saved[7].Signature; sig != "app_controller_test.go:124: etcdserver: request timed out" {
+		t.Fatalf("signature = %q", sig)
+	}
+	ctx := m.asked[0].Messages[0].Content
+	if !strings.Contains(ctx, "vuelva a correr") || strings.Contains(ctx, "peer dependency") {
+		t.Fatalf("known failures in the context:\n%s", ctx)
 	}
 }
