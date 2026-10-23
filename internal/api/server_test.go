@@ -966,3 +966,58 @@ func TestIAAPI(t *testing.T) {
 		t.Fatalf("operator's view: %s", body)
 	}
 }
+
+// Judging a diagnosis teaches the diagnostician: a correction needs the
+// real cause, and either answer becomes one known failure in the Ruta
+// (judging again updates it).
+func TestDiagnosisFeedback(t *testing.T) {
+	e := newEnv(t, false)
+	ctx := context.Background()
+	sp := spec.Spec{Services: []spec.Service{{Name: "web"}}}
+	sp.Default()
+	app := &store.App{Name: "tienda", Repo: "p0dxD/tienda", DefaultBranch: "main", Spec: sp}
+	if err := e.store.CreateApp(ctx, app); err != nil {
+		t.Fatal(err)
+	}
+	run := &store.Run{AppID: app.ID, SHA: "abc123def", Branch: "main", Event: "push"}
+	if err := e.store.CreateRun(ctx, run, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.store.FinishRun(ctx, run.ID, store.RunFailed, "web:test failed"); err != nil {
+		t.Fatal(err)
+	}
+	me := e.session(t, "p0dxD")
+	path := fmt.Sprintf("/api/runs/%d/diagnosis/feedback", run.ID)
+	if r, _ := e.do(t, "POST", path, `{"useful":true}`, me, nil); r.StatusCode != 409 {
+		t.Fatalf("nothing to judge yet: %d", r.StatusCode)
+	}
+	if err := e.store.SaveDiagnosis(ctx, store.Diagnosis{RunID: run.ID, Status: store.DiagnosisDone, Text: "Revise las credenciales de etcd.",
+		Signature: "app_controller_test.go:124: etcdserver: request timed out"}); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := e.do(t, "POST", path, `{"useful":false}`, me, nil); r.StatusCode != 400 {
+		t.Fatalf("a correction without the cause: %d", r.StatusCode)
+	}
+	r, body := e.do(t, "POST", path, `{"useful":false,"cause":"El etcd de la prueba se tarda en un nodo ocupado: vuelva a correrla."}`, me, nil)
+	if r.StatusCode != 200 {
+		t.Fatalf("correct: %d %s", r.StatusCode, body)
+	}
+	d, _ := e.store.GetDiagnosis(ctx, run.ID)
+	if d.Feedback != "wrong" || d.RutaEntry == nil {
+		t.Fatalf("diagnosis after: %+v", d)
+	}
+	entry, err := e.store.Ruta(ctx, *d.RutaEntry)
+	if err != nil || !strings.HasPrefix(entry.Title, "Falla conocida: app_controller_test.go:124") || !slices.Contains(entry.Tags, "falla-conocida") ||
+		!slices.Contains(entry.Tags, "tienda") || !strings.Contains(entry.Body, "vuelva a correrla") || !strings.Contains(entry.Body, "no sirvió") {
+		t.Fatalf("known failure: %+v %v", entry, err)
+	}
+	if r, _ := e.do(t, "POST", path, `{"useful":true}`, me, nil); r.StatusCode != 200 {
+		t.Fatalf("judge again: %d", r.StatusCode)
+	}
+	if d2, _ := e.store.GetDiagnosis(ctx, run.ID); d2.Feedback != "useful" || *d2.RutaEntry != *d.RutaEntry {
+		t.Fatalf("judging again updates the same entry: %+v", d2)
+	}
+	if list, _ := e.store.SearchRuta(ctx, store.DefaultOrg, "", "falla-conocida", 10); len(list) != 1 {
+		t.Fatalf("known failures: %d", len(list))
+	}
+}

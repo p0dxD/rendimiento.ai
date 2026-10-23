@@ -62,6 +62,7 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | GET | `/api/ia/orgs` | la asignación de cada organización de la IA de la plataforma, su gasto y la cuenta de la plataforma; operadores |
 | PUT | `/api/ia/orgs/{id}/allowance` | la asignación mensual de una organización de la IA de la plataforma (`dollars`); operadores |
 | GET | `/api/members` | las personas de la organización y sus funciones |
+| POST | `/api/runs/{id}/diagnosis/feedback` | calificar la explicación de una ejecución (`useful`, o `cause` cuando no sirvió): se vuelve una falla conocida en la Ruta que lee el diagnosticador; colaboradores |
 | PUT | `/api/members/{login}` | agrega a una persona por su cuenta de GitHub, o cambia su función (`role`: `guest`, `collaborator`, `admin`); solo administradores |
 | DELETE | `/api/members/{login}` | quita a una persona; el último administrador se queda |
 | GET | `/api/encargos` | los encargos abiertos (`?all=1`: también los revisados y descartados) |

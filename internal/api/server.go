@@ -254,6 +254,7 @@ func (s *Server) Handler() http.Handler {
 	auth(store.MemberGuest, "GET /api/runs/{id}/events", s.runEvents)
 	auth(store.MemberGuest, "GET /api/runs/{id}/diagnosis", s.getDiagnosis)
 	auth(store.MemberCollaborator, "POST /api/runs/{id}/diagnosis", s.askDiagnosis)
+	auth(store.MemberCollaborator, "POST /api/runs/{id}/diagnosis/feedback", s.diagnosisFeedback)
 
 	mux.Handle("/", s.ui())
 	if s.MCP == nil {

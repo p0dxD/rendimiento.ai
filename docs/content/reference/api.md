@@ -61,6 +61,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/ia/orgs` | every organization's allowance of the platform's AI and spending, and the platform's bill; operators |
 | PUT | `/api/ia/orgs/{id}/allowance` | an organization's monthly allowance of the platform's AI (`dollars`); operators |
 | GET | `/api/members` | the organization's people and their roles |
+| POST | `/api/runs/{id}/diagnosis/feedback` | judge a run's explanation (`useful`, or `cause` when it was wrong): it becomes a known failure in the Ruta the diagnostician reads; collaborators |
 | PUT | `/api/members/{login}` | add a person by GitHub login, or change their role (`role`: `guest`, `collaborator`, `admin`); administrators only |
 | DELETE | `/api/members/{login}` | remove a person; the last administrator stays |
 | GET | `/api/encargos` | open encargos (`?all=1`: also reviewed and dropped) |
