@@ -27,10 +27,12 @@ type AISettings struct {
 	// CapMicros is the organization's monthly cap, in millionths of a
 	// dollar; AllowanceMicros what the operator lets it spend of the
 	// platform's key.
-	CapMicros       int64     `json:"capMicros"`
-	AllowanceMicros int64     `json:"allowanceMicros"`
-	UpdatedBy       string    `json:"updatedBy,omitempty"`
-	UpdatedAt       time.Time `json:"updatedAt"`
+	CapMicros       int64 `json:"capMicros"`
+	AllowanceMicros int64 `json:"allowanceMicros"`
+	// AutoDiagnose: the diagnostician agent explains every failed run.
+	AutoDiagnose bool      `json:"autoDiagnose"`
+	UpdatedBy    string    `json:"updatedBy,omitempty"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
 // AIUsage is one measured call to a model.
@@ -52,10 +54,10 @@ type AIUsage struct {
 // none yet: the local model, a $1 cap, no allowance).
 func (s *Store) AISettingsOf(ctx context.Context, orgID int64) (AISettings, error) {
 	a := AISettings{OrgID: orgID}
-	err := s.pool.QueryRow(ctx, `SELECT provider, kind, base_url, model, cap_micros, allowance_micros, updated_by, updated_at
-		FROM ai_settings WHERE org_id = $1`, orgID).Scan(&a.Provider, &a.Kind, &a.BaseURL, &a.Model, &a.CapMicros, &a.AllowanceMicros, &a.UpdatedBy, &a.UpdatedAt)
+	err := s.pool.QueryRow(ctx, `SELECT provider, kind, base_url, model, cap_micros, allowance_micros, auto_diagnose, updated_by, updated_at
+		FROM ai_settings WHERE org_id = $1`, orgID).Scan(&a.Provider, &a.Kind, &a.BaseURL, &a.Model, &a.CapMicros, &a.AllowanceMicros, &a.AutoDiagnose, &a.UpdatedBy, &a.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return AISettings{OrgID: orgID, Provider: AILocal, CapMicros: 1_000_000}, nil
+		return AISettings{OrgID: orgID, Provider: AILocal, CapMicros: 1_000_000, AutoDiagnose: true}, nil
 	}
 	return a, err
 }

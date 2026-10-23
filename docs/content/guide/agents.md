@@ -53,6 +53,14 @@ Everything that happens to an encargo is in its **history**. For now an encargo 
 
 `https://<your rendimiento>/llms.txt` describes all this for an agent that finds the platform on its own.
 
+## Agents inside the platform {#agents-inside-the-platform}
+
+Some agents don't wait for a person's session: they run inside the platform (the `rendimiento-agents` service, `ROLE=agents`) and wake on what happens in it. Each asks the organization's model through the [AI gateway](ai.md), so it stays within the organization's caps, and falls back to the local model.
+
+- **The diagnostician.** When a run fails, it reads the failed steps, the end of their logs and the files changed since the branch's last good run, and writes **Why did it fail?** on the run's page: the most likely cause, quoting the log line, and how to fix it. Lines that look like secrets never leave the platform. An organization turns it off on its AI page; a collaborator asks for an explanation (again) on any failed run. **Ask an agent** then carries the explanation into the encargo.
+
+Only one copy of the agents works at a time (a lock in Postgres), so nothing is done twice during an update.
+
 ## Where it is going {#where-it-is-going}
 
 In this order, each built on the one before:
@@ -61,5 +69,5 @@ In this order, each built on the one before:
 2. **Encargos** (above): done for runs. Waiting on a merged pull request or a person's approval comes with step 3.
 3. **Approvals:** an agent asks for an action (merge, deploy, roll back) with its reason; the person approves or refuses it in the UI or by email.
 4. **Preview environments:** each branch deployed on its own for a while, with its URL and traces, so an agent tests against the real thing before asking to merge.
-5. **Agents inside the platform:** woken by events (a failed build, a rollback) to diagnose and propose a fix, on the local model first and a hosted one within a **monthly spending cap** set by the person.
+5. **Agents inside the platform** (above): the diagnostician is the first. Next, agents that take encargos and fix code on a branch, which need a strong model, a sandbox with the code, and a spending cap set by the person.
 6. **AI in the product:** *why did this fail?* on every failed run, search by meaning in the Ruta, and each agent session as a trace.

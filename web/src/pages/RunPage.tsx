@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, duration, subscribe, timeAgo, type Run } from "../api";
+import { api, dollars, duration, session, subscribe, timeAgo, type Diagnosis, type Run } from "../api";
 import { ErrorBox, PipelineGraph, RunBadge } from "../components/ui";
 import { t } from "../i18n";
 
@@ -12,6 +12,7 @@ export function RunPage() {
   const [error, setError] = useState<unknown>();
   const [selected, setSelected] = useState<string>();
   const [logs, setLogs] = useState<Record<string, string>>({});
+  const [diagnosis, setDiagnosis] = useState<Diagnosis | null>();
   const logRef = useRef<HTMLPreElement>(null);
   const follow = useRef(true);
 
@@ -56,7 +57,7 @@ export function RunPage() {
         {(run.status === "running" || run.status === "queued") && (
           <button className="danger" onClick={() => api.cancelRun(run.id).catch((e) => alert(e.message))}>{t("Cancel")}</button>
         )}
-        {run.status === "failed" && <AskAgent run={run} app={name} />}
+        {run.status === "failed" && <AskAgent run={run} app={name} diagnosis={diagnosis?.status === "done" ? diagnosis.text : undefined} />}
       </div>
       <p className="sub">
         <span className="mono">{run.sha.slice(0, 7)}</span> {t("on")} <strong>{run.branch}</strong> · {t(run.event)}
@@ -64,6 +65,8 @@ export function RunPage() {
         {run.startedAt && ` · ${duration(run.startedAt, run.finishedAt)}`}
         {run.message && ` · ${run.message}`}
       </p>
+
+      {run.status === "failed" && <WhyFailed run={run} d={diagnosis} setD={setDiagnosis} />}
 
       {run.steps?.length ? (
         <div className="card">
@@ -111,7 +114,7 @@ function formatLog(s?: string) {
  * On a failed run: hand it to agents as an encargo, with the failed steps
  * and the run's message as its detail, then go to the encargos.
  */
-function AskAgent({ run, app }: { run: Run; app: string }) {
+function AskAgent({ run, app, diagnosis }: { run: Run; app: string; diagnosis?: string }) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const failed = run.steps?.filter((s) => s.status === "failed") ?? [];
@@ -119,6 +122,7 @@ function AskAgent({ run, app }: { run: Run; app: string }) {
     t("Run #{n} of {app} failed on {branch} ({sha}).", { n: run.id, app, branch: run.branch, sha: run.sha.slice(0, 7) }),
     ...failed.map((s) => `- ${s.id}: ${s.message || t("failed")}`),
     run.message && !failed.length ? run.message : "",
+    diagnosis ? t("The diagnostician's explanation:") + "\n" + diagnosis : "",
     t("Find out why (ejecucion_leer, paso_registro), fix it on a branch, test it there and hand it over with the link."),
   ].filter(Boolean).join("\n");
   return (
@@ -127,5 +131,38 @@ function AskAgent({ run, app }: { run: Run; app: string }) {
       api.createEncargo({ title: t("Fix run #{n} of {app}", { n: run.id, app }), body, app, runId: run.id })
         .then(() => navigate("/ruta?tab=encargos"), (e) => { setBusy(false); alert(e.message); });
     }}>{t("Ask an agent")}</button>
+  );
+}
+
+/**
+ * «Why did it fail?»: the diagnostician agent's explanation of a failed
+ * run, kept fresh while it works; a collaborator asks for it (again).
+ */
+function WhyFailed({ run, d, setD }: { run: Run; d: Diagnosis | null | undefined; setD: (d: Diagnosis | null) => void }) {
+  const [asking, setAsking] = useState(false);
+  useEffect(() => {
+    let live = true;
+    const load = () => api.diagnosis(run.id).then((x) => live && setD(x), () => live && setD(null));
+    load();
+    const every = setInterval(load, 8000);
+    return () => { live = false; clearInterval(every); };
+  }, [run.id, setD]);
+  const ask = () => { setAsking(true); api.askDiagnosis(run.id).then(() => { setAsking(false); setD({ runId: run.id, status: "pending", costMicros: 0, updatedAt: new Date().toISOString() }); }, (e) => { setAsking(false); alert(e.message); }); };
+  const canAsk = session.role !== "guest";
+  return (
+    <div className="card why-failed">
+      <div className="row between">
+        <h2 style={{ margin: 0 }}>{t("Why did it fail?")}</h2>
+        {canAsk && d?.status !== "pending" && <button className="link small" disabled={asking} onClick={ask}>{d ? t("Explain again") : t("Explain")}</button>}
+      </div>
+      {d === undefined && <p className="muted small">{t("Loading…")}</p>}
+      {d === null && <p className="muted small">{t("No explanation yet. If automatic diagnosis is on (AI page), the diagnostician agent writes one within a minute of the failure.")}</p>}
+      {d?.status === "pending" && <p className="muted small">{t("The diagnostician agent is reading the logs…")}</p>}
+      {d?.status === "done" && <p style={{ whiteSpace: "pre-wrap", margin: "8px 0" }}>{d.text}</p>}
+      {d?.status === "failed" && <p className="small">{t("It could not explain it: {why}", { why: d.note ?? "" })}</p>}
+      {d && d.status !== "pending" && d.model && (
+        <p className="small muted" style={{ margin: 0 }}>{t("By the diagnostician agent")} · {d.model} · {dollars(d.costMicros)} · {timeAgo(d.updatedAt)}{d.note && d.status === "done" && <> · {d.note}</>}</p>
+      )}
+    </div>
   );
 }

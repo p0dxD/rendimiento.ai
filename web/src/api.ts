@@ -289,7 +289,21 @@ export interface AISettings {
   model?: string;
   capMicros: number;
   allowanceMicros: number;
+  autoDiagnose: boolean;
   updatedBy?: string;
+}
+
+// The diagnostician agent's explanation of a failed run (internal/store.Diagnosis).
+export interface Diagnosis {
+  runId: number;
+  status: "pending" | "done" | "failed";
+  text?: string;
+  provider?: AIProvider;
+  model?: string;
+  costMicros: number;
+  note?: string;
+  askedBy?: string;
+  updatedAt: string;
 }
 
 export interface AIUsage {
@@ -642,7 +656,9 @@ export const api = {
   switchOrg: (id: number) => request<void>("POST", `/api/orgs/${id}/switch`),
   members: () => request<Member[]>("GET", "/api/members"),
   ia: () => request<IAView>("GET", "/api/ia"),
-  saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean }) =>
+  diagnosis: (run: number) => request<Diagnosis>("GET", `/api/runs/${run}/diagnosis`),
+  askDiagnosis: (run: number) => request<void>("POST", `/api/runs/${run}/diagnosis`),
+  saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean; autoDiagnose?: boolean }) =>
     request<IAView>("PUT", "/api/ia", v),
   testIA: (prompt: string) => request<IAAnswer>("POST", "/api/ia/test", { prompt }),
   iaOrgs: () => request<IAOrgs>("GET", "/api/ia/orgs"),

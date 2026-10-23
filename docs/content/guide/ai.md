@@ -1,6 +1,6 @@
 # AI: the gateway, providers and caps
 
-Every call the platform makes to a model goes through one **gateway** (`internal/ia`): the agents that will work inside the platform, and the explanations of what failed. It decides which model answers for each organization, keeps everyone under their monthly caps, and records every call.
+Every call the platform makes to a model goes through one **gateway** (`internal/ia`): the [agents inside the platform](agents.md#agents-inside-the-platform), such as the diagnostician that explains failed runs. It decides which model answers for each organization, keeps everyone under their monthly caps, and records every call.
 
 ## Who answers {#who-answers}
 

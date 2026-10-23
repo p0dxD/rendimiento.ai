@@ -52,6 +52,7 @@ La misma imagen corre como cuatro Deployments, elegidos por el ajuste `ROLE`, as
 | `api` | `rendimiento` (2 réplicas) | la interfaz, la API, los avisos web, MCP, las estadísticas públicas | nada: todas las réplicas atienden |
 | `control` | `rendimiento-control` | los controladores de App y Addon, Renovate, la sincronización de complementos, el sondeo de disponibilidad, la verificación de versiones, el archivo de registros, el DNS dinámico | el arrendamiento de líder |
 | `worker` | `rendimiento-worker` | la cola de CI: pods de construcción y de pruebas, despliegues | el candado de la cola en Postgres |
+| `agents` | `rendimiento-agents` | los agentes dentro de la plataforma: el [diagnosticador](../guide/agents.md#agents-inside-the-platform) explica cada ejecución que falla por la pasarela de IA | el candado de los agentes en Postgres |
 | `traces` | `rendimiento-traces` | recibe cada tramo del colector de OpenTelemetry y guarda solicitudes completas para la [cascada](../guide/universe.md#following-one-request) del universo | una réplica (los tramos de una solicitud esperan en su memoria) |
 
 `ROLE=all` (el valor predeterminado) corre todo en un proceso, como en una computadora personal. Los servicios no comparten nada más que Postgres y Kubernetes:

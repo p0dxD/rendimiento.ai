@@ -81,6 +81,9 @@ type IAInput struct {
 	// deletes it.
 	Key       string `json:"key"`
 	RemoveKey bool   `json:"removeKey"`
+	// AutoDiagnose turns the diagnostician's explanations of failed runs on
+	// or off (nil: unchanged).
+	AutoDiagnose *bool `json:"autoDiagnose"`
 }
 
 // micros turns dollars into millionths of a dollar.
@@ -143,6 +146,12 @@ func (s *Server) putIA(w http.ResponseWriter, r *http.Request, login string) {
 		Model: in.Model, CapMicros: micros(in.CapDollar)}, login); err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if in.AutoDiagnose != nil {
+		if err := s.Store.SetAutoDiagnose(ctx, org, *in.AutoDiagnose, login); err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
 	s.Log.Info("AI settings saved", "org", org, "provider", in.Provider, "kind", in.Kind, "keyChanged", in.Key != "" || in.RemoveKey, "by", login)
 	s.iaView(w, r, login)

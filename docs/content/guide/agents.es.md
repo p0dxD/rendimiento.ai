@@ -53,6 +53,14 @@ Todo lo que le pasa a un encargo queda en su **historia**. Por ahora un encargo 
 
 `https://<su rendimiento>/llms.txt` describe todo esto para un agente que encuentre la plataforma por su cuenta.
 
+## Agentes dentro de la plataforma {#agents-inside-the-platform}
+
+Algunos agentes no esperan la sesión de una persona: corren dentro de la plataforma (el servicio `rendimiento-agents`, `ROLE=agents`) y despiertan con lo que pasa en ella. Cada uno le pregunta al modelo de la organización por la [pasarela de IA](ai.md), así que se queda dentro de los topes de la organización y cae al modelo local.
+
+- **El diagnosticador.** Cuando una ejecución falla, lee los pasos que fallaron, el final de sus registros y los archivos que cambiaron desde la última ejecución buena de la rama, y escribe **¿Por qué falló?** en la página de la ejecución: la causa más probable, citando la línea del registro, y cómo arreglarlo. Las líneas que parecen secretos nunca salen de la plataforma. Una organización lo apaga en su página IA; un colaborador pide una explicación (de nuevo) en cualquier ejecución que falló. **Pedírselo a un agente** lleva después la explicación al encargo.
+
+Solo trabaja una copia de los agentes a la vez (un candado en Postgres), así que nada se hace dos veces durante una actualización.
+
 ## Hacia dónde va {#where-it-is-going}
 
 En este orden, cada paso sobre el anterior:
@@ -61,5 +69,5 @@ En este orden, cada paso sobre el anterior:
 2. **Encargos** (arriba): hechos para las ejecuciones. Esperar a que se integre una solicitud de cambios o a la aprobación de una persona llega con el paso 3.
 3. **Aprobaciones:** un agente pide una acción (integrar, desplegar, revertir) con su motivo; la persona la aprueba o la rechaza en la interfaz o por correo.
 4. **Entornos de prueba:** cada rama desplegada por su cuenta un tiempo, con su URL y sus trazas, para que un agente pruebe contra lo real antes de pedir que integren.
-5. **Agentes dentro de la plataforma:** se despiertan con eventos (una construcción que falla, una reversión) para diagnosticar y proponer un arreglo, primero con el modelo local y luego con uno alojado, dentro de un **tope de gasto mensual** que fija la persona.
+5. **Agentes dentro de la plataforma** (arriba): el diagnosticador es el primero. Después, agentes que toman encargos y arreglan código en una rama, que necesitan un modelo fuerte, un entorno aislado con el código y un tope de gasto que fija la persona.
 6. **IA en el producto:** *¿por qué falló?* en cada ejecución fallida, búsqueda por significado en la Ruta, y cada sesión de un agente como una traza.

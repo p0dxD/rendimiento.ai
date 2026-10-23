@@ -11,12 +11,13 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 297 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 766 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 784 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1178 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
+| [`internal/agentes`](#internal-agentes) | 2 | 336 | Package agentes holds the agents that work inside the platform (ROLE=agents), woken by what happens in it rather than by a person's session. |
 | [`internal/analytics`](#internal-analytics) | 2 | 608 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
-| [`internal/api`](#internal-api) | 21 | 5250 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 22 | 5314 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/caminos`](#internal-caminos) | 2 | 310 | Package caminos builds an app's recent history as the Caminos tab draws it: the default branch is the camino real, every other branch is a vereda that leaves it at the commit it was branched from (or from its parent branch, for a stacked pull request) and comes back where its pull request was merged, with each run as a stop along the way. |
 | [`internal/catalog`](#internal-catalog) | 2 | 910 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 8 | 2906 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
@@ -26,7 +27,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/events`](#internal-events) | 5 | 549 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 282 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1426 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/i18n`](#internal-i18n) | 3 | 842 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
+| [`internal/i18n`](#internal-i18n) | 3 | 844 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
 | [`internal/ia`](#internal-ia) | 4 | 614 | Package ia is the AI gateway: every call the platform makes to a model goes through it. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 309 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
 | [`internal/mercado`](#internal-mercado) | 5 | 1009 | Package mercado makes web pages for people who don't write code. |
@@ -39,7 +40,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/ruta`](#internal-ruta) | 8 | 2561 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
 | [`internal/selfupdate`](#internal-selfupdate) | 2 | 477 | Package selfupdate moves rendimiento to an image it built and tested itself: its own repository's builds: entry (SELF_APP), released like any app's. |
 | [`internal/spec`](#internal-spec) | 2 | 1869 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 28 | 4362 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/store`](#internal-store) | 30 | 4544 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/testenv`](#internal-testenv) | 1 | 34 | Package testenv is the envtest (a real API server and etcd) the controller and platform tests run against, tuned for slow machines. |
 | [`internal/traces`](#internal-traces) | 3 | 621 | Package traces keeps whole requests for the Universe's waterfall. |
 | [`internal/universe`](#internal-universe) | 4 | 1356 | Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches. |
@@ -104,7 +105,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>755 lines</small>
+<small>773 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -230,6 +231,35 @@ Package addon renders add-ons (Helm charts or kustomize folders in git) into Kub
 | `TestRenderGitKustomize` | func |  |
 | `TestBuildPlainManifests` | func |  |
 
+## `internal/agentes` {#internal-agentes}
+
+Package agentes holds the agents that work inside the platform (ROLE=agents), woken by what happens in it rather than by a person's session.
+
+### `internal/agentes/diagnostico.go`
+
+<small>219 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Store` | interface | Store is what the diagnostician reads and keeps (the platform's store). |
+| `Model` | interface | Model asks the organization's model (the AI gateway). |
+| `Changes` | interface | Changes lists the files that changed between two commits (GitHub). |
+| `Diagnostician` | struct | Diagnostician explains failed runs: why each failed and how to fix it. |
+| `(*Diagnostician) Run` | method | Run diagnoses failed runs (and the ones people ask for) every 30 seconds until ctx ends. |
+| `(*Diagnostician) Diagnose` | method | Diagnose explains one failed run and keeps the answer. |
+| `(*Diagnostician) system` | method |  |
+| `(*Diagnostician) context` | method | context is what the model reads: the run, its failed steps with the end of their logs (lines that look like secrets left out), and the files changed since the branch's last good run. |
+| `clean` | func | clean is the last n lines of a log, without color codes and without the lines that look like secrets (they may go to an outside provider). |
+| `short` | func |  |
+
+### `internal/agentes/diagnostico_test.go`
+
+<small>117 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestDiagnose` | func | A failed run's diagnosis: the model reads the failed step and the end of its log (secret-looking lines left out) and the changed files, in the app's organization; its answer is kept. |
+
 ## `internal/analytics` {#internal-analytics}
 
 Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento.
@@ -318,6 +348,15 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `DeliveryReport` | struct | DeliveryReport is the dashboard's delivery health: the last 30 days, the 30 before them, and twelve weeks of history. |
 | `(*Server) delivery` | method | delivery is the dashboard's delivery health: deploys, builds and their times, verifications, rollbacks and outages of the last 30 days next to the 30 before, and twelve weeks of history. |
 
+### `internal/api/diagnosis.go`
+
+<small>53 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `(*Server) getDiagnosis` | method | getDiagnosis is a failed run's diagnosis by the diagnostician agent: why it failed and how to fix it (404 when there is none yet). |
+| `(*Server) askDiagnosis` | method | askDiagnosis asks the diagnostician agent to explain a failed run (again). |
+
 ### `internal/api/encargos.go`
 
 <small>149 lines</small>
@@ -348,7 +387,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/ia.go`
 
-<small>259 lines</small>
+<small>268 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -518,7 +557,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1736 lines</small>
+<small>1738 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1304,7 +1343,7 @@ Package i18n translates the platform's messages for people: the API's answers to
 
 ### `internal/i18n/es.go`
 
-<small>517 lines</small>
+<small>519 lines</small>
 
 ### `internal/i18n/i18n.go`
 
@@ -2374,7 +2413,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/ai.go`
 
-<small>123 lines</small>
+<small>125 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2397,6 +2436,20 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 |---|---|---|
 | `HistoryRun` | struct | HistoryRun is a run as the Caminos tab draws it: the run, the steps that failed, and the release it made (0 if none). |
 | `(*Store) RunHistory` | method | RunHistory lists an app's runs created since a time, oldest first (at most 2,000), each with its failed steps and the release it made. |
+
+### `internal/store/diagnoses.go`
+
+<small>98 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Diagnosis` | struct | Diagnosis is the diagnostician agent's answer for a failed run. |
+| `(*Store) GetDiagnosis` | method | GetDiagnosis is a run's diagnosis (ErrNotFound when there is none). |
+| `(*Store) AskDiagnosis` | method | AskDiagnosis asks for a run's diagnosis (again): it is pending until the agent answers. |
+| `(*Store) SaveDiagnosis` | method | SaveDiagnosis keeps the agent's answer. |
+| `(*Store) RunsToDiagnose` | method | RunsToDiagnose are the runs the agent should look at, oldest first: diagnoses asked for, and runs that failed since since in organizations with automatic diagnosis on, not diagnosed yet. |
+| `(*Store) SetAutoDiagnose` | method | SetAutoDiagnose turns an organization's automatic diagnosis of failed runs on or off. |
+| `(*Store) LastGoodSHA` | method | LastGoodSHA is the commit of an app's last successful run on a branch before a run (ErrNotFound when there is none): what changed since then likely broke it. |
 
 ### `internal/store/encargos.go`
 
@@ -2483,11 +2536,13 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/queuelock.go`
 
-<small>43 lines</small>
+<small>58 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `(*Store) LockQueue` | method | LockQueue waits until this process owns the run queue: a Postgres advisory lock, held on a connection of its own until release is called or the process dies (Postgres then lets it go). |
+| `(*Store) LockAgents` | method | LockAgents waits until this process is the one running the platform's agents (see LockQueue): during an update, the new pod's agents start once the old one's stop, so nothing is diagnosed twice. |
+| `(*Store) lock` | method | lock holds an advisory lock on a connection of its own (see LockQueue). |
 
 ### `internal/store/release_tasks.go`
 
@@ -2673,6 +2728,14 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | Name | Kind | Summary |
 |---|---|---|
 | `TestRunHistory` | func |  |
+
+### `internal/store/diagnoses_test.go`
+
+<small>67 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestDiagnoses` | func | Failed runs are diagnosed when the organization has automatic diagnosis on; one asked for is, either way; the last good commit is the branch's last successful run before. |
 
 ### `internal/store/encargos_test.go`
 
@@ -2973,7 +3036,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>1163 lines</small>
+<small>1179 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3009,6 +3072,7 @@ Package web embeds the built UI (npm run build → web/dist).
 | `session` | const | The signed-in person, set once when the app loads (switching organization reloads the page). |
 | `AIProvider` | type | The AI gateway (internal/ia, api.IAView). |
 | `AISettings` | interface |  |
+| `Diagnosis` | interface | The diagnostician agent's explanation of a failed run (internal/store.Diagnosis). |
 | `AIUsage` | interface |  |
 | `IAView` | interface |  |
 | `IAAnswer` | interface |  |
@@ -3340,7 +3404,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>1193 lines</small>
+<small>1203 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3427,7 +3491,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/IA.tsx`
 
-<small>193 lines</small>
+<small>197 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3529,13 +3593,14 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/RunPage.tsx`
 
-<small>131 lines</small>
+<small>168 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `RunPage` | component | A run's page: its graph of steps, live as they go, and the log of the step chosen. |
 | `formatLog` | function | Drops the ::group:: markers the executor uses to separate clone and step output. |
 | `AskAgent` | component |  |
+| `WhyFailed` | component |  |
 
 ### `web/src/pages/Ruta.tsx`
 
