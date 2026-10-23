@@ -15,9 +15,9 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1178 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/agentes`](#internal-agentes) | 2 | 490 | Package agentes holds the agents that work inside the platform (ROLE=agents), woken by what happens in it rather than by a person's session. |
+| [`internal/agentes`](#internal-agentes) | 2 | 635 | Package agentes holds the agents that work inside the platform (ROLE=agents), woken by what happens in it rather than by a person's session. |
 | [`internal/analytics`](#internal-analytics) | 2 | 608 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
-| [`internal/api`](#internal-api) | 22 | 5489 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/api`](#internal-api) | 22 | 5515 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/caminos`](#internal-caminos) | 2 | 310 | Package caminos builds an app's recent history as the Caminos tab draws it: the default branch is the camino real, every other branch is a vereda that leaves it at the commit it was branched from (or from its parent branch, for a stacked pull request) and comes back where its pull request was merged, with each run as a stop along the way. |
 | [`internal/catalog`](#internal-catalog) | 2 | 910 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 8 | 2906 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
@@ -27,8 +27,8 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/events`](#internal-events) | 5 | 549 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 282 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1426 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/i18n`](#internal-i18n) | 3 | 847 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
-| [`internal/ia`](#internal-ia) | 4 | 614 | Package ia is the AI gateway: every call the platform makes to a model goes through it. |
+| [`internal/i18n`](#internal-i18n) | 3 | 849 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
+| [`internal/ia`](#internal-ia) | 4 | 649 | Package ia is the AI gateway: every call the platform makes to a model goes through it. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 309 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
 | [`internal/mercado`](#internal-mercado) | 5 | 1009 | Package mercado makes web pages for people who don't write code. |
 | [`internal/notify`](#internal-notify) | 2 | 589 | Package notify emails the platform's owner about what needs attention: releases rolled back by verification, failed runs on the default branch, outages and recoveries. |
@@ -40,7 +40,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/ruta`](#internal-ruta) | 8 | 2561 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
 | [`internal/selfupdate`](#internal-selfupdate) | 2 | 477 | Package selfupdate moves rendimiento to an image it built and tested itself: its own repository's builds: entry (SELF_APP), released like any app's. |
 | [`internal/spec`](#internal-spec) | 2 | 1869 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 30 | 4563 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/store`](#internal-store) | 30 | 4603 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/testenv`](#internal-testenv) | 1 | 40 | Package testenv is the envtest (a real API server and etcd) the controller and platform tests run against, tuned for slow machines. |
 | [`internal/traces`](#internal-traces) | 3 | 621 | Package traces keeps whole requests for the Universe's waterfall. |
 | [`internal/universe`](#internal-universe) | 4 | 1356 | Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches. |
@@ -237,7 +237,7 @@ Package agentes holds the agents that work inside the platform (ROLE=agents), wo
 
 ### `internal/agentes/diagnostico.go`
 
-<small>338 lines</small>
+<small>408 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -247,6 +247,8 @@ Package agentes holds the agents that work inside the platform (ROLE=agents), wo
 | `Diagnostician` | struct | Diagnostician explains failed runs: why each failed and how to fix it. |
 | `(*Diagnostician) Run` | method | Run diagnoses failed runs (and the ones people ask for) every 30 seconds until ctx ends. |
 | `(*Diagnostician) Diagnose` | method | Diagnose explains one failed run and keeps the answer. |
+| `(*Diagnostician) escalation` | method | escalation is who answers a new failure for the organization ("" for its usual provider): the one it chose, while this month's escalations are under its limit. |
+| `(*Diagnostician) remember` | method | remember keeps a stronger model's answer as an unconfirmed known failure, so the local model reads it next time; judging the diagnosis confirms or corrects the same entry. |
 | `(*Diagnostician) system` | method |  |
 | `(*Diagnostician) context` | method | context is what the model reads: the run, its failed steps with the end of their logs (lines that look like secrets left out), and the files changed since the branch's last good run; and the failure's signature, its telling line. |
 | `telling` | func | telling are the lines of a log that say what went wrong, the last first, at most five; summary lines only if nothing else does. |
@@ -256,12 +258,13 @@ Package agentes holds the agents that work inside the platform (ROLE=agents), wo
 
 ### `internal/agentes/diagnostico_test.go`
 
-<small>152 lines · tests</small>
+<small>227 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `TestDiagnose` | func | A failed run's diagnosis: the model reads the failed step and the end of its log (secret-looking lines left out) and the changed files, in the app's organization; its answer is kept. |
 | `TestKnownFailures` | func | The diagnostician keeps the failure's telling line, and passes the model the known failures of the Ruta that look alike (not the others). |
+| `TestEscalation` | func | A new failure (nothing alike in the Ruta) goes to the stronger model the organization chose, at most its limit a month, and the answer becomes an unconfirmed known failure; a known one stays with the usual model. |
 
 ## `internal/analytics` {#internal-analytics}
 
@@ -393,7 +396,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/ia.go`
 
-<small>268 lines</small>
+<small>294 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1350,7 +1353,7 @@ Package i18n translates the platform's messages for people: the API's answers to
 
 ### `internal/i18n/es.go`
 
-<small>522 lines</small>
+<small>524 lines</small>
 
 ### `internal/i18n/i18n.go`
 
@@ -1402,7 +1405,7 @@ Package ia is the AI gateway: every call the platform makes to a model goes thro
 
 ### `internal/ia/ia.go`
 
-<small>233 lines</small>
+<small>247 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1419,6 +1422,8 @@ Package ia is the AI gateway: every call the platform makes to a model goes thro
 | `target` | struct | target is where a call goes and who pays. |
 | `(*Gateway) choose` | method | choose picks the organization's provider, or the local model with the reason when that one cannot be used (no key, a cap reached). |
 | `(*Gateway) Complete` | method | Complete asks a model for an organization, from source (a feature, or an agent key's name), and records the call. |
+| `(*Gateway) CompleteVia` | method | CompleteVia asks a given provider for the organization (own or platform: an escalation to a stronger model) instead of the one it chose, with the same caps and the same fall back to the local model. |
+| `(*Gateway) complete` | method |  |
 | `(*Gateway) call` | method | call asks one target and records it. |
 | `Dollars` | func | Dollars writes millionths of a dollar as dollars: $0.15, $5.00. |
 | `or` | func |  |
@@ -1437,12 +1442,13 @@ Package ia is the AI gateway: every call the platform makes to a model goes thro
 
 ### `internal/ia/ia_test.go`
 
-<small>171 lines · tests</small>
+<small>192 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `TestGateway` | func | The local model by default; an organization's own key until its cap; the platform's key within the operator's allowance and the platform's cap; the local model whenever one of those cannot be used, with the reason. |
 | `TestDollars` | func |  |
+| `TestCompleteVia` | func | Asking a given provider (an escalation) uses it within its caps, and falls back to the local model like any call. |
 
 ## `internal/logarchive` {#internal-logarchive}
 
@@ -2420,7 +2426,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/ai.go`
 
-<small>125 lines</small>
+<small>147 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2434,6 +2440,8 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) AISpent` | method | AISpent is what an organization spent this month, by who paid: its own key, or the platform's. |
 | `(*Store) AIPlatformSpent` | method | AIPlatformSpent is what every organization spent of the platform's key this month: the operator's bill. |
 | `(*Store) AIUsageOf` | method | AIUsageOf lists an organization's latest calls. |
+| `(*Store) SetEscalation` | method | SetEscalation is who answers an organization's new failures ("", own or platform), and how many times a month at most. |
+| `(*Store) AICalls` | method | AICalls counts an organization's calls from a source this month (the diagnostician's escalations, against their monthly limit). |
 
 ### `internal/store/caminos.go`
 
@@ -2446,7 +2454,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/diagnoses.go`
 
-<small>117 lines</small>
+<small>123 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2458,6 +2466,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) SetAutoDiagnose` | method | SetAutoDiagnose turns an organization's automatic diagnosis of failed runs on or off. |
 | `(*Store) LastGoodSHA` | method | LastGoodSHA is the commit of an app's last successful run on a branch before a run (ErrNotFound when there is none): what changed since then likely broke it. |
 | `(*Store) SetDiagnosisFeedback` | method | SetDiagnosisFeedback keeps what a person said of a diagnosis, and the known failure it became in the Ruta. |
+| `(*Store) LinkDiagnosisRuta` | method | LinkDiagnosisRuta ties a diagnosis to the known failure it became. |
 
 ### `internal/store/encargos.go`
 
@@ -2723,7 +2732,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/ai_test.go`
 
-<small>54 lines · tests</small>
+<small>66 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3044,7 +3053,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/api.ts`
 
-<small>1185 lines</small>
+<small>1188 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3412,7 +3421,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>1213 lines</small>
+<small>1220 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3499,7 +3508,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/IA.tsx`
 
-<small>197 lines</small>
+<small>219 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|

@@ -83,6 +83,8 @@ var catalog = map[string]string{
 	"say what the real cause was, so the diagnostician learns it": "diga cuál era la causa real, para que el diagnosticador la aprenda",
 	"the cause is too long (4,000 characters at most)": "la causa es demasiado larga (4,000 caracteres a lo más)",
 	"there is no explanation to judge yet": "todavía no hay una explicación que calificar",
+	"escalate to own or platform (or nobody), at most 1,000 times a month": "escale a own o platform (o a nadie), a lo más 1,000 veces al mes",
+	"a new failure (nothing alike in the Ruta): asked a stronger model": "una falla nueva (nada parecido en la Ruta): se le preguntó a un modelo más fuerte",
 	"stopped: %s failed":                                                                              "detenido: falló %s",
 	"%s failed two checks in a row. rendimiento keeps checking every minute and will email you when it recovers.": "Fallaron dos comprobaciones seguidas de %s. rendimiento sigue comprobando cada minuto y le enviará un correo cuando se recupere.",
 	"%s installed on %s": "%s instalada en %s",

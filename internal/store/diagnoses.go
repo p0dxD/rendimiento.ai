@@ -115,3 +115,9 @@ func (s *Store) SetDiagnosisFeedback(ctx context.Context, runID int64, feedback,
 	}
 	return err
 }
+
+// LinkDiagnosisRuta ties a diagnosis to the known failure it became.
+func (s *Store) LinkDiagnosisRuta(ctx context.Context, runID, entry int64) error {
+	_, err := s.pool.Exec(ctx, `UPDATE run_diagnoses SET ruta_entry = $2 WHERE run_id = $1`, runID, entry)
+	return err
+}

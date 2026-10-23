@@ -860,6 +860,13 @@ export const es: Record<string, string> = {
   "rendimiento cannot tell yet whether make deploy is needed: it learns which commit was applied the next time make deploy runs.": "rendimiento todavía no sabe si hace falta make deploy: sabrá qué commit se aplicó la próxima vez que se ejecute make deploy.",
   // The Universe page.
   "Universe": "Universo",
+  "New failures (nothing alike in the Ruta)": "Fallas nuevas (nada parecido en la Ruta)",
+  "Answered by the usual model too": "Las contesta también el modelo de siempre",
+  "Escalated to your own key": "Se escalan a su propia llave",
+  "Escalated to the platform's (within your allowance)": "Se escalan a la de la plataforma (dentro de su asignación)",
+  "At most, times a month": "Cuántas veces al mes, como máximo",
+  "This month: {n} of {limit}. What the stronger model answers is kept in the Ruta as an unconfirmed known failure, so the local model knows it next time.": "Este mes: {n} de {limit}. Lo que conteste el modelo más fuerte se guarda en la Ruta como falla conocida sin confirmar, para que el modelo local la sepa la próxima vez.",
+  "Known failures always go to the usual model, which reads what the Ruta knows.": "Las fallas conocidas siempre van al modelo de siempre, que lee lo que sabe la Ruta.",
   "Marked useful.": "Marcada como útil.",
   "Corrected.": "Corregida.",
   "Kept in the Ruta as a known failure (#{n}): the diagnostician reads it next time.": "Guardada en la Ruta como falla conocida (#{n}): el diagnosticador la lee la próxima vez.",

@@ -21,6 +21,10 @@ Cada organización elige en su página **IA** (los administradores):
 
 El gasto se mide con los tokens que reporta cada proveedor y el precio de lista del modelo (`ia.DefaultPrices`; un modelo que no está en la lista cuenta como gratis, así que póngale precio antes de confiar en su tope). Los topes vuelven a cero el primero de cada mes (UTC).
 
+## Escalar las fallas nuevas {#escalating-new-failures}
+
+Lo más barato es el modelo local más las fallas conocidas de la Ruta, que el diagnosticador lee primero. Para las fallas de las que la Ruta no sabe nada parecido, una organización puede escalar a un modelo más fuerte (su propia llave, o la de la plataforma dentro de su asignación), hasta cierto número de veces al mes (10 si no se cambia); está apagado mientras no se encienda. Lo que conteste el modelo más fuerte se vuelve una falla conocida sin confirmar, así que la próxima vez el modelo local la sabe. Vea [Agentes dentro de la plataforma](agents.md#agents-inside-the-platform).
+
 ## La página IA {#the-ai-page}
 
 - **Quién contesta**, el modelo, la llave y el tope mensual (los cambian los administradores).

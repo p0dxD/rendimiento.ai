@@ -30,9 +30,14 @@ type AISettings struct {
 	CapMicros       int64 `json:"capMicros"`
 	AllowanceMicros int64 `json:"allowanceMicros"`
 	// AutoDiagnose: the diagnostician agent explains every failed run.
-	AutoDiagnose bool      `json:"autoDiagnose"`
-	UpdatedBy    string    `json:"updatedBy,omitempty"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	AutoDiagnose bool `json:"autoDiagnose"`
+	// EscalateTo is who answers new failures (nothing alike in the Ruta):
+	// "" (nobody: the usual provider), own or platform; at most
+	// EscalateLimit times a month.
+	EscalateTo    string    `json:"escalateTo"`
+	EscalateLimit int       `json:"escalateLimit"`
+	UpdatedBy     string    `json:"updatedBy,omitempty"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 // AIUsage is one measured call to a model.
@@ -54,10 +59,11 @@ type AIUsage struct {
 // none yet: the local model, a $1 cap, no allowance).
 func (s *Store) AISettingsOf(ctx context.Context, orgID int64) (AISettings, error) {
 	a := AISettings{OrgID: orgID}
-	err := s.pool.QueryRow(ctx, `SELECT provider, kind, base_url, model, cap_micros, allowance_micros, auto_diagnose, updated_by, updated_at
-		FROM ai_settings WHERE org_id = $1`, orgID).Scan(&a.Provider, &a.Kind, &a.BaseURL, &a.Model, &a.CapMicros, &a.AllowanceMicros, &a.AutoDiagnose, &a.UpdatedBy, &a.UpdatedAt)
+	err := s.pool.QueryRow(ctx, `SELECT provider, kind, base_url, model, cap_micros, allowance_micros, auto_diagnose, escalate_to, escalate_limit, updated_by, updated_at
+		FROM ai_settings WHERE org_id = $1`, orgID).Scan(&a.Provider, &a.Kind, &a.BaseURL, &a.Model, &a.CapMicros, &a.AllowanceMicros, &a.AutoDiagnose,
+		&a.EscalateTo, &a.EscalateLimit, &a.UpdatedBy, &a.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return AISettings{OrgID: orgID, Provider: AILocal, CapMicros: 1_000_000, AutoDiagnose: true}, nil
+		return AISettings{OrgID: orgID, Provider: AILocal, CapMicros: 1_000_000, AutoDiagnose: true, EscalateLimit: 10}, nil
 	}
 	return a, err
 }
@@ -122,4 +128,20 @@ func (s *Store) AIUsageOf(ctx context.Context, orgID int64, limit int) ([]AIUsag
 		err := r.Scan(&u.ID, &u.OrgID, &u.At, &u.Source, &u.Provider, &u.Model, &u.InputTokens, &u.OutputTokens, &u.CostMicros, &u.OK, &u.Note)
 		return u, err
 	})
+}
+
+// SetEscalation is who answers an organization's new failures ("", own or
+// platform), and how many times a month at most.
+func (s *Store) SetEscalation(ctx context.Context, orgID int64, to string, limit int, by string) error {
+	_, err := s.pool.Exec(ctx, `INSERT INTO ai_settings (org_id, escalate_to, escalate_limit, updated_by, updated_at) VALUES ($1, $2, $3, $4, now())
+		ON CONFLICT (org_id) DO UPDATE SET escalate_to = $2, escalate_limit = $3, updated_by = $4, updated_at = now()`, orgID, to, limit, by)
+	return err
+}
+
+// AICalls counts an organization's calls from a source this month (the
+// diagnostician's escalations, against their monthly limit).
+func (s *Store) AICalls(ctx context.Context, orgID int64, source string, now time.Time) (int, error) {
+	var n int
+	err := s.pool.QueryRow(ctx, `SELECT count(*) FROM ai_usage WHERE org_id = $1 AND source = $2 AND at >= $3`, orgID, source, monthStart(now)).Scan(&n)
+	return n, err
 }

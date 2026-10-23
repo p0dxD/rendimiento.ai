@@ -290,6 +290,8 @@ export interface AISettings {
   capMicros: number;
   allowanceMicros: number;
   autoDiagnose: boolean;
+  escalateTo: "" | "own" | "platform";
+  escalateLimit: number;
   updatedBy?: string;
 }
 
@@ -331,6 +333,7 @@ export interface IAView {
   localModel?: string;
   platformAvailable: boolean;
   platformModel?: string;
+  escalations: number;
   usage: AIUsage[];
 }
 
@@ -664,7 +667,7 @@ export const api = {
   askDiagnosis: (run: number) => request<void>("POST", `/api/runs/${run}/diagnosis`),
   judgeDiagnosis: (run: number, useful: boolean, cause = "") =>
     request<{ feedback: string; rutaEntry: number }>("POST", `/api/runs/${run}/diagnosis/feedback`, { useful, cause }),
-  saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean; autoDiagnose?: boolean }) =>
+  saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean; autoDiagnose?: boolean; escalateTo?: string; escalateLimit?: number }) =>
     request<IAView>("PUT", "/api/ia", v),
   testIA: (prompt: string) => request<IAAnswer>("POST", "/api/ia/test", { prompt }),
   iaOrgs: () => request<IAOrgs>("GET", "/api/ia/orgs"),
