@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/p0dxD/rendimiento.ai/internal/agentes"
 	"github.com/p0dxD/rendimiento.ai/internal/ia"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 )
@@ -26,12 +27,15 @@ type IAView struct {
 	// KeyHint is the end of the organization's own key ("" when none).
 	KeyHint string `json:"keyHint,omitempty"`
 	// What it spent this month, by who paid, and what each may reach.
-	SpentOwnMicros      int64           `json:"spentOwnMicros"`
-	SpentPlatformMicros int64           `json:"spentPlatformMicros"`
-	LocalModel          string          `json:"localModel,omitempty"` // "" when there is no local model
-	PlatformAvailable   bool            `json:"platformAvailable"`
-	PlatformModel       string          `json:"platformModel,omitempty"`
-	Usage               []store.AIUsage `json:"usage"`
+	SpentOwnMicros      int64  `json:"spentOwnMicros"`
+	SpentPlatformMicros int64  `json:"spentPlatformMicros"`
+	LocalModel          string `json:"localModel,omitempty"` // "" when there is no local model
+	PlatformAvailable   bool   `json:"platformAvailable"`
+	PlatformModel       string `json:"platformModel,omitempty"`
+	// Escalations is how many new failures went to a stronger model this
+	// month (against Settings.EscalateLimit).
+	Escalations int             `json:"escalations"`
+	Usage       []store.AIUsage `json:"usage"`
 }
 
 // iaView is the organization's AI settings, spending and latest calls.
@@ -60,6 +64,10 @@ func (s *Server) iaView(w http.ResponseWriter, r *http.Request, _ string) {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	if v.Escalations, err = s.Store.AICalls(ctx, org, agentes.Escalated, time.Now()); err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	if v.Usage, err = s.Store.AIUsageOf(ctx, org, 30); err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -84,6 +92,10 @@ type IAInput struct {
 	// AutoDiagnose turns the diagnostician's explanations of failed runs on
 	// or off (nil: unchanged).
 	AutoDiagnose *bool `json:"autoDiagnose"`
+	// EscalateTo is who answers new failures ("", own or platform), at most
+	// EscalateLimit times a month (nil: unchanged).
+	EscalateTo    *string `json:"escalateTo"`
+	EscalateLimit *int    `json:"escalateLimit"`
 }
 
 // micros turns dollars into millionths of a dollar.
@@ -146,6 +158,20 @@ func (s *Server) putIA(w http.ResponseWriter, r *http.Request, login string) {
 		Model: in.Model, CapMicros: micros(in.CapDollar)}, login); err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if in.EscalateTo != nil {
+		limit := 10
+		if in.EscalateLimit != nil {
+			limit = *in.EscalateLimit
+		}
+		if (*in.EscalateTo != "" && *in.EscalateTo != store.AIOwn && *in.EscalateTo != store.AIPlatform) || limit < 0 || limit > 1000 {
+			httpError(w, http.StatusBadRequest, "escalate to own or platform (or nobody), at most 1,000 times a month")
+			return
+		}
+		if err := s.Store.SetEscalation(ctx, org, *in.EscalateTo, limit, login); err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
 	if in.AutoDiagnose != nil {
 		if err := s.Store.SetAutoDiagnose(ctx, org, *in.AutoDiagnose, login); err != nil {

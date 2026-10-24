@@ -176,6 +176,17 @@ func (g *Gateway) choose(ctx context.Context, set store.AISettings) (target, str
 // provider cannot be used, or fails, the local model answers and Note says
 // why.
 func (g *Gateway) Complete(ctx context.Context, orgID int64, source string, req Request) (Response, error) {
+	return g.complete(ctx, orgID, source, "", req)
+}
+
+// CompleteVia asks a given provider for the organization (own or platform:
+// an escalation to a stronger model) instead of the one it chose, with the
+// same caps and the same fall back to the local model.
+func (g *Gateway) CompleteVia(ctx context.Context, orgID int64, source, provider string, req Request) (Response, error) {
+	return g.complete(ctx, orgID, source, provider, req)
+}
+
+func (g *Gateway) complete(ctx context.Context, orgID int64, source, provider string, req Request) (Response, error) {
 	switch {
 	case req.MaxTokens <= 0:
 		req.MaxTokens = 1024
@@ -185,6 +196,9 @@ func (g *Gateway) Complete(ctx context.Context, orgID int64, source string, req 
 	set, err := g.Store.AISettingsOf(ctx, orgID)
 	if err != nil {
 		return Response{}, err
+	}
+	if provider != "" {
+		set.Provider = provider
 	}
 	t, note, err := g.choose(ctx, set)
 	if err != nil {

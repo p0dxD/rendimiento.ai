@@ -169,3 +169,24 @@ func TestDollars(t *testing.T) {
 		}
 	}
 }
+
+// Asking a given provider (an escalation) uses it within its caps, and
+// falls back to the local model like any call.
+func TestCompleteVia(t *testing.T) {
+	fails := false
+	srv := fakeModels(t, &fails)
+	st := &memStore{settings: map[int64]store.AISettings{
+		1: {OrgID: 1, Provider: store.AILocal, CapMicros: 1_000_000, AllowanceMicros: 1_000_000},
+	}}
+	g := &Gateway{Store: st, Keys: keys{1: "sk-propia"}, LocalURL: srv.URL, AnthropicURL: srv.URL, PlatformKey: "sk-plataforma", PlatformCapMicros: 1_000_000}
+	req := Request{Messages: []Message{{Role: "user", Content: "¿por qué?"}}}
+	if res, err := g.CompleteVia(context.Background(), 1, "x", store.AIPlatform, req); err != nil || res.Provider != store.AIPlatform || res.Text != "claude: sk-plataforma" {
+		t.Fatalf("via the platform: %+v %v", res, err)
+	}
+	if res, _ := g.CompleteVia(context.Background(), 1, "x", store.AIOwn, req); res.Provider != store.AIOwn {
+		t.Fatalf("via its own key: %+v", res)
+	}
+	if res, _ := g.Complete(context.Background(), 1, "x", req); res.Provider != store.AILocal {
+		t.Fatalf("its usual provider stays the local one: %+v", res)
+	}
+}

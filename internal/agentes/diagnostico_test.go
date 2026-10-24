@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -14,9 +15,34 @@ import (
 )
 
 type fakeStore struct {
-	runs  map[int64]*store.Run
-	saved map[int64]store.Diagnosis
-	ruta  []store.RutaEntry
+	runs      map[int64]*store.Run
+	saved     map[int64]store.Diagnosis
+	ruta      []store.RutaEntry
+	settings  store.AISettings
+	escalated int
+	links     map[int64]int64
+}
+
+func (f *fakeStore) AISettingsOf(context.Context, int64) (store.AISettings, error) {
+	return f.settings, nil
+}
+func (f *fakeStore) AICalls(_ context.Context, _ int64, source string, _ time.Time) (int, error) {
+	if source != Escalated {
+		return 0, fmt.Errorf("counted %q", source)
+	}
+	return f.escalated, nil
+}
+func (f *fakeStore) AddRuta(_ context.Context, e store.RutaEntry) (store.RutaEntry, error) {
+	e.ID = int64(len(f.ruta) + 100)
+	f.ruta = append(f.ruta, e)
+	return e, nil
+}
+func (f *fakeStore) LinkDiagnosisRuta(_ context.Context, run, entry int64) error {
+	if f.links == nil {
+		f.links = map[int64]int64{}
+	}
+	f.links[run] = entry
+	return nil
 }
 
 func (f *fakeStore) SearchRuta(_ context.Context, _ int64, _, text string, _ int) ([]store.RutaEntry, error) {
@@ -52,6 +78,15 @@ type fakeModel struct {
 	asked []ia.Request
 	org   int64
 	err   error
+	via   []string
+}
+
+func (m *fakeModel) CompleteVia(_ context.Context, org int64, source, provider string, req ia.Request) (ia.Response, error) {
+	m.asked, m.org, m.via = append(m.asked, req), org, append(m.via, provider)
+	if source != Escalated {
+		return ia.Response{}, fmt.Errorf("source %q", source)
+	}
+	return ia.Response{Text: "Haiku dice: el etcd de la prueba tardó.", Provider: provider, Model: "claude-haiku-5-5", CostMicros: 3000}, nil
 }
 
 func (m *fakeModel) Complete(_ context.Context, org int64, source string, req ia.Request) (ia.Response, error) {
@@ -148,5 +183,45 @@ func TestKnownFailures(t *testing.T) {
 	ctx := m.asked[0].Messages[0].Content
 	if !strings.Contains(ctx, "vuelva a correr") || strings.Contains(ctx, "peer dependency") {
 		t.Fatalf("known failures in the context:\n%s", ctx)
+	}
+}
+
+// A new failure (nothing alike in the Ruta) goes to the stronger model the
+// organization chose, at most its limit a month, and the answer becomes an
+// unconfirmed known failure; a known one stays with the usual model.
+func TestEscalation(t *testing.T) {
+	run := &store.Run{ID: 7, AppID: 1, Branch: "main", SHA: "badsha5678", Status: store.RunFailed,
+		Steps: []store.Step{{ID: "web:test", Kind: "test", Status: "failed", Message: "exit 1"}}}
+	st := &fakeStore{saved: map[int64]store.Diagnosis{}, runs: map[int64]*store.Run{7: run},
+		settings: store.AISettings{EscalateTo: store.AIPlatform, EscalateLimit: 2}}
+	m := &fakeModel{}
+	d := &Diagnostician{Store: st, Model: m, Lang: "es", Log: slog.Default(),
+		Logs: func(context.Context, int64, string) (string, error) { return "etcdserver: request timed out\n", nil }}
+	if err := d.Diagnose(context.Background(), 7); err != nil {
+		t.Fatal(err)
+	}
+	got := st.saved[7]
+	if len(m.via) != 1 || m.via[0] != store.AIPlatform || got.Model != "claude-haiku-5-5" || !strings.Contains(got.Note, "new failure") {
+		t.Fatalf("escalated: via %v, saved %+v", m.via, got)
+	}
+	if len(st.ruta) != 1 || !slices.Contains(st.ruta[0].Tags, Unconfirmed) || !strings.Contains(st.ruta[0].Body, "Haiku dice") || st.links[7] != st.ruta[0].ID {
+		t.Fatalf("remembered: %+v links %v", st.ruta, st.links)
+	}
+
+	// Now the Ruta knows it: the usual model answers.
+	if err := d.Diagnose(context.Background(), 7); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.via) != 1 || st.saved[7].Model != "qwen" {
+		t.Fatalf("a known failure escalated: via %v, %+v", m.via, st.saved[7])
+	}
+
+	// Over the month's limit: no escalation.
+	st.ruta, st.escalated = nil, 2
+	if err := d.Diagnose(context.Background(), 7); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.via) != 1 {
+		t.Fatalf("escalated over the limit: %v", m.via)
 	}
 }

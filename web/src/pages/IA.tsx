@@ -36,15 +36,18 @@ function Settings({ v, onSaved }: { v: IAView; onSaved: () => void }) {
   const [cap, setCap] = useState(v.settings.capMicros / 1e6);
   const [key, setKey] = useState("");
   const [auto, setAuto] = useState(v.settings.autoDiagnose);
+  const [escalateTo, setEscalateTo] = useState(v.settings.escalateTo);
+  const [escalateLimit, setEscalateLimit] = useState(v.settings.escalateLimit);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>();
   useEffect(() => {
     setProvider(v.settings.provider); setKind(v.settings.kind ?? "anthropic"); setBaseUrl(v.settings.baseUrl ?? "");
     setModel(v.settings.model ?? ""); setCap(v.settings.capMicros / 1e6); setAuto(v.settings.autoDiagnose);
+    setEscalateTo(v.settings.escalateTo); setEscalateLimit(v.settings.escalateLimit);
   }, [v.settings]);
   const save = (extra: { removeKey?: boolean } = {}) => {
     setBusy(true); setErr(undefined);
-    api.saveIA({ provider, kind, baseUrl, model, capDollars: cap, key: key || undefined, autoDiagnose: auto, ...extra })
+    api.saveIA({ provider, kind, baseUrl, model, capDollars: cap, key: key || undefined, autoDiagnose: auto, escalateTo, escalateLimit, ...extra })
       .then(() => { setBusy(false); setKey(""); onSaved(); }, (e) => { setBusy(false); setErr(e); });
   };
   return (
@@ -86,6 +89,25 @@ function Settings({ v, onSaved }: { v: IAView; onSaved: () => void }) {
       <label className="row ia-choice"><input type="checkbox" disabled={!admin} checked={auto} onChange={(e) => setAuto(e.target.checked)} />
         <span><strong>{t("Explain every failed run")}</strong> <span className="muted">{t("the diagnostician agent reads the failed steps and their logs, and says why and how to fix it, on the run's page")}</span></span>
       </label>
+      {auto && (
+        <div className="ia-own stack">
+          <label className="field"><span>{t("New failures (nothing alike in the Ruta)")}</span>
+            <select disabled={!admin} value={escalateTo} onChange={(e) => setEscalateTo(e.target.value as "" | "own" | "platform")}>
+              <option value="">{t("Answered by the usual model too")}</option>
+              <option value="own">{t("Escalated to your own key")}</option>
+              <option value="platform" disabled={!v.platformAvailable}>{t("Escalated to the platform's (within your allowance)")}</option>
+            </select>
+          </label>
+          {escalateTo && (
+            <label className="field" style={{ maxWidth: 260 }}><span>{t("At most, times a month")}</span>
+              <input disabled={!admin} type="number" min={0} max={1000} value={escalateLimit} onChange={(e) => setEscalateLimit(Number(e.target.value))} />
+            </label>
+          )}
+          <p className="small muted" style={{ margin: 0 }}>
+            {escalateTo ? t("This month: {n} of {limit}. What the stronger model answers is kept in the Ruta as an unconfirmed known failure, so the local model knows it next time.", { n: v.escalations, limit: escalateLimit }) : t("Known failures always go to the usual model, which reads what the Ruta knows.")}
+          </p>
+        </div>
+      )}
       <label className="field" style={{ maxWidth: 260 }}><span>{t("Monthly cap (dollars)")}</span>
         <input disabled={!admin} type="number" min={0} max={1000} step={0.5} value={cap} onChange={(e) => setCap(Number(e.target.value))} />
       </label>

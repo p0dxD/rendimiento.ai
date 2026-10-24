@@ -21,6 +21,10 @@ Each organization chooses, on its **AI** page (administrators):
 
 Spending is measured from the tokens each provider reports and the model's list price (`ia.DefaultPrices`; a model not listed counts as free, so give it a price before relying on its cap). Caps reset on the first of each month (UTC).
 
+## Escalating new failures {#escalating-new-failures}
+
+The cheapest setup is the local model plus the Ruta's known failures, which the diagnostician reads first. For failures the Ruta knows nothing like, an organization may escalate to a stronger model (its own key, or the platform's within its allowance), at most a number of times a month (10 by default); it is off unless turned on. What the stronger model answers becomes an unconfirmed known failure, so the next time the local model knows it. See [Agents inside the platform](agents.md#agents-inside-the-platform).
+
 ## The AI page {#the-ai-page}
 
 - **Who answers**, the model, the key and the monthly cap (administrators change them).

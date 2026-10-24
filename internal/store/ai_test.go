@@ -51,4 +51,16 @@ func TestAI(t *testing.T) {
 	if list, err := s.AIUsageOf(ctx, other.ID, 10); err != nil || len(list) != 1 || list[0].CostMicros != 1000 {
 		t.Fatalf("usage of the other: %+v %v", list, err)
 	}
+	if a, _ := s.AISettingsOf(ctx, other.ID); a.EscalateTo != "" || a.EscalateLimit != 10 {
+		t.Fatalf("escalation defaults: %+v", a)
+	}
+	if err := s.SetEscalation(ctx, DefaultOrg, AIPlatform, 3, "p0dxD"); err != nil {
+		t.Fatal(err)
+	}
+	if a, _ := s.AISettingsOf(ctx, DefaultOrg); a.EscalateTo != AIPlatform || a.EscalateLimit != 3 || a.Provider != AIPlatform {
+		t.Fatalf("escalation kept the rest: %+v", a)
+	}
+	if n, err := s.AICalls(ctx, DefaultOrg, "x", time.Now()); err != nil || n != 3 {
+		t.Fatalf("calls from x: %d %v", n, err)
+	}
 }

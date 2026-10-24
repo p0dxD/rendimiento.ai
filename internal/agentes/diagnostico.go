@@ -27,6 +27,10 @@ type Store interface {
 	SaveDiagnosis(ctx context.Context, d store.Diagnosis) error
 	LastGoodSHA(ctx context.Context, appID int64, branch string, before int64) (string, error)
 	SearchRuta(ctx context.Context, orgID int64, kind, text string, limit int) ([]store.RutaEntry, error)
+	AISettingsOf(ctx context.Context, orgID int64) (store.AISettings, error)
+	AICalls(ctx context.Context, orgID int64, source string, now time.Time) (int, error)
+	AddRuta(ctx context.Context, e store.RutaEntry) (store.RutaEntry, error)
+	LinkDiagnosisRuta(ctx context.Context, runID, entry int64) error
 }
 
 // KnownTag marks the Ruta's known failures: what people confirmed or
@@ -36,6 +40,7 @@ const KnownTag = "falla-conocida"
 // Model asks the organization's model (the AI gateway).
 type Model interface {
 	Complete(ctx context.Context, orgID int64, source string, req ia.Request) (ia.Response, error)
+	CompleteVia(ctx context.Context, orgID int64, source, provider string, req ia.Request) (ia.Response, error)
 }
 
 // Changes lists the files that changed between two commits (GitHub).
@@ -55,8 +60,16 @@ type Diagnostician struct {
 	Log  *slog.Logger
 }
 
-// Source is how the diagnostician signs its calls to the model.
-const Source = "agent: diagnostician"
+// Source is how the diagnostician signs its calls to the model, and
+// Escalated its calls to a stronger model for a new failure.
+const (
+	Source    = "agent: diagnostician"
+	Escalated = "agent: diagnostician (escalated)"
+)
+
+// Unconfirmed tags a known failure a stronger model wrote and nobody has
+// judged yet.
+const Unconfirmed = "sin-confirmar"
 
 // Limits on what goes to the model: the end of each failed step's log,
 // and all of it together.
@@ -112,14 +125,23 @@ func (d *Diagnostician) Diagnose(ctx context.Context, runID int64) error {
 	}
 	text, signature, clues := d.context(ctx, app, run)
 	out.Signature = signature
-	if known := d.known(ctx, app, run, clues); known != "" {
-		text += known
+	known := d.known(ctx, app, run, clues)
+	req := ia.Request{System: d.system(), MaxTokens: 700, Messages: []ia.Message{{Role: "user", Content: text + known}}}
+	var res ia.Response
+	escalate := ""
+	if known == "" {
+		escalate = d.escalation(ctx, app.OrgID)
 	}
-	res, err := d.Model.Complete(ctx, app.OrgID, Source, ia.Request{
-		System: d.system(), MaxTokens: 700,
-		Messages: []ia.Message{{Role: "user", Content: text}},
-	})
+	if escalate != "" {
+		res, err = d.Model.CompleteVia(ctx, app.OrgID, Escalated, escalate, req)
+	} else {
+		res, err = d.Model.Complete(ctx, app.OrgID, Source, req)
+	}
 	out.Provider, out.Model, out.CostMicros, out.Note = res.Provider, res.Model, res.CostMicros, res.Note
+	escalated := escalate != "" && err == nil && res.Provider != store.AILocal
+	if escalated && out.Note == "" {
+		out.Note = "a new failure (nothing alike in the Ruta): asked a stronger model"
+	}
 	if err != nil {
 		out.Status, out.Note = store.DiagnosisFailed, err.Error()
 		if errors.Is(err, ia.ErrNoModel) {
@@ -128,7 +150,55 @@ func (d *Diagnostician) Diagnose(ctx context.Context, runID int64) error {
 	} else {
 		out.Status, out.Text = store.DiagnosisDone, strings.TrimSpace(res.Text)
 	}
-	return d.Store.SaveDiagnosis(context.WithoutCancel(ctx), out)
+	if err := d.Store.SaveDiagnosis(context.WithoutCancel(ctx), out); err != nil {
+		return err
+	}
+	if escalated && out.Text != "" {
+		return d.remember(context.WithoutCancel(ctx), app, run, out)
+	}
+	return nil
+}
+
+// escalation is who answers a new failure for the organization ("" for
+// its usual provider): the one it chose, while this month's escalations are
+// under its limit.
+func (d *Diagnostician) escalation(ctx context.Context, orgID int64) string {
+	set, err := d.Store.AISettingsOf(ctx, orgID)
+	if err != nil || set.EscalateTo == "" || set.EscalateLimit <= 0 {
+		return ""
+	}
+	n, err := d.Store.AICalls(ctx, orgID, Escalated, time.Now())
+	if err != nil || n >= set.EscalateLimit {
+		return ""
+	}
+	return set.EscalateTo
+}
+
+// remember keeps a stronger model's answer as an unconfirmed known failure,
+// so the local model reads it next time; judging the diagnosis confirms or
+// corrects the same entry.
+func (d *Diagnostician) remember(ctx context.Context, app *store.App, run *store.Run, out store.Diagnosis) error {
+	title := out.Signature
+	if r := []rune(title); len(r) > 140 {
+		title = string(r[:140]) + "…"
+	}
+	if title == "" {
+		title = fmt.Sprintf("la ejecución #%d de %s", run.ID, app.Name)
+	}
+	body := fmt.Sprintf("Escrita por el agente diagnosticador con %s, porque la Ruta no tenía nada parecido; **sin confirmar**: califíquela en la ejecución #%d de %s.\n\n", out.Model, run.ID, app.Name)
+	if out.Signature != "" {
+		body += fmt.Sprintf("**La línea que la muestra:**\n\n```\n%s\n```\n\n", out.Signature)
+	}
+	body += "**La explicación:**\n\n" + out.Text + "\n"
+	if ruta.LooksSecret(body) {
+		return nil // never into the Ruta
+	}
+	e, err := d.Store.AddRuta(ctx, store.RutaEntry{Kind: store.KindManual, Title: "Falla conocida (sin confirmar): " + title, Body: body,
+		Tags: []string{KnownTag, strings.ToLower(app.Name), Unconfirmed}, Author: "agente diagnosticador", ByAgent: true, OrgID: app.OrgID})
+	if err != nil {
+		return err
+	}
+	return d.Store.LinkDiagnosisRuta(ctx, run.ID, e.ID)
 }
 
 func (d *Diagnostician) system() string {

@@ -57,7 +57,7 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | POST | `/api/orgs` | crea una organización (`slug`, `name`); solo los operadores de la plataforma; quien la crea es su primer administrador |
 | POST | `/api/orgs/{id}/switch` | trabajar en otra de las organizaciones de la persona |
 | GET | `/api/ia` | la IA de la organización: proveedor, modelo, tope, el final de su propia llave, el gasto del mes y las últimas llamadas |
-| PUT | `/api/ia` | cambiarla (`provider`: `local`, `own`, `platform`; `kind`, `baseUrl`, `model`, `capDollars`, `key`, `removeKey`); administradores |
+| PUT | `/api/ia` | cambiarla (`provider`: `local`, `own`, `platform`; `kind`, `baseUrl`, `model`, `capDollars`, `key`, `removeKey`, `autoDiagnose`, `escalateTo`: `own`, `platform` o vacío, `escalateLimit`); administradores |
 | POST | `/api/ia/test` | hacerle una pregunta al modelo de la organización (`prompt`), medida; colaboradores |
 | GET | `/api/ia/orgs` | la asignación de cada organización de la IA de la plataforma, su gasto y la cuenta de la plataforma; operadores |
 | PUT | `/api/ia/orgs/{id}/allowance` | la asignación mensual de una organización de la IA de la plataforma (`dollars`); operadores |
