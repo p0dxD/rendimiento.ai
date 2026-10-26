@@ -11,10 +11,10 @@ import { Maqueta, ms, rate, worst, type Engine, type MapModel, type MapRoad, typ
 import { ErrorBox, usePoll } from "../components/ui";
 import { t, tn } from "../i18n";
 
-const windows: { id: UniverseWindow; label: string }[] = [
-  { id: "15m", label: "Last 15 minutes" },
-  { id: "1h", label: "Last hour" },
-  { id: "24h", label: "Last 24 hours" },
+const windows: { id: UniverseWindow; label: string; short: string }[] = [
+  { id: "15m", label: "Last 15 minutes", short: "15 min" },
+  { id: "1h", label: "Last hour", short: "1 hour" },
+  { id: "24h", label: "Last 24 hours", short: "24 h" },
 ];
 
 const kindLabel: Record<UniverseNode["kind"], string> = {
@@ -291,56 +291,49 @@ export function Universe() {
 
   return (
     <div className="stack">
-      <div className="row between u-head">
-        <div>
-          <h1>{t("Universe")}</h1>
-          <p className="muted" style={{ margin: 0 }}>
-            {t("{apps} apps in {barrios} barrios, seen from the hill.", { apps, barrios: world.barrios.size })}
-          </p>
-        </div>
-        <div className="row u-controls">
-          <label className="row small"><input type="checkbox" checked={showOther} onChange={(e) => setShowOther(e.target.checked)} /> {t("Deployed another way")}</label>
-          <label className="row small"><input type="checkbox" checked={showInfra} onChange={(e) => setShowInfra(e.target.checked)} /> {t("Cluster internals")}</label>
-          {data.traces && (
-            <label className="u-field">
-              <span>{t("Period")}</span>
-              <select value={win} onChange={(e) => setWin(e.target.value as UniverseWindow)}>
-                {windows.map((w) => <option key={w.id} value={w.id}>{t(w.label)}</option>)}
-              </select>
-            </label>
-          )}
-          <label className="u-field">
-            <span>{t("Go to an app")}</span>
-            <input list="u-apps" value={search} placeholder={t("Name")} onChange={(e) => {
-              const v = e.target.value;
-              setSearch(v);
-              const s = [...world.systems.values()].find((x) => x.id === v.trim().toLowerCase());
-              if (s) { goApp(s.id); setSearch(""); }
-            }} />
-            <datalist id="u-apps">{[...world.systems.keys()].sort().map((id) => <option key={id} value={id} />)}</datalist>
-          </label>
-          <button disabled={refreshing} onClick={() => { setRefreshing(true); universeApi.get(win, true).then(setData).finally(() => setRefreshing(false)); }}>
-            {refreshing ? t("Refreshing…") : t("Refresh")}
-          </button>
-        </div>
+      <div className="u-head">
+        <h1>{t("Universe")}</h1>
+        <p className="muted" style={{ margin: 0 }}>
+          {t("{apps} apps in {barrios} barrios, seen from the hill.", { apps, barrios: world.barrios.size })}
+        </p>
       </div>
 
       {data.metricsError && <div className="alert small">{t("Latency could not be read from the metrics store: {error}", { error: data.metricsError })}</div>}
-
-      <nav className="u-crumbs" aria-label={t("Where you are")}>
-        {level === "region" ? <span>{t("Region")}</span> : <button className="link" onClick={() => go({})}>{t("Region")}</button>}
-        {here && <><span className="muted">›</span>{level === "barrio" && !sel ? <span>{barrioTitle(here)}</span> : <button className="link" onClick={() => go({ barrio })}>{barrioTitle(here)}</button>}</>}
-        {town && <><span className="muted">›</span>{sel ? <button className="link" onClick={() => setSel(undefined)}>{systemTitle(town)}</button> : <span>{systemTitle(town)}</span>}</>}
-      </nav>
 
       <div className="universe">
         <div className="u-stage">
           {mode === "3d"
             ? <div ref={hostRef} key="3d" className="u-canvas u-host" role="img" aria-label={label} />
             : <canvas ref={canvasRef} key="2.5d" className="u-canvas" role="img" aria-label={label} />}
-          <div className="u-mode" role="group" aria-label={t("How the map is drawn")}>
-            <button aria-pressed={mode === "2.5d"} onClick={() => setMode("2.5d")} title={t("Flat, seen at an angle")}>2.5D</button>
-            <button aria-pressed={mode === "3d"} onClick={() => { setNo3d(false); setMode("3d"); }} title={t("In 3D: turn it and tilt it")}>3D</button>
+          {/* The controls float over the map: how it is drawn and what shows on the left, where to go on the right. */}
+          <div className="u-bar u-bar-left">
+            <div className="u-seg" role="group" aria-label={t("How the map is drawn")}>
+              <button aria-pressed={mode === "2.5d"} onClick={() => setMode("2.5d")} title={t("Flat, seen at an angle")}>2.5D</button>
+              <button aria-pressed={mode === "3d"} onClick={() => { setNo3d(false); setMode("3d"); }} title={t("In 3D: turn it and tilt it")}>3D</button>
+            </div>
+            {data.traces && (
+              <div className="u-seg" role="group" aria-label={t("Period")}>
+                {windows.map((w) => <button key={w.id} aria-pressed={win === w.id} onClick={() => setWin(w.id)} title={t(w.label)}>{t(w.short)}</button>)}
+              </div>
+            )}
+            <button className="u-toggle" aria-pressed={showOther} onClick={() => setShowOther(!showOther)}>{t("Deployed another way")}</button>
+            <button className="u-toggle" aria-pressed={showInfra} onClick={() => setShowInfra(!showInfra)}>{t("Cluster internals")}</button>
+          </div>
+          <div className="u-bar u-bar-right">
+            <label className="u-find">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21" /></svg>
+              <input list="u-apps" value={search} placeholder={t("Go to an app")} aria-label={t("Go to an app")} onChange={(e) => {
+                const v = e.target.value;
+                setSearch(v);
+                const s = [...world.systems.values()].find((x) => x.id === v.trim().toLowerCase());
+                if (s) { goApp(s.id); setSearch(""); }
+              }} />
+              <datalist id="u-apps">{[...world.systems.keys()].sort().map((id) => <option key={id} value={id} />)}</datalist>
+            </label>
+            <button className={`u-icon${refreshing ? " u-turning" : ""}`} disabled={refreshing} title={t("Refresh")} aria-label={refreshing ? t("Refreshing…") : t("Refresh")}
+              onClick={() => { setRefreshing(true); universeApi.get(win, true).then(setData).finally(() => setRefreshing(false)); }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v5h-5" /></svg>
+            </button>
           </div>
           <div className="u-zoom" role="group" aria-label={t("Zoom")}>
             <button onClick={() => maqueta.current?.zoom(1.3)} title={t("Zoom in")} aria-label={t("Zoom in")}>+</button>
@@ -352,7 +345,14 @@ export function Universe() {
             </>}
           </div>
           {loading3d && <div className="u-loading small">{t("Building the village in 3D…")}</div>}
-          <div className="u-hint small"><span>{no3d ? t("3D needs WebGL, which this browser does not have; the map stays in 2.5D.") : hint}</span></div>
+          <div className="u-where">
+            <nav className="u-crumbs" aria-label={t("Where you are")}>
+              {level === "region" ? <span>{t("Region")}</span> : <button className="link" onClick={() => go({})}>{t("Region")}</button>}
+              {here && <><span className="muted">›</span>{level === "barrio" && !sel ? <span>{barrioTitle(here)}</span> : <button className="link" onClick={() => go({ barrio })}>{barrioTitle(here)}</button>}</>}
+              {town && <><span className="muted">›</span>{sel ? <button className="link" onClick={() => setSel(undefined)}>{systemTitle(town)}</button> : <span>{systemTitle(town)}</span>}</>}
+            </nav>
+            <span className="u-hint small">{no3d ? t("3D needs WebGL, which this browser does not have; the map stays in 2.5D.") : hint}</span>
+          </div>
         </div>
         <aside className="universe-side card stack" aria-live="polite">
           <Panel world={world} data={data} win={win} level={level} barrio={here} town={town} sel={sel} setSel={setSel} go={go} goApp={goApp} />
