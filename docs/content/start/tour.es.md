@@ -48,13 +48,13 @@ Un asistente de tres pasos:
 
 ## Servicios {#services}
 
-Cada Service del clúster, en tres pestañas:
+Cada Service del clúster, en una lista a la izquierda con tres grupos:
 
 - **Sus aplicaciones y complementos**: lo que despliega rendimiento;
 - **En otras partes del clúster**: desplegado con ArgoCD, Helm o `kubectl`;
 - **Interior del clúster**: entrada, certificados, almacenamiento, integración continua.
 
-Dentro de cada pestaña, los servicios se agrupan por lo que hacen: Bases de datos, Cachés y colas, IA, Almacenamiento, Monitoreo y analítica, Web y API, Herramientas de desarrollo, Plataforma. Los filtros y la búsqueda acotan la lista. Abra un servicio para ver **de dónde viene** (aplicación, carpeta del repositorio, imagen, aplicación de ArgoCD o instalación de Helm), **qué expone** (puertos, URL públicas, dirección en la red local, comprobación de estado, rutas), **cómo conectarse** (direcciones y un fragmento de `rendimiento.yaml` para copiar) y **quién lo usa** (encontrado en las variables de entorno de otras cargas de trabajo).
+Dentro de cada grupo, los servicios se ordenan por lo que hacen: Bases de datos, Cachés y colas, IA, Almacenamiento, Monitoreo y analítica, Web y API, Herramientas de desarrollo, Plataforma, cada uno con un punto que dice si está listo. La búsqueda abarca todos los grupos. Elija un servicio y a la derecha verá **de dónde viene** (aplicación, carpeta del repositorio, imagen, aplicación de ArgoCD o instalación de Helm), **qué expone** (puertos, URL públicas, dirección en la red local, comprobación de estado, rutas), **cómo conectarse** (direcciones y un fragmento de `rendimiento.yaml` para copiar) y **quién lo usa** (encontrado en las variables de entorno de otras cargas de trabajo).
 
 ## Complementos {#add-ons}
 

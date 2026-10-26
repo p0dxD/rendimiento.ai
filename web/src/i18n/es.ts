@@ -860,6 +860,10 @@ export const es: Record<string, string> = {
   "rendimiento cannot tell yet whether make deploy is needed: it learns which commit was applied the next time make deploy runs.": "rendimiento todavía no sabe si hace falta make deploy: sabrá qué commit se aplicó la próxima vez que se ejecute make deploy.",
   // The Universe page.
   "Universe": "Universo",
+  "Choose one on the left: on the right, what it is, how to connect and who uses it.": "Elija uno a la izquierda: a la derecha, qué es, cómo conectarse y quién lo usa.",
+  "Search services": "Buscar servicios",
+  "Where": "Dónde",
+  "via {env}": "por {env}",
   "15 min": "15 min",
   "1 hour": "1 hora",
   "24 h": "24 h",
