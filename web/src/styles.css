@@ -838,11 +838,31 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 .org-switch { max-width: 180px; font-size: 13px; padding: 4px 8px; }
 
 /* The AI page (pages/IA.tsx). */
-.ia-choice { align-items: flex-start; gap: 8px; }
-.ia-choice input { margin-top: 4px; }
-.ia-own { padding-left: 26px; }
-.ia-spend .card { min-width: 200px; }
+/* IA page: how things stand, choices as cards, and what is not saved yet. */
+.ia-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.ia-fact { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ia-fact strong { font-size: 17px; }
+.ia-last { grid-column: 1 / -1; margin: 0; }
+.ia-meter { margin-top: 2px; }
+.ia-settings h2 { margin: 0; }
+.ia-settings p { margin: 0; }
+.ia-settings section + section { border-top: 1px solid var(--border); padding-top: 16px; }
+.ia-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.ia-tile { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 12px 12px 12px 38px; border: 2px solid var(--border); border-radius: var(--radius); background: var(--surface); cursor: pointer; transition: border-color .15s, background .15s; }
+.ia-tile input { position: absolute; left: 12px; top: 14px; margin: 0; }
+.ia-tile:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.ia-tile.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+.ia-tile.off { cursor: default; opacity: .65; }
+.ia-tile.off:hover { border-color: var(--border); }
+.ia-tile .badge { white-space: normal; }
+.ia-narrow { max-width: 220px; }
+.ia-savebar { position: sticky; bottom: 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: var(--radius); background: var(--warn-bg); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+.ia-savebar ul { margin: 4px 0 0; padding-left: 18px; }
 .ia-answer { border-left: 3px solid var(--border); padding-left: 10px; }
+.badge.ia-local { background: var(--idle-bg); color: var(--idle); }
+.badge.ia-own { background: color-mix(in srgb, var(--anil) 16%, transparent); color: var(--anil); }
+:root[data-theme="night"] .badge.ia-own { color: #9DB4F2; }
+.badge.ia-platform { background: color-mix(in srgb, var(--cempasuchil) 20%, transparent); color: var(--text); }
 
 /* «Why did it fail?» on a run (pages/RunPage.tsx). */
 .why-failed { border-left: 4px solid var(--bad); margin-bottom: 16px; }

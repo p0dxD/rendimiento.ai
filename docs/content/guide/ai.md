@@ -27,11 +27,11 @@ The cheapest setup is the local model plus the Ruta's known failures, which the 
 
 ## The AI page {#the-ai-page}
 
-- **Who answers**, the model, the key and the monthly cap (administrators change them).
-- **This month:** what was spent with the organization's key, and of the platform's.
+- **At the top, how things stand:** who answers now (and, if the chosen one cannot, why the local model answers instead), whether failed runs are explained and how many new failures went to a stronger model this month, what was spent of each cap, and who changed it last.
+- **Settings, in three parts:** 1. who answers, 2. explaining failed runs (and who answers new failures), 3. the monthly cap. Each choice is a card that says what it costs and whether it can be used now (a missing key, a $0 allowance). Administrators change them; before saving, a bar lists every change from what is saved, to save or discard.
 - **Try it:** ask a question and see who answered, the tokens, the cost and, if it fell back, why (collaborators).
 - **Latest calls:** every call, who asked (a feature or an agent), the model, tokens, cost, and any error.
-- **Operators** also see every organization's allowance of the platform's AI, what each spent of it, and the platform's bill; they change allowances there.
+- **Operators** also see every organization's allowance of the platform's AI, what each spent of it, and the platform's bill; they change allowances there, each with its own Save.
 
 ## Setting it up {#setting-it-up}
 
