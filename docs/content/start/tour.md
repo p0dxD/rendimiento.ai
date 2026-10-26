@@ -38,7 +38,7 @@ A three-step wizard:
 :   Every CI run: commit, branch, status, duration. **Run** starts a build of the default branch by hand.
 
 **Run page**
-:   The run's steps as a graph (tests before builds, services in parallel), each with its live log, its duration and, for builds, the image digest and the BuildKit daemon that built it. Reused steps show which release they came from.
+:   The run's steps as a list, each with a bar for when it ran (bars that overlap ran «a la par», side by side: tests before builds, services in parallel), with its live log, its duration and, for builds, the image digest and the BuildKit daemon that built it. Reused steps show which release they came from.
 
 **Releases**
 :   Every release with its commit and images; **Roll back** to any of them.

@@ -38,7 +38,7 @@ Un asistente de tres pasos:
 :   Cada ejecución de integración continua: confirmación, rama, estado y duración. **Construir ahora** inicia a mano una construcción de la rama principal.
 
 **Página de la ejecución**
-:   Los pasos de la ejecución como un grafo (pruebas antes de las construcciones, servicios en paralelo), cada uno con su registro en vivo, su duración y, para las construcciones, la huella de la imagen y el demonio de BuildKit que la construyó. Los pasos reutilizados muestran de qué versión vienen.
+:   Los pasos de la ejecución en una lista, cada uno con una barrita de cuándo corrió (las que se enciman corrieron «a la par»: pruebas antes de las construcciones, servicios en paralelo), con su registro en vivo, su duración y, para las construcciones, la huella de la imagen y el demonio de BuildKit que la construyó. Los pasos reutilizados muestran de qué versión vienen.
 
 **Versiones**
 :   Cada versión con su confirmación y sus imágenes; **Revertir** a cualquiera de ellas.

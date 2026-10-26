@@ -4,7 +4,7 @@ import { api, dollars, duration, session, subscribe, timeAgo, type Diagnosis, ty
 import { ErrorBox, RunBadge } from "../components/ui";
 import { t } from "../i18n";
 
-/** A run's page: its graph of steps, live as they go, and the log of the step chosen. */
+/** A run's page: why it failed, its steps with when each ran, live as they go, and the log of the step chosen. */
 export function RunPage() {
   const { name = "", id = "" } = useParams();
   const runId = Number(id);
