@@ -27,11 +27,11 @@ Lo más barato es el modelo local más las fallas conocidas de la Ruta, que el d
 
 ## La página IA {#the-ai-page}
 
-- **Quién contesta**, el modelo, la llave y el tope mensual (los cambian los administradores).
-- **Este mes:** lo gastado con la llave de la organización y de la de la plataforma.
+- **Arriba, cómo está todo:** quién contesta ahora (y, si el elegido no puede, por qué contesta el modelo local), si se explican las fallas y cuántas fallas nuevas fueron este mes a un modelo más fuerte, lo gastado de cada tope y quién hizo el último cambio.
+- **La configuración, en tres partes:** 1. quién contesta, 2. explicar las fallas (y quién contesta las nuevas), 3. el tope mensual. Cada opción es una tarjeta que dice cuánto cuesta y si se puede usar ahora (falta la llave, asignación de $0). Los administradores la cambian; antes de guardar, una barra enumera cada cambio respecto a lo guardado, para guardarlo o descartarlo.
 - **Pruébela:** haga una pregunta y vea quién contestó, los tokens, el costo y, si cayó al modelo local, por qué (los colaboradores).
 - **Últimas llamadas:** cada llamada, quién preguntó (una función o un agente), el modelo, los tokens, el costo y cualquier error.
-- **Los operadores** ven además la asignación de cada organización de la IA de la plataforma, lo que gastó cada una y la cuenta de la plataforma; ahí cambian las asignaciones.
+- **Los operadores** ven además la asignación de cada organización de la IA de la plataforma, lo que gastó cada una y la cuenta de la plataforma; ahí cambian las asignaciones, cada una con su botón Guardar.
 
 ## Cómo configurarla {#setting-it-up}
 

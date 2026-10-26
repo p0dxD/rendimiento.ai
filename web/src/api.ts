@@ -293,6 +293,7 @@ export interface AISettings {
   escalateTo: "" | "own" | "platform";
   escalateLimit: number;
   updatedBy?: string;
+  updatedAt: string;
 }
 
 // The diagnostician agent's explanation of a failed run (internal/store.Diagnosis).
