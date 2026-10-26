@@ -117,6 +117,9 @@ func TestProblems(t *testing.T) {
 	if err != nil || len(all) != 2 || all[0].Message != "rejected" || all[1].Count != 3 {
 		t.Fatalf("problems = %+v, %v", all, err)
 	}
+	if today := now.Add(-time.Minute).UTC().Format("2006-01-02"); all[1].Days[today] != 3 {
+		t.Fatalf("days = %v, want 3 on %s", all[1].Days, today)
+	}
 	if shop, _ := s.ListProblems(ctx, "shop", now.AddDate(0, 0, -30), false, 50); len(shop) != 1 {
 		t.Fatalf("shop's problems = %+v", shop)
 	}

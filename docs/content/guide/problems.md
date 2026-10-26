@@ -6,8 +6,9 @@ Outages of your apps are not problems: they're on each app's [Reliability tab](r
 
 ## What you see
 
+- At the top, **counters** for the open problems, the errors, the warnings and the resolved ones; pressing one shows only those.
 - Each problem has its **level** (warning or error), its **message** and the error it reported, the **app** it concerns (if any), and the **part of the platform** that reported it.
-- **Repeats are grouped.** The same problem happening again (even with a different commit or number in it) adds to its count: *"40 times since 2:10 PM, last 3 min ago"*.
+- **Repeats are grouped.** The same problem happening again (even with a different commit or number in it) adds to its count: *"40 times since 2:10 PM, last 3 min ago"*. A **strip of the last 30 days** lights up the days it happened (hover a day for how many times); the platform counts them by day (UTC) since this page was added, so older problems show only their last day.
 - A problem is **open** for 24 hours after it last happened, unless it is **resolved** or **dismissed** first:
     - **Resolved** means rendimiento saw proof it's fixed, and says what: a rejected `rendimiento.yaml` is resolved by the next push accepted on the same branch (*"fixed by c6eae54"*), a failed email by the next email sent.
     - **Dismiss** hides a problem by hand.

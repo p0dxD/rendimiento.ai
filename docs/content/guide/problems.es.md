@@ -6,8 +6,9 @@ Las interrupciones de sus aplicaciones no son problemas: están en la [pestaña 
 
 ## Lo que se ve {#what-you-see}
 
+- Arriba, **contadores** de los problemas abiertos, los errores, las advertencias y los resueltos; al tocar uno se ven solo esos.
 - Cada problema tiene su **nivel** (advertencia o error), su **mensaje** y el error que reportó, la **aplicación** a la que se refiere (si hay una) y la **parte de la plataforma** que lo reportó.
-- **Las repeticiones se agrupan.** El mismo problema que vuelve a ocurrir (aunque traiga otra confirmación u otro número) suma a su cuenta: *"40 veces desde las 2:10 p. m., la última hace 3 min"*.
+- **Las repeticiones se agrupan.** El mismo problema que vuelve a ocurrir (aunque traiga otra confirmación u otro número) suma a su cuenta: *"40 veces desde las 2:10 p. m., la última hace 3 min"*. Una **tira de los últimos 30 días** enciende los días en que ocurrió (al pasar sobre un día se ve cuántas veces); la plataforma los cuenta por día (UTC) desde que se agregó esta tira, así que los problemas más viejos solo muestran su último día.
 - Un problema sigue **abierto** durante 24 horas desde la última vez que ocurrió, a menos que antes se **resuelva** o se **descarte**:
     - **Resuelto** significa que rendimiento vio la prueba de que se corrigió, y dice cuál: un `rendimiento.yaml` rechazado se resuelve con el siguiente envío aceptado en la misma rama (*"corregido con c6eae54"*); un correo fallido, con el siguiente correo enviado.
     - **Descartar** oculta un problema a mano.

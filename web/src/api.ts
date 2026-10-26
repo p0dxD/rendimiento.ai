@@ -422,6 +422,8 @@ export interface Problem {
   dismissedAt?: string;
   resolvedAt?: string;
   resolution?: string;
+  /** Occurrences per day (UTC, "2026-10-26"), for the last 31 days; absent before the platform counted them. */
+  days?: Record<string, number>;
 }
 
 export interface ProblemList {
