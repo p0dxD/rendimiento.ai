@@ -893,3 +893,32 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 /* «Why did it fail?» on a run (pages/RunPage.tsx). */
 .why-failed { border-left: 4px solid var(--bad); margin-bottom: 16px; }
 .judge { margin: 6px 0 8px; }
+
+/* One app: the head, its four facts and the tabs with icons. */
+.app-cabeza{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+.app-titulo{flex:1 1 280px;min-width:0}
+.app-titulo h1{margin:0;overflow-wrap:anywhere}
+.btn-link{display:inline-flex;align-items:center;min-height:40px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-weight:700}
+.btn-link:hover{text-decoration:none;border-color:var(--muted)}
+button.corre{background:linear-gradient(90deg,var(--border) 25%,var(--card) 50%,var(--border) 75%);background-size:200% 100%;animation:corre-brillo 1s linear infinite;color:var(--muted)}
+@keyframes corre-brillo{to{background-position:-200% 0}}
+.datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:18px}
+.dato{display:flex;flex-direction:column;gap:3px;padding:12px 14px;border:2px solid var(--border);border-radius:16px;background:var(--card);color:var(--text);transition:transform .2s,border-color .2s}
+.dato:hover{text-decoration:none;transform:translateY(-2px);border-color:var(--muted)}
+.dato span,.dato small{font-size:13px;color:var(--muted)}
+.dato span{font-weight:700}
+.dato b{font:800 24px/1.2 Fraunces,Georgia,serif}
+.app-tabs a{position:relative;display:inline-flex;align-items:center;gap:7px;border-bottom:none;font-weight:700}
+.app-tabs svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.app-tabs a.active::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:var(--grana);animation:raya-entra .3s ease both}
+@keyframes raya-entra{from{transform:scaleX(0)}}
+.app-vista{animation:vista-entra .35s ease both}
+@keyframes vista-entra{from{opacity:0;transform:translateY(8px)}}
+.resumen-dos{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;align-items:start}
+.resumen-dos h2{margin-top:0}
+.lo-ultimo{list-style:none;margin:0;padding:0 0 0 22px;border-left:3px dashed color-mix(in srgb,var(--cempasuchil) 50%,transparent);display:flex;flex-direction:column;gap:14px}
+.lo-ultimo li{position:relative;animation:vista-entra .4s ease both;animation-delay:var(--d)}
+.lo-ultimo li::before{content:"";position:absolute;left:-30px;top:4px;width:13px;height:13px;border-radius:50%;background:var(--c);border:3px solid var(--bg)}
+details.card>summary{cursor:pointer}
+@media (max-width:520px){.resumen-dos{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion: reduce){.app-vista,.lo-ultimo li,.app-tabs a.active::after,button.corre{animation:none}}
