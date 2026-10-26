@@ -15,7 +15,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1178 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/agentes`](#internal-agentes) | 2 | 662 | Package agentes holds the agents that work inside the platform (ROLE=agents), woken by what happens in it rather than by a person's session. |
+| [`internal/agentes`](#internal-agentes) | 2 | 635 | Package agentes holds the agents that work inside the platform (ROLE=agents), woken by what happens in it rather than by a person's session. |
 | [`internal/analytics`](#internal-analytics) | 2 | 608 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
 | [`internal/api`](#internal-api) | 22 | 5515 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/caminos`](#internal-caminos) | 2 | 310 | Package caminos builds an app's recent history as the Caminos tab draws it: the default branch is the camino real, every other branch is a vereda that leaves it at the commit it was branched from (or from its parent branch, for a stacked pull request) and comes back where its pull request was merged, with each run as a stop along the way. |
@@ -27,7 +27,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/events`](#internal-events) | 5 | 549 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 282 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1426 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/i18n`](#internal-i18n) | 3 | 852 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
+| [`internal/i18n`](#internal-i18n) | 3 | 849 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
 | [`internal/ia`](#internal-ia) | 4 | 649 | Package ia is the AI gateway: every call the platform makes to a model goes through it. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 309 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
 | [`internal/mercado`](#internal-mercado) | 5 | 1009 | Package mercado makes web pages for people who don't write code. |
@@ -237,7 +237,7 @@ Package agentes holds the agents that work inside the platform (ROLE=agents), wo
 
 ### `internal/agentes/diagnostico.go`
 
-<small>418 lines</small>
+<small>408 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -258,7 +258,7 @@ Package agentes holds the agents that work inside the platform (ROLE=agents), wo
 
 ### `internal/agentes/diagnostico_test.go`
 
-<small>244 lines · tests</small>
+<small>227 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -1353,7 +1353,7 @@ Package i18n translates the platform's messages for people: the API's answers to
 
 ### `internal/i18n/es.go`
 
-<small>527 lines</small>
+<small>524 lines</small>
 
 ### `internal/i18n/i18n.go`
 
@@ -3051,24 +3051,9 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ## Web UI (TypeScript / React) {#web-ui}
 
-### `web/.harness/main.tsx`
-
-<small>84 lines</small>
-
-| Name | Kind | Summary |
-|---|---|---|
-| `wave` | const |  |
-| `node` | const |  |
-| `e` | const |  |
-| `data` | const |  |
-
-### `web/.harness/vite.config.ts`
-
-<small>10 lines</small>
-
 ### `web/src/api.ts`
 
-<small>1189 lines</small>
+<small>1188 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3436,7 +3421,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>1285 lines</small>
+<small>1220 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3444,7 +3429,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/main.tsx`
 
-<small>121 lines</small>
+<small>122 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3452,15 +3437,11 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Addons.tsx`
 
-<small>277 lines</small>
+<small>196 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `phaseTone` | const |  |
-| `Elegido` | type |  |
-| `Addons` | component |  |
-| `Item` | component | One add-on in the list: its name, its category or state, and a dot for how it is. |
-| `Seccion` | component | A group of the list, with its count; nothing when it is empty. |
+| `Addons` | component | The Add-ons page: installed add-ons, the catalog to install more, and the built-in ones (Renovate). |
 | `RenovateCard` | component |  |
 | `RunRow` | component | One Renovate run: when, how long, what it did; open, its log and each repository's result. |
 
@@ -3527,28 +3508,21 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/IA.tsx`
 
-<small>381 lines</small>
+<small>219 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `providerLabel` | const |  |
-| `providerName` | const |  |
-| `escalateName` | const |  |
 | `IA` | component |  |
-| `modelOf` | function | The model a provider would use, as the gateway picks it. |
-| `blocked` | function | Why a provider cannot answer now ("" when it can): the gateway then falls back to the local model. |
-| `Summary` | component | How things stand now, saved: who answers, failures, and what was spent. |
-| `Meter` | component |  |
-| `Tile` | component | One choice of a group, as a card: what it is, what it costs, and whether it can be used. |
 | `Settings` | component |  |
+| `Spending` | component |  |
 | `Try` | component |  |
 | `Calls` | component |  |
 | `Operator` | component | For the platform's operators: each organization's allowance of the platform's AI, and the bill. |
-| `AllowanceRow` | component |  |
 
 ### `web/src/pages/Installed.tsx`
 
-<small>355 lines</small>
+<small>420 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3558,10 +3532,11 @@ Package web embeds the built UI (npm run build → web/dist).
 | `sourceLabel` | function | Where an add-on comes from: its Helm chart and version, or its git folder. |
 | `useLANByAddon` | function | The add-ons' services reachable on the local network, by add-on name. |
 | `LANLinks` | component | Links to an add-on's UIs on the local network (plain addresses for non-web services). |
+| `InstalledSection` | component | Installed add-ons, the catalog and its install form. |
 | `fieldDefault` | function | A catalog field's starting value in the install form. |
 | `setPath` | function | Sets a value at a dotted key ("a.b.c") in the Helm values, making the levels it needs. |
 | `InstallForm` | component |  |
-| `AddonDetail` | component | One installed add-on: status, what a sync would change, and actions; on the Add-ons page, beside the list. |
+| `AddonDetail` | component | One installed add-on: status, what a sync would change, and actions. |
 
 ### `web/src/pages/Members.tsx`
 
@@ -3670,15 +3645,14 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Services.tsx`
 
-<small>306 lines</small>
+<small>314 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `categoryOf` | const |  |
 | `categoryLabel` | const |  |
 | `originLabel` | const |  |
 | `Services` | component |  |
-| `ServiceDetail` | component |  |
+| `ServiceCard` | component |  |
 | `Copyable` | component | Text with a button that copies it. |
 | `DocsHint` | component | How to describe a service for others in rendimiento.yaml (catalog:). |
 
