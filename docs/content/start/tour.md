@@ -23,10 +23,10 @@ The home page lists every app with its phase (*Healthy*, *Progressing*, *Degrade
 
 ## New app
 
-A three-step wizard:
+One screen, in three moves:
 
-1. **Repository**: every repository the GitHub App can see, with a filter. Picking one runs detection on it.
-2. **Configure**: one form per detected service: public URL (subdomain plus zone), size, instances, port, health check, storage, secrets, tests, environment variables and **Needs** (PostgreSQL, Redis, or another service picked from the catalog; pre-ticked when the code uses a client library for them). If the repository has no Dockerfile, you choose between **building from source** (Railpack, recommended) and **adding a generated Dockerfile**. If something is already running in the target namespace (deployed by ArgoCD or by hand), a migration panel offers to **take it over** in place.
+1. **Repository**: on the left, every repository the GitHub App can see, with a filter. Picking one runs detection on it.
+2. **Configure**: on the right, the app's name and one row per detected service: public URL (subdomain plus zone), size, instances and **Needs** (PostgreSQL, Redis). **More options** unfolds the full form of each service: port, health check, storage, secrets, tests, environment variables and needs (also another service picked from the catalog; pre-ticked when the code uses a client library for them). If the repository has no Dockerfile, you choose between **building from source** (Railpack, recommended) and **adding a generated Dockerfile**. If something is already running in the target namespace (deployed by ArgoCD or by hand), a migration panel offers to **take it over** in place.
 3. **Deploy**: for a new repository, rendimiento opens a pull request adding `rendimiento.yaml` (and a Dockerfile if you chose one); the PR is built and checked, and **merging it deploys**. For a repository that already has `rendimiento.yaml`, the first build starts immediately.
 
 ## The app page

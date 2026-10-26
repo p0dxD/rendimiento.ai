@@ -3436,7 +3436,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>1283 lines</small>
+<small>1291 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3593,7 +3593,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/NewApp.tsx`
 
-<small>403 lines</small>
+<small>450 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|

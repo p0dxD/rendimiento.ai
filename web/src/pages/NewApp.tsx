@@ -15,7 +15,8 @@ const sizes: { value: Size; label: string }[] = [
 type Result = Awaited<ReturnType<typeof api.createApp>>;
 
 /**
- * The "New app" wizard: pick an installation and a repository, review what was detected in a form, then open the pull request (or build right away).
+ * The "New app" page, on one screen: repositories on the left; on the right, what was detected in the one chosen, its
+ * services with their address, size, instances and needs (more options folded away), then the pull request (or a build right away).
  */
 export function NewApp() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -111,166 +112,212 @@ export function NewApp() {
     [repos, filter],
   );
 
+  const zoneOf = (d?: string) => zones.find((z) => d?.endsWith("." + z)) ?? "";
+  const setService = (i: number, patch: Partial<Service>) => setServices(services.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const hasNeed = (s: Service, w: string) => (s.needs ?? []).some((n) => n === w);
+  const toggleNeed = (i: number, w: string) => {
+    const s = services[i];
+    const needs = hasNeed(s, w) ? (s.needs ?? []).filter((n) => n !== w) : [...(s.needs ?? []), w];
+    setService(i, { needs: needs.length ? needs : undefined });
+  };
+
   return (
     <>
       <h1>{t("New app")}</h1>
-      <p className="sub">{t("Pick a repo. rendimiento works out how to build it and where to run it.")}</p>
-      <div className="steps">
-        <span className={step === 1 ? "on" : ""}>1 · {t("Repository")}</span>
-        <span className={step === 2 ? "on" : ""}>2 · {t("Configure")}</span>
-        <span className={step === 3 ? "on" : ""}>3 · {t("Deploy")}</span>
-      </div>
+      <p className="sub" style={{ marginBottom: 0 }}>{t("Choose a repository: on the right, what we found and how it would run.")}</p>
       <ErrorBox error={error} />
 
-      {step === 1 && (
-        <div className="card stack">
+      <div className="lista-detalle">
+        <aside className="ld-lista">
           {installs && installs.installations.length === 0 && (
             <div className="alert info">
               {t("The GitHub App is not installed on any account yet.")}{" "}
               <a href={installs.installURL} target="_blank" rel="noreferrer">{t("Install it on your repos")}</a>{t(", then reload this page.")}
             </div>
           )}
+          {installs && installs.installations.length > 1 && (
+            <select aria-label={t("GitHub account")} value={inst} onChange={(e) => setInst(Number(e.target.value))}>
+              {installs.installations.map((i) => <option key={i.id} value={i.id}>{i.account.login}</option>)}
+            </select>
+          )}
           {installs && installs.installations.length > 0 && (
-            <div className="row">
-              <label className="field" style={{ flex: 1, minWidth: 180 }}>
-                <span>{t("GitHub account")}</span>
-                <select value={inst} onChange={(e) => setInst(Number(e.target.value))}>
-                  {installs.installations.map((i) => (
-                    <option key={i.id} value={i.id}>{i.account.login}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="field" style={{ flex: 2, minWidth: 200 }}>
-                <span>{t("Search")}</span>
-                <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t("Filter repositories")} />
-              </label>
-            </div>
-          )}
-          {inst && !repos && <p className="muted">{t("Loading repositories…")}</p>}
-          <div className="repo-list">
-            {shown.map((r) => (
-              <div key={r.id} className="repo-item" onClick={() => !busy && pick(r)} role="button" tabIndex={0}
-                onKeyDown={(e) => e.key === "Enter" && !busy && pick(r)}>
-                <div>
-                  <strong>{r.full_name}</strong> {r.private && <span className="badge">{t("private")}</span>}
-                  <div className="small muted">{t("default branch {branch} · pushed {when}", { branch: r.default_branch, when: timeAgo(r.pushed_at) })}</div>
-                </div>
-                <span className="btn">{busy && repo?.id === r.id ? t("Inspecting…") : t("Select")}</span>
-              </div>
-            ))}
-          </div>
-          {installs && (
-            <p className="small muted">{t("Missing a repo?")} <a href={installs.installURL} target="_blank" rel="noreferrer">{t("Give the GitHub App access to it")}</a>.</p>
-          )}
-        </div>
-      )}
-
-      {step === 2 && proposal && (
-        <div className="stack">
-          <div className="card stack">
-            <strong>{t("What we found in {repo}", { repo: proposal.repo })}</strong>
-            {(proposal.detected ?? []).map((d) => (
-              <div key={d.path} className="detect">
-                <div className="lang">{langBadge[d.language] ?? d.language.slice(0, 2)}</div>
-                <div>
-                  <div><strong>{d.path === "." ? t("repo root") : d.path}</strong> — {d.language}{d.framework ? ` / ${d.framework}` : ""}{d.version ? ` ${d.version}` : ""}, {t("port {n}", { n: d.port })}</div>
-                  <ul className="reasons">{d.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
-                </div>
-              </div>
-            ))}
-            {proposal.existing && <div className="alert info">{t("This repo already has a")} <code>rendimiento.yaml</code>{t(", so its settings are used as-is.")}</div>}
-          </div>
-
-          {proposal.migration && !proposal.migration.managed && (
-            <div className={`card stack env-hero ${adopt ? "ok" : "warn"}`} style={{ display: "block" }}>
-              <strong>{t("This app is already running in namespace")} <code>{proposal.migration.namespace}</code></strong>
-              <div className="small">
-                {proposal.migration.deployments?.map((d) => <div key={d}>• {t("deployment {name}", { name: d })}</div>)}
-                {proposal.migration.hosts?.map((h) => <div key={h}>• {t("serving {url}", { url: `https://${h}` })}</div>)}
-                {proposal.migration.secrets && proposal.migration.secrets.length > 0 && <div>• {t("secrets kept as they are: {list}", { list: proposal.migration.secrets.join(", ") })}</div>}
-                {proposal.migration.argocd && <div>• {t("tracked by ArgoCD application")} <code>{proposal.migration.argocd}</code></div>}
-              </div>
-              <label className="row" style={{ gap: 8, cursor: "pointer" }}>
-                <input type="checkbox" style={{ width: "auto" }} checked={adopt} onChange={(e) => { setAdopt(e.target.checked); if (e.target.checked) setName(proposal.migration!.namespace); }} />
-                <span><strong>{t("Migrate it to rendimiento.")}</strong> {t("New pods start next to the old ones; traffic switches only when they are ready, then the old deployment is removed.")}</span>
-              </label>
-              {adopt && proposal.migration.argocd && (
-                <div className="alert">
-                  {t("Detach it from ArgoCD first, without deleting anything, or the two will fight:")}
-                  <pre className="file" style={{ marginTop: 6 }}>kubectl delete application {proposal.migration.argocd} -n argocd --cascade=orphan</pre>
-                  {t("Also disable its Jenkins job, and remove its")} <code>argocd/</code> {t("folder from the repo only after detaching.")}
-                </div>
-              )}
-              {!adopt && <div className="small muted">{t("Or choose a different app name below to deploy a separate copy.")}</div>}
-            </div>
-          )}
-
-          <div className="card">
-            <label className="field" style={{ maxWidth: 360 }}>
-              <span>{t("App name (also its Kubernetes namespace)")}</span>
-              <input value={name} disabled={adopt} onChange={(e) => setName(e.target.value)} />
+            <label className="ld-buscar">
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21" /></svg>
+              <input type="search" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t("Filter repositories")} aria-label={t("Filter repositories")} />
             </label>
-          </div>
-
-          {services.map((s, i) => (
-            <ServiceForm key={i} service={s} zones={zones} disabled={proposal.existing}
-              onChange={(ns) => setServices(services.map((x, j) => (j === i ? ns : x)))} />
-          ))}
-
-          {Object.keys(proposal.files).length > 0 && proposal.railpack && (
-            <div className="card stack">
-              <strong>{t("How to build")}</strong>
-              <label className="row" style={{ gap: 8, cursor: "pointer", alignItems: "flex-start" }}>
-                <input type="radio" checked={!keepDockerfiles} onChange={() => setKeepDockerfiles(false)} />
-                <span><strong>{t("From source, no Dockerfile")}</strong> <span className="muted small">({t("recommended")})</span><br />
-                  <span className="muted small">{t("Railpack detects the language, installs dependencies and sets the start command on every build. Nothing to maintain in your repo; override the start command with")} <code>build.start</code> {t("if needed.")}</span></span>
-              </label>
-              <label className="row" style={{ gap: 8, cursor: "pointer", alignItems: "flex-start" }}>
-                <input type="radio" checked={keepDockerfiles} onChange={() => setKeepDockerfiles(true)} />
-                <span><strong>{t("Add a Dockerfile to the repo")}</strong><br />
-                  <span className="muted small">{t("Full control over the image (system packages, multi-stage builds). You maintain it from then on. You can switch any time: a service with a Dockerfile uses it, one without is built from source.")}</span></span>
-              </label>
-            </div>
           )}
-
-          {Object.keys(proposal.files).length > 0 && keepDockerfiles && (
-            <details className="card">
-              <summary><strong>{t("Files added to your repo")}</strong> <span className="muted small">({t("in the pull request, along with rendimiento.yaml")})</span></summary>
-              {Object.entries(proposal.files).map(([path, content]) => (
-                <div key={path} style={{ marginTop: 12 }}>
-                  <div className="mono small" style={{ marginBottom: 4 }}>{path}</div>
-                  <pre className="file">{content}</pre>
-                </div>
-              ))}
-            </details>
-          )}
-
-          <div className="row between">
-            <button onClick={() => setStep(1)}>{t("Back")}</button>
-            <button className="primary big" disabled={busy || !name} onClick={deploy}>
-              {busy ? t("Working…") : adopt ? t("Migrate & deploy") : proposal.existing ? t("Deploy") : t("Open PR & deploy")}
+          {inst && !repos && <p className="small muted" style={{ margin: "8px 4px" }}>{t("Loading repositories…")}</p>}
+          {shown.map((r) => (
+            <button key={r.id} className={`ld-item${repo?.id === r.id ? " on" : ""}${busy && repo?.id === r.id ? " corre" : ""}`} aria-current={repo?.id === r.id}
+              disabled={busy} onClick={() => { setResult(undefined); pick(r); }}>
+              <span style={{ minWidth: 0 }}>
+                <span className="ld-nombre">{r.name}</span>
+                <span className="ld-sub">{busy && repo?.id === r.id ? t("Inspecting…") : `${r.private ? t("private") + " · " : ""}${t("pushed {when}", { when: timeAgo(r.pushed_at) })}`}</span>
+              </span>
             </button>
-          </div>
-        </div>
-      )}
-
-      {step === 3 && result && (
-        <div className="card stack">
-          <h2 style={{ marginTop: 0 }}>{t("{name} is set up", { name: result.app.name })}</h2>
-          {result.pr ? (
-            <>
-              <p>{t("We opened")} <a href={result.pr.html_url} target="_blank" rel="noreferrer">{t("pull request #{n}", { n: result.pr.number })}</a> {t("with the build config. Its build runs right away;")} <strong>{t("merge it to deploy")}</strong>.</p>
-              <p className="muted small">{t("After that, every push to {branch} builds and deploys automatically. Other branches build and show their status on GitHub, but do not deploy.", { branch: result.app.defaultBranch })}</p>
-            </>
-          ) : (
-            <p>{t("The first build is running now.")}</p>
+          ))}
+          {installs && (
+            <p className="small muted" style={{ margin: "8px 4px 0" }}>{t("Missing a repo?")} <a href={installs.installURL} target="_blank" rel="noreferrer">{t("Give the GitHub App access to it")}</a>.</p>
           )}
-          <div className="row">
-            <Link className="btn primary" to={`/apps/${result.app.name}`}>{t("Go to app")}</Link>
-            {result.pr && <a className="btn" href={result.pr.html_url} target="_blank" rel="noreferrer">{t("Review the PR")}</a>}
-          </div>
-        </div>
-      )}
+        </aside>
+
+        {step === 1 && (
+          <main className="ld-detalle">
+            <p className="muted" style={{ margin: 0 }}>{t("Pick a repo. rendimiento works out how to build it and where to run it.")}</p>
+          </main>
+        )}
+
+        {step === 2 && proposal && (
+          <main className="ld-detalle" key={proposal.repo}>
+            <div className="row between" style={{ alignItems: "flex-end" }}>
+              <label className="field" style={{ flex: "1 1 240px", maxWidth: 340 }}>
+                <span>{t("App name (also its Kubernetes namespace)")}</span>
+                <input value={name} disabled={adopt} onChange={(e) => setName(e.target.value)} />
+              </label>
+              <span className="small muted">
+                {(proposal.detected ?? []).map((d) => `${d.path === "." ? t("repo root") : d.path}: ${d.language}${d.framework ? ` / ${d.framework}` : ""}`).join(" · ")}
+              </span>
+            </div>
+            {proposal.existing && <div className="alert info">{t("This repo already has a")} <code>rendimiento.yaml</code>{t(", so its settings are used as-is.")}</div>}
+
+            {proposal.migration && !proposal.migration.managed && (
+              <div className={`card stack env-hero ${adopt ? "ok" : "warn"}`} style={{ display: "block" }}>
+                <strong>{t("This app is already running in namespace")} <code>{proposal.migration.namespace}</code></strong>
+                <div className="small">
+                  {proposal.migration.deployments?.map((d) => <div key={d}>• {t("deployment {name}", { name: d })}</div>)}
+                  {proposal.migration.hosts?.map((h) => <div key={h}>• {t("serving {url}", { url: `https://${h}` })}</div>)}
+                  {proposal.migration.secrets && proposal.migration.secrets.length > 0 && <div>• {t("secrets kept as they are: {list}", { list: proposal.migration.secrets.join(", ") })}</div>}
+                  {proposal.migration.argocd && <div>• {t("tracked by ArgoCD application")} <code>{proposal.migration.argocd}</code></div>}
+                </div>
+                <label className="row" style={{ gap: 8, cursor: "pointer" }}>
+                  <input type="checkbox" style={{ width: "auto" }} checked={adopt} onChange={(e) => { setAdopt(e.target.checked); if (e.target.checked) setName(proposal.migration!.namespace); }} />
+                  <span><strong>{t("Migrate it to rendimiento.")}</strong> {t("New pods start next to the old ones; traffic switches only when they are ready, then the old deployment is removed.")}</span>
+                </label>
+                {adopt && proposal.migration.argocd && (
+                  <div className="alert">
+                    {t("Detach it from ArgoCD first, without deleting anything, or the two will fight:")}
+                    <pre className="file" style={{ marginTop: 6 }}>kubectl delete application {proposal.migration.argocd} -n argocd --cascade=orphan</pre>
+                    {t("Also disable its Jenkins job, and remove its")} <code>argocd/</code> {t("folder from the repo only after detaching.")}
+                  </div>
+                )}
+                {!adopt && <div className="small muted">{t("Or choose a different app name below to deploy a separate copy.")}</div>}
+              </div>
+            )}
+
+            <section>
+              <h3 className="ld-h3">{t("Services")}</h3>
+              <fieldset className="nueva-servicios" disabled={proposal.existing}>
+                <div className="nueva-fila nueva-cabeza" aria-hidden="true"><span>{t("Service")}</span><span>{t("Public URL")}</span><span>{t("Size")}</span><span>{t("Instances")}</span></div>
+                {services.map((s, i) => {
+                  const zone = zoneOf(s.domain);
+                  const sub = zone ? s.domain!.slice(0, -(zone.length + 1)) : s.domain ?? "";
+                  return (
+                    <div key={i} className="nueva-servicio" style={{ ["--d" as string]: `${i * 70}ms` }}>
+                      <div className="nueva-fila">
+                        <strong>{s.name}</strong>
+                        <div className="domain-input">
+                          <input value={sub} placeholder={t("none: only inside the cluster")} aria-label={t("Public URL of {name}", { name: s.name })}
+                            onChange={(e) => setService(i, { domain: e.target.value ? (zone ? `${e.target.value}.${zone}` : e.target.value) : undefined })} />
+                          {zones.length > 0 && (
+                            <select value={zone} aria-label={t("Domain")} onChange={(e) => setService(i, { domain: sub ? (e.target.value ? `${sub}.${e.target.value}` : sub) : undefined })}>
+                              {zones.map((z) => <option key={z} value={z}>.{z}</option>)}
+                              <option value="">{t("custom domain")}</option>
+                            </select>
+                          )}
+                        </div>
+                        <select value={s.size} aria-label={t("Size")} onChange={(e) => setService(i, { size: e.target.value as Size })}>
+                          {sizes.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
+                        </select>
+                        <select value={s.replicas} aria-label={t("Instances")} onChange={(e) => setService(i, { replicas: Number(e.target.value) })}>
+                          {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      </div>
+                      <div className="row small nueva-necesita">
+                        <span className="muted">{t("Needs")}</span>
+                        <button type="button" className={`chip-btn${hasNeed(s, "postgres") ? " on" : ""}`} aria-pressed={hasNeed(s, "postgres")} onClick={() => toggleNeed(i, "postgres")}>PostgreSQL</button>
+                        <button type="button" className={`chip-btn${hasNeed(s, "redis") ? " on" : ""}`} aria-pressed={hasNeed(s, "redis")} onClick={() => toggleNeed(i, "redis")}>Redis</button>
+                        <span className="muted">{t("rendimiento runs them and passes DATABASE_URL and REDIS_URL")}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </fieldset>
+            </section>
+
+            <details className="nueva-mas">
+              <summary><strong>{t("More options")}</strong> <span className="small muted">{t("ports, health check, disk, secrets, tests, how to build")}</span></summary>
+              <div className="stack" style={{ marginTop: 12 }}>
+                {services.map((s, i) => (
+                  <ServiceForm key={i} service={s} zones={zones} disabled={proposal.existing}
+                    onChange={(ns) => setServices(services.map((x, j) => (j === i ? ns : x)))} />
+                ))}
+                {Object.keys(proposal.files).length > 0 && proposal.railpack && (
+                  <div className="card stack">
+                    <strong>{t("How to build")}</strong>
+                    <label className="row" style={{ gap: 8, cursor: "pointer", alignItems: "flex-start" }}>
+                      <input type="radio" checked={!keepDockerfiles} onChange={() => setKeepDockerfiles(false)} />
+                      <span><strong>{t("From source, no Dockerfile")}</strong> <span className="muted small">({t("recommended")})</span><br />
+                        <span className="muted small">{t("Railpack detects the language, installs dependencies and sets the start command on every build. Nothing to maintain in your repo; override the start command with")} <code>build.start</code> {t("if needed.")}</span></span>
+                    </label>
+                    <label className="row" style={{ gap: 8, cursor: "pointer", alignItems: "flex-start" }}>
+                      <input type="radio" checked={keepDockerfiles} onChange={() => setKeepDockerfiles(true)} />
+                      <span><strong>{t("Add a Dockerfile to the repo")}</strong><br />
+                        <span className="muted small">{t("Full control over the image (system packages, multi-stage builds). You maintain it from then on. You can switch any time: a service with a Dockerfile uses it, one without is built from source.")}</span></span>
+                    </label>
+                  </div>
+                )}
+                {Object.keys(proposal.files).length > 0 && keepDockerfiles && (
+                  <details className="card">
+                    <summary><strong>{t("Files added to your repo")}</strong> <span className="muted small">({t("in the pull request, along with rendimiento.yaml")})</span></summary>
+                    {Object.entries(proposal.files).map(([path, content]) => (
+                      <div key={path} style={{ marginTop: 12 }}>
+                        <div className="mono small" style={{ marginBottom: 4 }}>{path}</div>
+                        <pre className="file">{content}</pre>
+                      </div>
+                    ))}
+                  </details>
+                )}
+                <details className="card">
+                  <summary><strong>{t("What we found in {repo}", { repo: proposal.repo })}</strong></summary>
+                  {(proposal.detected ?? []).map((d) => (
+                    <div key={d.path} className="detect">
+                      <div className="lang">{langBadge[d.language] ?? d.language.slice(0, 2)}</div>
+                      <div>
+                        <div><strong>{d.path === "." ? t("repo root") : d.path}</strong> — {d.language}{d.framework ? ` / ${d.framework}` : ""}{d.version ? ` ${d.version}` : ""}, {t("port {n}", { n: d.port })}</div>
+                        <ul className="reasons">{d.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+                      </div>
+                    </div>
+                  ))}
+                </details>
+              </div>
+            </details>
+
+            <div className="nueva-pie">
+              <button className="primary big" disabled={busy || !name} onClick={deploy}>
+                {busy ? t("Working…") : adopt ? t("Migrate & deploy") : proposal.existing ? t("Deploy") : t("Open PR & deploy")}
+              </button>
+            </div>
+          </main>
+        )}
+
+        {step === 3 && result && (
+          <main className="ld-detalle">
+            <h2 className="ld-titulo">{t("{name} is set up", { name: result.app.name })}</h2>
+            {result.pr ? (
+              <>
+                <p style={{ margin: 0 }}>{t("We opened")} <a href={result.pr.html_url} target="_blank" rel="noreferrer">{t("pull request #{n}", { n: result.pr.number })}</a> {t("with the build config. Its build runs right away;")} <strong>{t("merge it to deploy")}</strong>.</p>
+                <p className="muted small" style={{ margin: 0 }}>{t("After that, every push to {branch} builds and deploys automatically. Other branches build and show their status on GitHub, but do not deploy.", { branch: result.app.defaultBranch })}</p>
+              </>
+            ) : (
+              <p style={{ margin: 0 }}>{t("The first build is running now.")}</p>
+            )}
+            <div className="row">
+              <Link className="btn primary" to={`/apps/${result.app.name}`}>{t("Go to app")}</Link>
+              {result.pr && <a className="btn" href={result.pr.html_url} target="_blank" rel="noreferrer">{t("Review the PR")}</a>}
+            </div>
+          </main>
+        )}
+      </div>
     </>
   );
 }
