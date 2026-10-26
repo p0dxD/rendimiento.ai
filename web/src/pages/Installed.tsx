@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   ApiError, catalogApi, installedApi, timeAgo,
   type AddonCatalogEntry, type AddonDefinition, type AddonPhase, type CatalogEntry, type CatalogField, type InstalledAddon,
@@ -53,69 +53,6 @@ function LANLinks({ entries }: { entries?: CatalogEntry[] }) {
   );
 }
 
-/** Installed add-ons, the catalog and its install form. */
-export function InstalledSection({ query }: { query: string }) {
-  const { data, error, reload } = usePoll(() => installedApi.list(), [], 5000);
-  const { data: catalog } = usePoll(() => installedApi.catalog(), []);
-  const [installing, setInstalling] = useState<AddonCatalogEntry>();
-  const lan = useLANByAddon();
-  const nav = useNavigate();
-  const q = query.trim().toLowerCase();
-  const match = (...s: (string | undefined)[]) => !q || s.join(" ").toLowerCase().includes(q);
-
-  const installed = (data?.addons ?? []).filter((a) => match(a.name, a.title, a.category, a.description, sourceLabel(a)));
-  const available = (catalog ?? []).filter((c) => match(c.id, c.title, c.category, c.description));
-
-  return (
-    <>
-      <h2>{t("Installed")}</h2>
-      <ErrorBox error={error} />
-      {data?.sync?.error && <div className="alert">{t("Could not read {repo}: {err}", { repo: data.repo ?? "", err: data.sync.error })}</div>}
-      {data?.sync?.invalid && Object.entries(data.sync.invalid).map(([f, e]) => (
-        <div key={f} className="alert">{t("{file} is invalid and was skipped: {err}", { file: `${data.repo}/${f}`, err: e })}</div>
-      ))}
-      {data && installed.length === 0 && <div className="card muted">{q ? t("No installed add-on matches.") : t("Nothing installed yet. Pick something from the catalog below.")}</div>}
-      <div className="stack">
-        {installed.map((a) => (
-          <div key={a.name} className="card row between" style={{ cursor: "pointer" }} onClick={() => nav(`/addons/${a.name}`)}>
-            <div style={{ minWidth: 0 }}>
-              <div className="row" style={{ gap: 8 }}>
-                <strong>{a.title}</strong>
-                {a.category && <span className="chip">{a.category}</span>}
-                <span className="chip">{a.namespace}</span>
-                {a.manualSync && <span className="chip">{t("manual sync")}</span>}
-              </div>
-              <div className="small muted svc-line">{sourceLabel(a)}{a.status.message ? ` · ${a.status.message}` : ""}</div>
-              <LANLinks entries={lan[a.name]} />
-            </div>
-            <AddonPhaseBadge phase={a.status.phase} />
-          </div>
-        ))}
-      </div>
-      {data?.repo && <p className="small muted">{t("Every add-on is a file in")} <a href={`https://github.com/${data.repo}/tree/HEAD/addons`} target="_blank" rel="noreferrer">{data.repo}/addons</a>{t(": changes here are commits there, and edits pushed there show up here.")}{data.sync?.at && ` ${t("Last read {when}.", { when: timeAgo(data.sync.at) })}`}</p>}
-
-      <h2>{t("Add from the catalog")}</h2>
-      <div className="grid">
-        {available.map((c) => (
-          <div key={c.id} className="card stack">
-            <div className="row between">
-              <strong>{c.title}</strong>
-              {c.category && <span className="chip">{c.category}</span>}
-            </div>
-            <div className="small muted">{c.description}</div>
-            {c.helm && <div className="small mono muted">{c.helm.chart} {c.helm.version}</div>}
-            <div className="row">
-              <button className="primary" onClick={() => setInstalling(c)}>{c.kind === "helm" ? t("Install") : t("Set up")}</button>
-              {c.homepage && <a className="small" href={c.homepage} target="_blank" rel="noreferrer">{t("About ↗")}</a>}
-            </div>
-          </div>
-        ))}
-      </div>
-      {installing && <InstallForm entry={installing} existing={data?.addons ?? []} onClose={() => setInstalling(undefined)} onDone={reload} />}
-    </>
-  );
-}
-
 /** A catalog field's starting value in the install form. */
 function fieldDefault(f: CatalogField): string | boolean {
   if (f.type === "boolean") return Boolean(f.default);
@@ -135,7 +72,7 @@ function setPath(values: Record<string, unknown>, key: string, v: unknown) {
 /**
  * The form to install an add-on: its name, namespace, source and settings (or Helm values), written to the gitops repository.
  */
-function InstallForm({ entry, existing, onClose, onDone }: { entry: AddonCatalogEntry; existing: InstalledAddon[]; onClose: () => void; onDone: () => void }) {
+export function InstallForm({ entry, existing, onClose, onDone }: { entry: AddonCatalogEntry; existing: InstalledAddon[]; onClose: () => void; onDone: () => void }) {
   const nav = useNavigate();
   const custom = entry.kind !== "helm";
   const [name, setName] = useState(custom ? "" : entry.id);
@@ -189,9 +126,9 @@ function InstallForm({ entry, existing, onClose, onDone }: { entry: AddonCatalog
   };
 
   return (
-    <div className="card stack" style={{ marginTop: 16, borderColor: "var(--accent)" }}>
+    <div className="stack">
       <div className="row between">
-        <h3 style={{ margin: 0 }}>{custom ? entry.title : t("Install {title}", { title: entry.title })}</h3>
+        <h3 className="ld-h3">{custom ? entry.title : t("Install {title}", { title: entry.title })}</h3>
         <button onClick={onClose}>{t("Cancel")}</button>
       </div>
       {entry.notes && <div className="alert info small">{entry.notes}</div>}
@@ -255,9 +192,8 @@ function InstallForm({ entry, existing, onClose, onDone }: { entry: AddonCatalog
   );
 }
 
-/** One installed add-on: status, what a sync would change, and actions. */
-export function AddonDetail() {
-  const { name = "" } = useParams();
+/** One installed add-on: status, what a sync would change, and actions; on the Add-ons page, beside the list. */
+export function AddonDetail({ name }: { name: string }) {
   const nav = useNavigate();
   const { data: a, error, reload } = usePoll(() => installedApi.get(name), [name], 5000);
   const [busy, setBusy] = useState(false);
@@ -283,19 +219,18 @@ export function AddonDetail() {
       setBusy(false);
     }
   };
-  if (appearing) return <p className="muted">{t("Installing {name}… it appears here in a few seconds.", { name })}</p>;
-  if (error) return <ErrorBox error={error} />;
-  if (!a) return <p className="muted">{t("Loading…")}</p>;
+  if (appearing) return <main className="ld-detalle"><p className="muted">{t("Installing {name}… it appears here in a few seconds.", { name })}</p></main>;
+  if (error) return <main className="ld-detalle"><ErrorBox error={error} /></main>;
+  if (!a) return <main className="ld-detalle"><p className="muted">{t("Loading…")}</p></main>;
   const st = a.status;
   const p = st.preview;
   const changesWaiting = (p?.create ?? 0) + (p?.update ?? 0) + (p?.prune ?? 0) > 0;
 
   return (
-    <>
-      <p className="small"><Link to="/addons">← {t("Add-ons")}</Link></p>
+    <main className="ld-detalle">
       <div className="row between">
-        <div>
-          <h1 style={{ marginBottom: 4 }}>{a.title}</h1>
+        <div style={{ minWidth: 0 }}>
+          <h2 className="ld-titulo">{a.title}</h2>
           <div className="small muted">{sourceLabel(a)} · {t("namespace {ns}", { ns: a.namespace })}{st.revision ? ` · ${t("rendered {rev}", { rev: st.revision.length === 40 ? st.revision.slice(0, 7) : st.revision })}` : ""}</div>
         </div>
         <AddonPhaseBadge phase={st.phase} />
@@ -355,7 +290,7 @@ export function AddonDetail() {
         </details>
       )}
 
-      <h2>{changesWaiting ? t("What a sync will change") : t("Sync status")}</h2>
+      <h3 className="ld-h3">{changesWaiting ? t("What a sync will change") : t("Sync status")}</h3>
       {p ? (
         <div className="card stack">
           <div className="row small">
@@ -376,7 +311,7 @@ export function AddonDetail() {
 
       {st.objects && st.objects.length > 0 && (
         <>
-          <h2>{t("Objects")} <span className="muted small">{st.objects.length}</span></h2>
+          <h3 className="ld-h3">{t("Objects")} <span className="muted small">{st.objects.length}</span></h3>
           <details className="card">
             <summary className="small">{t("Show everything this add-on manages")}</summary>
             <table className="svc-ports" style={{ marginTop: 8 }}>
@@ -392,7 +327,7 @@ export function AddonDetail() {
 
       {a.fromGit && (
         <>
-          <h2>{t("Remove")}</h2>
+          <h3 className="ld-h3">{t("Remove")}</h3>
           <div className="card stack small">
             <div className="row">
               <button disabled={busy} onClick={() => setConfirm("remove")}>{t("Stop managing (keep running)")}</button>
@@ -415,6 +350,6 @@ export function AddonDetail() {
           </div>
         </>
       )}
-    </>
+    </main>
   );
 }

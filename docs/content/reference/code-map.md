@@ -3436,7 +3436,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>1283 lines</small>
+<small>1285 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3444,7 +3444,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/main.tsx`
 
-<small>122 lines</small>
+<small>121 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3452,11 +3452,15 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Addons.tsx`
 
-<small>196 lines</small>
+<small>277 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `Addons` | component | The Add-ons page: installed add-ons, the catalog to install more, and the built-in ones (Renovate). |
+| `phaseTone` | const |  |
+| `Elegido` | type |  |
+| `Addons` | component |  |
+| `Item` | component | One add-on in the list: its name, its category or state, and a dot for how it is. |
+| `Seccion` | component | A group of the list, with its count; nothing when it is empty. |
 | `RenovateCard` | component |  |
 | `RunRow` | component | One Renovate run: when, how long, what it did; open, its log and each repository's result. |
 
@@ -3544,7 +3548,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Installed.tsx`
 
-<small>420 lines</small>
+<small>355 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3554,11 +3558,10 @@ Package web embeds the built UI (npm run build → web/dist).
 | `sourceLabel` | function | Where an add-on comes from: its Helm chart and version, or its git folder. |
 | `useLANByAddon` | function | The add-ons' services reachable on the local network, by add-on name. |
 | `LANLinks` | component | Links to an add-on's UIs on the local network (plain addresses for non-web services). |
-| `InstalledSection` | component | Installed add-ons, the catalog and its install form. |
 | `fieldDefault` | function | A catalog field's starting value in the install form. |
 | `setPath` | function | Sets a value at a dotted key ("a.b.c") in the Helm values, making the levels it needs. |
 | `InstallForm` | component |  |
-| `AddonDetail` | component | One installed add-on: status, what a sync would change, and actions. |
+| `AddonDetail` | component | One installed add-on: status, what a sync would change, and actions; on the Add-ons page, beside the list. |
 
 ### `web/src/pages/Members.tsx`
 
