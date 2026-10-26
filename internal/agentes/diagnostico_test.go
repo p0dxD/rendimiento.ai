@@ -79,12 +79,16 @@ type fakeModel struct {
 	org   int64
 	err   error
 	via   []string
+	empty bool // the stronger model spends its answer thinking
 }
 
 func (m *fakeModel) CompleteVia(_ context.Context, org int64, source, provider string, req ia.Request) (ia.Response, error) {
 	m.asked, m.org, m.via = append(m.asked, req), org, append(m.via, provider)
 	if source != Escalated {
 		return ia.Response{}, fmt.Errorf("source %q", source)
+	}
+	if m.empty {
+		return ia.Response{Provider: provider, Model: "claude-haiku-5-5", CostMicros: 1000}, nil
 	}
 	return ia.Response{Text: "Haiku dice: el etcd de la prueba tardó.", Provider: provider, Model: "claude-haiku-5-5", CostMicros: 3000}, nil
 }
@@ -223,5 +227,18 @@ func TestEscalation(t *testing.T) {
 	}
 	if len(m.via) != 1 {
 		t.Fatalf("escalated over the limit: %v", m.via)
+	}
+
+	// An answer with room to think, and an empty one is not an explanation
+	// (nor remembered).
+	st.ruta, st.escalated, m.empty = nil, 0, true
+	if err := d.Diagnose(context.Background(), 7); err != nil {
+		t.Fatal(err)
+	}
+	if got := st.saved[7]; got.Status != store.DiagnosisFailed || !strings.Contains(got.Note, "thinking") || len(st.ruta) != 0 {
+		t.Fatalf("empty answer: %+v, ruta %v", got, st.ruta)
+	}
+	if last := m.asked[len(m.asked)-1]; last.MaxTokens != AnswerTokens {
+		t.Fatalf("max tokens = %d", last.MaxTokens)
 	}
 }

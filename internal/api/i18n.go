@@ -15,7 +15,7 @@ import (
 var translatedKeys = map[string]bool{
 	"message": true, "summary": true, "fix": true, "detail": true, "details": true,
 	"reason": true, "reasons": true, "verifyMessage": true, "resolution": true,
-	"description": true, "error": true, "result": true, "notes": true,
+	"description": true, "error": true, "result": true, "notes": true, "note": true,
 }
 
 // Keys whose values are short labels: translated word for word or through a
