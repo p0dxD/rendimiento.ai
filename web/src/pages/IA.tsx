@@ -49,27 +49,44 @@ function blocked(v: IAView, p: AIProvider | ""): string {
 function Summary({ v }: { v: IAView }) {
   const s = v.settings;
   const why = blocked(v, s.provider);
-  const escWhy = s.autoDiagnose && s.escalateTo ? blocked(v, s.escalateTo) : "";
+  const escalate = s.autoDiagnose ? s.escalateTo : "";
+  const escWhy = escalate ? blocked(v, escalate) : "";
+  const answers: AIProvider = why ? "local" : s.provider;
+  const platformLimit = Math.min(s.capMicros, s.allowanceMicros);
+  const spent = v.spentOwnMicros + v.spentPlatformMicros;
+  // One notice for what is missing, said once even when both choices miss the same thing.
+  const missing = [...new Set([why, escWhy].filter(Boolean))];
   return (
     <div className="card ia-summary">
+      {missing.length > 0 && (
+        <div className="ia-alert small">
+          <strong>{t("Something is missing:")}</strong> {t("{why}, so the local model answers for now.", { why: missing.join("; ") })}{" "}
+          {missing.some((m) => m === blocked(v, "platform")) && (session.operator
+            ? t("Give your organization an allowance below, under the platform's AI.")
+            : t("Ask the platform's operators for an allowance."))}
+        </div>
+      )}
       <div className="ia-fact">
-        <div className="small muted">{t("Answers now")}</div>
-        <strong>{t(providerName[why ? "local" : s.provider])}</strong> <span className="muted small">{modelOf(v, why ? "local" : s.provider)}</span>
-        {why && <div className="small"><span className="badge warn">{t("instead of {who}: {why}", { who: t(providerName[s.provider]), why })}</span></div>}
+        <span className="small muted">{t("Answers now")}</span>
+        <strong>{t(providerName[answers])}</strong>
+        <span className="small muted">{modelOf(v, answers)} · {t(answers === "local" ? "free" : answers === "own" ? "paid by you" : "paid by the platform")}</span>
       </div>
       <div className="ia-fact">
-        <div className="small muted">{t("Failed runs")}</div>
-        {s.autoDiagnose ? <strong>{t("Explained")}</strong> : <strong className="muted">{t("Not explained")}</strong>}
-        {s.autoDiagnose && s.escalateTo && (
-          <Meter label={t("New failures to {who}", { who: t(escalateName[s.escalateTo]) })} used={v.escalations} total={s.escalateLimit} fmt={String} />
+        <span className="small muted">{t("Failed runs")}</span>
+        <strong>{t(s.autoDiagnose ? "Explained" : "Not explained")}</strong>
+        {s.autoDiagnose && (
+          <span className="small muted">{escalate && !escWhy
+            ? t("New ones with {who}: {n} of {limit} this month", { who: t(providerLabel[escalate]), n: v.escalations, limit: s.escalateLimit })
+            : t("All with the usual model")}</span>
         )}
-        {escWhy && <div className="small"><span className="badge warn">{t("they go to the usual model: {why}", { why: escWhy })}</span></div>}
       </div>
       <div className="ia-fact">
-        <div className="small muted">{t("This month")}</div>
-        {s.provider === "own" || v.spentOwnMicros > 0 ? <Meter label={t("Your key")} used={v.spentOwnMicros} total={s.capMicros} fmt={dollars} /> : null}
-        {v.platformAvailable && <Meter label={t("The platform's")} used={v.spentPlatformMicros} total={Math.min(s.capMicros, s.allowanceMicros)} fmt={dollars} />}
-        {s.provider === "local" && !v.spentOwnMicros && !v.spentPlatformMicros && <strong>{t("$0: everything on the local model")}</strong>}
+        <span className="small muted">{t("Spent this month")}</span>
+        <strong>{dollars(spent)}</strong>
+        {s.provider === "own" || v.spentOwnMicros > 0
+          ? <Meter label={t("Your key")} used={v.spentOwnMicros} total={s.capMicros} fmt={dollars} /> : null}
+        {platformLimit > 0 && <Meter label={t("The platform's")} used={v.spentPlatformMicros} total={platformLimit} fmt={dollars} />}
+        {!spent && s.provider === "local" && <span className="small muted">{t("everything on the local model, free")}</span>}
       </div>
       {s.updatedBy && <p className="small muted ia-last">{t("Last changed by {who}, {when}.", { who: s.updatedBy, when: timeAgo(s.updatedAt) })}</p>}
     </div>

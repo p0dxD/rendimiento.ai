@@ -840,10 +840,11 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 /* The AI page (pages/IA.tsx). */
 /* IA page: how things stand, choices as cards, and what is not saved yet. */
 .ia-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 16px; }
-.ia-fact { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.ia-fact strong { font-size: 17px; }
+.ia-fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ia-fact strong { font-size: 18px; line-height: 1.3; }
+.ia-fact .ia-meter { margin-top: 6px; }
+.ia-alert { grid-column: 1 / -1; padding: 10px 12px; border-radius: 10px; background: var(--warn-bg); color: var(--text); border-left: 4px solid var(--warn); }
 .ia-last { grid-column: 1 / -1; margin: 0; }
-.ia-meter { margin-top: 2px; }
 .ia-settings h2 { margin: 0; }
 .ia-settings p { margin: 0; }
 .ia-settings section + section { border-top: 1px solid var(--border); padding-top: 16px; }
