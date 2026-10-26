@@ -3436,7 +3436,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>1283 lines</small>
+<small>1289 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3681,11 +3681,11 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Setup.tsx`
 
-<small>30 lines</small>
+<small>58 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `Setup` | component | First-run page: creates the GitHub App through GitHub's manifest flow. |
+| `Setup` | component |  |
 
 ### `web/src/pages/Universe.tsx`
 
