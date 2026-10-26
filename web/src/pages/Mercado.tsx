@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Flor } from "../components/ambiente";
 import { ErrorBox, usePoll } from "../components/ui";
-import { api, timeAgo, type Pagina, type PaletaPagina, type TipoEnlace, type TipoPagina } from "../api";
+import { api, timeAgo, type Pagina, type PaletaPagina, type Puesto, type TipoEnlace, type TipoPagina } from "../api";
 import { t } from "../i18n";
 import { marchita } from "./Dashboard";
 
@@ -49,59 +49,92 @@ function sugeridos(tipo: TipoPagina): { etiqueta: string; texto: string }[] {
 
 const tipoNombre = (id: TipoPagina) => tipos.find((x) => x.id === id)?.titulo() ?? id;
 
-/** The Mercado page: every stall (a page made from a form), with its owner, address and state. */
+/**
+ * The Mercado page: every stall (a page made from a form) in a list, and the one chosen on the right as its visitors see it,
+ * on a phone, with its state, address, owner and last change.
+ */
 export function Mercado() {
   const { data, error } = usePoll(api.mercado, [], 15000);
+  const [params, setParams] = useSearchParams();
+  const elegido = data?.puestos.find((p) => p.app === params.get("puesto")) ?? data?.puestos[0];
   return (
-    <div className="stack mercado">
-      <header className="mercado-cabeza">
-        <div>
-          <h1>{t("The Mercado")}</h1>
-          <p className="muted">
-            {t("Web pages for people who don't write code. Fill in a form and rendimiento makes the page, publishes it and keeps it. Every page is a stall: here are all of them.")}
-          </p>
-        </div>
-        {data?.enabled && <Link to="/mercado/nuevo" className="btn primary big">{t("Open a stall")}</Link>}
-      </header>
+    <div className="mercado">
+      <h1>{t("The Mercado")}</h1>
+      <p className="sub" style={{ marginBottom: 0 }}>{t("Web pages for people who don't write code. Choose a stall to see it as its visitors do.")}</p>
       <ErrorBox error={error} />
       {data && !data.enabled && (
-        <div className="card stack">
+        <div className="card stack" style={{ marginTop: 16 }}>
           <strong>{t("The Mercado is not set up yet.")}</strong>
           <p className="muted">
             {t("Its pages live in a GitHub organization of their own: set PAGES_ORG to it, install the GitHub App there for all repositories, and give the App the Administration permission (it creates each page's repository).")}
           </p>
         </div>
       )}
-      {data?.enabled && data.puestos.length === 0 && (
-        <div className="card empty">
-          <p>{t("No stalls yet. Yours can be the first.")}</p>
-          <Link to="/mercado/nuevo" className="btn primary big">{t("Open a stall")}</Link>
+      {data?.enabled && (
+        <div className="lista-detalle">
+          <aside className="ld-lista">
+            <Link to="/mercado/nuevo" className="btn primary">{t("Open a stall")}</Link>
+            {data.puestos.length === 0 && <p className="small muted" style={{ margin: "8px 4px" }}>{t("No stalls yet. Yours can be the first.")}</p>}
+            {data.puestos.map((p) => {
+              const caida = marchita(p);
+              const color = tipoColor[p.tipo] ?? "var(--grana)";
+              const vivo = !!p.status.services?.some((x) => x.url);
+              return (
+                <button key={p.appId} className={`ld-item${elegido?.app === p.app ? " on" : ""}`} style={{ ["--c" as string]: color }}
+                  aria-current={elegido?.app === p.app} onClick={() => setParams({ puesto: p.app }, { replace: true })}>
+                  <span className="puesto-inicial" style={{ background: color }} aria-hidden="true">{(p.nombre.trim()[0] ?? "?").toUpperCase()}</span>
+                  <span style={{ minWidth: 0 }}>
+                    <span className="ld-nombre">{p.nombre}</span>
+                    <span className="ld-sub">{tipoNombre(p.tipo)} · @{p.owner}</span>
+                  </span>
+                  <span className={`ld-punto ${caida ? "bad" : vivo ? "ok" : "warn"}`} title={caida ? t("Withered stall") : vivo ? t("Online") : t("Being built…")} />
+                </button>
+              );
+            })}
+          </aside>
+          {elegido ? <PuestoVista key={elegido.app} p={elegido} /> : <main className="ld-detalle"><Link to="/mercado/nuevo" className="btn primary big">{t("Open a stall")}</Link></main>}
         </div>
       )}
-      <div className="puestos">
-        {data?.puestos.map((p) => {
-          const caida = marchita(p);
-          const url = p.status.services?.find((s) => s.url)?.url;
-          return (
-            <article key={p.appId} className={`puesto-card${caida ? " caida" : ""}`} style={{ ["--toldo" as string]: tipoColor[p.tipo] ?? "var(--grana)" }}>
-              <div className="puesto-toldo" aria-hidden="true" />
-              <div className="puesto-cuerpo">
-                <Flor estado={caida ? "marchita" : "viva"} size={44} label={caida ? t("Withered flower") : t("Blooming flower")} />
-                <h3>{p.nombre}</h3>
-                <div className="small muted">{tipoNombre(p.tipo)} · {t("stall of @{owner}", { owner: p.owner })}</div>
-                {url ? <a href={url} target="_blank" rel="noreferrer" className="small">{url}</a>
-                  : <span className="small muted">{t("Being built…")}</span>}
-                <div className="small muted">{t("changed {when}", { when: timeAgo(p.updatedAt) })}</div>
-                <div className="row" style={{ justifyContent: "center" }}>
-                  <Link to={`/mercado/${p.app}`} className="btn">{t("Change it")}</Link>
-                  <Link to={`/apps/${p.app}`} className="btn ghost">{t("Technical details")}</Link>
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </div>
     </div>
+  );
+}
+
+/** One stall: its page on a phone, as built from its form, beside its state and what to do with it. */
+function PuestoVista({ p }: { p: Puesto }) {
+  const [html, setHtml] = useState<string>();
+  const [fallo, setFallo] = useState<string>();
+  useEffect(() => {
+    let vivo = true;
+    api.puesto(p.app)
+      .then((r) => api.previewPagina({ ...vacia, ...r.pagina }, r.dominio))
+      .then((r) => vivo && setHtml(r.html), (e) => vivo && setFallo(e instanceof Error ? e.message : String(e)));
+    return () => { vivo = false; };
+  }, [p.app, p.updatedAt]);
+  const caida = marchita(p);
+  const url = p.status.services?.find((s) => s.url)?.url;
+  return (
+    <main className="ld-detalle puesto-vista">
+      <div className="telefono" aria-label={t("Preview on a phone")}>
+        {html ? <iframe title={t("Preview")} sandbox="" srcDoc={html} /> : <div className="empty small">{fallo ?? t("Loading…")}</div>}
+      </div>
+      <div className="puesto-datos">
+        <div className="row" style={{ gap: 10 }}>
+          <Flor estado={caida ? "marchita" : "viva"} size={40} label={caida ? t("Withered flower") : t("Blooming flower")} />
+          <h2 className="ld-titulo">{p.nombre}</h2>
+        </div>
+        <div className="puesto-cuadro">
+          <div><span>{t("State")}</span><strong style={{ color: caida ? "var(--bad)" : url ? "var(--ok)" : "var(--warn)" }}>{caida ? t("Withered stall") : url ? t("Online") : t("Being built…")}</strong></div>
+          <div><span>{t("Address")}</span>{url ? <a href={url} target="_blank" rel="noreferrer">{url.replace(/^https?:\/\//, "")}</a> : "—"}</div>
+          <div><span>{t("Stall of")}</span>@{p.owner}</div>
+          <div><span>{t("Last change")}</span>{timeAgo(p.updatedAt)}</div>
+        </div>
+        <div className="row">
+          <Link to={`/mercado/${p.app}`} className="btn primary">{t("Change it")}</Link>
+          {url && <a href={url} target="_blank" rel="noreferrer" className="btn">{t("See it online ↗")}</a>}
+          <Link to={`/apps/${p.app}`} className="btn ghost">{t("Technical details")}</Link>
+        </div>
+      </div>
+    </main>
   );
 }
 

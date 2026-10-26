@@ -3436,7 +3436,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>1283 lines</small>
+<small>1290 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3575,7 +3575,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Mercado.tsx`
 
-<small>372 lines</small>
+<small>405 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3585,7 +3585,8 @@ Package web embeds the built UI (npm run build → web/dist).
 | `enlaceTipos` | const |  |
 | `sugeridos` | function | Details each kind of page suggests, as empty rows to fill. |
 | `tipoNombre` | const |  |
-| `Mercado` | component | The Mercado page: every stall (a page made from a form), with its owner, address and state. |
+| `Mercado` | component |  |
+| `PuestoVista` | component | One stall: its page on a phone, as built from its form, beside its state and what to do with it. |
 | `palabra` | function | An address word from a name: "Pastelería Ana" → "pasteleria-ana". |
 | `achicar` | function | Shrinks a photo in the browser, so pages stay light: at most 1600 px, as JPEG. |
 | `vacia` | const |  |
