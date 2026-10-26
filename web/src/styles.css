@@ -675,11 +675,8 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 /* ---- the universe: a model village on a canvas, and a market board beside it ---- */
 .universe { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
 @media (max-width: 900px) { .universe { grid-template-columns: minmax(0, 1fr); } }
-.u-head { flex-wrap: wrap; gap: 12px; align-items: end; }
-.u-controls { flex-wrap: wrap; gap: 10px; align-items: end; }
-.u-field { display: flex; flex-direction: column; gap: 2px; }
-.u-field > span { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.u-field input { width: 12rem; max-width: 100%; }
+.u-head { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; }
+.u-head h1 { margin: 0; }
 .u-crumbs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-weight: 700; min-height: 26px; }
 .u-crumbs .link, .universe-side .link { background: none; border: none; padding: 0; color: var(--link); cursor: pointer; font: inherit; }
 .u-stage { position: relative; height: clamp(440px, 72vh, 780px); border-radius: var(--radius); overflow: hidden; border: 1.5px solid var(--border); background: var(--bg); touch-action: none; min-width: 0; }
@@ -687,19 +684,47 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 .u-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; }
 .u-canvas.pointing { cursor: pointer; }
 .u-canvas.dragging { cursor: grabbing; }
-.u-zoom { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; z-index: 2; }
+.u-zoom { position: absolute; bottom: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; z-index: 2; }
 .u-zoom button { width: 36px; height: 36px; padding: 0; justify-content: center; font-size: 18px; line-height: 1; }
 .u-host { cursor: default; }
 .u-3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .u-3d-labels { cursor: grab; touch-action: none; }
 .u-3d-labels.pointing { cursor: pointer; }
 .u-3d-labels.dragging { cursor: grabbing; }
-.u-mode { position: absolute; top: 10px; left: 10px; z-index: 2; display: flex; border-radius: 10px; overflow: hidden; border: 1.5px solid var(--border); background: var(--surface); }
-.u-mode button { border: 0; border-radius: 0; height: 32px; padding: 0 12px; font-weight: 800; font-size: 13px; background: transparent; }
-.u-mode button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
 .u-loading { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; color: var(--muted); pointer-events: none; }
-.u-hint { position: absolute; left: 10px; bottom: 10px; right: 56px; z-index: 2; pointer-events: none; color: var(--muted); }
-.u-hint span { background: color-mix(in srgb, var(--surface) 86%, transparent); padding: 4px 9px; border-radius: 8px; display: inline-block; }
+/* The controls over the map: small boards of frosted paper. */
+.u-bar { position: absolute; top: 10px; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px; border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(6px); border: 1px solid var(--border); box-shadow: 0 8px 22px -14px rgba(43, 27, 18, .45);
+  animation: u-baja .45s cubic-bezier(.2, .8, .3, 1) both; }
+.u-bar-left { left: 10px; max-width: calc(100% - 290px); }
+.u-bar-right { right: 10px; animation-delay: .08s; }
+@keyframes u-baja { from { opacity: 0; transform: translateY(-8px); } }
+.u-seg { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; gap: 2px; }
+.u-seg button { border: 0; background: transparent; border-radius: 8px; height: 30px; padding: 0 11px; font-size: 13px; font-weight: 800; color: var(--muted); transition: background .2s, color .2s, box-shadow .2s; }
+.u-seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(43, 27, 18, .2); }
+.u-toggle { height: 34px; border-radius: 999px; padding: 0 12px; font-size: 13px; font-weight: 700; color: var(--muted); background: var(--surface); border: 1.5px solid var(--border); transition: background .2s, color .2s, border-color .2s, transform .15s; }
+.u-toggle:active { transform: scale(.95); }
+.u-toggle[aria-pressed="true"] { background: var(--text); color: var(--surface); border-color: var(--text); }
+.u-find { position: relative; display: flex; align-items: center; }
+.u-find svg { position: absolute; left: 10px; fill: none; stroke: var(--muted); stroke-width: 2.2; stroke-linecap: round; pointer-events: none; transition: transform .2s, stroke .2s; }
+.u-find input { width: 13rem; height: 34px; padding: 0 12px 0 32px; border-radius: 999px; font-size: 14px; transition: width .25s, box-shadow .2s, border-color .2s; }
+.u-find input:focus { width: 16rem; outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
+.u-find:focus-within svg { stroke: var(--accent); transform: scale(1.1) rotate(-8deg); }
+.u-icon { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border-radius: 50%; }
+.u-icon svg { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.u-turning svg { animation: u-gira 1s linear infinite; }
+@keyframes u-gira { to { transform: rotate(360deg); } }
+.u-where { position: absolute; left: 10px; bottom: 10px; right: 56px; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; pointer-events: none; }
+.u-where .u-crumbs { pointer-events: auto; padding: 5px 12px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--border); box-shadow: 0 6px 16px -12px rgba(43, 27, 18, .45); }
+.u-hint { color: var(--muted); background: color-mix(in srgb, var(--surface) 86%, transparent); padding: 4px 9px; border-radius: 8px; }
+@media (max-width: 760px) {
+  .u-bar-left { max-width: calc(100% - 118px); }
+  .u-find input { width: 34px; padding-right: 0; cursor: pointer; }
+  .u-find input::placeholder { color: transparent; }
+  .u-find input:focus { width: 11rem; padding-right: 12px; }
+  .u-find input:focus::placeholder { color: var(--muted); }
+  .u-hint { display: none; }
+}
 .universe-side { position: sticky; top: 12px; max-height: clamp(440px, 72vh, 780px); overflow-y: auto; min-width: 0; gap: 14px; }
 @media (max-width: 900px) { .universe-side { position: static; max-height: none; } }
 .u-title { font-family: var(--display); font-size: 1.4rem; line-height: 1.15; margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
