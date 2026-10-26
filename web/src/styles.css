@@ -295,6 +295,45 @@ ul.reasons { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size
 .chip-btn.on span { color: rgba(255,255,255,.8); }
 .svc-section h2 { font-size: 15px; margin: 22px 0 10px; }
 
+/* A list on the left and the one chosen on the right (Services, Add-ons, Market, Members). */
+.lista-detalle{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;margin-top:18px}
+.ld-lista{flex:1 1 300px;max-width:380px;display:flex;flex-direction:column;gap:10px;padding:12px;background:color-mix(in srgb,var(--border) 35%,var(--bg));border:1px solid var(--border);border-radius:16px;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+.ld-buscar{position:relative;display:flex;align-items:center}
+.ld-buscar svg{position:absolute;left:14px;fill:none;stroke:var(--muted);stroke-width:2.2;stroke-linecap:round}
+.ld-buscar input{width:100%;padding:11px 14px 11px 40px;border-radius:12px;border:1.5px solid var(--border);background:var(--card);transition:box-shadow .2s,border-color .2s}
+.ld-buscar input:focus{outline:none;border-color:var(--grana);box-shadow:0 0 0 4px color-mix(in srgb,var(--grana) 16%,transparent)}
+.ld-seg{display:flex;gap:2px;padding:4px;border-radius:12px;background:color-mix(in srgb,var(--border) 60%,transparent)}
+.ld-seg button{flex:1;min-width:0;border:none;background:transparent;border-radius:9px;padding:8px 6px;min-height:40px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:background .2s,color .2s,box-shadow .2s}
+.ld-seg button[aria-pressed="true"]{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.ld-seg button span{opacity:.7}
+.ld-grupo{display:flex;align-items:center;gap:6px;padding:8px 10px 4px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.ld-grupo svg{fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ld-item{position:relative;width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:none;background:transparent;border-radius:10px;padding:9px 10px;min-height:44px;color:var(--text);cursor:pointer;transition:background .15s}
+.ld-item:hover{background:color-mix(in srgb,var(--border) 55%,transparent)}
+.ld-item.on{background:var(--card);box-shadow:0 1px 4px rgba(0,0,0,.14)}
+.ld-item.on::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:4px;border-radius:4px;background:var(--c);animation:ld-crece .25s ease both}
+@keyframes ld-crece{from{transform:scaleY(0)}}
+.ld-nombre{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ld-sub{display:block;font-size:12.5px;font-weight:400;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ld-punto{width:9px;height:9px;border-radius:50%;flex:none;margin-left:auto;background:var(--idle)}
+.ld-punto.ok{background:var(--ok)}.ld-punto.warn{background:var(--warn)}.ld-punto.bad{background:var(--bad)}
+.ld-detalle{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:22px;padding:24px;background:var(--card);border:1px solid var(--border);border-radius:18px;animation:ld-llega .35s cubic-bezier(.2,.8,.3,1) both}
+@keyframes ld-llega{from{opacity:0;transform:translateX(16px)}}
+.ld-cabeza{display:flex;gap:14px;align-items:center}
+.ld-cabeza h2{margin:0;font-family:Fraunces,Georgia,serif;font-size:28px;overflow-wrap:anywhere}
+.ld-icono{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;flex:none}
+.ld-icono svg{fill:none;stroke:#FFFDF8;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ld-desc{margin:0;font-size:16px;line-height:1.5}
+.ld-sec h3{margin:0 0 8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ld-dos{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+.ld-quien{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.ld-quienes{display:flex;flex-wrap:wrap;gap:8px}
+.ld-chapa{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:999px;background:var(--card);border:1.5px solid var(--border);font-size:13.5px}
+.ld-flujo{stroke-dasharray:5 6;animation:ld-fluye 1s linear infinite}
+@keyframes ld-fluye{to{stroke-dashoffset:-11}}
+@media (max-width:760px){.ld-lista{position:static;max-width:none;max-height:none}}
+@media (prefers-reduced-motion: reduce){.ld-detalle,.ld-item.on::before,.ld-flujo{animation:none}}
+
 /* ---- switch ---- */
 .switch { position: relative; width: 40px; height: 22px; padding: 0; border-radius: 999px; background: var(--border); border: none; flex: none; cursor: pointer; transition: background .15s; }
 .switch span { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
@@ -908,42 +947,3 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 /* «Why did it fail?» on a run (pages/RunPage.tsx). */
 .why-failed { border-left: 4px solid var(--bad); margin-bottom: 16px; }
 .judge { margin: 6px 0 8px; }
-
-/* A list on the left and the one chosen on the right (Services, Add-ons, Market, Members). */
-.lista-detalle{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;margin-top:18px}
-.ld-lista{flex:1 1 300px;max-width:380px;display:flex;flex-direction:column;gap:10px;padding:12px;background:color-mix(in srgb,var(--border) 35%,var(--bg));border:1px solid var(--border);border-radius:16px;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
-.ld-buscar{position:relative;display:flex;align-items:center}
-.ld-buscar svg{position:absolute;left:14px;fill:none;stroke:var(--muted);stroke-width:2.2;stroke-linecap:round}
-.ld-buscar input{width:100%;padding:11px 14px 11px 40px;border-radius:12px;border:1.5px solid var(--border);background:var(--card);transition:box-shadow .2s,border-color .2s}
-.ld-buscar input:focus{outline:none;border-color:var(--grana);box-shadow:0 0 0 4px color-mix(in srgb,var(--grana) 16%,transparent)}
-.ld-seg{display:flex;gap:2px;padding:4px;border-radius:12px;background:color-mix(in srgb,var(--border) 60%,transparent)}
-.ld-seg button{flex:1;min-width:0;border:none;background:transparent;border-radius:9px;padding:8px 6px;min-height:40px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:background .2s,color .2s,box-shadow .2s}
-.ld-seg button[aria-pressed="true"]{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.18)}
-.ld-seg button span{opacity:.7}
-.ld-grupo{display:flex;align-items:center;gap:6px;padding:8px 10px 4px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
-.ld-grupo svg{fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-.ld-item{position:relative;width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:none;background:transparent;border-radius:10px;padding:9px 10px;min-height:44px;color:var(--text);cursor:pointer;transition:background .15s}
-.ld-item:hover{background:color-mix(in srgb,var(--border) 55%,transparent)}
-.ld-item.on{background:var(--card);box-shadow:0 1px 4px rgba(0,0,0,.14)}
-.ld-item.on::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:4px;border-radius:4px;background:var(--c);animation:ld-crece .25s ease both}
-@keyframes ld-crece{from{transform:scaleY(0)}}
-.ld-nombre{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ld-sub{display:block;font-size:12.5px;font-weight:400;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ld-punto{width:9px;height:9px;border-radius:50%;flex:none;margin-left:auto;background:var(--idle)}
-.ld-punto.ok{background:var(--ok)}.ld-punto.warn{background:var(--warn)}.ld-punto.bad{background:var(--bad)}
-.ld-detalle{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:22px;padding:24px;background:var(--card);border:1px solid var(--border);border-radius:18px;animation:ld-llega .35s cubic-bezier(.2,.8,.3,1) both}
-@keyframes ld-llega{from{opacity:0;transform:translateX(16px)}}
-.ld-cabeza{display:flex;gap:14px;align-items:center}
-.ld-cabeza h2{margin:0;font-family:Fraunces,Georgia,serif;font-size:28px;overflow-wrap:anywhere}
-.ld-icono{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;flex:none}
-.ld-icono svg{fill:none;stroke:#FFFDF8;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.ld-desc{margin:0;font-size:16px;line-height:1.5}
-.ld-sec h3{margin:0 0 8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.ld-dos{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
-.ld-quien{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
-.ld-quienes{display:flex;flex-wrap:wrap;gap:8px}
-.ld-chapa{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:999px;background:var(--card);border:1.5px solid var(--border);font-size:13.5px}
-.ld-flujo{stroke-dasharray:5 6;animation:ld-fluye 1s linear infinite}
-@keyframes ld-fluye{to{stroke-dashoffset:-11}}
-@media (max-width:760px){.ld-lista{position:static;max-width:none;max-height:none}}
-@media (prefers-reduced-motion: reduce){.ld-detalle,.ld-item.on::before,.ld-flujo{animation:none}}
