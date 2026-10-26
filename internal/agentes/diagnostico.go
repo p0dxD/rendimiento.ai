@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/p0dxD/rendimiento.ai/internal/i18n"
 	"github.com/p0dxD/rendimiento.ai/internal/ia"
 	"github.com/p0dxD/rendimiento.ai/internal/ruta"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
@@ -71,6 +72,12 @@ const (
 // judged yet.
 const Unconfirmed = "sin-confirmar"
 
+// AnswerTokens bounds an explanation. Models that think before answering
+// (Claude Haiku 5.5) count their thinking in it, so it leaves room for both;
+// the local model stops when it is done, and Haiku at this bound costs a
+// tenth of a cent.
+const AnswerTokens = 2000
+
 // Limits on what goes to the model: the end of each failed step's log,
 // and all of it together.
 const (
@@ -120,13 +127,13 @@ func (d *Diagnostician) Diagnose(ctx context.Context, runID int64) error {
 	prev, _ := d.Store.GetDiagnosis(ctx, runID)
 	out := store.Diagnosis{RunID: runID, AskedBy: prev.AskedBy}
 	if run.Status != store.RunFailed {
-		out.Status, out.Note = store.DiagnosisFailed, "the run did not fail"
+		out.Status, out.Note = store.DiagnosisFailed, i18n.M("the run did not fail")
 		return d.Store.SaveDiagnosis(ctx, out)
 	}
 	text, signature, clues := d.context(ctx, app, run)
 	out.Signature = signature
 	known := d.known(ctx, app, run, clues)
-	req := ia.Request{System: d.system(), MaxTokens: 700, Messages: []ia.Message{{Role: "user", Content: text + known}}}
+	req := ia.Request{System: d.system(), MaxTokens: AnswerTokens, Messages: []ia.Message{{Role: "user", Content: text + known}}}
 	var res ia.Response
 	escalate := ""
 	if known == "" {
@@ -140,15 +147,18 @@ func (d *Diagnostician) Diagnose(ctx context.Context, runID int64) error {
 	out.Provider, out.Model, out.CostMicros, out.Note = res.Provider, res.Model, res.CostMicros, res.Note
 	escalated := escalate != "" && err == nil && res.Provider != store.AILocal
 	if escalated && out.Note == "" {
-		out.Note = "a new failure (nothing alike in the Ruta): asked a stronger model"
+		out.Note = i18n.M("a new failure (nothing alike in the Ruta): asked a stronger model")
 	}
 	if err != nil {
 		out.Status, out.Note = store.DiagnosisFailed, err.Error()
 		if errors.Is(err, ia.ErrNoModel) {
-			out.Note = "no model is available for this organization (AI page)"
+			out.Note = i18n.M("no model is available for this organization (AI page)")
 		}
+	} else if out.Text = strings.TrimSpace(res.Text); out.Text == "" {
+		// A model that thinks first can spend the whole answer thinking.
+		out.Status, out.Note = store.DiagnosisFailed, i18n.M("the model wrote no explanation (it used its whole answer thinking); ask again")
 	} else {
-		out.Status, out.Text = store.DiagnosisDone, strings.TrimSpace(res.Text)
+		out.Status = store.DiagnosisDone
 	}
 	if err := d.Store.SaveDiagnosis(context.WithoutCancel(ctx), out); err != nil {
 		return err
