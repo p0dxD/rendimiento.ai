@@ -510,6 +510,31 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
   .topbar { gap: 8px 12px; } .topbar .nav-link { font-size: 14px; }
 }
 
+/* Apps: the mosaic with its counters and search. */
+.mosaico-cuentas{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 12px}
+.mosaico-cuenta{display:flex;align-items:baseline;gap:10px;min-height:44px;padding:8px 16px;border-radius:14px;border:1.5px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;transition:transform .15s}
+.mosaico-cuenta b{font:800 22px/1 Fraunces,Georgia,serif}
+.mosaico-cuenta[aria-pressed="true"]{border-color:var(--grana);box-shadow:0 0 0 2px var(--grana) inset;transform:translateY(-1px)}
+.mosaico-buscar{display:flex;align-items:center;gap:10px;padding:0 14px;min-height:48px;border-radius:999px;border:1.5px solid var(--border);background:var(--card);margin-bottom:18px}
+.mosaico-buscar svg{fill:none;stroke:currentColor;stroke-width:2;opacity:.6}
+.mosaico-buscar input{flex:1;min-width:0;border:none;background:transparent;font:inherit;color:inherit;outline:none}
+.mosaico-buscar kbd{font-size:12px;padding:1px 7px;border:1px solid var(--border);border-radius:6px;opacity:.7}
+.mosaico{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.teja{position:relative;background:var(--card);border:1.5px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;animation:teja-entra .4s cubic-bezier(.2,.8,.3,1.2) both;animation-delay:calc(var(--i) * 40ms);transition:transform .2s,box-shadow .2s}
+.teja:hover{transform:translateY(-3px);box-shadow:0 14px 26px -18px rgba(0,0,0,.5)}
+.teja-picado{height:14px;background:var(--banda);-webkit-mask:linear-gradient(-45deg,transparent 6px,#000 0) 0 0/12px 100% repeat-x;mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/12px 100%;transform-origin:top}
+.teja:hover .teja-picado{animation:teja-mece 1.2s ease-in-out infinite}
+.teja-cuerpo{display:flex;flex-direction:column;gap:6px;padding:12px 14px 14px}
+.teja-nombre{display:flex;align-items:center;gap:8px}
+.teja-nombre h3{margin:0;font-size:18px;overflow-wrap:anywhere}
+.teja-estado.bien{color:var(--ok)}.teja-estado.mal{color:var(--bad)}
+.teja-url{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.teja.caida{filter:saturate(.55)}
+.teja mark{background:var(--maiz);color:inherit;border-radius:3px}
+@keyframes teja-entra{from{opacity:0;transform:scale(.94) translateY(8px)}}
+@keyframes teja-mece{0%,100%{transform:skewX(-4deg)}50%{transform:skewX(4deg)}}
+@media (prefers-reduced-motion: reduce){.teja,.teja:hover .teja-picado{animation:none}}
+
 /* ---- la Ruta ---- */
 .monarca { flex: none; }
 @media (prefers-reduced-motion: no-preference) {
@@ -893,28 +918,3 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 /* «Why did it fail?» on a run (pages/RunPage.tsx). */
 .why-failed { border-left: 4px solid var(--bad); margin-bottom: 16px; }
 .judge { margin: 6px 0 8px; }
-
-/* Apps: the mosaic with its counters and search. */
-.mosaico-cuentas{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 12px}
-.mosaico-cuenta{display:flex;align-items:baseline;gap:10px;min-height:44px;padding:8px 16px;border-radius:14px;border:1.5px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;transition:transform .15s}
-.mosaico-cuenta b{font:800 22px/1 Fraunces,Georgia,serif}
-.mosaico-cuenta[aria-pressed="true"]{border-color:var(--grana);box-shadow:0 0 0 2px var(--grana) inset;transform:translateY(-1px)}
-.mosaico-buscar{display:flex;align-items:center;gap:10px;padding:0 14px;min-height:48px;border-radius:999px;border:1.5px solid var(--border);background:var(--card);margin-bottom:18px}
-.mosaico-buscar svg{fill:none;stroke:currentColor;stroke-width:2;opacity:.6}
-.mosaico-buscar input{flex:1;min-width:0;border:none;background:transparent;font:inherit;color:inherit;outline:none}
-.mosaico-buscar kbd{font-size:12px;padding:1px 7px;border:1px solid var(--border);border-radius:6px;opacity:.7}
-.mosaico{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
-.teja{position:relative;background:var(--card);border:1.5px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;animation:teja-entra .4s cubic-bezier(.2,.8,.3,1.2) both;animation-delay:calc(var(--i) * 40ms);transition:transform .2s,box-shadow .2s}
-.teja:hover{transform:translateY(-3px);box-shadow:0 14px 26px -18px rgba(0,0,0,.5)}
-.teja-picado{height:14px;background:var(--banda);-webkit-mask:linear-gradient(-45deg,transparent 6px,#000 0) 0 0/12px 100% repeat-x;mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/12px 100%;transform-origin:top}
-.teja:hover .teja-picado{animation:teja-mece 1.2s ease-in-out infinite}
-.teja-cuerpo{display:flex;flex-direction:column;gap:6px;padding:12px 14px 14px}
-.teja-nombre{display:flex;align-items:center;gap:8px}
-.teja-nombre h3{margin:0;font-size:18px;overflow-wrap:anywhere}
-.teja-estado.bien{color:var(--ok)}.teja-estado.mal{color:var(--bad)}
-.teja-url{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.teja.caida{filter:saturate(.55)}
-.teja mark{background:var(--maiz);color:inherit;border-radius:3px}
-@keyframes teja-entra{from{opacity:0;transform:scale(.94) translateY(8px)}}
-@keyframes teja-mece{0%,100%{transform:skewX(-4deg)}50%{transform:skewX(4deg)}}
-@media (prefers-reduced-motion: reduce){.teja,.teja:hover .teja-picado{animation:none}}
