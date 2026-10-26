@@ -862,6 +862,20 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 /* The organization selector in the top bar (pages/Members.tsx). */
 .org-switch { max-width: 180px; font-size: 13px; padding: 4px 8px; }
 
+/* Members: initials, the role cards and what a role lets one do. */
+.miembro-inicial{flex:none;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:Fraunces,Georgia,serif;font-weight:800}
+.roles-elegir{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.rol-tarjeta{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:12px 14px;border:2px solid var(--border);border-radius:14px;background:var(--card);color:var(--text);cursor:pointer;transition:border-color .2s,transform .2s}
+.rol-tarjeta:hover:not(:disabled){transform:translateY(-2px)}
+.rol-tarjeta.on{border-color:var(--grana);box-shadow:0 0 0 2px var(--grana) inset}
+.rol-tarjeta:disabled{cursor:default;opacity:1}
+.rol-tarjeta:disabled:not(.on){opacity:.6}
+.permisos{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.permisos li{display:flex;gap:10px;align-items:baseline;transition:opacity .3s}
+.permisos li span{width:20px;flex:none;font-weight:800}
+.permisos li.si span{color:var(--ok)}
+.permisos li.no{opacity:.45}
+
 /* The AI page (pages/IA.tsx). */
 /* IA page: how things stand, choices as cards, and what is not saved yet. */
 .ia-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 16px; }

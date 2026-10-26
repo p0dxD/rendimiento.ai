@@ -3436,7 +3436,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>1283 lines</small>
+<small>1298 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3562,14 +3562,18 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Members.tsx`
 
-<small>131 lines</small>
+<small>201 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `memberRoleLabel` | const |  |
 | `roleHelp` | const |  |
-| `RoleSelect` | component | The roles as choices, with what each allows. |
+| `nivel` | const |  |
+| `grupoLabel` | const |  |
+| `colorDe` | const |  |
+| `Inicial` | component | A person's initial in a colored circle. |
 | `Members` | component |  |
+| `AddMember` | component | The form to add someone by their GitHub username, with the role to give them. |
 | `OrgSwitch` | component |  |
 | `Orgs` | component |  |
 
