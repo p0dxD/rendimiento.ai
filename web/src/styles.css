@@ -893,3 +893,28 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 /* «Why did it fail?» on a run (pages/RunPage.tsx). */
 .why-failed { border-left: 4px solid var(--bad); margin-bottom: 16px; }
 .judge { margin: 6px 0 8px; }
+
+/* One run: the steps with their timing bars beside the log. */
+.ejecucion{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;margin-top:16px}
+.pasos{position:relative;flex:1 1 280px;max-width:360px;display:flex;flex-direction:column;gap:2px}
+.pasos::before{content:"";position:absolute;left:21px;top:34px;bottom:20px;border-left:2px dashed var(--border)}
+.pasos-escala{display:flex;justify-content:space-between;padding:0 10px 0 44px}
+.paso{position:relative;width:100%;display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;border:none;background:transparent;border-radius:12px;padding:10px;min-height:46px;color:var(--text);cursor:pointer}
+.paso:hover{background:color-mix(in srgb,var(--border) 55%,transparent)}
+.paso.on{background:var(--card);box-shadow:0 1px 4px rgba(0,0,0,.18)}
+.paso svg{display:block;position:relative}
+.paso.corre svg circle{animation:paso-late 1.2s ease-in-out infinite}
+@keyframes paso-late{50%{opacity:.45}}
+.pista{position:relative;display:block;height:6px;margin-top:6px;border-radius:3px;background:var(--border)}
+.pista b{position:absolute;top:0;bottom:0;border-radius:3px;background:var(--c);transform-origin:left;animation:pista-crece .6s cubic-bezier(.2,.8,.3,1) both;animation-delay:var(--d)}
+@keyframes pista-crece{from{transform:scaleX(0)}}
+.par{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;padding:0 6px;border-radius:999px;background:color-mix(in srgb,var(--anil) 15%,transparent);color:var(--anil);vertical-align:1px}
+.ejecucion-registro{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.reg{background:#1E1430;color:#EDE3D6;border-radius:16px;padding:14px 0;font:13px/1.65 ui-monospace,Menlo,Consolas,monospace;max-height:620px;overflow:auto}
+.reg div{padding:0 16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.reg .n{display:inline-block;min-width:38px;padding-right:6px;color:#7E6E95;user-select:none}
+.reg .err{background:rgba(214,36,110,.22);border-left:3px solid #F06BA0}
+.reg .grp{color:#F2C14E}
+.reg-vacio{color:#B9A9C9}
+@media (max-width:700px){.pasos{max-width:none}}
+@media (prefers-reduced-motion: reduce){.pista b,.paso.corre svg circle{animation:none}}
