@@ -14,7 +14,7 @@ The whole list is in the [HTTP API reference](../reference/api.md). Handlers are
 
 ## Signing in
 
-Before signing in, people see the **welcome page** (`web/src/pages/Bienvenida.tsx`): what *rendir* means, how the platform works, how it works with AI agents (la Ruta), and a link to the book (`BOOK_URL`, `BOOK_URL_ES`). With `PUBLIC_ACTIVITY=true` it also shows *Right now*: what is building and the latest releases, by app name only. Everything on it is public, so it says nothing about the installation.
+Before signing in, people see the **welcome page** (`web/src/pages/Bienvenida.tsx`): *rendir* as a dictionary entry, whose three senses take turns, each with its drawing; how the platform works; how it works with AI agents (la Ruta); what else it does, on hanging signs; and a link to the book (`BOOK_URL`, `BOOK_URL_ES`). With `PUBLIC_ACTIVITY=true` it also pins up a bando, *Right now in the town*: what is building and the latest releases, by app name only. Everything on it is public, so it says nothing about the installation.
 
 ```mermaid
 sequenceDiagram

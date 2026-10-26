@@ -13,7 +13,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/healthz` | `ok`; readiness and liveness probes |
 | GET | `/llms.txt` | for AI agents: what the platform is, how to connect over MCP, roles and rules ([Built for agents](../guide/agents.md)) |
 | GET | `/api/public/stats` | aggregate numbers for a public page; only with `PUBLIC_STATS=true`, and only on the internal `STATS_LISTEN` port when that is set ([what it contains](../guide/reliability.md#public-stats)) |
-| GET | `/api/public/activity` | the welcome page's *Right now*: runs queued or running and the 8 latest releases, by app name and time only (no repositories, commits, branches or messages); only with `PUBLIC_ACTIVITY=true` |
+| GET | `/api/public/activity` | the welcome page's *Right now in the town*: runs queued or running and the 8 latest releases, by app name and time only (no repositories, commits, branches or messages); only with `PUBLIC_ACTIVITY=true` |
 | POST | `/api/webhooks/github` | GitHub App webhooks (push, pull request, installation), verified by HMAC |
 | GET | `/api/auth/login` | redirects to GitHub OAuth |
 | GET | `/api/auth/callback` | OAuth callback; creates the session |

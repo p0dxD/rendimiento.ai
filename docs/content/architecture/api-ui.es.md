@@ -14,7 +14,7 @@ La lista completa está en la [referencia de la API HTTP](../reference/api.md). 
 
 ## Iniciar sesión {#signing-in}
 
-Antes de iniciar sesión, las personas ven la **página de bienvenida** (`web/src/pages/Bienvenida.tsx`): qué significa *rendir*, cómo funciona la plataforma, cómo trabaja con agentes de IA (la Ruta) y un enlace al libro (`BOOK_URL`, `BOOK_URL_ES`). Con `PUBLIC_ACTIVITY=true` también muestra *Ahora mismo*: lo que se está construyendo y las versiones más recientes, solo por nombre de aplicación. Todo lo que muestra es público, así que no dice nada de la instalación.
+Antes de iniciar sesión, las personas ven la **página de bienvenida** (`web/src/pages/Bienvenida.tsx`): *rendir* como una entrada de diccionario, cuyas tres acepciones se turnan, cada una con su dibujo; cómo funciona la plataforma; cómo trabaja con agentes de IA (la Ruta); qué más hace, en letreros colgados; y un enlace al libro (`BOOK_URL`, `BOOK_URL_ES`). Con `PUBLIC_ACTIVITY=true` también pega un bando, *Ahora mismo en el pueblo*: lo que se está construyendo y las versiones más recientes, solo por nombre de aplicación. Todo lo que muestra es público, así que no dice nada de la instalación.
 
 ```mermaid
 sequenceDiagram
