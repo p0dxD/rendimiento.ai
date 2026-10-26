@@ -318,6 +318,9 @@ ul.reasons { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size
 @keyframes ld-fluye{to{stroke-dashoffset:-11}}
 @media (max-width:760px){.ld-lista{position:static;max-width:none;max-height:none}}
 @media (prefers-reduced-motion: reduce){.ld-detalle,.ld-item.on::before,.ld-flujo{animation:none}}
+.ld-titulo{margin:0;font-family:Fraunces,Georgia,serif;font-size:28px;overflow-wrap:anywhere}
+.ld-h3{margin:8px 0 0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ld-detalle .card{box-shadow:none}
 
 /* ---- switch ---- */
 .switch { position: relative; width: 40px; height: 22px; padding: 0; border-radius: 999px; background: var(--border); border: none; flex: none; cursor: pointer; transition: background .15s; }
