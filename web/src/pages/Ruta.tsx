@@ -112,52 +112,85 @@ function EntryForm({ initial, kind, onDone, onCancel }: { initial?: RutaEntry; k
   );
 }
 
-/** One entry, folded to its first lines: open it, edit it, mark a to-do done, or archive it. */
-function EntryCard({ e, onChange }: { e: RutaEntry; onChange: () => void }) {
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  if (editing) return <EntryForm initial={e} kind={e.kind} onDone={() => { setEditing(false); onChange(); }} onCancel={() => setEditing(false)} />;
-  const toggleDone = () => api.updateRuta(e.id, { ...e, done: !e.done }).then(onChange, (x) => alert(x.message));
+const kindColor: Record<RutaKind, string> = {
+  decision: "var(--anil)", manual: "var(--nopal)", pendiente: "var(--cempasuchil)", nota: "var(--muted)", vivido: "var(--rosa)",
+};
+
+/**
+ * The Ruta tab, as a notebook's index: the entries by kind, each a line with its date at the end of a dotted leader
+ * (to-dos with a box to tick), and a search; an entry opens as its own page.
+ */
+function Entries() {
+  const [q, setQ] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [open, setOpen] = useState<number>();
+  const { data, error, reload } = usePoll(() => api.ruta({ q }), [q], 30000);
+  const list = (data ?? []).filter((e) => e.kind !== "vivido");
+  const shown = list.find((e) => e.id === open);
+  if (shown) return <Pagina e={shown} onBack={() => setOpen(undefined)} onChange={reload} />;
+  const toggleDone = (e: RutaEntry) => api.updateRuta(e.id, { ...e, done: !e.done }).then(reload, (x) => alert(x.message));
   return (
-    <div className={`card stack ruta-entry ${e.done ? "done" : ""}`}>
-      <div className="row between" style={{ alignItems: "baseline", flexWrap: "wrap" }}>
-        <div className="row" style={{ alignItems: "baseline", flexWrap: "wrap" }}>
-          <span className={`badge ruta-kind ${e.kind}`}>{t(kindLabel[e.kind])}</span>
-          {e.kind === "pendiente" && <input type="checkbox" style={{ width: "auto" }} checked={e.done} onChange={toggleDone} title={t("Done")} />}
-          <a href="#" onClick={(x) => { x.preventDefault(); setOpen(!open); }}><strong>{e.title}</strong></a>
-          <Tags tags={e.tags} />
-        </div>
+    <div className="hoja-vista">
+      <div className="hoja-cabeza">
+        <h2 className="mano">{t("Index of the Ruta")}</h2>
         <div className="row">
-          <button onClick={() => setEditing(true)}>{t("Edit")}</button>
-          <button onClick={() => confirm(t("Archive “{title}”? It disappears from the list but is kept.", { title: e.title })) && api.archiveRuta(e.id).then(onChange, (x) => alert(x.message))}>{t("Archive")}</button>
+          <input className="ruta-search" type="search" placeholder={t("Search the notebook…")} aria-label={t("Search the Ruta…")} value={q} onChange={(e) => setQ(e.target.value)} />
+          <button className="primary" onClick={() => setAdding(!adding)}>{adding ? t("Close") : t("New entry")}</button>
         </div>
       </div>
-      {open && e.body && <div className="ruta-body">{e.body}</div>}
-      <Author e={e} />
+      {adding && <EntryForm kind="nota" onDone={() => { setAdding(false); reload(); }} onCancel={() => setAdding(false)} />}
+      <ErrorBox error={error} />
+      {data && list.length === 0 && <p className="renglon-texto muted">{q ? t("Nothing matches.") : t("Nothing here yet. Agents add decisions, manuals and to-dos as they work; you can too.")}</p>}
+      {kinds.map((k) => {
+        const items = list.filter((e) => e.kind === k.id);
+        if (items.length === 0) return null;
+        return (
+          <section key={k.id} aria-label={t(k.label)}>
+            <div className="indice-grupo" style={{ color: kindColor[k.id] }}>{t(k.label)}</div>
+            {items.map((e) => (
+              <div key={e.id} className="indice-fila">
+                {e.kind === "pendiente" ? (
+                  <button className={`check${e.done ? " on" : ""}`} aria-pressed={e.done} aria-label={t("Done")} onClick={() => toggleDone(e)}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10" /></svg>
+                  </button>
+                ) : <span className="marca" style={{ ["--c" as string]: kindColor[e.kind] }} />}
+                <button className="renglon" onClick={() => setOpen(e.id)}>
+                  <strong className={e.done ? "tachado" : undefined}>{e.title}</strong>
+                  <span className="puntos" />
+                  <span className="small muted">{timeAgo(e.updatedAt)}</span>
+                </button>
+              </div>
+            ))}
+          </section>
+        );
+      })}
     </div>
   );
 }
 
-/** The Ruta tab: entries by kind and text (all but "lived"), and a button to write one. */
-function Entries() {
-  const [kind, setKind] = useState<string>("");
-  const [q, setQ] = useState("");
-  const [adding, setAdding] = useState(false);
-  const { data, error, reload } = usePoll(() => api.ruta({ kind, q }), [kind, q], 30000);
-  const list = (data ?? []).filter((e) => e.kind !== "vivido");
+/** One entry as a page of the notebook: its text, who wrote it and when, to edit or archive. */
+function Pagina({ e, onBack, onChange }: { e: RutaEntry; onBack: () => void; onChange: () => void }) {
+  const [editing, setEditing] = useState(false);
   return (
-    <>
-      <div className="row ruta-filters">
-        <button className={`chip-btn ${kind === "" ? "on" : ""}`} onClick={() => setKind("")}>{t("All")}</button>
-        {kinds.map((k) => <button key={k.id} className={`chip-btn ${kind === k.id ? "on" : ""}`} onClick={() => setKind(k.id)}>{t(k.label)}</button>)}
-        <input className="ruta-search" placeholder={t("Search the Ruta…")} value={q} onChange={(e) => setQ(e.target.value)} />
-        <button className="primary" onClick={() => setAdding(!adding)}>{adding ? t("Close") : t("New entry")}</button>
+    <div className="hoja-vista">
+      <div className="hoja-cabeza">
+        <div className="row">
+          <button onClick={onBack}>{t("← Index")}</button>
+          <span className="indice-grupo" style={{ color: kindColor[e.kind] }}>{t(kindLabel[e.kind])}</span>
+        </div>
       </div>
-      {adding && <EntryForm kind={(kind || "nota") as RutaKind} onDone={() => { setAdding(false); reload(); }} onCancel={() => setAdding(false)} />}
-      <ErrorBox error={error} />
-      {data && list.length === 0 && <div className="card empty"><p>{q ? t("Nothing matches.") : t("Nothing here yet. Agents add decisions, manuals and to-dos as they work; you can too.")}</p></div>}
-      <div className="stack">{list.map((e) => <EntryCard key={e.id} e={e} onChange={reload} />)}</div>
-    </>
+      {editing ? <EntryForm initial={e} kind={e.kind} onDone={() => { setEditing(false); onChange(); }} onCancel={() => setEditing(false)} /> : (
+        <>
+          <h2 className="mano pagina-titulo">{e.title}</h2>
+          {e.body && <div className="renglon-texto ruta-body">{e.body}</div>}
+          <div className="renglon-texto"><Tags tags={e.tags} /> <Author e={e} /></div>
+          <div className="row">
+            <button onClick={() => setEditing(true)}>{t("Edit")}</button>
+            <button onClick={() => confirm(t("Archive “{title}”? It disappears from the list but is kept.", { title: e.title })) && api.archiveRuta(e.id).then(() => { onChange(); onBack(); }, (x) => alert(x.message))}>{t("Archive")}</button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -352,30 +385,38 @@ function Keys() {
   );
 }
 
-/** The Ruta page: the platform's memory, kept by people and agents, in four tabs. */
+/** The Ruta page: the platform's memory, kept by people and agents, as a notebook with its section tabs. */
 export function Ruta() {
   // ?tab=encargos opens a tab (a run's "Ask an agent" lands there).
   const [params, setParams] = useSearchParams();
   const asked = params.get("tab") as Tab;
   const tab: Tab = tabIds.includes(asked) ? asked : "ruta";
   const setTab = (id: Tab) => setParams(id === "ruta" ? {} : { tab: id }, { replace: true });
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "ruta", label: "The Ruta" }, { id: "encargos", label: "Encargos" }, { id: "vivido", label: "Lived" }, { id: "cargos", label: "Cargos" }, { id: "llaves", label: "Keys" },
+  const tabs: { id: Tab; label: string; color: string }[] = [
+    { id: "ruta", label: "The Ruta", color: "#F2A93B" }, { id: "encargos", label: "Encargos", color: "#E9B824" }, { id: "vivido", label: "Lived", color: "#E58FB5" },
+    { id: "cargos", label: "Cargos", color: "#9DB4F2" }, { id: "llaves", label: "Keys", color: "#A8CFA0" },
   ];
   return (
     <>
       <h1 className="row" style={{ gap: 10 }}><Monarca /> {t("La Ruta")}</h1>
       <p className="sub">{t("No monarch makes the whole journey; it takes several generations, and still they find the same forests in Michoacán. Each agent session is one generation: the Ruta keeps the way. Decisions with their reasons, manuals, to-dos, and what each agent handed over, for the next one, whoever it is.")}</p>
-      <nav className="tabs">
-        {tabs.map((x) => (
-          <a key={x.id} href="#" className={tab === x.id ? "active" : ""} onClick={(e) => { e.preventDefault(); setTab(x.id); }}>{t(x.label)}</a>
-        ))}
-      </nav>
-      {tab === "ruta" && <Entries />}
-      {tab === "encargos" && <Encargos />}
-      {tab === "vivido" && <Vivido />}
-      {tab === "cargos" && <Cargos />}
-      {tab === "llaves" && <Keys />}
+      <div className="libro">
+        <div className="hoja">
+          <div className="anillos" aria-hidden="true">{Array.from({ length: 8 }, (_, i) => <span key={i} />)}</div>
+          <div className="vuelta" key={tab}>
+            {tab === "ruta" && <Entries />}
+            {tab === "encargos" && <Encargos />}
+            {tab === "vivido" && <Vivido />}
+            {tab === "cargos" && <Cargos />}
+            {tab === "llaves" && <Keys />}
+          </div>
+        </div>
+        <nav className="separadores" aria-label={t("Sections of the Ruta")}>
+          {tabs.map((x) => (
+            <button key={x.id} className={`sep${tab === x.id ? " on" : ""}`} style={{ ["--c" as string]: x.color }} aria-current={tab === x.id ? "page" : undefined} onClick={() => setTab(x.id)}>{t(x.label)}</button>
+          ))}
+        </nav>
+      </div>
     </>
   );
 }
