@@ -70,9 +70,10 @@ rules:
   - apiGroups: [longhorn.io]
     resources: [volumes, recurringjobs, backuptargets]
     verbs: [get, list]
-  # Read-only, for the services catalog (who calls what).
+  # Read-only, for the services catalog (who calls what), and for the
+  # registry cleanup (every image a workload names, even scaled to zero).
   - apiGroups: [apps]
-    resources: [statefulsets]
+    resources: [statefulsets, daemonsets, replicasets]
     verbs: [get, list]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

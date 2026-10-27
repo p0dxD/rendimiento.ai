@@ -51,6 +51,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
 	"github.com/p0dxD/rendimiento.ai/internal/problems"
+	"github.com/p0dxD/rendimiento.ai/internal/registro"
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/renovate"
 	"github.com/p0dxD/rendimiento.ai/internal/ruta"
@@ -438,6 +439,24 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 			Pod: os.Getenv("HOSTNAME"), Changes: holder,
 		}
 	}
+	// The image registry's nightly cleanup (REGISTRY_CLEANUP=true), on the
+	// leader only: old build images and caches go, what is in use stays.
+	var cleaner *registro.Cleaner
+	if env("REGISTRY_CLEANUP", "false") == "true" {
+		keep, err := strconv.Atoi(env("REGISTRY_KEEP", "10"))
+		if err != nil || keep < 1 {
+			return fmt.Errorf("REGISTRY_KEEP must be a number of images of at least 1, got %q", os.Getenv("REGISTRY_KEEP"))
+		}
+		cleaner = &registro.Cleaner{
+			Kube: clientset, Rest: cfg, Host: p.Config.Registry, Keep: keep,
+			Namespace: env("REGISTRY_NAMESPACE", "docker-registry"), Selector: env("REGISTRY_SELECTOR", "app=registry"),
+			Config: env("REGISTRY_CONFIG", "/etc/docker/registry/config.yml"), At: env("REGISTRY_CLEANUP_AT", "03:30"),
+			Releases: st, Runs: busyRuns{st}, Log: log.With("component", "registro"),
+		}
+		if tz, err := time.LoadLocation(os.Getenv("PUBLIC_STATS_TZ")); err == nil {
+			cleaner.TZ = tz
+		}
+	}
 	// Uptime checks of every app's services (the Reliability tab), on the
 	// leader only, so one replica checks.
 	var prober *uptime.Prober
@@ -622,6 +641,9 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 			if prober != nil {
 				go prober.Run(ctx)
 			}
+			if cleaner != nil {
+				go cleaner.Run(ctx)
+			}
 			p.ResumeVerifications(ctx)
 			if logArchive != nil {
 				go func() {
@@ -770,4 +792,12 @@ func ptr[T any](v T) *T { return &v }
 // splitList splits a comma- or space-separated setting.
 func splitList(s string) []string {
 	return strings.FieldsFunc(s, func(r rune) bool { return r == ',' || r == ' ' })
+}
+
+// busyRuns counts the builds queued or running, for the registry cleanup.
+type busyRuns struct{ st *store.Store }
+
+func (b busyRuns) BusyRuns(ctx context.Context) (int, error) {
+	runs, err := b.st.ActiveRuns(ctx, 1)
+	return len(runs), err
 }

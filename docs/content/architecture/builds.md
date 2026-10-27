@@ -120,6 +120,24 @@ Each image has a **stable favourite**, so it always finds its warm cache there, 
 --8<-- "internal/pipeline/kube.go:buildkitFor"
 ```
 
+## Keeping the registry small {#keeping-the-registry-small}
+
+Every build pushes an image, and every push of a build cache replaces the one before; the registry keeps them all. In October 2026 its disk filled (98 GB): every push failed with *500 Internal Server Error*, so runs failed at random, after their tests had passed. What filled it was mostly old **build caches**: each push left the previous cache's manifest behind, and the registry's garbage collector counts every manifest as alive.
+
+With `REGISTRY_CLEANUP=true`, the leader cleans the registry every night (`REGISTRY_CLEANUP_AT`, 03:30 by default, in `PUBLIC_STATS_TZ`), in `internal/registro`:
+
+1. It gathers what must stay: every image a workload in the cluster names (pods, and deployments, stateful sets, daemon sets, replica sets, cron jobs and jobs, running or not) and the images of each app's last 10 releases, so a rollback always finds its images.
+2. It reads the registry's storage, through its pod: every tag with its date, every manifest, and what each index lists.
+3. Per repository it keeps the newest `REGISTRY_KEEP` build tags (10), every tag that is not a build tag (`latest`, `buildcache`, a version), and everything in use. It removes the other tags, and every manifest that no kept tag, workload or index points to.
+4. It repairs empty manifest links (a push cut short by a full disk leaves them, and they stop the garbage collector), then runs `registry garbage-collect`, which frees the layers nothing points to any more.
+
+It waits while builds run (a layer pushed during the collection, before its manifest, would look like garbage), for up to four hours. A failure, or a disk still over 80% full afterwards, shows on the [Problems](../guide/problems.md) page.
+
+It needs two things outside rendimiento:
+
+- permission to exec into the registry's pod: `deploy/registry-cleanup.yaml` (set its namespace to the registry's, then add it to your overlay or apply it);
+- the registry's pod found by `REGISTRY_NAMESPACE` and `REGISTRY_SELECTOR` (`docker-registry`, `app=registry`).
+
 ## Railpack: no Dockerfile needed
 
 For a service without a Dockerfile, the build pod's **plan** container runs the Railpack CLI (`railpack prepare`). It detects the language (Node, Python, Go, Java, static sites…), picks versions, and writes a **build plan**: which packages to install (through `mise`), which commands to run, and what the image should start. The `step` container hands that plan to BuildKit's `gateway.v0` frontend with Railpack's frontend image, which turns it into LLB.
