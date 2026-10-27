@@ -36,6 +36,11 @@ rendimiento is configured only through **environment variables**, read once at s
 |---|---|---|---|
 | `REGISTRY` | `registry.example.lan:5000` | | where images and build caches are pushed |
 | `REGISTRY_INSECURE` | `true` | | registry over plain HTTP |
+| `REGISTRY_CLEANUP` | `false` | `true` | clean the registry every night: old build images and caches go, what is in use stays ([Keeping the registry small](../architecture/builds.md#keeping-the-registry-small)) |
+| `REGISTRY_CLEANUP_AT` | `03:30` | `04:00` | when, in `PUBLIC_STATS_TZ` |
+| `REGISTRY_KEEP` | `10` | `20` | the newest build tags kept per repository |
+| `REGISTRY_NAMESPACE`, `REGISTRY_SELECTOR` | `docker-registry`, `app=registry` | | the registry's pod |
+| `REGISTRY_CONFIG` | `/etc/docker/registry/config.yml` | | the registry's config file inside its pod, for its garbage collector |
 | `BUILD_NAMESPACE` | `rendimiento-builds` | | where build and test pods run |
 | `BUILDKIT_POOL` | *(empty)* | `buildkitd-pool.devops-tools.svc.cluster.local` | headless Service of the daemon pool; images are spread across it by rendezvous hashing |
 | `BUILDKIT_ADDR` | `tcp://buildkitd.devops-tools.svc.cluster.local:1234` | | the single daemon, used when there is no pool or the pool can't be resolved |

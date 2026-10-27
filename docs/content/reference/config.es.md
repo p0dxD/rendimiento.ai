@@ -36,6 +36,11 @@ rendimiento se configura solo con **variables de entorno**, que se leen una vez 
 |---|---|---|---|
 | `REGISTRY` | `registry.example.lan:5000` | | a donde se envían las imágenes y las cachés de construcción |
 | `REGISTRY_INSECURE` | `true` | | registro sobre HTTP simple |
+| `REGISTRY_CLEANUP` | `false` | `true` | limpiar el registro cada noche: se van las imágenes y cachés de construcción viejas, se queda lo que está en uso ([Que el registro no se llene](../architecture/builds.md#keeping-the-registry-small)) |
+| `REGISTRY_CLEANUP_AT` | `03:30` | `04:00` | cuándo, en `PUBLIC_STATS_TZ` |
+| `REGISTRY_KEEP` | `10` | `20` | las etiquetas de construcción más nuevas que se conservan por repositorio |
+| `REGISTRY_NAMESPACE`, `REGISTRY_SELECTOR` | `docker-registry`, `app=registry` | | el pod del registro |
+| `REGISTRY_CONFIG` | `/etc/docker/registry/config.yml` | | el archivo de configuración del registro dentro de su pod, para su recolector de basura |
 | `BUILD_NAMESPACE` | `rendimiento-builds` | | donde corren los pods de construcción y de pruebas |
 | `BUILDKIT_POOL` | *(vacío)* | `buildkitd-pool.devops-tools.svc.cluster.local` | el Service sin IP propia del grupo de demonios; las imágenes se reparten en él por hash de encuentro |
 | `BUILDKIT_ADDR` | `tcp://buildkitd.devops-tools.svc.cluster.local:1234` | | el demonio único, que se usa cuando no hay grupo o no se puede resolver |

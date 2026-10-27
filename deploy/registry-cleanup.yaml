@@ -1,0 +1,31 @@
+# The registry's nightly cleanup (REGISTRY_CLEANUP=true): rendimiento execs
+# into the registry's pod to list its storage, remove old images and run its
+# garbage collector. Not in kustomization.yaml, because the registry's
+# namespace is your own: set it below, then add this file to your overlay or
+# apply it with kubectl apply -f deploy/registry-cleanup.yaml.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rendimiento-registry-cleanup
+  namespace: docker-registry
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list]
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rendimiento-registry-cleanup
+  namespace: docker-registry
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rendimiento-registry-cleanup
+subjects:
+  - kind: ServiceAccount
+    name: rendimiento
+    namespace: rendimiento-system

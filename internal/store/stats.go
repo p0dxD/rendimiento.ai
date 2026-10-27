@@ -269,3 +269,26 @@ func (s *Store) ActiveRuns(ctx context.Context, n int) ([]ActiveRun, error) {
 	}
 	return out, rows.Err()
 }
+
+// RecentReleaseImages are the images of each app's last perApp releases:
+// what a rollback could need, so the registry must keep them.
+func (s *Store) RecentReleaseImages(ctx context.Context, perApp int) ([]string, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT DISTINCT i.value
+		FROM (SELECT images, row_number() OVER (PARTITION BY app_id ORDER BY number DESC) n FROM releases) r,
+		     jsonb_each_text(r.images) i
+		WHERE r.n <= $1`, perApp)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var img string
+		if err := rows.Scan(&img); err != nil {
+			return nil, err
+		}
+		out = append(out, img)
+	}
+	return out, rows.Err()
+}

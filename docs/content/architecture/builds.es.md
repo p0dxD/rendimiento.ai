@@ -120,6 +120,24 @@ Cada imagen tiene un **favorito estable**, así que siempre encuentra ahí su ca
 --8<-- "internal/pipeline/kube.go:buildkitFor"
 ```
 
+## Que el registro no se llene {#keeping-the-registry-small}
+
+Cada construcción envía una imagen, y cada envío de una caché de construcción reemplaza la anterior; el registro las guarda todas. En octubre de 2026 su disco se llenó (98 GB): cada envío fallaba con *500 Internal Server Error*, así que las ejecuciones fallaban al azar, después de pasar sus pruebas. Lo que lo llenó fueron sobre todo **cachés de construcción viejas**: cada envío dejaba atrás el manifiesto de la caché anterior, y el recolector de basura del registro cuenta todos los manifiestos como vivos.
+
+Con `REGISTRY_CLEANUP=true`, el líder limpia el registro cada noche (`REGISTRY_CLEANUP_AT`, a las 03:30 si no se define, en `PUBLIC_STATS_TZ`), en `internal/registro`:
+
+1. Junta lo que debe quedarse: cada imagen que nombra una carga del clúster (pods, y deployments, statefulsets, daemonsets, replicasets, cronjobs y jobs, corran o no) y las imágenes de las últimas 10 versiones de cada aplicación, para que regresar a una siempre encuentre sus imágenes.
+2. Lee el almacenamiento del registro, a través de su pod: cada etiqueta con su fecha, cada manifiesto y lo que lista cada índice.
+3. Por repositorio conserva las `REGISTRY_KEEP` etiquetas de construcción más nuevas (10), cada etiqueta que no es de construcción (`latest`, `buildcache`, una versión) y todo lo que está en uso. Quita las demás etiquetas, y cada manifiesto al que ya no apunta ninguna etiqueta conservada, carga ni índice.
+4. Repara los enlaces de manifiesto vacíos (los deja un envío cortado por un disco lleno, y detienen al recolector) y luego corre `registry garbage-collect`, que libera las capas a las que ya nada apunta.
+
+Espera mientras haya construcciones corriendo (una capa enviada durante la recolección, antes que su manifiesto, parecería basura), hasta cuatro horas. Una falla, o un disco que sigue arriba del 80% después, aparece en la página de [Problemas](../guide/problems.md).
+
+Necesita dos cosas fuera de rendimiento:
+
+- permiso para entrar al pod del registro: `deploy/registry-cleanup.yaml` (ponga el namespace del registro y agréguelo a su overlay, o aplíquelo);
+- encontrar el pod del registro con `REGISTRY_NAMESPACE` y `REGISTRY_SELECTOR` (`docker-registry`, `app=registry`).
+
 ## Railpack: sin necesidad de Dockerfile {#railpack-no-dockerfile-needed}
 
 Para un servicio sin Dockerfile, el contenedor **plan** del pod de construcción corre la herramienta de Railpack (`railpack prepare`). Detecta el lenguaje (Node, Python, Go, Java, sitios estáticos…), elige las versiones y escribe un **plan de construcción**: qué paquetes instalar (con `mise`), qué comandos correr y con qué debe arrancar la imagen. El contenedor `step` le pasa ese plan a la interfaz de entrada `gateway.v0` de BuildKit con la imagen de la interfaz de entrada de Railpack, que lo convierte en LLB.
