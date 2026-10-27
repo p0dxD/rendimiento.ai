@@ -1,6 +1,6 @@
 # The Mercado (pages without code)
 
-The **Mercado** makes web pages for people who don't write code. You fill in a form and rendimiento makes the page, publishes it at its own address and keeps it. Every page is a **stall** (a *puesto*), and the Mercado page in the top bar shows all of them under their awnings.
+The **Mercado** makes web pages for people who don't write code. You fill in a form and rendimiento makes the page, publishes it at its own address and keeps it. Every page is a **stall** (a *puesto*), and the Mercado page in the top bar lists all of them: choose one to see its page on a phone, as its visitors do, with its state, address, owner and last change.
 
 ## Opening a stall {#opening-a-stall}
 
