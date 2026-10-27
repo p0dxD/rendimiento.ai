@@ -58,5 +58,7 @@ for log in "${failed[@]}"; do
   tail -40 "$log"
 done
 echo '== slowest tests'
-grep -hE '^--- (PASS|FAIL): ' "$out"/*.log | sed -E 's/^--- [A-Z]+: ([^ ]+) \(([0-9.]+)s\)$/\2s \1/' | sort -rn | head -12
+# awk, not head: head stops reading early, sort then dies of SIGPIPE, and
+# with pipefail the whole step failed (exit 141) after every test passed.
+grep -hE '^--- (PASS|FAIL): ' "$out"/*.log | sed -E 's/^--- [A-Z]+: ([^ ]+) \(([0-9.]+)s\)$/\2s \1/' | sort -rn | awk 'NR <= 12'
 [ ${#failed[@]} -eq 0 ]
