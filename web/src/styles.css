@@ -362,6 +362,15 @@ button.nota:hover{transform:rotate(0) translateY(-2px)}
 .nav-link.active, .nav-link:hover { color: var(--text); text-decoration: none; }
 .topbar { flex-wrap: wrap; row-gap: 8px; }
 
+/* First-run setup, in the style of New app: the steps on the left, the one at hand on the right. */
+.setup{max-width:1000px}
+.setup-paso{cursor:default}
+.setup-num{width:28px;height:28px;flex:none;border-radius:50%;display:grid;place-items:center;font-weight:800;background:var(--border);color:var(--text);transition:background .25s,color .25s}
+.setup-paso.on .setup-num{background:var(--grana);color:#fff}
+.setup-paso.hecho .setup-num{background:var(--ok);color:#fff}
+.setup-espera{opacity:.55;transition:opacity .3s}
+.setup-pie{display:flex;justify-content:flex-end;padding-top:14px;border-top:1px solid var(--border)}
+
 /* ---- services catalog ---- */
 .svc-search { width: 100%; max-width: 480px; }
 .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 12px; white-space: nowrap; }
