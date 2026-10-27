@@ -469,7 +469,7 @@ export interface DeliveryReport {
 
 // ---- visits (Umami) ----
 
-export type VisitRange = "24h" | "7d" | "30d";
+export type VisitRange = "today" | "yesterday" | "24h" | "7d" | "30d" | "day";
 
 export interface VisitStats {
   pageviews: number;
@@ -492,11 +492,38 @@ export interface VisitReport {
   paths: VisitMetric[];
   referrers: VisitMetric[];
   countries: VisitMetric[];
+  /** The latest visitors of the period, newest first (anonymous: Umami doesn't know who they are). */
+  sessions?: VisitSession[];
+}
+
+export interface VisitSession {
+  id: string;
+  country: string;
+  region: string;
+  city: string;
+  browser: string;
+  os: string;
+  device: string;
+  firstAt: string;
+  lastAt: string;
+  visits: number;
+  views: number;
+}
+
+/** One thing a visitor did: a page they saw, or an event. */
+export interface VisitStep {
+  at: string;
+  path: string;
+  referrer?: string;
+  event?: string;
 }
 
 export interface Visits {
   configured: boolean;
   range: VisitRange;
+  from: string;
+  to: string;
+  unit: "hour" | "day";
   timeZone: string;
   hosts: string[];
   umamiURL?: string;
@@ -714,7 +741,10 @@ export const api = {
   releaseTaskLog: (app: string, release: number, task: string) => request<string>("GET", `/api/apps/${app}/releases/${release}/tasks/${encodeURIComponent(task)}/log`),
   delivery: () => request<DeliveryReport>("GET", "/api/stats/delivery"),
   visitsSummary: () => request<VisitsSummary>("GET", "/api/stats/visits"),
-  visits: (app: string, range: VisitRange) => request<Visits>("GET", `/api/apps/${app}/visits?range=${range}`),
+  visits: (app: string, range: VisitRange, day?: string) =>
+    request<Visits>("GET", `/api/apps/${app}/visits?${range === "day" && day ? `day=${day}` : `range=${range}`}`),
+  visitActivity: (app: string, site: string, session: string, from: string, to: string) =>
+    request<VisitStep[]>("GET", `/api/apps/${app}/visits/${encodeURIComponent(site)}/sessions/${encodeURIComponent(session)}?from=${Date.parse(from)}&to=${Date.parse(to)}`),
   problems: (opts: { app?: string; dismissed?: boolean } = {}) =>
     request<ProblemList>("GET", `/api/problems?app=${encodeURIComponent(opts.app ?? "")}${opts.dismissed ? "&dismissed=1" : ""}`),
   problemCount: () => request<{ open: number }>("GET", "/api/problems/count"),

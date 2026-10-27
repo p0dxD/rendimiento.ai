@@ -96,7 +96,8 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | GET | `/api/apps/{app}/releases` | el historial de versiones (huella por servicio) |
 | GET | `/api/apps/{app}/releases/{number}/tasks/{task}/log` | el registro de una tarea posterior al despliegue de una versión |
 | GET | `/api/apps/{app}/reliability?range=24h\|7d\|30d` | las comprobaciones de disponibilidad: por comprobación, la disponibilidad, p50/p95, los intervalos de la gráfica y la última comprobación; las caídas; las versiones del intervalo |
-| GET | `/api/apps/{app}/visits?range=24h\|7d\|30d` | los visitantes según Umami: por cada sitio que coincide, los totales y los del periodo anterior, una serie para la gráfica, las páginas principales, los orígenes y los países |
+| GET | `/api/apps/{app}/visits?range=today\|yesterday\|24h\|7d\|30d` o `?day=2026-10-20` | los visitantes según Umami: por cada sitio que coincide, los totales y los del periodo anterior, una serie para la gráfica, las páginas principales, los orígenes y los países, y las visitas más recientes del periodo (sesiones anónimas) |
+| GET | `/api/apps/{app}/visits/{site}/sessions/{session}?from=&to=` | las páginas y los eventos de una visita, del más viejo al más nuevo (`from` y `to` en milisegundos, a lo más 31 días de distancia; el sitio debe ser de la aplicación) |
 | POST | `/api/apps/{app}/rollback` | revierte a una versión anterior (`{"release": N}`) |
 | GET | `/api/apps/{app}/resources` | los objetos vivos de Kubernetes y su salud (el árbol de recursos) |
 | GET | `/api/apps/{app}/secrets/{secret}` | las llaves que contiene un secreto (`{"keys": [...]}`), nunca sus valores |

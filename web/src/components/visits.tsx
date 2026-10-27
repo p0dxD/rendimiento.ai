@@ -5,15 +5,19 @@
 // with in-row bars. Plain SVG and HTML, like the Reliability tab.
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type App, type VisitMetric, type VisitRange, type VisitReport, type VisitStats, type Visits } from "../api";
+import { api, type App, type VisitMetric, type VisitRange, type VisitReport, type VisitSession, type VisitStats, type VisitStep, type Visits } from "../api";
 import { ErrorBox, usePoll } from "./ui";
 import { locale, t, tn } from "../i18n";
 
 const ranges: { id: VisitRange; label: string }[] = [
-  { id: "24h", label: "Last 24 hours" }, // labels are translated where shown
+  { id: "today", label: "Today" }, // labels are translated where shown
+  { id: "yesterday", label: "Yesterday" },
   { id: "7d", label: "Last 7 days" },
   { id: "30d", label: "Last 30 days" },
 ];
+
+/** A date as the date input writes it, in the visits' time zone ("2026-10-20"). */
+const isoDay = (d: Date, tz?: string) => d.toLocaleDateString("en-CA", { timeZone: tz });
 
 const fmtN = (n: number) => n.toLocaleString(locale);
 
@@ -64,7 +68,7 @@ function niceMax(v: number): number {
 }
 
 /** Visitors and page views per hour or day, with a crosshair tooltip. */
-function VisitChart({ report, range, tz }: { report: VisitReport; range: VisitRange; tz: string }) {
+function VisitChart({ report, unit, tz }: { report: VisitReport; unit: Visits["unit"]; tz: string }) {
   const wrap = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
   const [hover, setHover] = useState<number | null>(null);
@@ -81,9 +85,9 @@ function VisitChart({ report, range, tz }: { report: VisitReport; range: VisitRa
   if (n === 0) return null;
   const when = (at: string) => {
     const d = new Date(at);
-    return range === "24h"
+    return unit === "hour"
       ? d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: tz })
-      : d.toLocaleDateString(locale, { weekday: range === "7d" ? "short" : undefined, month: "short", day: "numeric", timeZone: tz });
+      : d.toLocaleDateString(locale, { weekday: n <= 8 ? "short" : undefined, month: "short", day: "numeric", timeZone: tz });
   };
   const H = 180, L = 44, R = 12, T = 12, B = 22;
   const x = (i: number) => L + (n === 1 ? 0 : (i / (n - 1)) * (width - L - R));
@@ -177,7 +181,7 @@ function Top({ title, rows, label, empty }: { title: string; rows: VisitMetric[]
 /**
  * One website's visitors: the numbers against the previous period, the chart, and its top pages, sources and countries.
  */
-function ReportView({ report, data, multi }: { report: VisitReport; data: Visits; multi: boolean }) {
+function ReportView({ app, report, data, multi }: { app: string; report: VisitReport; data: Visits; multi: boolean }) {
   const c = report.current, p = report.previous;
   const br = bounceRate(c), av = avgVisit(c);
   const open = data.umamiURL ? `${data.umamiURL}/websites/${report.website.id}` : undefined;
@@ -199,30 +203,111 @@ function ReportView({ report, data, multi }: { report: VisitReport; data: Visits
           <Tile label={t("Average visit")} value={av !== undefined ? fmtVisitTime(av) : "—"} note={change(av, avgVisit(p))} />
           <Tile label={t("Right now")} value={fmtN(report.active)} note={t("visitors in the last 5 minutes")} />
         </div>
-        <VisitChart report={report} range={data.range} tz={data.timeZone} />
+        <VisitChart report={report} unit={data.unit} tz={data.timeZone} />
       </section>
       <div className="vis-tops">
         <Top title={t("Pages")} rows={report.paths} label={(v) => v} empty={t("No page views in this range.")} />
         <Top title={t("Where they come from")} rows={report.referrers} label={(v) => v || t("Direct or unknown")} empty={t("Every visit came directly, or the referrer was hidden.")} />
         <Top title={t("Countries")} rows={report.countries} label={(v) => (v ? countryName(v) : t("Unknown"))} empty={t("No countries yet.")} />
       </div>
+      <Sesiones app={app} report={report} data={data} />
     </div>
   );
 }
 
-/** The app's Visits tab: Umami's numbers for each of its addresses over 24 h, 7 or 30 days. */
+/** How long a visitor stayed, from their first to their last page. */
+function stayed(v: VisitSession): string {
+  const sec = (Date.parse(v.lastAt) - Date.parse(v.firstAt)) / 1000;
+  return sec >= 1 ? fmtVisitTime(sec) : t("one page");
+}
+
+/**
+ * The visitors of the period, one line each (newest first): when, from where, on what, and how long; opened, the
+ * pages they saw in order. Each line is an anonymous visit: Umami does not know who the person is.
+ */
+function Sesiones({ app, report, data }: { app: string; report: VisitReport; data: Visits }) {
+  const [abierta, setAbierta] = useState<string>();
+  const sesiones = report.sessions ?? [];
+  const titulo = data.range === "today" ? t("Today's visitors") : data.range === "yesterday" ? t("Yesterday's visitors")
+    : data.range === "day" ? t("Visitors on {day}", { day: new Date(data.from).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", timeZone: data.timeZone }) })
+      : t("The latest visitors");
+  const hora = (at: string) => data.unit === "hour"
+    ? new Date(at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: data.timeZone })
+    : new Date(at).toLocaleString(locale, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: data.timeZone });
+  return (
+    <section className="card vis-sesiones">
+      <div className="row between" style={{ alignItems: "baseline" }}>
+        <h3 style={{ margin: 0 }}>{titulo} {sesiones.length > 0 && <span className="small muted">{sesiones.length}</span>}</h3>
+        <span className="small muted">{t("Each line is an anonymous visit: Umami does not keep who the person is.")}</span>
+      </div>
+      {sesiones.length === 0 && <p className="small muted" style={{ margin: "8px 0 0" }}>{t("No visitors in this range.")}</p>}
+      {sesiones.map((v, i) => (
+        <div key={v.id} className="vis-sesion" style={{ ["--d" as string]: `${Math.min(i, 12) * 40}ms` }}>
+          <button className="vis-visita" aria-expanded={abierta === v.id} onClick={() => setAbierta(abierta === v.id ? undefined : v.id)}>
+            <span className="mono small">{hora(v.lastAt)}</span>
+            <span className="vis-cc" title={v.country ? countryName(v.country) : undefined}>{v.country || "··"}</span>
+            <span className="vis-lugar">{[v.city, v.region].filter(Boolean).join(", ") || (v.country ? countryName(v.country) : t("Unknown"))}</span>
+            <span className="small muted vis-equipo">{[v.device, v.browser, v.os].filter(Boolean).join(" · ")}</span>
+            <span className="small muted">{tn(v.views, "{n} page", "{n} pages")} · {stayed(v)}</span>
+            <span aria-hidden="true">{abierta === v.id ? "▾" : "▸"}</span>
+          </button>
+          {abierta === v.id && <Recorrido app={app} tz={data.timeZone} site={report.website.id} v={v} />}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/** One visitor's way through the site: where they came from, each page, and when they left. */
+function Recorrido({ app: name, tz, site, v }: { app: string; tz: string; site: string; v: VisitSession }) {
+  const [pasos, setPasos] = useState<VisitStep[]>();
+  const [error, setError] = useState<unknown>();
+  useEffect(() => {
+    // A minute either side, so the first and last pages are inside.
+    const from = new Date(Date.parse(v.firstAt) - 60_000).toISOString(), to = new Date(Date.parse(v.lastAt) + 60_000).toISOString();
+    api.visitActivity(name, site, v.id, from, to).then(setPasos, setError);
+  }, [name, site, v.id, v.firstAt, v.lastAt]);
+  if (error) return <div className="vis-recorrido"><ErrorBox error={error} /></div>;
+  if (!pasos) return <div className="vis-recorrido small muted">{t("Loading…")}</div>;
+  const llego = pasos.find((p) => p.referrer)?.referrer;
+  return (
+    <div className="vis-recorrido small">
+      <span className="muted">{llego ? t("Came from {site}:", { site: llego }) : t("Came directly:")}</span>
+      {pasos.map((p, i) => (
+        <span key={i} className="vis-paso-grupo">
+          <span className={`vis-paso mono${p.event ? " evento" : ""}`} title={new Date(p.at).toLocaleTimeString(locale, { timeZone: tz })}>{p.event ? `★ ${p.event}` : p.path}</span>
+          <span aria-hidden="true">→</span>
+        </span>
+      ))}
+      <span className="muted">{t("left")}</span>
+    </div>
+  );
+}
+
+/** The app's Visits tab: Umami's numbers for each of its addresses today, yesterday, on a chosen day, or over 7 or 30 days, with its visitors. */
 export function VisitsTab({ app }: { app: App }) {
-  const [range, setRange] = useState<VisitRange>("7d");
-  const { data, error } = usePoll(() => api.visits(app.name, range), [app.name, range], 120000);
+  const [range, setRange] = useState<VisitRange>("today");
+  const [day, setDay] = useState("");
+  const { data, error } = usePoll(() => api.visits(app.name, range, day), [app.name, range, day], 120000);
   const loading = !!data && data.range !== range;
+  const tz = data?.timeZone;
+  const hoy = isoDay(new Date(), tz);
+  const desde = isoDay(new Date(Date.now() - 90 * 86400_000), tz);
+  const activos = data?.reports.reduce((n, r) => n + r.active, 0) ?? 0;
   return (
     <>
       <div className={`rel-filters${loading ? " loading" : ""}`} role="group" aria-label={t("Time range")}>
         {ranges.map((r) => (
-          <button key={r.id} aria-pressed={range === r.id} onClick={() => setRange(r.id)}>{t(r.label)}</button>
+          <button key={r.id} aria-pressed={range === r.id} onClick={() => { setRange(r.id); setDay(""); }}>{t(r.label)}</button>
         ))}
-        <span className="small muted">{t("Counted by Umami, without cookies; the numbers refresh every few minutes.")}</span>
+        <label className={`vis-otro-dia${range === "day" ? " on" : ""}`}>{t("Another day")}
+          <input type="date" value={day} min={desde} max={hoy} onChange={(e) => { setDay(e.target.value); setRange(e.target.value ? "day" : "today"); }} />
+        </label>
+        {data?.configured && data.reports.length > 0 && (
+          <span className="vis-ahora" title={t("visitors in the last 5 minutes")}><i aria-hidden="true" />{tn(activos, "{n} on the site now", "{n} on the site now")}</span>
+        )}
       </div>
+      <p className="small muted" style={{ margin: "-4px 0 12px" }}>{t("Counted by Umami, without cookies; the numbers refresh every few minutes.")}</p>
       <ErrorBox error={error} />
       {!data && !error && <p className="muted">{t("Loading…")}</p>}
       {data && !data.configured && (
@@ -251,7 +336,7 @@ export function VisitsTab({ app }: { app: App }) {
       )}
       {data && data.reports.length > 0 && (
         <div className="stack">
-          {data.reports.map((r) => <ReportView key={r.website.id} report={r} data={data} multi={data.reports.length > 1} />)}
+          {data.reports.map((r) => <ReportView key={r.website.id} app={app.name} report={r} data={data} multi={data.reports.length > 1} />)}
         </div>
       )}
     </>
