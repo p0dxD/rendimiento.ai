@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, dollars, duration, session, subscribe, timeAgo, type Diagnosis, type Run } from "../api";
-import { ErrorBox, PipelineGraph, RunBadge } from "../components/ui";
+import { api, dollars, duration, session, subscribe, timeAgo, type Diagnosis, type Run, type Step } from "../api";
+import { ErrorBox, RunBadge } from "../components/ui";
 import { t } from "../i18n";
 
-/** A run's page: its graph of steps, live as they go, and the log of the step chosen. */
+/** A run's page: why it failed, its steps with when each ran, live as they go, and the log of the step chosen. */
 export function RunPage() {
   const { name = "", id = "" } = useParams();
   const runId = Number(id);
@@ -13,7 +13,7 @@ export function RunPage() {
   const [selected, setSelected] = useState<string>();
   const [logs, setLogs] = useState<Record<string, string>>({});
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>();
-  const logRef = useRef<HTMLPreElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
   const follow = useRef(true);
 
   // Initial state, then live updates over SSE.
@@ -69,8 +69,25 @@ export function RunPage() {
       {run.status === "failed" && <WhyFailed run={run} d={diagnosis} setD={setDiagnosis} />}
 
       {run.steps?.length ? (
-        <div className="card">
-          <PipelineGraph run={run} selected={selected} onSelect={setSelected} />
+        <div className="ejecucion">
+          <Pasos run={run} selected={selected} onSelect={setSelected} />
+          {step && (
+            <div className="ejecucion-registro">
+              <div className="row">
+                <strong>{step.id}</strong>
+                <RunBadge status={step.status} />
+                <span className="small muted">{duration(step.startedAt, step.finishedAt)}</span>
+                {step.digest && <span className="mono small muted" title={step.digest}>{step.digest.slice(0, 19)}…</span>}
+                <span style={{ flex: 1 }} />
+                {firstError(logs[step.id]) >= 0 && (
+                  <button className="small" onClick={() => { follow.current = false; logRef.current?.querySelector(".err")?.scrollIntoView({ block: "center", behavior: "smooth" }); }}>{t("Jump to the error")}</button>
+                )}
+              </div>
+              {step.message && step.status !== "succeeded" && step.status !== "reused" && <div className="alert">{step.message}</div>}
+              <Registro text={logs[step.id]} innerRef={logRef} onScroll={(near) => { follow.current = near; }}
+                empty={step.status === "pending" ? t("Waiting to start…") : step.status === "skipped" ? t("Skipped.") : step.status === "reused" ? t("Nothing in this service changed, so it was not rebuilt: ") + (step.message ?? "") : t("No output yet.")} />
+            </div>
+          )}
         </div>
       ) : run.status === "failed" && run.message ? (
         <div className="alert" role="alert">
@@ -78,29 +95,81 @@ export function RunPage() {
           <div className="small" style={{ marginTop: 6 }}>{t("Fix the file and push again; the app keeps running its current release.")}</div>
         </div>
       ) : (
-        <div className="card">
-          <PipelineGraph run={run} selected={selected} onSelect={setSelected} />
-        </div>
-      )}
-
-      {step && (
-        <>
-          <div className="row between" style={{ margin: "20px 0 8px" }}>
-            <div className="row">
-              <strong>{step.id}</strong>
-              <RunBadge status={step.status} />
-              <span className="small muted">{duration(step.startedAt, step.finishedAt)}</span>
-            </div>
-            {step.digest && <span className="mono small muted" title={step.digest}>{step.digest.slice(0, 19)}…</span>}
-          </div>
-          {step.message && step.status !== "succeeded" && step.status !== "reused" && <div className="alert" style={{ marginBottom: 8 }}>{step.message}</div>}
-          <pre className="log" ref={logRef}
-            onScroll={(e) => { const el = e.currentTarget; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40; }}>
-            {formatLog(logs[step.id]) || (step.status === "pending" ? t("Waiting to start…") : step.status === "skipped" ? t("Skipped.") : step.status === "reused" ? t("Nothing in this service changed, so it was not rebuilt: ") + (step.message ?? "") : t("No output yet."))}
-          </pre>
-        </>
+        <p className="muted">{t("Waiting to start…")}</p>
       )}
     </>
+  );
+}
+
+const pasoColor: Record<Step["status"], string> = {
+  succeeded: "var(--ok)", failed: "var(--bad)", running: "var(--warn)", pending: "var(--muted)", skipped: "var(--muted)", reused: "var(--anil)",
+};
+const pasoIcono: Record<Step["status"], string> = {
+  succeeded: "M7 12.5l3 3 7-7", failed: "M8.5 8.5l7 7M15.5 8.5l-7 7", running: "M8 12h.01M12 12h.01M16 12h.01",
+  pending: "", skipped: "M8 12h8", reused: "M8 10a4 4 0 0 1 7-1M16 14a4 4 0 0 1-7 1",
+};
+
+/**
+ * The steps as a list, each with a bar for when it ran within the run: bars that overlap ran at the same time («a la par»),
+ * so what ran in parallel shows at a glance.
+ */
+function Pasos({ run, selected, onSelect }: { run: Run; selected?: string; onSelect: (id: string) => void }) {
+  const ms = (x?: string) => (x ? new Date(x).getTime() : undefined);
+  const steps = run.steps ?? [];
+  const now = Date.now();
+  const starts = steps.map((s) => ms(s.startedAt)).filter((x): x is number => x !== undefined);
+  const t0 = starts.length ? Math.min(...starts) : now;
+  const t1 = Math.max(t0 + 1000, ...steps.map((s) => ms(s.finishedAt) ?? (s.startedAt ? now : 0)));
+  const span = (s: Step): [number, number] | undefined => (s.startedAt ? [ms(s.startedAt)!, ms(s.finishedAt) ?? now] : undefined);
+  const total = duration(new Date(t0).toISOString(), new Date(t1).toISOString());
+  return (
+    <div className="pasos" role="list" aria-label={t("Steps")}>
+      <div className="pasos-escala small muted" aria-hidden="true"><span>0 s</span><span>{total}</span></div>
+      {steps.map((s, i) => {
+        const r = span(s);
+        const con = r ? steps.filter((o) => o.id !== s.id && span(o) && span(o)![0] < r[1] && span(o)![1] > r[0]).map((o) => o.id) : [];
+        const x = r ? ((r[0] - t0) / (t1 - t0)) * 100 : 0;
+        const w = r ? Math.max(1.5, ((r[1] - r[0]) / (t1 - t0)) * 100) : 0;
+        return (
+          <button key={s.id} role="listitem" className={`paso${s.id === selected ? " on" : ""}${s.status === "running" ? " corre" : ""}`} onClick={() => onSelect(s.id)} aria-current={s.id === selected}>
+            <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" fill={pasoColor[s.status]} opacity={s.status === "pending" ? 0.35 : 1} />
+              {pasoIcono[s.status] && <path d={pasoIcono[s.status]} stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />}
+            </svg>
+            <span style={{ minWidth: 0 }}>
+              <strong>{s.id}</strong>
+              {con.length > 0 && <span className="par" title={t("Ran at the same time as {steps}", { steps: con.join(", ") })}>{t("side by side")}</span>}
+              <br />
+              <span className="small muted">{t(s.kind)}{s.dependsOn.length > 0 ? ` · ${t("after {steps}", { steps: s.dependsOn.join(", ") })}` : ""}</span>
+              <span className="pista">{r && <b style={{ left: `${x}%`, width: `${Math.min(w, 100 - x)}%`, ["--c" as string]: pasoColor[s.status], ["--d" as string]: `${i * 50}ms` }} />}</span>
+            </span>
+            <span className="small muted">{s.startedAt ? duration(s.startedAt, s.finishedAt) : ""}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const errLine = /\b(error|errors|failed|fail|failure|panic|fatal)\b|^--- FAIL|^FAIL\b/i;
+const notErr = /\b(0|no) (errors|failures)\b/i;
+const isErr = (l: string) => errLine.test(l) && !notErr.test(l);
+
+/** The line of the first error in a log, or -1. */
+function firstError(text?: string) {
+  return formatLog(text).split("\n").findIndex(isErr);
+}
+
+/** A step's log with line numbers, its error lines marked and its groups as headings. */
+function Registro({ text, empty, innerRef, onScroll }: { text?: string; empty: string; innerRef: React.RefObject<HTMLDivElement | null>; onScroll: (nearBottom: boolean) => void }) {
+  const lines = formatLog(text).replace(/\n$/, "").split("\n");
+  return (
+    <div className="reg" role="log" aria-label={t("Step log")} ref={innerRef}
+      onScroll={(e) => { const el = e.currentTarget; onScroll(el.scrollHeight - el.scrollTop - el.clientHeight < 40); }}>
+      {!text ? <div className="reg-vacio">{empty}</div> : lines.map((l, i) => (
+        <div key={i} className={isErr(l) ? "err" : l.startsWith("── ") ? "grp" : undefined}><span className="n">{i + 1}</span>{l}</div>
+      ))}
+    </div>
   );
 }
 
