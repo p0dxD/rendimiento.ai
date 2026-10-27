@@ -101,7 +101,7 @@ Se toman del Secret opcional `rendimiento-dns`. Sin token, la automatización de
 | `STATS_LISTEN` | *(vacío: en el puerto principal)* | `:8081` | servir las estadísticas públicas solo en este puerto interno, no en el público |
 | `PUBLIC_STATS_ORIGINS` | *(ninguno)* | | los orígenes de navegador que pueden pedirlas (CORS); no hace falta si se piden desde un servidor |
 | `PUBLIC_STATS_TZ` | `UTC` | `America/New_York` | la zona horaria en la que se cuentan sus días |
-| `PUBLIC_ACTIVITY` | `false` | `true` | mostrar *Ahora mismo* en la página de bienvenida: lo que se está construyendo y las versiones más recientes, por nombre de aplicación ([`GET /api/public/activity`](api.md)) |
+| `PUBLIC_ACTIVITY` | `false` | `true` | mostrar *Ahora mismo en el pueblo* en la página de bienvenida: lo que se está construyendo y las versiones más recientes, por nombre de aplicación ([`GET /api/public/activity`](api.md)) |
 
 ## Visitas (Umami) {#visits-umami}
 

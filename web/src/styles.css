@@ -854,6 +854,49 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
   .bienv-heroe { padding-top: 24px; }
 }
 
+/* Welcome: "ren·dir" as a dictionary entry with a drawing per sense, the hanging signs and the bando. */
+.bienv-heroe.dicc{text-align:left;display:flex;flex-wrap:wrap;gap:32px;align-items:center;justify-items:initial;padding:32px 0 40px}
+.dicc-texto{flex:1 1 480px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.dicc-texto .bienv-entrada{margin:0;color:var(--text)}
+.dicc-texto .bienv-acciones{justify-content:flex-start}
+.dicc .dicc-cabeza h1{font-size:clamp(64px,10vw,110px);line-height:.95;letter-spacing:-.02em;margin:0}
+.dicc .dicc-acepciones{padding:0;margin:4px 0 0;gap:4px}
+.acepcion{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;width:100%;border:none;background:transparent;text-align:left;padding:14px;border-radius:14px;cursor:pointer;color:inherit;font:inherit;transition:background .25s,box-shadow .25s;animation:acepcion-entra .6s ease both;animation-delay:var(--d)}
+.acepcion:hover{background:color-mix(in srgb,var(--card) 70%,transparent)}
+.acepcion.on{background:var(--card);box-shadow:0 10px 24px -18px rgba(0,0,0,.6)}
+.acepcion-num{font:900 36px/1 Fraunces,Georgia,serif;color:var(--grana)}
+.acepcion .dicc-def,.acepcion .dicc-ej,.acepcion .dicc-aqui{display:block}
+.acepcion .dicc-aqui b{color:var(--grana)}
+@keyframes acepcion-entra{from{opacity:0;transform:translateY(10px)}}
+.dicc-dibujo{flex:1 1 300px;display:flex;justify-content:center}
+.dicc-ilus{max-width:100%;height:auto}
+.ilus-entra{animation:ilus-entra .5s ease both}
+@keyframes ilus-entra{from{opacity:0;transform:scale(.96)}}
+.ilus-cabeza{transform-origin:50% 50%;transform-box:fill-box;animation:ilus-respira 3.2s ease-in-out infinite}
+@keyframes ilus-respira{50%{transform:scale(1.07)}}
+.ilus-vapor{animation:ilus-sube 2.4s ease-in-out infinite}
+@keyframes ilus-sube{0%{opacity:0;transform:translateY(6px)}40%{opacity:.8}100%{opacity:0;transform:translateY(-16px)}}
+.ilus-renglon{animation:ilus-escribe .5s ease both}
+@keyframes ilus-escribe{from{opacity:0;transform:translateX(-8px)}}
+.bienv-letreros{display:flex;flex-wrap:wrap;gap:24px;justify-content:space-around}
+.bienv-letrero{display:flex;flex-direction:column;align-items:center}
+.bienv-letrero .cuerdas{width:70px;height:12px;border-left:2px solid #7A5A2A;border-right:2px solid #7A5A2A}
+.bienv-letrero .tabla{max-width:230px;padding:10px 14px;text-align:center;background:var(--card);border:2px solid #7A5A2A;border-top-width:6px;border-radius:8px;transform-origin:top center;animation:letrero-mece 4s ease-in-out infinite;animation-delay:var(--d)}
+.bienv-letrero h3{margin:0;font-size:16px}
+.bienv-letrero p{margin:4px 0 0;font-size:14px;color:var(--muted)}
+@keyframes letrero-mece{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+.bienv-bando{position:relative;margin:0 0 48px;padding:22px 24px 16px;background:#FFF8E7;color:#2B1B12;border-radius:4px;box-shadow:0 14px 28px -18px rgba(0,0,0,.55);transform:rotate(-.5deg)}
+.bienv-bando::before,.bienv-bando::after{content:"";position:absolute;top:-7px;width:16px;height:16px;border-radius:50%;background:var(--grana);box-shadow:inset -3px -3px 0 rgba(0,0,0,.2)}
+.bienv-bando::before{left:24px}.bienv-bando::after{right:24px}
+.bienv .bienv-bando-titulo{margin:0 0 4px;font-family:inherit;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8E1B2C}
+.bienv-bando-linea{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;padding:10px 0;border-top:1px dashed #D8C8B0;font-size:15px;animation:acepcion-entra .4s ease both;animation-delay:var(--d)}
+.bienv-bando-linea i{width:10px;height:10px;border-radius:50%;flex:none}
+.bienv-bando-linea i.late{animation:bando-late 1.2s ease-in-out infinite}
+@keyframes bando-late{50%{opacity:.3}}
+.bienv-bando-que{font-family:Fraunces,Georgia,serif;font-style:italic;color:#4A3628}
+.bienv-bando-cuando{margin-left:auto;color:#6B5444;font-size:13.5px}
+@media (prefers-reduced-motion: reduce){.acepcion,.ilus-entra,.ilus-cabeza,.ilus-vapor,.ilus-renglon,.bienv-letrero .tabla,.bienv-bando-linea,.bienv-bando-linea i.late{animation:none}}
+
 /* ---- El Mercado: every page a stall, under its awning ---- */
 .ghost { background: transparent; border-color: transparent; }
 .ghost:hover { background: var(--surface-2); }
