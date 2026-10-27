@@ -526,6 +526,24 @@ textarea.code { width: 100%; min-height: 280px; font-family: var(--mono); font-s
 .problem-resolved { color: var(--ok); white-space: nowrap; }
 .lang-switch { font-weight: 600; font-size: 12px; letter-spacing: .04em; min-width: 40px; }
 
+/* Problems: counters that filter, and each problem's 30 days as a strip. */
+.problema-cuentas{display:flex;flex-wrap:wrap;gap:12px;margin:4px 0 14px}
+.problema-cuenta{flex:1 1 150px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border:2px solid var(--border);border-radius:16px;background:var(--card);color:var(--text);cursor:pointer;transition:border-color .2s,transform .2s}
+.problema-cuenta:hover{transform:translateY(-2px)}
+.problema-cuenta[aria-pressed="true"]{border-color:var(--text)}
+.problema-cuenta span{font-size:13px;font-weight:700;color:var(--muted)}
+.problema-cuenta b{font:800 30px/1.1 Fraunces,Georgia,serif}
+.problem{animation:problema-entra .4s ease both;animation-delay:var(--d);transition:opacity .35s,transform .35s}
+.problem.fuera{opacity:0;transform:translateX(30px)}
+.problem.resuelto{background:color-mix(in srgb,var(--ok) 6%,var(--card));border-color:color-mix(in srgb,var(--ok) 25%,var(--border))}
+@keyframes problema-entra{from{opacity:0;transform:translateY(8px)}}
+.dias{display:grid;grid-template-columns:repeat(30,minmax(0,1fr));gap:2px}
+.dias span{height:14px;border-radius:3px;background:var(--border)}
+.dias span.si{background:var(--c);animation:dias-late 2.4s ease-in-out infinite;animation-delay:var(--d)}
+@keyframes dias-late{50%{opacity:.6}}
+.dias-pie{display:flex;justify-content:space-between;margin-top:3px}
+@media (prefers-reduced-motion: reduce){.problem,.dias span.si{animation:none;transition:none}}
+
 /* ---- Cotija: roof, papel picado, night sky, guardapolvo ---- */
 :root { --cede-display: block; --farol-display: none; --cielo-display: none; --bg-image: none; }
 :root[data-theme="night"] { --cede-display: none; --farol-display: block; --cielo-display: block;
