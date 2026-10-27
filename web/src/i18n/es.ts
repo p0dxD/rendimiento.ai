@@ -46,6 +46,8 @@ export const es: Record<string, string> = {
   "add-on": "complemento",
   "Add-on settings": "Configuración del complemento",
   "Add-ons": "Complementos",
+  "On the left, what you have and what you can add; on the right, what is happening with it and what to do.": "A la izquierda, lo que tiene y lo que puede agregar; a la derecha, qué pasa con él y qué hacer.",
+  "Search add-ons": "Buscar complementos",
   "address and password:": "dirección y contraseña:",
   "Addresses, ports and callers are worked out automatically. Add a": "Las direcciones, los puertos y quién lo llama se calculan automáticamente. Agregue un bloque",
   "After that, every push to {branch} builds and deploys automatically. Other branches build and show their status on GitHub, but do not deploy.": "A partir de entonces, cada envío a {branch} se construye y se despliega automáticamente. Las demás ramas se construyen y muestran su estado en GitHub, pero no se despliegan.",

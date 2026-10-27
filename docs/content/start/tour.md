@@ -58,9 +58,10 @@ Within each group, services are sorted by what they do: Databases, Caches & queu
 
 ## Add-ons
 
-- A search box across everything below.
-- **Installed**: each installed add-on with its phase (*In sync*, *Changes waiting*, *Review needed*, *Error*, *Suspended*) and source. Opening one shows what a sync would change, object by object with diffs; its Helm hooks and their recent runs; and buttons to **Sync**, **Suspend**, **Edit definition**, **Stop managing** or **Uninstall**.
-- **Add from the catalog**: Longhorn, Hajimari, Uptime Kuma, CloudNativePG, *any Helm chart* or *manifests from a git folder*, each with a short form and a YAML box to override any chart value. Installing commits a file to the gitops repository.
+A list on the left, with a search box across all of it, and the add-on chosen on the right.
+
+- **Needs attention** and **Installed**: each installed add-on with its phase (*In sync*, *Changes waiting*, *Review needed*, *Error*, *Suspended*) and source (those in *Error*, *Review needed* or *Changes waiting* come first, under *Needs attention*). Choosing one shows what a sync would change, object by object with diffs; its Helm hooks and their recent runs; and buttons to **Sync**, **Suspend**, **Edit definition**, **Stop managing** or **Uninstall**.
+- **Add from the catalog**: Longhorn, Hajimari, Uptime Kuma, CloudNativePG, *any Helm chart* or *manifests from a git folder*; choosing one opens its short form, with a YAML box to override any chart value. Installing commits a file to the gitops repository.
 - **Built in**: Renovate, with its schedule, repositories, configuration and run history.
 
 ## Environment
