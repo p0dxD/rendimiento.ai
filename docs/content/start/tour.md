@@ -48,13 +48,13 @@ A three-step wizard:
 
 ## Services
 
-Every Service in the cluster, in three tabs:
+Every Service in the cluster, as a list on the left in three groups:
 
 - **Your apps & add-ons**: what rendimiento deploys;
 - **Elsewhere in the cluster**: deployed by ArgoCD, Helm or `kubectl`;
 - **Cluster internals**: ingress, certificates, storage, CI.
 
-Within each tab, services are grouped by what they do: Databases, Caches & queues, AI, Storage, Monitoring & analytics, Web & APIs, Developer tools, Platform. Filter chips and search narrow it down. Open a service to see **where it comes from** (app, repository folder, image, ArgoCD app or Helm release), **what it exposes** (ports, public URLs, LAN address, health check, endpoints), **how to connect** (addresses and a `rendimiento.yaml` snippet to copy) and **who uses it** (found from other workloads' environment variables).
+Within each group, services are sorted by what they do: Databases, Caches & queues, AI, Storage, Monitoring & analytics, Web & APIs, Developer tools, Platform, each with a dot for whether it is ready. The search looks across every group. Choose a service and the right side shows **where it comes from** (app, repository folder, image, ArgoCD app or Helm release), **what it exposes** (ports, public URLs, LAN address, health check, endpoints), **how to connect** (addresses and a `rendimiento.yaml` snippet to copy) and **who uses it** (found from other workloads' environment variables).
 
 ## Add-ons
 
