@@ -362,6 +362,27 @@ textarea.code { width: 100%; min-height: 280px; font-family: var(--mono); font-s
 .vis-top pre, .card pre.mono { white-space: pre-wrap; word-break: break-all; }
 @media (max-width: 560px) { .vis-apps td:last-child { display: none; } .vis-apps td:first-child { width: 40%; } }
 
+/* Visits: another day, who is on the site now, and each visitor with the pages they saw. */
+.vis-otro-dia{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+.vis-otro-dia input{padding:5px 8px;border-radius:999px;border:1.5px solid var(--border);background:var(--card);color:var(--text)}
+.vis-otro-dia.on input{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.vis-ahora{display:inline-flex;align-items:center;gap:8px;margin-left:auto;font-weight:800;color:var(--ok)}
+.vis-ahora i{width:10px;height:10px;border-radius:50%;background:var(--ok);animation:vis-late 2s ease-out infinite}
+@keyframes vis-late{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 45%,transparent)}70%,100%{box-shadow:0 0 0 9px transparent}}
+.vis-sesiones{display:flex;flex-direction:column;gap:6px}
+.vis-sesion{animation:vis-entra .35s ease both;animation-delay:var(--d)}
+@keyframes vis-entra{from{opacity:0;transform:translateY(6px)}}
+.vis-visita{display:grid;grid-template-columns:56px 40px minmax(0,1.3fr) minmax(0,1fr) auto 18px;gap:10px;align-items:center;width:100%;text-align:left;border:none;border-bottom:1px solid var(--border);background:transparent;padding:10px 8px;border-radius:10px;color:var(--text);cursor:pointer}
+.vis-visita:hover{background:color-mix(in srgb,var(--border) 45%,transparent)}
+.vis-cc{font:800 11.5px var(--mono);padding:2px 6px;border-radius:6px;background:var(--surface-2);color:var(--muted);text-align:center}
+.vis-lugar,.vis-equipo{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vis-recorrido{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 8px 14px 114px;animation:vis-entra .3s ease both}
+.vis-paso-grupo{display:inline-flex;gap:6px;align-items:center}
+.vis-paso{padding:3px 10px;border-radius:999px;background:var(--surface-2)}
+.vis-paso.evento{background:color-mix(in srgb,var(--cempasuchil) 22%,var(--surface-2))}
+@media (max-width:700px){.vis-visita{grid-template-columns:50px minmax(0,1fr) auto}.vis-cc,.vis-equipo,.vis-visita>span:last-child{display:none}.vis-recorrido{padding-left:8px}}
+@media (prefers-reduced-motion: reduce){.vis-ahora i,.vis-sesion,.vis-recorrido{animation:none}}
+
 /* Delivery panel (dashboard): DORA tiles with twelve-week sparklines. */
 .dlv { margin-bottom: 16px; }
 .dlv-tiles { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-bottom: 6px; }

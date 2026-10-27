@@ -4,11 +4,12 @@ If your apps are counted by [Umami](https://umami.is) (open-source, cookie-free 
 
 ## What you see {#what-you-see}
 
-On an app's **Visits** tab, for the last 24 hours, 7 days or 30 days:
+On an app's **Visits** tab, for **today**, **yesterday**, the last **7** or **30 days**, or **another day** you pick (up to 90 days back):
 
 - **Tiles**: visitors, page views, visits, the share of visits that left after one page (the bounce rate), the average visit, and the visitors right now (last 5 minutes). Each tile says how it changed against the period before, in words.
-- **A chart** of visitors and page views per hour (24 hours) or per day, with a tooltip.
+- **A chart** of visitors and page views per hour (a single day) or per day, with a tooltip; how many are **on the site now** sits beside the ranges.
 - **Top lists**: the most viewed pages, where visitors come from (referrers) and their countries.
+- **The visitors** of that time, newest first: when, the country and city, the device and browser, how many pages and for how long. Open one to see **the pages they saw, in order**, where they came from, and any event. Each line is an anonymous visit: Umami doesn't keep who the person is, and neither does rendimiento.
 - **Open in Umami →**, for everything else (when `UMAMI_PUBLIC_URL` is set).
 
 On the dashboard, **Visitors, last 7 days** adds up every app Umami counts, with one row per app (most visited first) and its change against the 7 days before.

@@ -4,11 +4,12 @@ Si [Umami](https://umami.is) cuenta las visitas de sus aplicaciones (es analíti
 
 ## Lo que se ve {#what-you-see}
 
-En la pestaña **Visitas** de una aplicación, para las últimas 24 horas, 7 días o 30 días:
+En la pestaña **Visitas** de una aplicación, para **hoy**, **ayer**, los últimos **7** o **30 días**, u **otro día** que usted elija (hasta 90 días atrás):
 
 - **Mosaicos**: los visitantes, las páginas vistas, las visitas, el porcentaje de visitas que se fueron tras una sola página (la tasa de rebote), la visita promedio y los visitantes de ahora mismo (los últimos 5 minutos). Cada mosaico dice con palabras cómo cambió frente al periodo anterior.
-- **Una gráfica** de visitantes y páginas vistas por hora (en 24 horas) o por día, con un recuadro de detalle.
+- **Una gráfica** de visitantes y páginas vistas por hora (un solo día) o por día, con un recuadro de detalle; junto a los periodos se ve cuántos están **en el sitio ahora**.
 - **Listas**: las páginas más vistas, de dónde llegan los visitantes (los orígenes) y sus países.
+- **Las visitas** de ese tiempo, la más reciente primero: cuándo, el país y la ciudad, el equipo y el navegador, cuántas páginas y por cuánto tiempo. Al abrir una se ven **las páginas que vio, en orden**, de dónde llegó y cualquier evento. Cada renglón es una visita anónima: Umami no guarda quién es la persona, y rendimiento tampoco.
 - **Abrir en Umami →**, para todo lo demás (cuando `UMAMI_PUBLIC_URL` está definida).
 
 En el inicio, **Visitantes, últimos 7 días** suma todas las aplicaciones que Umami cuenta. Tiene una fila por aplicación, la más visitada primero, con su cambio frente a los 7 días anteriores.

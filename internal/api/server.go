@@ -124,6 +124,7 @@ type Analytics interface {
 	Websites(ctx context.Context) ([]analytics.Website, error)
 	Report(ctx context.Context, w analytics.Website, p analytics.Period) (*analytics.Report, error)
 	Totals(ctx context.Context, w analytics.Website, from, to time.Time) (cur, prev analytics.Stats, err error)
+	Activity(ctx context.Context, w analytics.Website, sessionID string, from, to time.Time) ([]analytics.Step, error)
 }
 
 const sessionCookie = "rendimiento_session"
@@ -242,6 +243,7 @@ func (s *Server) Handler() http.Handler {
 	auth(store.MemberGuest, "GET /api/apps/{app}/releases", s.listReleases)
 	auth(store.MemberGuest, "GET /api/apps/{app}/reliability", s.reliability)
 	auth(store.MemberGuest, "GET /api/apps/{app}/visits", s.visits)
+	auth(store.MemberGuest, "GET /api/apps/{app}/visits/{site}/sessions/{session}", s.visitActivity)
 	auth(store.MemberGuest, "GET /api/apps/{app}/releases/{number}/tasks/{task}/log", s.releaseTaskLog)
 	auth(store.MemberAdmin, "POST /api/apps/{app}/rollback", s.rollback)
 	auth(store.MemberGuest, "GET /api/apps/{app}/resources", s.resources)

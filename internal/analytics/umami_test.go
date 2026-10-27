@@ -80,6 +80,29 @@ func fakeUmami(t *testing.T, logins *atomic.Int32) *httptest.Server {
 			w.WriteHeader(http.StatusBadRequest)
 		}
 	}))
+	mux.HandleFunc("GET /api/websites/w1/sessions", authed(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("pageSize") == "" || r.URL.Query().Get("startAt") == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		reply(w, map[string]any{"count": 2, "page": 1, "pageSize": 50, "data": []any{
+			map[string]any{"id": "s1", "country": "MX", "city": "Cotija", "browser": "firefox", "os": "Linux", "device": "desktop",
+				"firstAt": "2026-10-06T10:00:00Z", "lastAt": "2026-10-06T10:05:00Z", "visits": 1, "views": "3"},
+			map[string]any{"id": "s2", "country": "US", "city": "Austin", "browser": "safari", "os": "iOS", "device": "mobile",
+				"firstAt": "2026-10-06 12:00:00.000", "lastAt": "2026-10-06 12:01:30.000", "visits": 1, "views": 1},
+		}})
+	}))
+	mux.HandleFunc("GET /api/websites/w1/sessions/s1/activity", authed(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("endAt") == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		reply(w, []any{ // newest first, like Umami
+			map[string]any{"createdAt": "2026-10-06T10:05:00Z", "urlPath": "/pedido", "eventType": 2, "eventName": "comprar"},
+			map[string]any{"createdAt": "2026-10-06T10:02:00Z", "urlPath": "/pasteles", "eventType": 1},
+			map[string]any{"createdAt": "2026-10-06T10:00:00Z", "urlPath": "/", "referrerDomain": "google.com", "eventType": 1},
+		})
+	}))
 	mux.HandleFunc("GET /api/websites/w1/active", authed(func(w http.ResponseWriter, _ *http.Request) {
 		reply(w, map[string]any{"visitors": 3})
 	}))
@@ -123,6 +146,17 @@ func TestUmamiReport(t *testing.T) {
 	}
 	if len(r.Paths) != 2 || r.Paths[0].Value != "/" || r.Referrers[0].N != 12 || r.Countries[0].Value != "MX" {
 		t.Errorf("tops %+v %+v %+v", r.Paths, r.Referrers, r.Countries)
+	}
+	if len(r.Sessions) != 2 || r.Sessions[0].ID != "s2" || r.Sessions[1].Views != 3 || r.Sessions[1].City != "Cotija" ||
+		!r.Sessions[0].LastAt.Equal(time.Date(2026, 10, 6, 12, 1, 30, 0, time.UTC)) {
+		t.Errorf("sessions %+v, want the newest first, times read in both formats", r.Sessions)
+	}
+	steps, err := u.Activity(ctx, sites[0], "s1", to.AddDate(0, 0, -1), to)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(steps) != 3 || steps[0].Path != "/" || steps[0].Referrer != "google.com" || steps[2].Event != "comprar" || steps[1].Event != "" {
+		t.Errorf("activity %+v, want oldest first, the event named", steps)
 	}
 
 	bad := &Umami{URL: srv.URL, Username: "rendimiento", Password: "wrong"}
