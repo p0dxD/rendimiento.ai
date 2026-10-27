@@ -11,13 +11,13 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | Package | Files | Lines | What it is |
 |---|---|---|---|
 | [`api/v1alpha1`](#api-v1alpha1) | 3 | 297 | Package v1alpha1 contains the App API: one App per deployed application. |
-| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 784 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
+| [`cmd/rendimiento`](#cmd-rendimiento) | 2 | 814 | Command rendimiento runs the whole platform in one process: API and UI, CI workers and the App controller. |
 | [`hack/codemap`](#hack-codemap) | 1 | 271 | Command codemap writes the book's code reference (docs/content/reference/ code-map.md): every package, file, type and function of the repository, with the first sentence of its doc comment. |
 | [`hack/undoc`](#hack-undoc) | 1 | 53 | Command undoc lists exported Go declarations without a doc comment, the ones `make docs-codemap` would show with an empty summary. |
 | [`internal/addon`](#internal-addon) | 5 | 1178 | Package addon renders add-ons (Helm charts or kustomize folders in git) into Kubernetes objects. |
-| [`internal/agentes`](#internal-agentes) | 2 | 635 | Package agentes holds the agents that work inside the platform (ROLE=agents), woken by what happens in it rather than by a person's session. |
-| [`internal/analytics`](#internal-analytics) | 2 | 608 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
-| [`internal/api`](#internal-api) | 22 | 5515 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
+| [`internal/agentes`](#internal-agentes) | 2 | 662 | Package agentes holds the agents that work inside the platform (ROLE=agents), woken by what happens in it rather than by a person's session. |
+| [`internal/analytics`](#internal-analytics) | 2 | 745 | Package analytics reads visitor statistics from Umami, so each app's page shows who visits it without leaving rendimiento. |
+| [`internal/api`](#internal-api) | 23 | 5660 | Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub App setup, and the embedded web UI. |
 | [`internal/caminos`](#internal-caminos) | 2 | 310 | Package caminos builds an app's recent history as the Caminos tab draws it: the default branch is the camino real, every other branch is a vereda that leaves it at the commit it was branched from (or from its parent branch, for a stacked pull request) and comes back where its pull request was merged, with each run as a stop along the way. |
 | [`internal/catalog`](#internal-catalog) | 2 | 910 | Package catalog lists the services apps can integrate with: what each one is, where it comes from (a rendimiento app, ArgoCD, Helm, kubectl), what it exposes (addresses, ports, public URLs, LAN IPs), how to call it from rendimiento.yaml, and which workloads already do. |
 | [`internal/controller`](#internal-controller) | 8 | 2906 | Package controller reconciles App objects into running workloads: the GitOps half of rendimiento. |
@@ -27,7 +27,7 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/events`](#internal-events) | 5 | 549 | Package events fans out live updates (step status, log lines) to UI subscribers over SSE. |
 | [`internal/generate`](#internal-generate) | 2 | 282 | Package generate turns detection results into a proposed rendimiento.yaml plus any files the repo is missing (Dockerfiles). |
 | [`internal/github`](#internal-github) | 5 | 1426 | Package github talks to GitHub as a GitHub App: short-lived installation tokens instead of personal access tokens, webhooks delivered for every installed repo, check runs for CI status and PRs for onboarding. |
-| [`internal/i18n`](#internal-i18n) | 3 | 849 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
+| [`internal/i18n`](#internal-i18n) | 3 | 860 | Package i18n translates the platform's messages for people: the API's answers to a Spanish browser, and alert emails. |
 | [`internal/ia`](#internal-ia) | 4 | 649 | Package ia is the AI gateway: every call the platform makes to a model goes through it. |
 | [`internal/logarchive`](#internal-logarchive) | 2 | 309 | Package logarchive moves the step logs of finished CI runs out of Postgres into object storage (MinIO or any S3), gzip-compressed, and reads them back for the UI. |
 | [`internal/mercado`](#internal-mercado) | 5 | 1009 | Package mercado makes web pages for people who don't write code. |
@@ -35,12 +35,13 @@ The [architecture chapters](../architecture/overview.md) explain how these fit t
 | [`internal/pipeline`](#internal-pipeline) | 7 | 2080 | Package pipeline plans and executes CI runs. |
 | [`internal/platform`](#internal-platform) | 9 | 3683 | Package platform is the orchestration core: it turns GitHub events into CI runs, successful default-branch runs into releases, and releases into App objects that the controller deploys. |
 | [`internal/problems`](#internal-problems) | 2 | 289 | Package problems keeps the platform's own warnings and errors for the Problems page: a slog handler passes every record on to the real log and also queues warnings and errors; a Recorder stores them, folding repeats of the same problem into one row with a count. |
+| [`internal/registro`](#internal-registro) | 3 | 646 | Package registro keeps the image registry from filling up. |
 | [`internal/render`](#internal-render) | 5 | 1451 | Package render turns an app's spec plus its released images into the Kubernetes objects that run it. |
 | [`internal/renovate`](#internal-renovate) | 2 | 853 | Package renovate is the Renovate add-on: it keeps the dependencies of the apps it is switched on for up to date by running Renovate on a schedule. |
 | [`internal/ruta`](#internal-ruta) | 8 | 2561 | Package ruta is the MCP endpoint (/mcp) through which agents read and write la Ruta: what the platform's people and agents know, kept in the platform rather than in any one agent's session. |
 | [`internal/selfupdate`](#internal-selfupdate) | 2 | 477 | Package selfupdate moves rendimiento to an image it built and tested itself: its own repository's builds: entry (SELF_APP), released like any app's. |
 | [`internal/spec`](#internal-spec) | 2 | 1869 | Package spec defines rendimiento.yaml, the only file an app repo needs. |
-| [`internal/store`](#internal-store) | 30 | 4603 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
+| [`internal/store`](#internal-store) | 30 | 4637 | Package store persists apps, CI runs, step logs, releases and sessions in Postgres. |
 | [`internal/testenv`](#internal-testenv) | 1 | 40 | Package testenv is the envtest (a real API server and etcd) the controller and platform tests run against, tuned for slow machines. |
 | [`internal/traces`](#internal-traces) | 3 | 621 | Package traces keeps whole requests for the Universe's waterfall. |
 | [`internal/universe`](#internal-universe) | 4 | 1356 | Package universe is the view of every app from above: the services each one runs, the databases and caches they use, what calls what, and what the internet reaches. |
@@ -105,7 +106,7 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 
 ### `cmd/rendimiento/main.go`
 
-<small>773 lines</small>
+<small>803 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -120,6 +121,8 @@ Command rendimiento runs the whole platform in one process: API and UI, CI worke
 | `(plataformaMCP) WaitRun` | method | WaitRun wakes on the run's live events (from whichever process runs it) and checks the database every 20 seconds too, in case an event is lost. |
 | `ptr` | func | ptr returns a pointer to a copy of v. |
 | `splitList` | func | splitList splits a comma- or space-separated setting. |
+| `busyRuns` | struct | busyRuns counts the builds queued or running, for the registry cleanup. |
+| `(busyRuns) BusyRuns` | method |  |
 
 ## `hack/codemap` {#hack-codemap}
 
@@ -237,7 +240,7 @@ Package agentes holds the agents that work inside the platform (ROLE=agents), wo
 
 ### `internal/agentes/diagnostico.go`
 
-<small>408 lines</small>
+<small>418 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -258,7 +261,7 @@ Package agentes holds the agents that work inside the platform (ROLE=agents), wo
 
 ### `internal/agentes/diagnostico_test.go`
 
-<small>227 lines · tests</small>
+<small>244 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -272,7 +275,7 @@ Package analytics reads visitor statistics from Umami, so each app's page shows 
 
 ### `internal/analytics/umami.go`
 
-<small>464 lines</small>
+<small>567 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -283,6 +286,8 @@ Package analytics reads visitor statistics from Umami, so each app's page shows 
 | `Point` | struct | Point is one bucket of a series: its start and its count. |
 | `Metric` | struct | Metric is one row of a top list (a path, a referrer, a country code). |
 | `Report` | struct | Report is everything the Visits tab shows for one website. |
+| `Session` | struct | Session is one anonymous visitor in a period: where from, on what, and how much they looked. |
+| `Step` | struct | Step is one thing a visitor did: a page they saw, or an event. |
 | `(*Umami) client` | method | client is the HTTP client (20 seconds at most per request by default). |
 | `(*Umami) login` | method | login signs in to Umami with its user and password and returns the token for later requests. |
 | `(*Umami) get` | method | get calls a read-only endpoint, signing in first and again when the token has expired. |
@@ -296,6 +301,10 @@ Package analytics reads visitor statistics from Umami, so each app's page shows 
 | `xy` | struct |  |
 | `Period` | struct | Period is the window a report covers, bucketed by hour or by day. |
 | `(*Umami) Report` | method | Report gathers a website's numbers for the period, in parallel. |
+| `rawSession` | struct |  |
+| `(rawSession) session` | method | session converts Umami's row to a Session. |
+| `parseTime` | func | parseTime reads Umami's timestamps, which come as RFC 3339 or as "2026-10-06 13:00:00.123" in UTC, depending on the database. |
+| `(*Umami) Activity` | method | Activity is what one visitor did between from and to, oldest first: the pages they saw and the events they caused (at most Umami's 500). |
 | `(*Umami) Totals` | method | Totals are a website's numbers for a period and for the one before it: the dashboard's summary, one call per site. |
 | `series` | func | series turns Umami's sparse buckets into one point per hour or day of the period, zeros included, so a chart has no holes. |
 | `truncate` | func | truncate is the start of t's day or hour in the period's time zone. |
@@ -306,7 +315,7 @@ Package analytics reads visitor statistics from Umami, so each app's page shows 
 
 ### `internal/analytics/umami_test.go`
 
-<small>144 lines · tests</small>
+<small>178 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -566,7 +575,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server.go`
 
-<small>1739 lines</small>
+<small>1741 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -648,15 +657,18 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/visits.go`
 
-<small>174 lines</small>
+<small>260 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
+| `visitPeriod` | func | visitPeriod is the window a Visits request asks for: range=24h\|7d\|30d\|today\|yesterday, or day=2026-10-20 (a calendar day in the visits' time zone). |
+| `minTime` | func | minTime is the earlier of a and b. |
 | `VisitsView` | struct | VisitsView is an app's Visits tab: one report per Umami website whose domain is one of the app's hostnames. |
 | `appHosts` | func | appHosts are every hostname an app's services answer on. |
 | `(*Server) visitTZ` | method | visitTZ is the time zone visits are counted in (PUBLIC_STATS_TZ, else UTC). |
 | `umamiError` | func | umamiError answers a failed Umami call: a refused login is a setup problem, anything else that Umami is unreachable. |
-| `(*Server) visits` | method | visits is an app's Visits tab: Umami's numbers for each of its addresses over the last 24 hours, 7 or 30 days. |
+| `(*Server) visits` | method | visits is an app's Visits tab: Umami's numbers for each of its addresses today, yesterday, on a chosen day, or over the last 24 hours, 7 or 30 days, with the latest visitors of that time. |
+| `(*Server) visitActivity` | method | visitActivity is what one visitor of an app did, page by page: the website must be one of the app's, and the window at most 31 days. |
 | `AppVisits` | struct | AppVisits is one app's line in the dashboard summary. |
 | `VisitsSummary` | struct | VisitsSummary is the dashboard's visitors panel: the last 7 days of every app that Umami counts, and the 7 before them. |
 | `addStats` | func | addStats adds b's numbers to a. |
@@ -664,7 +676,7 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 
 ### `internal/api/server_test.go`
 
-<small>1023 lines · tests</small>
+<small>1041 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -692,6 +704,14 @@ Package api serves the REST + SSE API, GitHub webhooks, login, one-click GitHub 
 | `TestOrgIsolation` | func | Two organizations: nothing of one is seen from the other (apps, runs, the Ruta, encargos, agent keys, members), the platform's routes are for its operators only, and a person switches between their organizations. |
 | `TestIAAPI` | func | An organization's administrator picks the AI provider and keeps its own key (shown only by its end); anyone collaborating tries it, measured; the operator gives allowances of the platform's AI. |
 | `TestDiagnosisFeedback` | func | Judging a diagnosis teaches the diagnostician: a correction needs the real cause, and either answer becomes one known failure in the Ruta (judging again updates it). |
+
+### `internal/api/visits_test.go`
+
+<small>39 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestVisitPeriod` | func | A Visits request's window: calendar days run midnight to midnight in the visits' time zone (today until now), rolling ranges end now. |
 
 ## `internal/caminos` {#internal-caminos}
 
@@ -1353,7 +1373,7 @@ Package i18n translates the platform's messages for people: the API's answers to
 
 ### `internal/i18n/es.go`
 
-<small>524 lines</small>
+<small>535 lines</small>
 
 ### `internal/i18n/i18n.go`
 
@@ -1949,6 +1969,54 @@ Package problems keeps the platform's own warnings and errors for the Problems p
 | `TestIgnoresRoutineRecords` | func | Routine conflicts and outages (shown on the Reliability tab) are not problems. |
 | `TestGroupsAndFullQueue` | func | Fields inside a group keep the group's name; a full queue drops instead of blocking. |
 
+## `internal/registro` {#internal-registro}
+
+Package registro keeps the image registry from filling up.
+
+### `internal/registro/plan.go`
+
+<small>202 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Tag` | struct | Tag is one tag of a repository in the registry and the manifest it points to, with when it was last pushed. |
+| `Listing` | struct | Listing is what the registry holds, read from its storage: every tag, every manifest revision, what each index points to, revision links left empty (a push cut short by a full disk), and the disk's use. |
+| `InUse` | struct | InUse is what must stay: the tags and digests any workload in the cluster, or a recent release, refers to. |
+| `Plan` | struct | Plan is what a cleanup removes: tags, and manifest revisions nothing keeps any more (their layers are then freed by the garbage collector). |
+| `Decide` | func | Decide plans a cleanup. |
+| `Script` | func | Script is the shell that carries the plan out under root (the registry's repositories folder): it first repairs the empty revision links (each holds its own digest), then removes the planned tags and revisions. |
+| `Parse` | func | Parse reads the listing script's output: "T repo tag digest unixtime", "R repo hex", "E repo hex" (an empty revision link), "C hex digest…" and "D used free". |
+| `Ref` | func | Ref splits an image reference in registry host's into its repository, tag and digest; ok is false for an image from elsewhere. |
+
+### `internal/registro/registro.go`
+
+<small>325 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `Releases` | interface | Releases gives the images of each app's last releases. |
+| `Runs` | interface | Runs tells whether a build may be pushing right now. |
+| `Cleaner` | struct | Cleaner cleans the registry once a night. |
+| `Result` | struct | Result is what one cleanup did. |
+| `(*Cleaner) Run` | method | Run cleans every night at c.At until ctx ends. |
+| `(*Cleaner) next` | method | next is the next time of day c.At, in c.TZ, after now (03:30 when unset or wrong). |
+| `(*Cleaner) Clean` | method | Clean cleans the registry once: reads it, plans, repairs and removes, and collects the garbage. |
+| `share` | func | share is the part of the disk in use. |
+| `(*Cleaner) inUse` | method | inUse gathers every image the cluster's workloads name (running or not: a deployment scaled to zero, a cron job, an old replica set kept for a rollback) and those of each app's last releases. |
+| `(*Cleaner) pod` | method | pod finds the registry's running pod. |
+| `(*Cleaner) exec` | method | exec runs a shell command in the registry's pod (with stdin, when given) and returns what it printed. |
+
+### `internal/registro/plan_test.go`
+
+<small>119 lines · tests</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `TestDecide` | func | The plan keeps the newest build tags, other tags, what is in use and what a kept index lists; it removes the rest, and the manifests (old caches) no tag points to. |
+| `TestScriptRefusesOddNames` | func | Nothing that could leave the registry's folder gets into the script. |
+| `TestRef` | func |  |
+| `TestNext` | func | The cleanup runs at its time of day, today or else tomorrow. |
+
 ## `internal/render` {#internal-render}
 
 Package render turns an app's spec plus its released images into the Kubernetes objects that run it.
@@ -2525,7 +2593,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/problems.go`
 
-<small>110 lines</small>
+<small>118 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2610,7 +2678,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/stats.go`
 
-<small>271 lines</small>
+<small>294 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -2627,6 +2695,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 | `(*Store) RecentReleases` | method | RecentReleases lists the newest releases across all apps. |
 | `ActiveRun` | struct | ActiveRun is a run waiting or in progress, as the welcome page shows it: which app, and since when; nothing about the commit. |
 | `(*Store) ActiveRuns` | method | ActiveRuns lists the runs queued or running, oldest first. |
+| `(*Store) RecentReleaseImages` | method | RecentReleaseImages are the images of each app's last perApp releases: what a rollback could need, so the registry must keep them. |
 
 ### `internal/store/store.go`
 
@@ -2812,7 +2881,7 @@ Package store persists apps, CI runs, step logs, releases and sessions in Postgr
 
 ### `internal/store/stats_test.go`
 
-<small>181 lines · tests</small>
+<small>184 lines · tests</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3051,9 +3120,24 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ## Web UI (TypeScript / React) {#web-ui}
 
+### `web/.harness/main.tsx`
+
+<small>84 lines</small>
+
+| Name | Kind | Summary |
+|---|---|---|
+| `wave` | const |  |
+| `node` | const |  |
+| `e` | const |  |
+| `data` | const |  |
+
+### `web/.harness/vite.config.ts`
+
+<small>10 lines</small>
+
 ### `web/src/api.ts`
 
-<small>1188 lines</small>
+<small>1221 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3110,6 +3194,8 @@ Package web embeds the built UI (npm run build → web/dist).
 | `VisitPoint` | interface |  |
 | `VisitMetric` | interface |  |
 | `VisitReport` | interface |  |
+| `VisitSession` | interface |  |
+| `VisitStep` | interface | One thing a visitor did: a page they saw, or an event. |
 | `Visits` | interface |  |
 | `VisitsSummary` | interface |  |
 | `ReliabilityRange` | type | ---- reliability (uptime checks) ---- |
@@ -3389,10 +3475,11 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/components/visits.tsx`
 
-<small>294 lines</small>
+<small>379 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
+| `isoDay` | const | A date as the date input writes it, in the visits' time zone ("2026-10-20"). |
 | `fmtN` | const |  |
 | `bounceRate` | function | The share of visits that saw one page and left, or undefined with no visits. |
 | `avgVisit` | function | How long a visit lasts on average, in seconds. |
@@ -3404,7 +3491,10 @@ Package web embeds the built UI (npm run build → web/dist).
 | `countryName` | function | A country's name in the reader's language, from its two-letter code. |
 | `Top` | component | A top list: the value, a bar for its share, the count. |
 | `ReportView` | component |  |
-| `VisitsTab` | component | The app's Visits tab: Umami's numbers for each of its addresses over 24 h, 7 or 30 days. |
+| `stayed` | function | How long a visitor stayed, from their first to their last page. |
+| `Sesiones` | component |  |
+| `Recorrido` | component | One visitor's way through the site: where they came from, each page, and when they left. |
+| `VisitsTab` | component | The app's Visits tab: Umami's numbers for each of its addresses today, yesterday, on a chosen day, or over 7 or 30 days, with its visitors. |
 | `VisitsPanel` | component | The dashboard's visitors panel: the last 7 days, all apps Umami counts. |
 
 ### `web/src/i18n.ts`
@@ -3421,7 +3511,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/i18n/es.ts`
 
-<small>1220 lines</small>
+<small>1392 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3429,7 +3519,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/main.tsx`
 
-<small>122 lines</small>
+<small>121 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3437,21 +3527,28 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Addons.tsx`
 
-<small>196 lines</small>
+<small>277 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `Addons` | component | The Add-ons page: installed add-ons, the catalog to install more, and the built-in ones (Renovate). |
+| `phaseTone` | const |  |
+| `Elegido` | type |  |
+| `Addons` | component |  |
+| `Item` | component | One add-on in the list: its name, its category or state, and a dot for how it is. |
+| `Seccion` | component | A group of the list, with its count; nothing when it is empty. |
 | `RenovateCard` | component |  |
 | `RunRow` | component | One Renovate run: when, how long, what it did; open, its log and each repository's result. |
 
 ### `web/src/pages/AppPage.tsx`
 
-<small>502 lines</small>
+<small>597 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `AppPage` | component |  |
+| `BuildNow` | component | "Build now", shimmering while the run is being asked for. |
+| `Datos` | component | The four facts under the name, each a door to its tab: the last run, the live release, availability and visits. |
+| `LoUltimo` | component | "Lo último": the app's recent runs and releases on one line of time, newest first. |
 | `Overview` | component |  |
 | `needTitle` | const |  |
 | `ProvidedNeeds` | component | The database and cache rendimiento runs because the app's services need them. |
@@ -3469,36 +3566,44 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Bienvenida.tsx`
 
-<small>213 lines</small>
+<small>251 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `BookLinks` | interface |  |
 | `Monarca` | component | A monarch butterfly, the Ruta's emblem. |
-| `EnEsteMomento` | component | "Right now": what rendimiento is doing, refreshed every 20 seconds. |
+| `Bando` | component | "Right now in the town": what rendimiento is doing, pinned up as a bando, refreshed every 20 seconds. |
+| `Ilustracion` | component | The drawing beside each sense of "rendir": a flower that grows, a pot of beans, a book of accounts. |
 | `Bienvenida` | component |  |
 
 ### `web/src/pages/Dashboard.tsx`
 
-<small>112 lines</small>
+<small>177 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `marchita` | function | An app is withered while one of its checks is in an outage, or its |
+| `Filtro` | type |  |
+| `filtros` | const |  |
+| `coincide` | function | Whether an app matches what was searched: its name, repository or addresses. |
+| `resaltar` | function | The text with what was searched marked. |
 | `Dashboard` | component | The Apps page: every app with its state, last run, uptime and visitors, and the delivery numbers. |
 
 ### `web/src/pages/Environment.tsx`
 
-<small>270 lines</small>
+<small>394 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `tone` | const |  |
 | `label` | const |  |
 | `StatusBadge` | component | A check's status as a colored label: OK, Attention, Missing or Error. |
+| `slotCheck` | const | Each provider's sign opens the same requirement's details and its fix. |
+| `Letrero` | interface | A sign over the square: a provider, or a requirement worth reaching at once. |
 | `Environment` | component |  |
+| `Casa` | component |  |
+| `Aviso` | component | The note pinned to a door: something is wrong in that house. |
 | `DynamicDNS` | component | Dynamic DNS: the public IP the records follow, when it last changed, and a button to check it now. |
-| `ProviderCard` | component | One provider (DNS, certificates, storage, ...) with its status and what it is. |
 | `CheckRow` | component |  |
 | `TestEmail` | component | Sends a sample notification now, and says what happened. |
 | `Meter` | component | A bar of how much of something is used (green, then yellow from 75%, red from 90%). |
@@ -3508,21 +3613,28 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/IA.tsx`
 
-<small>219 lines</small>
+<small>381 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `providerLabel` | const |  |
+| `providerName` | const |  |
+| `escalateName` | const |  |
 | `IA` | component |  |
+| `modelOf` | function | The model a provider would use, as the gateway picks it. |
+| `blocked` | function | Why a provider cannot answer now ("" when it can): the gateway then falls back to the local model. |
+| `Summary` | component | How things stand now, saved: who answers, failures, and what was spent. |
+| `Meter` | component |  |
+| `Tile` | component | One choice of a group, as a card: what it is, what it costs, and whether it can be used. |
 | `Settings` | component |  |
-| `Spending` | component |  |
 | `Try` | component |  |
 | `Calls` | component |  |
 | `Operator` | component | For the platform's operators: each organization's allowance of the platform's AI, and the bill. |
+| `AllowanceRow` | component |  |
 
 ### `web/src/pages/Installed.tsx`
 
-<small>420 lines</small>
+<small>355 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3532,28 +3644,31 @@ Package web embeds the built UI (npm run build → web/dist).
 | `sourceLabel` | function | Where an add-on comes from: its Helm chart and version, or its git folder. |
 | `useLANByAddon` | function | The add-ons' services reachable on the local network, by add-on name. |
 | `LANLinks` | component | Links to an add-on's UIs on the local network (plain addresses for non-web services). |
-| `InstalledSection` | component | Installed add-ons, the catalog and its install form. |
 | `fieldDefault` | function | A catalog field's starting value in the install form. |
 | `setPath` | function | Sets a value at a dotted key ("a.b.c") in the Helm values, making the levels it needs. |
 | `InstallForm` | component |  |
-| `AddonDetail` | component | One installed add-on: status, what a sync would change, and actions. |
+| `AddonDetail` | component | One installed add-on: status, what a sync would change, and actions; on the Add-ons page, beside the list. |
 
 ### `web/src/pages/Members.tsx`
 
-<small>131 lines</small>
+<small>201 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `memberRoleLabel` | const |  |
 | `roleHelp` | const |  |
-| `RoleSelect` | component | The roles as choices, with what each allows. |
+| `nivel` | const |  |
+| `grupoLabel` | const |  |
+| `colorDe` | const |  |
+| `Inicial` | component | A person's initial in a colored circle. |
 | `Members` | component |  |
+| `AddMember` | component | The form to add someone by their GitHub username, with the role to give them. |
 | `OrgSwitch` | component |  |
 | `Orgs` | component |  |
 
 ### `web/src/pages/Mercado.tsx`
 
-<small>372 lines</small>
+<small>405 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3563,7 +3678,8 @@ Package web embeds the built UI (npm run build → web/dist).
 | `enlaceTipos` | const |  |
 | `sugeridos` | function | Details each kind of page suggests, as empty rows to fill. |
 | `tipoNombre` | const |  |
-| `Mercado` | component | The Mercado page: every stall (a page made from a form), with its owner, address and state. |
+| `Mercado` | component |  |
+| `PuestoVista` | component | One stall: its page on a phone, as built from its form, beside its state and what to do with it. |
 | `palabra` | function | An address word from a name: "Pastelería Ana" → "pasteleria-ana". |
 | `achicar` | function | Shrinks a photo in the browser, so pages stay light: at most 1600 px, as JPEG. |
 | `vacia` | const |  |
@@ -3571,7 +3687,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/NewApp.tsx`
 
-<small>403 lines</small>
+<small>450 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3583,15 +3699,18 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Problems.tsx`
 
-<small>131 lines</small>
+<small>184 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
 | `isOpen` | function | A problem still counts while it is not dismissed or fixed and happened recently. |
 | `headline` | function | "rendimiento.yaml rejected; the push was not built: services[0]: …" |
 | `resolutionText` | function | The server's note on what fixed a problem, e.g. |
-| `ProblemCard` | component | One problem: what was logged, where, how many times and when, and a button to dismiss it. |
-| `Problems` | component | The Problems page: warnings and errors the platform logged, open ones first, for one app or all. |
+| `last30` | function | The last 30 days (UTC, oldest first), as the server keys them. |
+| `DayStrip` | component | A strip of the last 30 days, one cell a day, lit on the days the problem happened. |
+| `ProblemCard` | component | One problem: what was logged, the days it happened, where, and a button to dismiss it. |
+| `Ver` | type |  |
+| `Problems` | component | The Problems page: counters that filter, and the warnings and errors the platform logged, each with its 30 days. |
 | `AppProblems` | component | Open problems about one app, as a banner on its page. |
 | `ProblemsNavLink` | component | The navigation link, with the number of open problems. |
 
@@ -3610,11 +3729,17 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/RunPage.tsx`
 
-<small>219 lines</small>
+<small>288 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `RunPage` | component | A run's page: its graph of steps, live as they go, and the log of the step chosen. |
+| `RunPage` | component | A run's page: why it failed, its steps with when each ran, live as they go, and the log of the step chosen. |
+| `pasoColor` | const |  |
+| `pasoIcono` | const |  |
+| `Pasos` | component |  |
+| `isErr` | const |  |
+| `firstError` | function | The line of the first error in a log, or -1. |
+| `Registro` | component | A step's log with line numbers, its error lines marked and its groups as headings. |
 | `formatLog` | function | Drops the ::group:: markers the executor uses to separate clone and step output. |
 | `AskAgent` | component |  |
 | `WhyFailed` | component |  |
@@ -3622,7 +3747,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Ruta.tsx`
 
-<small>381 lines</small>
+<small>422 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
@@ -3632,8 +3757,9 @@ Package web embeds the built UI (npm run build → web/dist).
 | `Tags` | component | An entry's tags, as small labels. |
 | `Author` | component | Who wrote an entry (marked when it was an agent), when it changed, and in which cargo. |
 | `EntryForm` | component | The form to write or change an entry: kind, title, text, tags and, for a to-do, done. |
-| `EntryCard` | component | One entry, folded to its first lines: open it, edit it, mark a to-do done, or archive it. |
-| `Entries` | component | The Ruta tab: entries by kind and text (all but "lived"), and a button to write one. |
+| `kindColor` | const |  |
+| `Entries` | component |  |
+| `Pagina` | component | One entry as a page of the notebook: its text, who wrote it and when, to edit or archive. |
 | `Vivido` | component | The "Lived" tab: what people wrote about working here, in their words (agents cannot write these). |
 | `Cargos` | component |  |
 | `roleLabel` | const |  |
@@ -3641,28 +3767,29 @@ Package web embeds the built UI (npm run build → web/dist).
 | `NewKey` | component |  |
 | `Connect` | component |  |
 | `Keys` | component |  |
-| `Ruta` | component | The Ruta page: the platform's memory, kept by people and agents, in four tabs. |
+| `Ruta` | component | The Ruta page: the platform's memory, kept by people and agents, as a notebook with its section tabs. |
 
 ### `web/src/pages/Services.tsx`
 
-<small>314 lines</small>
+<small>306 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
+| `categoryOf` | const |  |
 | `categoryLabel` | const |  |
 | `originLabel` | const |  |
 | `Services` | component |  |
-| `ServiceCard` | component |  |
+| `ServiceDetail` | component |  |
 | `Copyable` | component | Text with a button that copies it. |
 | `DocsHint` | component | How to describe a service for others in rendimiento.yaml (catalog:). |
 
 ### `web/src/pages/Setup.tsx`
 
-<small>30 lines</small>
+<small>58 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
-| `Setup` | component | First-run page: creates the GitHub App through GitHub's manifest flow. |
+| `Setup` | component |  |
 
 ### `web/src/pages/Universe.tsx`
 
@@ -3716,7 +3843,7 @@ Package web embeds the built UI (npm run build → web/dist).
 
 ### `web/src/pages/Version.tsx`
 
-<small>90 lines</small>
+<small>91 lines</small>
 
 | Name | Kind | Summary |
 |---|---|---|
