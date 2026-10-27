@@ -13,7 +13,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/healthz` | `ok`; readiness and liveness probes |
 | GET | `/llms.txt` | for AI agents: what the platform is, how to connect over MCP, roles and rules ([Built for agents](../guide/agents.md)) |
 | GET | `/api/public/stats` | aggregate numbers for a public page; only with `PUBLIC_STATS=true`, and only on the internal `STATS_LISTEN` port when that is set ([what it contains](../guide/reliability.md#public-stats)) |
-| GET | `/api/public/activity` | the welcome page's *Right now*: runs queued or running and the 8 latest releases, by app name and time only (no repositories, commits, branches or messages); only with `PUBLIC_ACTIVITY=true` |
+| GET | `/api/public/activity` | the welcome page's *Right now in the town*: runs queued or running and the 8 latest releases, by app name and time only (no repositories, commits, branches or messages); only with `PUBLIC_ACTIVITY=true` |
 | POST | `/api/webhooks/github` | GitHub App webhooks (push, pull request, installation), verified by HMAC |
 | GET | `/api/auth/login` | redirects to GitHub OAuth |
 | GET | `/api/auth/callback` | OAuth callback; creates the session |
@@ -95,7 +95,8 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/apps/{app}/releases` | release history (digest per service) |
 | GET | `/api/apps/{app}/reliability?range=24h\|7d\|30d` | uptime checks: per check, uptime, p50/p95, chart buckets and the latest check; outages; releases in the range |
 | GET | `/api/apps/{app}/releases/{number}/tasks/{task}/log` | the log of a release's post-deploy task |
-| GET | `/api/apps/{app}/visits?range=24h\|7d\|30d` | visitors from Umami: per matching website, totals and the period before, a chart series, top pages, referrers and countries |
+| GET | `/api/apps/{app}/visits?range=today\|yesterday\|24h\|7d\|30d` or `?day=2026-10-20` | visitors from Umami: per matching website, totals and the period before, a chart series, top pages, referrers and countries, and the period's latest visitors (anonymous sessions) |
+| GET | `/api/apps/{app}/visits/{site}/sessions/{session}?from=&to=` | one visitor's pages and events, oldest first (`from` and `to` in milliseconds, at most 31 days apart; the website must be one of the app's) |
 | POST | `/api/apps/{app}/rollback` | roll back to an earlier release (`{"release": N}`) |
 | GET | `/api/apps/{app}/resources` | the live Kubernetes objects and their health (the resource tree) |
 | GET | `/api/apps/{app}/secrets/{secret}` | the keys a secret holds (`{"keys": [...]}`), never their values |

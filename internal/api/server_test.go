@@ -550,6 +550,10 @@ func (fakeAnalytics) Totals(context.Context, analytics.Website, time.Time, time.
 	return analytics.Stats{Visitors: 7}, analytics.Stats{Visitors: 5}, nil
 }
 
+func (fakeAnalytics) Activity(_ context.Context, w analytics.Website, id string, from, _ time.Time) ([]analytics.Step, error) {
+	return []analytics.Step{{At: from, Path: "/" + w.ID + "/" + id, Referrer: "google.com"}}, nil
+}
+
 func TestVisitsAPI(t *testing.T) {
 	e := newEnv(t, false)
 	ctx := context.Background()
@@ -574,6 +578,20 @@ func TestVisitsAPI(t *testing.T) {
 	var v VisitsView
 	if r.StatusCode != 200 || json.Unmarshal([]byte(body), &v) != nil || len(v.Reports) != 1 || v.Reports[0].Website.ID != "w1" {
 		t.Fatalf("visits: %d %s", r.StatusCode, body)
+	}
+	if r, body := e.do(t, "GET", "/api/apps/shop/visits?range=today", "", me, nil); r.StatusCode != 200 || !strings.Contains(body, `"unit":"hour"`) {
+		t.Fatalf("today: %d %s", r.StatusCode, body)
+	}
+	if r, _ := e.do(t, "GET", "/api/apps/shop/visits?day=2001-01-01", "", me, nil); r.StatusCode != 400 {
+		t.Fatalf("a day too long ago: %d", r.StatusCode)
+	}
+	now := time.Now().UnixMilli()
+	q := fmt.Sprintf("?from=%d&to=%d", now-3600_000, now)
+	if r, body := e.do(t, "GET", "/api/apps/shop/visits/w1/sessions/s9"+q, "", me, nil); r.StatusCode != 200 || !strings.Contains(body, `"/w1/s9"`) {
+		t.Fatalf("activity: %d %s", r.StatusCode, body)
+	}
+	if r, _ := e.do(t, "GET", "/api/apps/shop/visits/w2/sessions/s9"+q, "", me, nil); r.StatusCode != 404 {
+		t.Fatalf("another app's website: %d", r.StatusCode)
 	}
 	r, body = e.do(t, "GET", "/api/stats/visits", "", me, nil)
 	var sum VisitsSummary

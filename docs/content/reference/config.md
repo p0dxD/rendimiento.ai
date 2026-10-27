@@ -106,7 +106,7 @@ Taken from the optional Secret `rendimiento-dns`. Without a token, DNS automatio
 | `STATS_LISTEN` | *(empty: on the main listener)* | `:8081` | serve the public stats only on this internal port, not on the public listener |
 | `PUBLIC_STATS_ORIGINS` | *(none)* | | browser origins allowed to fetch it (CORS); not needed when it's fetched server-side |
 | `PUBLIC_STATS_TZ` | `UTC` | `America/New_York` | the time zone its days are counted in |
-| `PUBLIC_ACTIVITY` | `false` | `true` | show *Right now* on the welcome page: what is building and the latest releases, by app name ([`GET /api/public/activity`](api.md)) |
+| `PUBLIC_ACTIVITY` | `false` | `true` | show *Right now in the town* on the welcome page: what is building and the latest releases, by app name ([`GET /api/public/activity`](api.md)) |
 
 ## Visits (Umami) {#visits-umami}
 

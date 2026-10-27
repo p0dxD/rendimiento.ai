@@ -23,19 +23,46 @@ function resolutionText(r: string) {
   return m ? t("fixed by {sha}", { sha: m[1] }) : t(r);
 }
 
-/** One problem: what was logged, where, how many times and when, and a button to dismiss it. */
-function ProblemCard({ p, open, onDismiss }: { p: Problem; open: boolean; onDismiss: () => void }) {
-  const [busy, setBusy] = useState(false);
+/** The last 30 days (UTC, oldest first), as the server keys them. */
+function last30(): string[] {
+  const today = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
+  return Array.from({ length: 30 }, (_, i) => new Date(today - (29 - i) * 86400_000).toISOString().slice(0, 10));
+}
+
+/** A strip of the last 30 days, one cell a day, lit on the days the problem happened. */
+function DayStrip({ p, color }: { p: Problem; color: string }) {
+  const days = last30();
+  // Before the platform counted days, only the last occurrence is known.
+  const counts = p.days ?? { [p.lastAt.slice(0, 10)]: 1 };
+  const n = days.filter((d) => counts[d]).length;
   return (
-    <div className="card stack problem">
+    <div>
+      <div className="dias" role="img" aria-label={tn(n, "Happened on {n} of the last 30 days", "Happened on {n} of the last 30 days")}>
+        {days.map((d, i) => (
+          <span key={d} className={counts[d] ? "si" : undefined} title={counts[d] ? `${d}: ${tn(counts[d], "{n} time", "{n} times")}` : d}
+            style={{ ["--c" as string]: color, ["--d" as string]: `${(i % 7) * 120}ms` }} />
+        ))}
+      </div>
+      <div className="dias-pie small muted"><span>{t("30 days ago")}</span><span>{tn(p.count, "{n} time", "{n} times")}</span><span>{t("today")}</span></div>
+    </div>
+  );
+}
+
+/** One problem: what was logged, the days it happened, where, and a button to dismiss it. */
+function ProblemCard({ p, open, i, onDismiss }: { p: Problem; open: boolean; i: number; onDismiss: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const tone = p.resolvedAt ? "ok" : p.level === "ERROR" ? "bad" : "warn";
+  return (
+    <div className={`card stack problem${p.resolvedAt ? " resuelto" : ""}${leaving ? " fuera" : ""}`} style={{ ["--d" as string]: `${Math.min(i, 10) * 60}ms` }}>
       <div className="row between" style={{ alignItems: "flex-start" }}>
         <div className="row" style={{ alignItems: "baseline", flexWrap: "wrap" }}>
-          <span className={`badge ${p.level === "ERROR" ? "bad" : "warn"}`}>{p.level === "ERROR" ? t("Error") : t("Warning")}</span>
+          <span className={`badge ${tone}`}>{p.resolvedAt ? t("Resolved") : p.level === "ERROR" ? t("Error") : t("Warning")}</span>
           <strong>{t(p.message)}</strong>
         </div>
         {open && (
           <button disabled={busy} title={t("Hide it until it happens again")}
-            onClick={() => { setBusy(true); api.dismissProblem(p.id).then(onDismiss, (e) => { setBusy(false); alert(e.message); }); }}>
+            onClick={() => { setBusy(true); api.dismissProblem(p.id).then(() => { setLeaving(true); setTimeout(onDismiss, 350); }, (e) => { setBusy(false); alert(e.message); }); }}>
             {t("Dismiss")}
           </button>
         )}
@@ -43,6 +70,7 @@ function ProblemCard({ p, open, onDismiss }: { p: Problem; open: boolean; onDism
           <span className="small problem-resolved">✓ {t("Resolved {when}", { when: timeAgo(p.resolvedAt) })}{p.resolution ? `: ${resolutionText(p.resolution)}` : ""}</span>
         ) : p.dismissedAt && <span className="small muted">{t("dismissed {when}", { when: timeAgo(p.dismissedAt) })}</span>}
       </div>
+      <DayStrip p={p} color={tone === "ok" ? "var(--ok)" : tone === "bad" ? "var(--bad)" : "var(--warn)"} />
       {p.detail && <pre className="problem-detail mono">{p.detail}</pre>}
       <div className="small muted">
         {p.app && <><Link to={`/apps/${p.app}`}>{p.app}</Link> · </>}
@@ -54,15 +82,29 @@ function ProblemCard({ p, open, onDismiss }: { p: Problem; open: boolean; onDism
   );
 }
 
-/** The Problems page: warnings and errors the platform logged, open ones first, for one app or all. */
+type Ver = "abiertos" | "errores" | "avisos" | "resueltos";
+
+/** The Problems page: counters that filter, and the warnings and errors the platform logged, each with its 30 days. */
 export function Problems() {
   const [params, setParams] = useSearchParams();
   const app = params.get("app") ?? "";
+  const ver = (params.get("ver") ?? "") as Ver | "";
   const [dismissed, setDismissed] = useState(false);
   const { data, error, reload } = usePoll(() => api.problems({ app, dismissed }), [app, dismissed], 15000);
   const { data: apps } = usePoll(api.apps, [], 0);
-  const open = data?.problems.filter((p) => isOpen(p, data.openForHours)) ?? [];
-  const earlier = data?.problems.filter((p) => !isOpen(p, data.openForHours)) ?? [];
+  const all = data?.problems ?? [];
+  const isOpenP = (p: Problem) => !!data && isOpen(p, data.openForHours);
+  const filtros: { id: Ver; label: string; color: string; test: (p: Problem) => boolean }[] = [
+    { id: "abiertos", label: "Open", color: "var(--bad)", test: isOpenP },
+    { id: "errores", label: "Errors", color: "var(--bad)", test: (p) => p.level === "ERROR" },
+    { id: "avisos", label: "Warnings", color: "var(--warn)", test: (p) => p.level === "WARN" },
+    { id: "resueltos", label: "Resolved", color: "var(--ok)", test: (p) => !!p.resolvedAt },
+  ];
+  const filtro = filtros.find((f) => f.id === ver);
+  const shown = filtro ? all.filter(filtro.test) : all;
+  const open = shown.filter(isOpenP);
+  const earlier = shown.filter((p) => !isOpenP(p));
+  const poner = (k: string, v: string) => setParams((p) => { if (v) p.set(k, v); else p.delete(k); return p; }, { replace: true });
 
   return (
     <>
@@ -70,9 +112,19 @@ export function Problems() {
       <p className="sub">
         {t("Warnings and errors from rendimiento itself in the last 30 days: configs it rejected, emails it could not send, DNS or GitHub calls that failed. Repeats are grouped. A problem stays open for {n} hours after it last happened, until rendimiento sees it fixed (a later push accepted, a later email sent), or until dismissed; it reopens if it happens again. Outages of your apps are on each app's Reliability tab.", { n: data?.openForHours ?? 24 })}
       </p>
+      {data && (
+        <div className="problema-cuentas" role="group" aria-label={t("Filter problems")}>
+          {filtros.map((f) => (
+            <button key={f.id} className="problema-cuenta" aria-pressed={ver === f.id} onClick={() => poner("ver", ver === f.id ? "" : f.id)}>
+              <span>{t(f.label)}</span>
+              <b style={{ color: f.color }}>{all.filter(f.test).length}</b>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="rel-filters">
         <label className="small">{t("App")}{" "}
-          <select value={app} onChange={(e) => setParams(e.target.value ? { app: e.target.value } : {})}>
+          <select value={app} onChange={(e) => poner("app", e.target.value)}>
             <option value="">{t("All apps and the platform")}</option>
             {apps?.map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}
           </select>
@@ -82,19 +134,20 @@ export function Problems() {
         </label>
       </div>
       <ErrorBox error={error} />
-      {data && data.problems.length === 0 && (
+      {data && all.length === 0 && (
         <div className="card empty"><p>{app ? t("No problems in the last 30 days for {app}.", { app }) : t("No problems in the last 30 days.")}</p></div>
       )}
+      {data && all.length > 0 && shown.length === 0 && <div className="card empty"><p>{t("Nothing here.")}</p></div>}
       {open.length > 0 && (
         <section className="stack" style={{ marginBottom: 24 }}>
           <h2 className="problem-h">{t("Open ({n})", { n: open.length })}</h2>
-          {open.map((p) => <ProblemCard key={p.id} p={p} open onDismiss={reload} />)}
+          {open.map((p, i) => <ProblemCard key={p.id} p={p} i={i} open onDismiss={reload} />)}
         </section>
       )}
       {earlier.length > 0 && (
         <section className="stack">
           <h2 className="problem-h">{t("Earlier")}</h2>
-          {earlier.map((p) => <ProblemCard key={p.id} p={p} open={false} onDismiss={reload} />)}
+          {earlier.map((p, i) => <ProblemCard key={p.id} p={p} i={i} open={false} onDismiss={reload} />)}
         </section>
       )}
     </>

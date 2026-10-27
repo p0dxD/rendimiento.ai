@@ -1,6 +1,6 @@
 # El Mercado (páginas sin código)
 
-El **Mercado** hace páginas web para quien no escribe código. Usted llena un formulario y rendimiento hace la página, la publica en su propia dirección y la cuida. Cada página es un **puesto**, y la sección Mercado de la barra superior los muestra todos bajo sus toldos.
+El **Mercado** hace páginas web para quien no escribe código. Usted llena un formulario y rendimiento hace la página, la publica en su propia dirección y la cuida. Cada página es un **puesto**, y la sección Mercado de la barra superior los enlista todos: escoja uno para ver su página en un teléfono, tal como la ven sus visitas, con su estado, su dirección, su dueño y su último cambio.
 
 ## Poner un puesto {#opening-a-stall}
 

@@ -22,6 +22,8 @@ type Problem struct {
 	DismissedAt *time.Time `json:"dismissedAt,omitempty"`
 	ResolvedAt  *time.Time `json:"resolvedAt,omitempty"`
 	Resolution  string     `json:"resolution,omitempty"` // what fixed it, e.g. "fixed by c6eae54"
+	// Days counts the occurrences per day (UTC, "2026-10-26"), for the last 31 days.
+	Days map[string]int `json:"days,omitempty"`
 }
 
 // ProblemOpenFor is how long a problem counts as open after it last
@@ -29,16 +31,22 @@ type Problem struct {
 const ProblemOpenFor = 24 * time.Hour
 
 // RecordProblem adds an occurrence: a new row, or one more on the row with
-// the same fingerprint, which also undoes a dismissal or resolution.
+// the same fingerprint, which also undoes a dismissal or resolution. The
+// occurrence is also counted on its day, and days older than 31 are dropped.
 func (s *Store) RecordProblem(ctx context.Context, p Problem) error {
+	day := p.LastAt.UTC().Format("2006-01-02")
+	since := p.LastAt.UTC().AddDate(0, 0, -31).Format("2006-01-02")
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO problems (fingerprint, level, component, app, message, detail, attrs, first_at, last_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+		INSERT INTO problems (fingerprint, level, component, app, message, detail, attrs, first_at, last_at, days)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, jsonb_build_object($9::text, 1))
 		ON CONFLICT (fingerprint) DO UPDATE SET
 		  count = problems.count + 1, detail = EXCLUDED.detail, attrs = EXCLUDED.attrs,
 		  last_at = GREATEST(problems.last_at, EXCLUDED.last_at), dismissed_at = NULL,
-		  resolved_at = NULL, resolution = ''`,
-		p.Fingerprint, p.Level, p.Component, p.App, p.Message, p.Detail, p.Attrs, p.LastAt)
+		  resolved_at = NULL, resolution = '',
+		  days = (SELECT coalesce(jsonb_object_agg(k, v), '{}'::jsonb)
+		          FROM jsonb_each(problems.days || jsonb_build_object($9::text, coalesce((problems.days->>$9::text)::int, 0) + 1)) AS d(k, v)
+		          WHERE k >= $10)`,
+		p.Fingerprint, p.Level, p.Component, p.App, p.Message, p.Detail, p.Attrs, p.LastAt, day, since)
 	return err
 }
 
@@ -47,7 +55,7 @@ func (s *Store) RecordProblem(ctx context.Context, p Problem) error {
 // unless asked for.
 func (s *Store) ListProblems(ctx context.Context, app string, since time.Time, withDismissed bool, limit int) ([]Problem, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, level, component, app, message, detail, attrs, count, first_at, last_at, dismissed_at, resolved_at, resolution
+		SELECT id, level, component, app, message, detail, attrs, count, first_at, last_at, dismissed_at, resolved_at, resolution, days
 		FROM problems
 		WHERE last_at >= $1 AND ($2 = '' OR app = $2) AND ($3 OR dismissed_at IS NULL)
 		ORDER BY last_at DESC LIMIT $4`, since, app, withDismissed, limit)
@@ -58,7 +66,7 @@ func (s *Store) ListProblems(ctx context.Context, app string, since time.Time, w
 	out := []Problem{}
 	for rows.Next() {
 		var p Problem
-		if err := rows.Scan(&p.ID, &p.Level, &p.Component, &p.App, &p.Message, &p.Detail, &p.Attrs, &p.Count, &p.FirstAt, &p.LastAt, &p.DismissedAt, &p.ResolvedAt, &p.Resolution); err != nil {
+		if err := rows.Scan(&p.ID, &p.Level, &p.Component, &p.App, &p.Message, &p.Detail, &p.Attrs, &p.Count, &p.FirstAt, &p.LastAt, &p.DismissedAt, &p.ResolvedAt, &p.Resolution, &p.Days); err != nil {
 			return nil, err
 		}
 		out = append(out, p)

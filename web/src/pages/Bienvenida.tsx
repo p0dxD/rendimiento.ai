@@ -2,7 +2,8 @@
 // word means (rendir: to yield, to make something go further, to give an
 // account), how the platform works, and how it works with AI agents
 // (la Ruta). Nothing on it describes this installation: it is public.
-import { Cielo, Flor, Guardapolvo, MovimientoSwitch, TemaSwitch, Techo } from "../components/ambiente";
+import { useEffect, useState } from "react";
+import { Cielo, Guardapolvo, MovimientoSwitch, TemaSwitch, Techo } from "../components/ambiente";
 import { LangSwitch, Logo } from "../components/marca";
 import { api, timeAgo, type PublicActivity } from "../api";
 import { usePoll } from "../components/ui";
@@ -33,8 +34,8 @@ function Monarca({ size = 44 }: { size?: number }) {
   );
 }
 
-/** "Right now": what rendimiento is doing, refreshed every 20 seconds. */
-function EnEsteMomento() {
+/** "Right now in the town": what rendimiento is doing, pinned up as a bando, refreshed every 20 seconds. */
+function Bando() {
   const { data } = usePoll<PublicActivity>(() => api.publicActivity(), [], 20000);
   if (!data) return null;
   const que = (r: PublicActivity["running"][number]) =>
@@ -43,50 +44,83 @@ function EnEsteMomento() {
     e.automatic ? t("rolled back by itself to release #{n}", { n: e.rollbackOf ?? "" })
       : e.rollbackOf ? t("rolled back to release #{n}", { n: e.rollbackOf })
         : t("release #{n} went live", { n: e.number });
+  const lineas = [
+    ...data.running.map((r) => ({ app: r.app, que: que(r), cuando: r.since, tone: "var(--warn)", late: true })),
+    ...data.recent.map((e) => ({ app: e.app, que: version(e), cuando: e.at, tone: e.rollbackOf ? "var(--bad)" : "var(--ok)", late: false })),
+  ].slice(0, 6);
   return (
-    <section className="bienv-seccion bienv-ahora" aria-labelledby="ahora">
-      <h2 id="ahora">{t("Right now")}</h2>
-      <div className="ahora-grid">
-        <div className="card">
-          <h3>{t("Running")}</h3>
-          {data.running.length === 0 ? (
-            <p className="muted">{t("All quiet: nothing is building.")}</p>
-          ) : (
-            <ul className="ahora-lista">
-              {data.running.map((r, i) => (
-                <li key={i}>
-                  <span className={`ahora-punto ${r.status}`} aria-hidden="true" />
-                  <b>{r.app}</b> <span className="muted">{que(r)} · {timeAgo(r.since)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+    <section className="bienv-bando" aria-labelledby="ahora">
+      <h2 id="ahora" className="bienv-bando-titulo">{t("Right now in the town")}</h2>
+      {lineas.length === 0 && <p className="muted" style={{ margin: "6px 0 0" }}>{t("All quiet: nothing is building.")}</p>}
+      {lineas.map((l, i) => (
+        <div key={i} className="bienv-bando-linea" style={{ ["--d" as string]: `${i * 90}ms` }}>
+          <i className={l.late ? "late" : undefined} style={{ background: l.tone }} aria-hidden="true" />
+          <strong>{l.app}</strong>
+          <span className="bienv-bando-que">{l.que}</span>
+          <span className="bienv-bando-cuando">{timeAgo(l.cuando)}</span>
         </div>
-        <div className="card">
-          <h3>{t("Recently")}</h3>
-          {data.recent.length === 0 ? (
-            <p className="muted">{t("No releases yet.")}</p>
-          ) : (
-            <ul className="ahora-lista">
-              {data.recent.map((e, i) => (
-                <li key={i}>
-                  <Flor estado={e.rollbackOf ? "marchita" : "viva"} size={18} />
-                  <b>{e.app}</b> <span className="muted">{version(e)} · {timeAgo(e.at)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+      ))}
     </section>
   );
 }
 
+/** The drawing beside each sense of "rendir": a flower that grows, a pot of beans, a book of accounts. */
+function Ilustracion({ n }: { n: number }) {
+  const label = [t("A flower that grows"), t("A pot of beans"), t("A book of accounts")][n - 1];
+  return (
+    <svg className="dicc-ilus" width="340" height="340" viewBox="0 0 340 340" role="img" aria-label={label}>
+      <circle cx="170" cy="170" r="160" fill="var(--surface-2)" />
+      {n === 1 && (
+        <g key="1" className="ilus-entra">
+          <path d="M170 300 C 166 250, 176 210, 170 170" stroke="#3E7B3A" strokeWidth="9" fill="none" strokeLinecap="round" />
+          <path d="M171 245 C 200 225, 225 232, 236 218 C 214 252, 190 254, 171 250 Z" fill="#3E7B3A" />
+          <g className="ilus-cabeza">
+            <circle cx="170" cy="96" r="30" fill="#E8890C" /><circle cx="208" cy="124" r="30" fill="#F2A93B" /><circle cx="194" cy="166" r="30" fill="#E8890C" />
+            <circle cx="146" cy="166" r="30" fill="#F2A93B" /><circle cx="132" cy="124" r="30" fill="#E8890C" /><circle cx="170" cy="134" r="21" fill="#7A3E0B" />
+          </g>
+        </g>
+      )}
+      {n === 2 && (
+        <g key="2" className="ilus-entra">
+          {[0, 0.8, 1.6].map((d, i) => (
+            <path key={i} className="ilus-vapor" style={{ animationDelay: `${d}s` }} d={`M${140 + i * 30} ${i === 1 ? 116 : 120} q-10 -14 0 -28 q10 -14 0 -28`} stroke="#C9B79F" strokeWidth="5" fill="none" strokeLinecap="round" />
+          ))}
+          <path d="M80 150 h180 v20 q0 90 -90 90 q-90 0 -90 -90 z" fill="#B5532A" />
+          <rect x="70" y="140" width="200" height="18" rx="9" fill="#8A3C1E" />
+          <circle cx="140" cy="148" r="7" fill="#5E3A1E" /><circle cx="170" cy="146" r="7" fill="#5E3A1E" /><circle cx="200" cy="148" r="7" fill="#5E3A1E" />
+          <path d="M110 200 h120" stroke="#E9B824" strokeWidth="5" strokeDasharray="10 8" />
+        </g>
+      )}
+      {n === 3 && (
+        <g key="3" className="ilus-entra">
+          <rect x="80" y="60" width="180" height="230" rx="8" fill="#FFFDF8" stroke="#C9B79F" strokeWidth="3" />
+          {[[41, "#2F6B2C"], [40, "#2F6B2C"], [39, "#B3261E"], [38, "#2F6B2C"], [37, "#2F6B2C"]].map(([v, c], i) => (
+            <g key={i} className="ilus-renglon" style={{ animationDelay: `${i * 150}ms` }}>
+              <text x="100" y={100 + i * 40} fontFamily="Fraunces, Georgia, serif" fontSize="17" fill="#2B1B12">#{v}</text>
+              <path d={`M140 ${95 + i * 40} h${60 + (i % 3) * 14}`} stroke="#C9B79F" strokeWidth="4" strokeLinecap="round" />
+              <circle cx="236" cy={95 + i * 40} r="8" fill={c as string} />
+            </g>
+          ))}
+        </g>
+      )}
+    </svg>
+  );
+}
+
 /**
- * The welcome page, before signing in: what "rendir" means, what rendimiento does, la Ruta, what is happening now, and the book.
+ * The welcome page, before signing in: "rendir" as a dictionary entry whose senses take turns with a drawing each, how
+ * rendimiento works, la Ruta, what else it does on hanging signs, what is happening now on a bando, and the book.
  */
 export function Bienvenida({ book, activity }: { book: BookLinks; activity: boolean }) {
   const libro = (lang === "es" ? book.es : book.en) || book.en || book.es;
+  // The senses take turns every few seconds, until one is chosen by hand.
+  const [sentido, setSentido] = useState(1);
+  const [quieto, setQuieto] = useState(false);
+  useEffect(() => {
+    if (quieto || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = setInterval(() => setSentido((n) => (n % 3) + 1), 6000);
+    return () => clearInterval(id);
+  }, [quieto]);
   const acepciones = [
     { n: 1, def: t("To yield: to give fruit, to produce."), ej: t("“This land yields.”"),
       aqui: t("Every push becomes a tested image and a running app, with a live HTTPS address.") },
@@ -122,39 +156,38 @@ export function Bienvenida({ book, activity }: { book: BookLinks; activity: bool
       </header>
 
       <main className="bienv-main">
-        <section className="bienv-heroe">
-          <Flor estado="viva" size={88} />
-          <p className="bienv-antetitulo">{t("A deployment platform with a Mexican heart")}</p>
-          <h1>{t("Make your code yield.")}</h1>
-          <p className="bienv-entrada">
-            {t("Connect a GitHub repository and press deploy: rendimiento tests it, builds it and gives it a live HTTPS address. Every push after that is a new release, checked, and ready to roll back.")}
-          </p>
-          <div className="bienv-acciones">
-            <a className="btn primary big" href="/api/auth/login">{t("Sign in with GitHub")}</a>
-            {libro && <a className="btn big" href={libro}>{t("Read the book")}</a>}
+        <section className="bienv-heroe dicc" aria-labelledby="rendir">
+          <div className="dicc-texto">
+            <div className="dicc-cabeza">
+              <h1 id="rendir" lang="es">ren·dir</h1>
+              <span className="dicc-fon" lang="es">/ren.ˈdiɾ/</span>
+              <span className="dicc-tipo">{t("Spanish verb")}</span>
+            </div>
+            <p className="bienv-entrada">
+              <b>{t("Make your code yield.")}</b> {t("Connect a GitHub repository and press deploy: rendimiento tests it, builds it and gives it a live HTTPS address. Every push after that is a new release, checked, and ready to roll back.")}
+            </p>
+            <div className="dicc-acepciones" role="group" aria-label={t("The senses of rendir")}>
+              {acepciones.map((a, i) => (
+                <button key={a.n} className={`acepcion${sentido === a.n ? " on" : ""}`} aria-pressed={sentido === a.n} style={{ ["--d" as string]: `${i * 150}ms` }}
+                  onClick={() => { setQuieto(true); setSentido(a.n); }}>
+                  <span className="acepcion-num" aria-hidden="true">{a.n}</span>
+                  <span>
+                    <span className="dicc-def">{a.def}</span>
+                    <span className="dicc-ej">{a.ej}</span>
+                    <span className="dicc-aqui"><b>{t("Here:")}</b> {a.aqui}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+            <p className="dicc-pie">
+              <b lang="es">rendimiento</b> · {t("what something yields: its performance. Here, what your code yields.")}
+            </p>
+            <div className="bienv-acciones">
+              <a className="btn primary big" href="/api/auth/login">{t("Sign in with GitHub")}</a>
+              {libro && <a className="btn big" href={libro}>{t("Read the book")}</a>}
+            </div>
           </div>
-        </section>
-
-        {activity && <EnEsteMomento />}
-
-        <section className="bienv-diccionario" aria-labelledby="rendir">
-          <div className="dicc-cabeza">
-            <h2 id="rendir" lang="es">ren·dir</h2>
-            <span className="dicc-fon" lang="es">/ren.ˈdiɾ/</span>
-            <span className="dicc-tipo">{t("Spanish verb")}</span>
-          </div>
-          <ol className="dicc-acepciones">
-            {acepciones.map((a) => (
-              <li key={a.n}>
-                <p className="dicc-def">{a.def}</p>
-                <p className="dicc-ej">{a.ej}</p>
-                <p className="dicc-aqui"><span className="dicc-flecha" aria-hidden="true">→</span> {a.aqui}</p>
-              </li>
-            ))}
-          </ol>
-          <p className="dicc-pie">
-            <b lang="es">rendimiento</b> · {t("what something yields: its performance. Here, what your code yields.")}
-          </p>
+          <div className="dicc-dibujo"><Ilustracion n={sentido} /></div>
         </section>
 
         <section className="bienv-seccion">
@@ -189,15 +222,20 @@ export function Bienvenida({ book, activity }: { book: BookLinks; activity: bool
 
         <section className="bienv-seccion">
           <h2>{t("What else it does")}</h2>
-          <div className="bienv-cosas">
-            {cosas.map((c) => (
-              <div key={c.titulo} className="card bienv-cosa" style={{ borderTopColor: c.color }}>
-                <h3>{c.titulo}</h3>
-                <p className="muted">{c.texto}</p>
+          <div className="bienv-letreros">
+            {cosas.map((c, i) => (
+              <div key={c.titulo} className="bienv-letrero">
+                <span className="cuerdas" aria-hidden="true" />
+                <div className="tabla" style={{ borderTopColor: c.color, ["--d" as string]: `${i * -600}ms` }}>
+                  <h3>{c.titulo}</h3>
+                  <p>{c.texto}</p>
+                </div>
               </div>
             ))}
           </div>
         </section>
+
+        {activity && <Bando />}
 
         <section className="bienv-cierre">
           <h2>{t("Give your code life.")}</h2>

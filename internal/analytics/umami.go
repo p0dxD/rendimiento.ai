@@ -72,16 +72,44 @@ type Metric struct {
 
 // Report is everything the Visits tab shows for one website.
 type Report struct {
-	Website   Website  `json:"website"`
-	Current   Stats    `json:"current"`
-	Previous  Stats    `json:"previous"` // the period just before, as long
-	Active    int64    `json:"active"`   // visitors in the last 5 minutes
-	Pageviews []Point  `json:"pageviews"`
-	Visitors  []Point  `json:"visitors"`
-	Paths     []Metric `json:"paths"`
-	Referrers []Metric `json:"referrers"`
-	Countries []Metric `json:"countries"`
+	Website   Website   `json:"website"`
+	Current   Stats     `json:"current"`
+	Previous  Stats     `json:"previous"` // the period just before, as long
+	Active    int64     `json:"active"`   // visitors in the last 5 minutes
+	Pageviews []Point   `json:"pageviews"`
+	Visitors  []Point   `json:"visitors"`
+	Paths     []Metric  `json:"paths"`
+	Referrers []Metric  `json:"referrers"`
+	Countries []Metric  `json:"countries"`
+	Sessions  []Session `json:"sessions"` // the latest visitors of the period, newest first
 }
+
+// Session is one anonymous visitor in a period: where from, on what, and
+// how much they looked. Umami does not know who the person is.
+type Session struct {
+	ID      string    `json:"id"`
+	Country string    `json:"country"`
+	Region  string    `json:"region"`
+	City    string    `json:"city"`
+	Browser string    `json:"browser"`
+	OS      string    `json:"os"`
+	Device  string    `json:"device"`
+	FirstAt time.Time `json:"firstAt"`
+	LastAt  time.Time `json:"lastAt"`
+	Visits  int64     `json:"visits"`
+	Views   int64     `json:"views"`
+}
+
+// Step is one thing a visitor did: a page they saw, or an event.
+type Step struct {
+	At       time.Time `json:"at"`
+	Path     string    `json:"path"`
+	Referrer string    `json:"referrer,omitempty"` // where they came from, on their first page
+	Event    string    `json:"event,omitempty"`    // an event's name; empty for a page view
+}
+
+// sessionsShown is how many of a period's visitors a report lists.
+const sessionsShown = 50
 
 // ErrAuth means Umami refused the user name or password.
 var ErrAuth = errors.New("umami refused the user name or password")
@@ -285,7 +313,8 @@ type Period struct {
 
 // Report gathers a website's numbers for the period, in parallel.
 func (u *Umami) Report(ctx context.Context, w Website, p Period) (*Report, error) {
-	key := fmt.Sprintf("report/%s/%d/%s", w.ID, p.To.Sub(p.From)/time.Minute, p.Unit)
+	// A rolling window ("the last 7 days") keeps its key as it moves; a calendar day is keyed by its start.
+	key := fmt.Sprintf("report/%s/%d/%d/%s", w.ID, p.From.Unix()/86400, p.To.Sub(p.From)/time.Minute, p.Unit)
 	return remember(u, key, func() (*Report, error) {
 		base := url.Values{
 			"startAt":  {strconv.FormatInt(p.From.UnixMilli(), 10)},
@@ -344,6 +373,19 @@ func (u *Umami) Report(ctx context.Context, w Website, p Period) (*Report, error
 				return nil
 			}
 		}
+		g.Go(func() error {
+			var pg page[rawSession]
+			q := with("page", "1", "pageSize", strconv.Itoa(sessionsShown))
+			if err := u.get(gctx, site+"/sessions", q, &pg); err != nil {
+				return err
+			}
+			r.Sessions = make([]Session, 0, len(pg.Data))
+			for _, x := range pg.Data {
+				r.Sessions = append(r.Sessions, x.session())
+			}
+			sort.SliceStable(r.Sessions, func(i, j int) bool { return r.Sessions[i].LastAt.After(r.Sessions[j].LastAt) })
+			return nil
+		})
 		g.Go(top("path", &r.Paths))
 		g.Go(top("referrer", &r.Referrers))
 		g.Go(top("country", &r.Countries))
@@ -362,6 +404,67 @@ func (u *Umami) Report(ctx context.Context, w Website, p Period) (*Report, error
 			return nil, err
 		}
 		return r, nil
+	})
+}
+
+type rawSession struct {
+	ID      string `json:"id"`
+	Country string `json:"country"`
+	Region  string `json:"region"`
+	City    string `json:"city"`
+	Browser string `json:"browser"`
+	OS      string `json:"os"`
+	Device  string `json:"device"`
+	FirstAt string `json:"firstAt"`
+	LastAt  string `json:"lastAt"`
+	Visits  num    `json:"visits"`
+	Views   num    `json:"views"`
+}
+
+// session converts Umami's row to a Session.
+func (x rawSession) session() Session {
+	return Session{ID: x.ID, Country: x.Country, Region: x.Region, City: x.City, Browser: x.Browser, OS: x.OS, Device: x.Device,
+		FirstAt: parseTime(x.FirstAt), LastAt: parseTime(x.LastAt), Visits: int64(x.Visits), Views: int64(x.Views)}
+}
+
+// parseTime reads Umami's timestamps, which come as RFC 3339 or as
+// "2026-10-06 13:00:00.123" in UTC, depending on the database.
+func parseTime(s string) time.Time {
+	for _, f := range []string{time.RFC3339Nano, "2006-01-02 15:04:05.999999999", "2006-01-02T15:04:05.999999999"} {
+		if t, err := time.ParseInLocation(f, s, time.UTC); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
+}
+
+// Activity is what one visitor did between from and to, oldest first: the
+// pages they saw and the events they caused (at most Umami's 500).
+func (u *Umami) Activity(ctx context.Context, w Website, sessionID string, from, to time.Time) ([]Step, error) {
+	key := fmt.Sprintf("activity/%s/%s/%d/%d", w.ID, sessionID, from.Unix()/60, to.Unix()/60)
+	return remember(u, key, func() ([]Step, error) {
+		q := url.Values{"startAt": {strconv.FormatInt(from.UnixMilli(), 10)}, "endAt": {strconv.FormatInt(to.UnixMilli(), 10)}}
+		var rows []struct {
+			CreatedAt      string `json:"createdAt"`
+			URLPath        string `json:"urlPath"`
+			ReferrerDomain string `json:"referrerDomain"`
+			EventType      num    `json:"eventType"`
+			EventName      string `json:"eventName"`
+		}
+		path := "/api/websites/" + url.PathEscape(w.ID) + "/sessions/" + url.PathEscape(sessionID) + "/activity"
+		if err := u.get(ctx, path, q, &rows); err != nil {
+			return nil, err
+		}
+		out := make([]Step, 0, len(rows))
+		for i := len(rows) - 1; i >= 0; i-- { // Umami answers newest first
+			x := rows[i]
+			st := Step{At: parseTime(x.CreatedAt), Path: x.URLPath, Referrer: x.ReferrerDomain}
+			if x.EventType == 2 {
+				st.Event = x.EventName
+			}
+			out = append(out, st)
+		}
+		return out, nil
 	})
 }
 

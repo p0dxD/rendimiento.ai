@@ -15,7 +15,6 @@ import { Services } from "./pages/Services";
 import { Universe } from "./pages/Universe";
 import { RequestPage } from "./pages/Request";
 import { Addons } from "./pages/Addons";
-import { AddonDetail } from "./pages/Installed";
 import { Problems, ProblemsNavLink } from "./pages/Problems";
 import { Mercado, PuestoEditor } from "./pages/Mercado";
 import { Ruta } from "./pages/Ruta";
@@ -99,7 +98,7 @@ function Shell() {
           <Route path="/ruta" element={<Ruta />} />
           <Route path="/ia" element={<IA />} />
           <Route path="/members" element={<Members me={state.login ?? ""} role={state.role ?? "guest"} />} />
-          <Route path="/addons/:name" element={<AddonDetail />} />
+          <Route path="/addons/:name" element={<Addons />} />
           <Route path="/services/:ns/:name" element={<Services />} />
           <Route path="/apps/:name" element={<AppPage />} />
           <Route path="/apps/:name/:tab" element={<AppPage />} />

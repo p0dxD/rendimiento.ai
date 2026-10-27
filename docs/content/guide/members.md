@@ -10,7 +10,7 @@ People sign in to rendimiento with GitHub, and only **members** get in. Each mem
 
 ## Adding someone {#adding-someone}
 
-On **Members** (your name in the top bar), an administrator writes the person's **GitHub username** and their role. They can sign in from then on, at the same address. Changing a role or removing someone takes effect on their next click; a removed person is signed out at once. An organization always keeps at least one administrator.
+On **Members** (your name in the top bar), people are listed by role on the left; choosing one shows their role and, line by line, **what they can do**. An administrator presses **Add someone**, writes the person's **GitHub username** and picks their role. They can sign in from then on, at the same address. Changing a role or removing someone takes effect on their next click; a removed person is signed out at once. An organization always keeps at least one administrator.
 
 ## The first administrators {#the-first-administrators}
 

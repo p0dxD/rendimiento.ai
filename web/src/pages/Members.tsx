@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { api, session, timeAgo, type Member, type MemberRole, type Org } from "../api";
+import { useSearchParams } from "react-router-dom";
+import { api, session, timeAgo, type MemberRole, type Org } from "../api";
 import { ErrorBox, usePoll } from "../components/ui";
 import { t } from "../i18n";
 
@@ -11,66 +12,135 @@ const roleHelp: Record<MemberRole, string> = {
   admin: "also deploys, rolls back, and manages secrets, keys, add-ons and people",
 };
 
-/** The roles as choices, with what each allows. */
-function RoleSelect({ value, onChange, disabled }: { value: MemberRole; onChange: (r: MemberRole) => void; disabled?: boolean }) {
-  return (
-    <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value as MemberRole)}>
-      {(["guest", "collaborator", "admin"] as MemberRole[]).map((r) => <option key={r} value={r}>{t(memberRoleLabel[r])}</option>)}
-    </select>
-  );
+// What each role may do, from the least; a role may do its line and every line above it.
+const permisos: { min: MemberRole; text: string }[] = [
+  { min: "guest", text: "See apps, runs, logs, the Universe and the Ruta" },
+  { min: "collaborator", text: "Build and start runs" },
+  { min: "collaborator", text: "Write in the Ruta and ask agents for encargos" },
+  { min: "admin", text: "Deploy and roll back to an earlier release" },
+  { min: "admin", text: "Manage secrets, keys and add-ons" },
+  { min: "admin", text: "Add and remove people" },
+];
+const nivel: Record<MemberRole, number> = { guest: 0, collaborator: 1, admin: 2 };
+const grupoLabel: Record<MemberRole, string> = { admin: "Administrators", collaborator: "Collaborators", guest: "Guests" };
+const colores = ["var(--grana)", "var(--anil)", "var(--nopal)", "var(--rosa)", "var(--cempasuchil)", "var(--teja)"];
+const colorDe = (login: string) => colores[[...login].reduce((n, c) => n + c.charCodeAt(0), 0) % colores.length];
+
+/** A person's initial in a colored circle. */
+function Inicial({ login, size = 34 }: { login: string; size?: number }) {
+  return <span className="miembro-inicial" style={{ width: size, height: size, fontSize: size * 0.42, background: colorDe(login) }} aria-hidden="true">{login[0]?.toUpperCase()}</span>;
 }
 
 /**
- * The people in the organization and their roles. An administrator adds
- * someone by their GitHub username (they can sign in from then on), changes
- * a role, or removes them; there is always at least one administrator.
+ * The people in the organization, by role, on the left; on the right the one chosen, with their role and what it
+ * lets them do. An administrator adds someone by their GitHub username (they can sign in from then on), changes a
+ * role, or removes them; there is always at least one administrator.
  */
 export function Members({ me, role }: { me: string; role: MemberRole }) {
   const { data, error, reload } = usePoll(api.members, [], 0);
+  const [params, setParams] = useSearchParams();
+  const [err, setErr] = useState<unknown>();
+  const admin = role === "admin";
+  const act = (p: Promise<unknown>) => { setErr(undefined); p.then(reload, setErr); };
+  const agregando = admin && params.has("agregar");
+  const elegido = agregando ? undefined : data?.find((m) => m.login === params.get("persona")) ?? data?.find((m) => m.login.toLowerCase() === me.toLowerCase()) ?? data?.[0];
+  const yo = (login: string) => login.toLowerCase() === me.toLowerCase();
+  return (
+    <>
+      <h1>{t("Members")}</h1>
+      <p className="sub" style={{ marginBottom: 0 }}>{t("People who can sign in here, and what each may do. You are {role}.", { role: t(memberRoleLabel[role]).toLowerCase() })}</p>
+      <ErrorBox error={err ?? error} />
+      <div className="lista-detalle">
+        <aside className="ld-lista">
+          {admin && <button className="primary" onClick={() => setParams({ agregar: "1" }, { replace: true })}>{t("Add someone")}</button>}
+          {(["admin", "collaborator", "guest"] as MemberRole[]).map((r) => {
+            const items = (data ?? []).filter((m) => m.role === r);
+            if (items.length === 0) return null;
+            return (
+              <div key={r}>
+                <div className="ld-grupo">{t(grupoLabel[r])} · {items.length}</div>
+                {items.map((m) => (
+                  <button key={m.login} className={`ld-item${elegido?.login === m.login ? " on" : ""}`} style={{ ["--c" as string]: colorDe(m.login) }}
+                    aria-current={elegido?.login === m.login} onClick={() => setParams({ persona: m.login }, { replace: true })}>
+                    <Inicial login={m.login} />
+                    <span className="ld-nombre">@{m.login}{yo(m.login) && <span className="muted" style={{ fontWeight: 400 }}> ({t("you")})</span>}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </aside>
+        {agregando && <AddMember onDone={(login) => { reload(); setParams({ persona: login }, { replace: true }); }} onCancel={() => setParams({}, { replace: true })} />}
+        {elegido && (
+          <main className="ld-detalle" key={elegido.login}>
+            <div className="ld-cabeza">
+              <Inicial login={elegido.login} size={60} />
+              <div style={{ minWidth: 0 }}>
+                <h2 className="ld-titulo">@{elegido.login}{yo(elegido.login) && <span className="muted" style={{ fontSize: 16, fontWeight: 400 }}> ({t("you")})</span>}</h2>
+                <span className="small muted">{t("added by {who} · {when}", { who: elegido.addedBy, when: timeAgo(elegido.createdAt) })}</span>
+              </div>
+            </div>
+            <div className="roles-elegir" role="radiogroup" aria-label={t("Role")}>
+              {(["guest", "collaborator", "admin"] as MemberRole[]).map((r) => (
+                <button key={r} role="radio" aria-checked={elegido.role === r} className={`rol-tarjeta${elegido.role === r ? " on" : ""}`} disabled={!admin}
+                  onClick={() => elegido.role !== r && act(api.setMember(elegido.login, r))}>
+                  <strong>{t(memberRoleLabel[r])}</strong>
+                  <span className="small muted">{t(roleHelp[r])}</span>
+                </button>
+              ))}
+            </div>
+            <div>
+              <h3 className="ld-h3">{t("What they can do")}</h3>
+              <ul className="permisos">
+                {permisos.map((p) => {
+                  const si = nivel[elegido.role] >= nivel[p.min];
+                  return <li key={p.text} className={si ? "si" : "no"}><span role="img" aria-label={si ? t("Allowed") : t("Not allowed")}>{si ? "✓" : "—"}</span>{t(p.text)}</li>;
+                })}
+              </ul>
+            </div>
+            {admin && (
+              <button style={{ alignSelf: "flex-start" }} onClick={() => confirm(t("Remove {login}? They lose access at once.", { login: elegido.login })) && act(api.removeMember(elegido.login).then(() => setParams({}, { replace: true })))}>
+                {t("Remove @{login}", { login: elegido.login })}
+              </button>
+            )}
+          </main>
+        )}
+      </div>
+      <Orgs />
+    </>
+  );
+}
+
+/** The form to add someone by their GitHub username, with the role to give them. */
+function AddMember({ onDone, onCancel }: { onDone: (login: string) => void; onCancel: () => void }) {
   const [login, setLogin] = useState("");
   const [newRole, setNewRole] = useState<MemberRole>("guest");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>();
-  const admin = role === "admin";
-  const act = (p: Promise<unknown>) => { setErr(undefined); p.then(reload, setErr); };
   return (
-    <>
-      <h1>{t("Members")}</h1>
-      <p className="sub">{t("People who can sign in here, and what each may do. You are {role}.", { role: t(memberRoleLabel[role]).toLowerCase() })}</p>
-      <ul className="small muted">
-        {(["guest", "collaborator", "admin"] as MemberRole[]).map((r) => <li key={r}><strong>{t(memberRoleLabel[r])}</strong>: {t(roleHelp[r])}</li>)}
-      </ul>
-      {admin && (
-        <div className="card stack">
-          <div className="form-grid">
-            <label className="field"><span>{t("GitHub username")}</span>
-              <input value={login} onChange={(e) => setLogin(e.target.value.trim())} placeholder="octocat" />
-            </label>
-            <label className="field"><span>{t("Role")}</span><RoleSelect value={newRole} onChange={setNewRole} /></label>
-          </div>
-          <div><button className="primary" disabled={busy || !login} onClick={() => {
-            setBusy(true); setErr(undefined);
-            api.setMember(login, newRole).then(() => { setBusy(false); setLogin(""); reload(); }, (e) => { setBusy(false); setErr(e); });
-          }}>{t("Add")}</button></div>
-          <p className="small muted" style={{ margin: 0 }}>{t("They sign in with GitHub at this same address.")}</p>
-        </div>
-      )}
-      <ErrorBox error={err ?? error} />
-      <table className="ruta-actions small" style={{ marginTop: 16 }}>
-        <thead><tr><th>{t("Person")}</th><th>{t("Role")}</th><th>{t("Added by")}</th><th /></tr></thead>
-        <tbody>
-          {data?.map((m: Member) => (
-            <tr key={m.login}>
-              <td>{m.login}{m.login.toLowerCase() === me.toLowerCase() && <span className="muted"> ({t("you")})</span>}</td>
-              <td><RoleSelect value={m.role} disabled={!admin} onChange={(r) => act(api.setMember(m.login, r))} /></td>
-              <td className="muted">{m.addedBy} · {timeAgo(m.createdAt)}</td>
-              <td>{admin && <button className="link small" onClick={() => confirm(t("Remove {login}? They lose access at once.", { login: m.login })) && act(api.removeMember(m.login))}>{t("Remove")}</button>}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <Orgs />
-    </>
+    <main className="ld-detalle">
+      <h2 className="ld-titulo">{t("Add someone")}</h2>
+      <label className="field"><span>{t("GitHub username")}</span>
+        <input value={login} autoFocus onChange={(e) => setLogin(e.target.value.trim())} placeholder="octocat" />
+      </label>
+      <div className="roles-elegir" role="radiogroup" aria-label={t("Role")}>
+        {(["guest", "collaborator", "admin"] as MemberRole[]).map((r) => (
+          <button key={r} role="radio" aria-checked={newRole === r} className={`rol-tarjeta${newRole === r ? " on" : ""}`} onClick={() => setNewRole(r)}>
+            <strong>{t(memberRoleLabel[r])}</strong>
+            <span className="small muted">{t(roleHelp[r])}</span>
+          </button>
+        ))}
+      </div>
+      <ErrorBox error={err} />
+      <div className="row">
+        <button className="primary" disabled={busy || !login} onClick={() => {
+          setBusy(true); setErr(undefined);
+          api.setMember(login, newRole).then(() => { setBusy(false); onDone(login); }, (e) => { setBusy(false); setErr(e); });
+        }}>{t("Add")}</button>
+        <button onClick={onCancel}>{t("Cancel")}</button>
+      </div>
+      <p className="small muted" style={{ margin: 0 }}>{t("They sign in with GitHub at this same address.")}</p>
+    </main>
   );
 }
 

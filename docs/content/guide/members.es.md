@@ -10,7 +10,7 @@ Las personas entran a rendimiento con GitHub, y solo pasan los **miembros**. Cad
 
 ## Agregar a alguien {#adding-someone}
 
-En **Miembros** (su nombre en la barra de arriba), un administrador escribe el **usuario de GitHub** de la persona y su función. Desde ese momento puede entrar, en la misma dirección. Cambiar una función o quitar a alguien cuenta desde su siguiente clic; a quien se quita se le cierra la sesión de inmediato. Una organización siempre conserva al menos un administrador.
+En **Miembros** (su nombre en la barra de arriba), las personas aparecen a la izquierda por función; al elegir una se ven su función y, renglón por renglón, **lo que puede hacer**. Un administrador toca **Agregar a alguien**, escribe el **usuario de GitHub** de la persona y elige su función. Desde ese momento puede entrar, en la misma dirección. Cambiar una función o quitar a alguien cuenta desde su siguiente clic; a quien se quita se le cierra la sesión de inmediato. Una organización siempre conserva al menos un administrador.
 
 ## Los primeros administradores {#the-first-administrators}
 
