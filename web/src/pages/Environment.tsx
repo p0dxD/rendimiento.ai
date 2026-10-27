@@ -13,12 +13,33 @@ export function StatusBadge({ status }: { status: EnvStatus }) {
   return <span className={`badge ${tone[status]}`}>{t(label[status])}</span>;
 }
 
+// Each provider's sign opens the same requirement's details and its fix.
+const slotCheck: Record<string, string> = { cluster: "kubernetes", dns: "dns", source: "github", registry: "registry" };
+// Requirements that also hang a sign in the square, beside the providers.
+const signChecks = ["notifications", "storage", "database"];
+const picado = ["var(--grana)", "var(--cempasuchil)", "var(--anil)", "var(--rosa)", "var(--nopal)", "var(--maiz)"];
+
+/** A sign over the square: a provider, or a requirement worth reaching at once. */
+interface Letrero {
+  key: string;
+  slot: string;
+  name: string;
+  status: EnvStatus;
+  detail: string;
+  provider?: EnvProvider;
+  check?: EnvCheck;
+}
+
 /**
- * The Environment page: what rendimiento runs on (cluster, providers, nodes), what it needs and whether it has it, and what is failing.
+ * The Environment page, as a Cotija town: the bando with the platform's version, the nodes as houses on a cobbled street
+ * (the control plane is the parroquia), the providers as hanging signs that open their ventanilla, the cluster's problems
+ * pinned to a cork board, and what the town needs.
  */
 export function Environment() {
   const [refreshing, setRefreshing] = useState(false);
   const { data: r, error, setData } = usePoll(() => envApi.report(), [], 30000);
+  const [sel, setSel] = useState<string>();
+  const [abierto, setAbierto] = useState<string>();
 
   const refresh = async () => {
     setRefreshing(true);
@@ -32,13 +53,24 @@ export function Environment() {
   if (error) return <ErrorBox error={error} />;
   if (!r) return <p className="muted">{t("Inspecting the cluster…")}</p>;
   const problems = r.problems ?? [];
+  const nodo = r.nodes.find((n) => n.name === sel);
+  const letreros: Letrero[] = [
+    ...r.providers.map((p) => {
+      const check = r.checks.find((c) => c.id === slotCheck[p.slot]);
+      return { key: p.slot, slot: p.title, name: p.name, status: p.status, detail: p.detail, provider: p, check };
+    }),
+    ...signChecks.map((id) => r.checks.find((c) => c.id === id)).filter((c): c is EnvCheck => !!c)
+      .map((c) => ({ key: c.id, slot: t(c.category), name: c.name, status: c.status, detail: c.summary, check: c })),
+  ];
+  const ventanilla = letreros.find((l) => l.key === abierto);
+  const avisos = r.checks.filter((c) => c.status !== "ok");
 
   return (
     <>
       <div className="row between">
         <div>
           <h1>{t("Environment")}</h1>
-          <p className="sub" style={{ marginBottom: 0 }}>{t("What rendimiento runs on, what it needs, and how healthy it is.")}</p>
+          <p className="sub" style={{ marginBottom: 0 }}>{t("The town where your apps live: its houses, its services and its notices.")}</p>
         </div>
         <div className="row small muted">
           {t("checked {when}", { when: timeAgo(r.generatedAt) })}
@@ -55,56 +87,172 @@ export function Environment() {
       </div>
       <PlatformVersion />
 
-      <h2>{t("Providers")}</h2>
-      <div className="grid">
-        {r.providers.map((p) => (
-          <ProviderCard key={p.slot} p={p}>
-            {p.slot === "dns" && r.ddns && <DynamicDNS ddns={r.ddns} onSynced={refresh} />}
-          </ProviderCard>
+      <div className="calle" role="group" aria-label={t("Nodes")}>
+        <div className="calle-picado" aria-hidden="true">{Array.from({ length: 12 }, (_, i) => <i key={i} style={{ background: picado[i % picado.length], ["--d" as string]: `${i * -330}ms` }} />)}</div>
+        <div className="empedrado" aria-hidden="true" />
+        {r.nodes.map((n, i) => (
+          <Casa key={n.name} n={n} i={i} on={sel === n.name} onPick={() => setSel(sel === n.name ? undefined : n.name)} />
         ))}
       </div>
+      <p className="small muted calle-leyenda">{t("Lit windows are the processor; the red skirting rises with memory. A note on the door says the node is missing something. The parroquia is the node in charge.")}</p>
+      {nodo && <div className="calle-nodo"><NodeCard n={nodo} /></div>}
 
-      <h2>{t("Requirements")}</h2>
-      <div className="stack">
-        {categories.map((cat) => {
-          const items = r.checks.filter((c) => c.category === cat);
-          if (items.length === 0) return null;
-          return (
-            <div key={cat} className="card" style={{ padding: 0 }}>
-              <div className="env-cat">{t(cat)}</div>
-              {items.map((c) => <CheckRow key={c.id} c={c} />)}
-            </div>
-          );
-        })}
+      <div className="letreros">
+        {letreros.map((l, i) => (
+          <button key={l.key} className="letrero" aria-expanded={abierto === l.key} onClick={() => setAbierto(abierto === l.key ? undefined : l.key)}>
+            <span className="cuerdas" aria-hidden="true" />
+            <span className={`tabla${abierto === l.key ? " on" : ""}`} style={{ ["--d" as string]: `${i * -700}ms` }}>
+              <small>{l.slot}</small>
+              <strong>{l.name}</strong>
+              <span className={`letrero-est ${tone[l.status]}`}>{t(label[l.status])}</span>
+            </span>
+          </button>
+        ))}
       </div>
-
-      <h2>{t("Nodes")}</h2>
-      <div className="grid">
-        {r.nodes.map((n) => <NodeCard key={n.name} n={n} />)}
-      </div>
-
-      <h2>{t("Problems in the cluster")} {problems.length > 0 && <span className="badge warn">{problems.length}</span>}</h2>
-      {problems.length === 0 ? (
-        <div className="card muted">{t("No failing pods or certificates.")}</div>
-      ) : (
-        <div className="card table-wrap" style={{ padding: 0 }}>
-          <table>
-            <thead><tr><th>{t("Kind")}</th><th>{t("Namespace")}</th><th>{t("Name")}</th><th>{t("Reason")}</th><th className="hide-sm">{t("Since")}</th></tr></thead>
-            <tbody>
-              {problems.map((p) => (
-                <tr key={p.kind + p.namespace + p.name}>
-                  <td className="small">{p.kind}</td>
-                  <td className="mono small">{p.namespace}</td>
-                  <td className="mono small">{p.name}</td>
-                  <td className="small">{p.reason}</td>
-                  <td className="small muted hide-sm">{p.since ? timeAgo(p.since) : ""}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {ventanilla && (
+        <div className="ventanilla" key={ventanilla.key}>
+          <div className="row between" style={{ alignItems: "baseline" }}>
+            <h3>{ventanilla.slot}: {ventanilla.name}</h3>
+            <StatusBadge status={ventanilla.status} />
+          </div>
+          <p style={{ margin: 0 }}>{ventanilla.detail}</p>
+          {ventanilla.provider && ventanilla.provider.options.length > 0 && (
+            <label className="field" style={{ maxWidth: 360 }}>
+              <span>{t("Provider")}</span>
+              <select value={ventanilla.provider.options.find((o) => o.id === ventanilla.provider!.active) ? ventanilla.provider.active : ventanilla.provider.options[0]?.id} disabled>
+                {ventanilla.provider.options.map((o) => <option key={o.id} value={o.id}>{o.name}{o.available ? "" : ` (${t("coming soon")})`}</option>)}
+              </select>
+              <span className="small muted">{t("Switching providers is coming; today the provider is set by the platform's configuration.")}</span>
+            </label>
+          )}
+          {ventanilla.key === "dns" && r.ddns && <DynamicDNS ddns={r.ddns} onSynced={refresh} />}
+          {ventanilla.key === "notifications" && ventanilla.status === "ok" && <div className="row"><TestEmail /></div>}
+          {ventanilla.check && <CheckRow c={ventanilla.check} />}
         </div>
       )}
+
+      <div className="plaza">
+        <section className="plaza-avisos">
+          <h2>{t("Notices in the square")} {problems.length + avisos.length > 0 && <span className="badge warn">{problems.length + avisos.length}</span>}</h2>
+          <div className="tablero">
+            {problems.length + avisos.length === 0 && <div className="nota" style={{ ["--r" as string]: "-1deg", ["--t" as string]: "var(--ok)" }}>{t("No failing pods or certificates.")}</div>}
+            {avisos.map((c, i) => (
+              <button key={c.id} className="nota" style={{ ["--r" as string]: `${(i % 3) - 1}deg`, ["--t" as string]: c.status === "warning" ? "var(--warn)" : "var(--bad)" }}
+                onClick={() => setAbierto(letreros.some((l) => l.check?.id === c.id) ? letreros.find((l) => l.check?.id === c.id)!.key : abierto)}>
+                <strong style={{ color: c.status === "warning" ? "var(--warn)" : "var(--bad)" }}>{c.name}</strong>
+                <span>{c.summary}</span>
+              </button>
+            ))}
+            {problems.map((p, i) => (
+              <div key={p.kind + p.namespace + p.name} className="nota" style={{ ["--r" as string]: `${((i + avisos.length) % 3) - 1}deg`, ["--t" as string]: "var(--bad)" }}>
+                <strong style={{ color: "var(--bad)" }}>{p.kind} <span className="mono">{p.namespace}/{p.name}</span></strong>
+                <span>{p.reason}{p.since ? ` · ${timeAgo(p.since)}` : ""}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="card plaza-necesita">
+          <h2>{t("What the town needs")}</h2>
+          {categories.map((cat) => {
+            const items = r.checks.filter((c) => c.category === cat);
+            if (items.length === 0) return null;
+            return (
+              <div key={cat}>
+                <div className="env-cat">{t(cat)}</div>
+                {items.map((c) => <CheckRow key={c.id} c={c} />)}
+              </div>
+            );
+          })}
+        </section>
+      </div>
     </>
+  );
+}
+
+const LIT = "#F2C14E";
+const OFF = "#5A6E7A";
+
+/**
+ * A node as a house of Cotija: lit windows for how busy its processor is, a red skirting that rises with its memory,
+ * and a note on the door when something is wrong. The control plane is the parroquia, with its two towers.
+ */
+function Casa({ n, i, on, onPick }: { n: EnvNode; i: number; on: boolean; onPick: () => void }) {
+  const cpu = n.cpuUsed !== undefined ? n.cpuUsed / n.cpuCores : 0;
+  const mem = n.memUsed !== undefined ? n.memUsed / n.memBytes : 0;
+  const lit = Math.round(cpu * 4);
+  const aviso = !n.ready || (n.pressure?.length ?? 0) > 0 || !!n.unschedulable || mem >= 0.85;
+  const guard = mem >= 0.85 ? "var(--rosa)" : "var(--grana)";
+  const parroquia = (n.roles ?? []).some((r) => r === "control-plane" || r === "master");
+  const d = `${i * 140}ms`;
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  const label = t("{name}: processor {cpu}, memory {mem}", { name: n.name, cpu: pct(cpu), mem: pct(mem) });
+  let dibujo;
+  if (parroquia) {
+    const ws = ["M24 70 q7 -10 14 0 v18 h-14 z", "M132 70 q7 -10 14 0 v18 h-14 z", "M58 96 q9 -12 18 0 v26 h-18 z", "M94 96 q9 -12 18 0 v26 h-18 z"];
+    const gH = Math.round(14 + mem * 40);
+    dibujo = (
+      <svg width="170" height="210" viewBox="0 0 170 210" aria-hidden="true">
+        <rect x="14" y="40" width="34" height="160" fill="#F4E9D8" stroke="#C9B79F" strokeWidth="2" />
+        <rect x="122" y="40" width="34" height="160" fill="#F4E9D8" stroke="#C9B79F" strokeWidth="2" />
+        <path d="M12 42 Q31 6 50 42 Z" fill="#E9B824" stroke="#B5532A" strokeWidth="2" /><path d="M120 42 Q139 6 158 42 Z" fill="#E9B824" stroke="#B5532A" strokeWidth="2" />
+        <path d="M31 4 v10 M27 8 h8 M139 4 v10 M135 8 h8" stroke="#7A3E0B" strokeWidth="2.4" />
+        <rect x="44" y="72" width="82" height="128" fill="#FBF7EF" stroke="#C9B79F" strokeWidth="2" />
+        <path d="M44 74 L85 40 L126 74 Z" fill="#F4E9D8" stroke="#C9B79F" strokeWidth="2" />
+        <circle cx="85" cy="64" r="11" fill="#FFFDF8" stroke="#7A3E0B" strokeWidth="2" /><path d="M85 64 V57 M85 64 L90 66" stroke="#2B1B12" strokeWidth="2" strokeLinecap="round" />
+        {ws.map((p, j) => <path key={j} className={j < lit ? "luz" : undefined} d={p} fill={j < lit ? LIT : OFF} stroke="#7A3E0B" strokeWidth="2" />)}
+        <path className="campana" d="M27 50 q4 -8 8 0 v4 h-8 z" fill="#B5532A" /><path className="campana" d="M135 50 q4 -8 8 0 v4 h-8 z" fill="#B5532A" style={{ animationDelay: "1.5s" }} />
+        <rect className="guard" x="14" y={200 - gH} width="142" height={gH} fill={guard} style={{ ["--d" as string]: d }} />
+        <path d="M70 200 V160 Q85 140 100 160 V200 Z" fill="#7A3E0B" stroke="#4A2A10" strokeWidth="2" /><path d="M85 152 V200" stroke="#4A2A10" strokeWidth="1.5" />
+        {aviso && <Aviso x={78} y={168} />}
+      </svg>
+    );
+  } else {
+    const ancha = i % 3 === 2;
+    const w = ancha ? 170 : 140, wi = w - 20, mid = w / 2;
+    const cols = ancha ? [24, 74, 124] : [24, 96];
+    const vent = [...cols.map((x) => ({ x, y: 66 })), { x: cols[0], y: 116 }, ...(ancha ? [{ x: cols[2], y: 116 }] : [])].slice(0, 4);
+    let tejas = "";
+    for (let x = 14; x < w - 8; x += 9) tejas += `M${x} ${52 - Math.max(0, 28 - (Math.abs(x - mid) * 28) / mid) + 3} V50 `;
+    const gH = Math.round(10 + mem * 50);
+    const dx = ancha ? mid - 14 : w - 58, dr = dx + 28;
+    dibujo = (
+      <svg width={w} height="170" viewBox={`0 0 ${w} 170`} aria-hidden="true">
+        <path d={`M4 52 L${mid} 24 L${w - 4} 52 Z`} fill="#B5532A" stroke="#8A3C1E" strokeWidth="2" />
+        <path d={tejas} stroke="#8A3C1E" strokeWidth="1.4" fill="none" />
+        <rect x="4" y="50" width={w - 8} height="7" fill="#8A3C1E" />
+        <rect x="10" y="57" width={wi} height="105" fill="#FBF7EF" stroke="#D8C8B0" strokeWidth="2" />
+        <rect className="guard" x="10" y={162 - gH} width={wi} height={gH} fill={guard} style={{ ["--d" as string]: d }} />
+        {vent.map((v, j) => (
+          <g key={j}>
+            <rect className={j < lit ? "luz" : undefined} x={v.x} y={v.y} width="20" height="24" rx="2" fill={j < lit ? LIT : OFF} stroke="#7A3E0B" strokeWidth="2.4" />
+            <path d={`M${v.x} ${v.y + 12} h20 M${v.x + 10} ${v.y} v24`} stroke="#7A3E0B" strokeWidth="1.2" />
+            <path d={`M${v.x - 4} ${v.y + 26} h28 M${v.x - 4} ${v.y + 34} h28 M${v.x - 4} ${v.y + 26} v8 M${v.x + 24} ${v.y + 26} v8 M${v.x + 10} ${v.y + 26} v8`} stroke="#2B1B12" strokeWidth="1.6" />
+            <circle cx={v.x + 3} cy={v.y + 24} r="3.4" fill="#D6246E" /><circle cx={v.x + 10} cy={v.y + 24} r="3.4" fill="#E8890C" /><circle cx={v.x + 17} cy={v.y + 24} r="3" fill="#3E7B3A" />
+          </g>
+        ))}
+        <path d={`M${dx} 162 V132 Q${dx + 14} 118 ${dr} 132 V162 Z`} fill="#7A3E0B" stroke="#4A2A10" strokeWidth="2" />
+        <circle cx={dx + 22} cy="148" r="1.8" fill="#E9B824" />
+        <path className="farol" d={`M${dr + 6} 122 h8 v10 h-8 z`} fill="#F2C14E" stroke="#2B1B12" strokeWidth="1.5" />
+        {aviso && <Aviso x={dx + 7} y={128} />}
+      </svg>
+    );
+  }
+  return (
+    <button className={`casa${on ? " on" : ""}`} style={{ ["--d" as string]: d }} onClick={onPick} aria-pressed={on} aria-label={label}>
+      {dibujo}
+      <span className="rot">{n.name}</span>
+      <span className="small">{parroquia ? t("in charge") : (n.roles?.length ? n.roles.join(", ") : t("worker"))}</span>
+    </button>
+  );
+}
+
+/** The note pinned to a door: something is wrong in that house. */
+function Aviso({ x, y }: { x: number; y: number }) {
+  return (
+    <g className="aviso-puerta">
+      <rect x={x} y={y} width="13" height="16" fill="#FFFDF8" stroke="#B3261E" strokeWidth="1.6" />
+      <path d={`M${x + 6.5} ${y + 3} v6 M${x + 6.5} ${y + 12} v1.5`} stroke="#B3261E" strokeWidth="2" strokeLinecap="round" />
+    </g>
   );
 }
 
@@ -141,30 +289,6 @@ function DynamicDNS({ ddns, onSynced }: { ddns: NonNullable<EnvReport["ddns"]>; 
       <div className="small muted" style={{ marginTop: 6 }}>
         {t("App records follow your IP automatically. To include a record you made by hand, add")} <code>rendimiento-ddns</code> {t("to its comment in Cloudflare.")}
       </div>
-    </div>
-  );
-}
-
-/** One provider (DNS, certificates, storage, ...) with its status and what it is. */
-function ProviderCard({ p, children }: { p: EnvProvider; children?: React.ReactNode }) {
-  return (
-    <div className="card stack">
-      <div className="row between">
-        <span className="small muted" style={{ textTransform: "uppercase", letterSpacing: ".05em" }}>{p.title}</span>
-        <StatusBadge status={p.status} />
-      </div>
-      <strong style={{ fontSize: 16 }}>{p.name}</strong>
-      <div className="small muted">{p.detail}</div>
-      <label className="field">
-        <span>{t("Provider")}</span>
-        <select value={p.options.find((o) => o.id === p.active) ? p.active : p.options[0]?.id} disabled
-          title={t("Switching providers is coming; today the provider is set by the platform's configuration.")}>
-          {p.options.map((o) => (
-            <option key={o.id} value={o.id}>{o.name}{o.available ? "" : ` (${t("coming soon")})`}</option>
-          ))}
-        </select>
-      </label>
-      {children}
     </div>
   );
 }

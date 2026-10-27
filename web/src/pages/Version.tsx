@@ -53,19 +53,20 @@ export function PlatformVersion() {
   };
 
   return (
-    <div className={`card env-hero ${st.available ? "warn" : "ok"}`} style={{ marginTop: 12 }}>
+    <div className={`bando ${st.available ? "warn" : "ok"}`}>
+      <span className="bando-titulo">{t("Bando")}</span>
       <strong>{t("rendimiento")}</strong>
       <span className="small">
         {st.current ? t("runs {release}", { release: describe(st.current) }) : t("runs an image built by hand, not from a release")}
       </span>
-      {!st.available && <span className="badge ok">{t("Up to date")}</span>}
+      {!st.available && <span className="sello puesto">{t("Up to date")} ✓</span>}
       {st.available && st.latest && (
         <>
           <span className="small">{t("{release} is ready", { release: describe(st.latest) })}</span>
           {target ? (
             <span className="badge warn">{t("Updating… the page reloads when the new version answers")}</span>
           ) : (
-            <button className="primary" onClick={() => update(st.latest!.release)}>{t("Update")}</button>
+            <button className="sello" onClick={() => update(st.latest!.release)}>{t("Update")}</button>
           )}
         </>
       )}

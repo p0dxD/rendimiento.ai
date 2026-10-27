@@ -65,12 +65,13 @@ Within each tab, services are grouped by what they do: Databases, Caches & queue
 
 ## Environment
 
-Everything rendimiento depends on, checked live:
+Everything rendimiento depends on, checked live, drawn as a town of Cotija:
 
-- **Providers**: cluster, DNS (with the dynamic-DNS status and an *Update now* button), source (GitHub) and registry, each with the provider in use.
-- **Requirements**: grouped checks (cluster, networking, TLS, build, integrations), each OK, *Attention*, *Missing* or *Error* with details and a **fix** when something is wrong. For example: the ingress controller, cert-manager and its issuer, storage classes, the BuildKit pool (how many daemons are ready), the registry, the build namespace's isolation, the GitHub App.
-- **Nodes**: CPU and memory use against capacity, conditions, roles.
-- **Problems in the cluster**: failing pods and certificates anywhere.
+- **The bando**: the version of rendimiento that runs and, when a newer one is ready, the **Update** stamp.
+- **The street**: each node is a house (the control plane is the parroquia, with its two towers). Lit windows are how busy its processor is, the red skirting rises with its memory, and a note on the door says something is wrong. Tap a house for its CPU, memory, conditions and roles.
+- **The signs**: the providers (cluster, DNS, source, registry) and a few requirements (email, storage, the database) hang over the square. A sign opens its *ventanilla*: the provider in use and the ones coming, and for DNS the public IP, when it last changed and an **Update now** button; for email, **Send test email**; and the details and **fix** when something is wrong.
+- **Notices in the square**: a cork board with every requirement that needs attention and every failing pod or certificate.
+- **What the town needs**: the grouped checks (cluster, networking, TLS, build, integrations), each OK, *Attention*, *Missing* or *Error* with details and a **fix** when something is wrong. For example: the ingress controller, cert-manager and its issuer, storage classes, the BuildKit pool (how many daemons are ready), the registry, the build namespace's isolation, the GitHub App.
 
 ## Setup
 

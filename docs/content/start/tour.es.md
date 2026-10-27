@@ -65,12 +65,13 @@ Dentro de cada pestaña, los servicios se agrupan por lo que hacen: Bases de dat
 
 ## Entorno {#environment}
 
-Todo aquello de lo que depende rendimiento, comprobado en vivo:
+Todo aquello de lo que depende rendimiento, comprobado en vivo y dibujado como un pueblo de Cotija:
 
-- **Proveedores**: clúster, DNS (con el estado del DNS dinámico y un botón *Actualizar ahora*), código fuente (GitHub) y registro, cada uno con el proveedor en uso.
-- **Requisitos**: comprobaciones agrupadas (clúster, red, TLS, construcción, integraciones), cada una *Correcto*, *Atención*, *Ausente* o *Error*, con detalles y una **solución** cuando algo está mal. Por ejemplo: el controlador de entrada, cert-manager y su emisor, las clases de almacenamiento, el grupo de BuildKit (cuántos demonios están listos), el registro, el aislamiento del espacio de nombres de construcción y la aplicación de GitHub.
-- **Nodos**: uso de CPU y memoria frente a su capacidad, condiciones y roles.
-- **Problemas en el clúster**: pods y certificados con fallas en cualquier parte.
+- **El bando**: la versión de rendimiento que corre y, cuando hay una más nueva lista, el sello **Actualizar**.
+- **La calle**: cada nodo es una casa (el plano de control es la parroquia, con sus dos torres). Las ventanas encendidas dicen qué tan ocupado está su procesador, el guardapolvo rojo sube con su memoria y un papelito en la puerta avisa que algo anda mal. Toque una casa para ver su CPU, su memoria, sus condiciones y sus roles.
+- **Los letreros**: los proveedores (clúster, DNS, código fuente, registro) y algunos requisitos (correo, almacenamiento, la base de datos) cuelgan sobre la plaza. Un letrero abre su *ventanilla*: el proveedor en uso y los que vienen; para el DNS, la IP pública, cuándo cambió por última vez y un botón *Actualizar ahora*; para el correo, *Enviar un correo de prueba*; y los detalles y la **solución** cuando algo está mal.
+- **Avisos en la plaza**: un tablero de corcho con cada requisito que pide atención y cada pod o certificado con fallas.
+- **Lo que el pueblo necesita**: las comprobaciones agrupadas (clúster, red, TLS, construcción, integraciones), cada una *Correcto*, *Atención*, *Ausente* o *Error*, con detalles y una **solución** cuando algo está mal. Por ejemplo: el controlador de entrada, cert-manager y su emisor, las clases de almacenamiento, el grupo de BuildKit (cuántos demonios están listos), el registro, el aislamiento del espacio de nombres de construcción y la aplicación de GitHub.
 
 ## Configuración inicial {#setup}
 
