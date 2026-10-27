@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo, type Release, type ReleaseTask } from "../api";
+import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo, type App, type Release, type ReleaseTask } from "../api";
 import { ErrorBox, PhaseBadge, ResourceTree, RunBadge, Switch, usePoll } from "../components/ui";
-import { ReliabilityTab } from "../components/reliability";
+import { fmtPct, ReliabilityTab } from "../components/reliability";
 import { VisitsTab } from "../components/visits";
 import { CaminosTab } from "../components/caminos-tab";
 import { AppProblems } from "./Problems";
@@ -10,13 +10,13 @@ import { Flor } from "../components/ambiente";
 import { t, tn } from "../i18n";
 
 const tabs = [
-  { id: "", label: "Overview" }, // labels are translated where shown
-  { id: "runs", label: "Runs" },
-  { id: "caminos", label: "Roads" },
-  { id: "releases", label: "Releases" },
-  { id: "reliability", label: "Reliability" },
-  { id: "visits", label: "Visits" },
-  { id: "settings", label: "Settings" },
+  { id: "", label: "Overview", icon: "M4 5h16v14H4zM4 10h16M10 10v9" }, // labels are translated where shown
+  { id: "runs", label: "Runs", icon: "M5 4l14 8-14 8z" },
+  { id: "caminos", label: "Roads", icon: "M6 3v12a3 3 0 0 0 3 3h9M6 9h6a3 3 0 0 1 3 3v6" },
+  { id: "releases", label: "Releases", icon: "M12 3l8 4v10l-8 4-8-4V7zM12 12l8-5M12 12v9M12 12L4 7" },
+  { id: "reliability", label: "Reliability", icon: "M3 12h4l3-8 4 16 3-8h4" },
+  { id: "visits", label: "Visits", icon: "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" },
+  { id: "settings", label: "Settings", icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7 7 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" },
 ];
 
 /**
@@ -31,33 +31,41 @@ export function AppPage() {
   if (error) return <ErrorBox error={error} />;
   if (!app) return <p className="muted">{t("Loading…")}</p>;
 
+  const caida = (app.down?.length ?? 0) > 0 || app.status.phase === "Error" || app.status.phase === "Degraded";
+  const site = (app.status.services ?? []).map((x) => x.url ?? x.lanURL).find((u): u is string => !!u);
   return (
     <>
-      <div className="row between">
-        <div>
-          <div className="row">
-            <Flor estado={(app.down?.length ?? 0) > 0 || app.status.phase === "Error" || app.status.phase === "Degraded" ? "marchita" : "viva"}
-              size={44} label={(app.down?.length ?? 0) > 0 ? t("Withered: {checks}", { checks: app.down!.join(", ") }) : t("Blooming flower")} />
-            <h1>{app.name}</h1>
+      <div className="app-cabeza">
+        <Flor estado={caida ? "marchita" : "viva"} size={64}
+          label={(app.down?.length ?? 0) > 0 ? t("Withered: {checks}", { checks: app.down!.join(", ") }) : caida ? t("Withered flower") : t("Blooming flower")} />
+        <div className="app-titulo">
+          <h1>{app.name}</h1>
+          <div className="row small muted">
             <PhaseBadge status={app.status} />
-          </div>
-          <p className="sub" style={{ marginBottom: 0 }}>
             <a href={`https://github.com/${app.repo}`} target="_blank" rel="noreferrer">{app.repo}</a>
-            {app.status.release ? ` · ${t("release #{n}", { n: app.status.release })}` : ""}
-          </p>
+            {app.status.release ? <span>· {t("release #{n}", { n: app.status.release })}</span> : null}
+          </div>
         </div>
-        <button onClick={() => api.triggerRun(name).then(reload, (e) => alert(e.message))}>{t("Build now")}</button>
+        <div className="row">
+          {site && <a className="btn-link" href={site} target="_blank" rel="noreferrer">{t("Open the site ↗")}</a>}
+          <BuildNow name={name} onDone={reload} />
+        </div>
       </div>
       {app.status.message && app.status.phase !== "Healthy" && (
         <div className={`alert ${app.status.phase === "Error" || app.status.phase === "Degraded" ? "" : "info"}`} style={{ marginTop: 12 }}>{app.status.message}</div>
       )}
       <VerificationBanner name={name} />
       <AppProblems name={name} />
-      <nav className="tabs">
+      <Datos app={app} />
+      <nav className="tabs app-tabs">
         {tabs.map((tb) => (
-          <Link key={tb.id} to={`/apps/${name}${tb.id ? "/" + tb.id : ""}`} className={tab === tb.id ? "active" : ""}>{t(tb.label)}</Link>
+          <Link key={tb.id} to={`/apps/${name}${tb.id ? "/" + tb.id : ""}`} className={tab === tb.id ? "active" : ""} aria-current={tab === tb.id ? "page" : undefined}>
+            <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d={tb.icon} /></svg>
+            {t(tb.label)}
+          </Link>
         ))}
       </nav>
+      <div className="app-vista" key={tab}>
       {tab === "" && <Overview name={name} app={app} />}
       {tab === "runs" && <Runs name={name} />}
       {tab === "caminos" && <CaminosTab name={name} />}
@@ -65,7 +73,99 @@ export function AppPage() {
       {tab === "reliability" && <ReliabilityTab app={app} />}
       {tab === "visits" && <VisitsTab app={app} />}
       {tab === "settings" && <Settings name={name} secrets={appSecretNames(app.spec)} />}
+      </div>
     </>
+  );
+}
+
+/** "Build now", shimmering while the run is being asked for. */
+function BuildNow({ name, onDone }: { name: string; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const go = async () => {
+    setBusy(true);
+    try {
+      await api.triggerRun(name);
+      onDone();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <button className={`primary${busy ? " corre" : ""}`} disabled={busy} onClick={go}>{busy ? t("Starting…") : t("Build now")}</button>;
+}
+
+/** The four facts under the name, each a door to its tab: the last run, the live release, availability and visits. */
+function Datos({ app }: { app: App }) {
+  const base = `/apps/${app.name}`;
+  const { data: rels } = usePoll(() => api.releases(app.name), [app.name], 30000);
+  const { data: vis } = usePoll(() => api.visits(app.name, "24h"), [app.name], 300000);
+  const live = rels?.find((r) => r.number === app.status.release);
+  const run = app.lastRun;
+  const runTone = run?.status === "succeeded" ? "var(--ok)" : run?.status === "failed" ? "var(--bad)" : "var(--warn)";
+  const visitors = vis?.configured && vis.reports.length > 0 ? vis.reports.reduce((n, r) => n + r.current.visitors, 0) : undefined;
+  // The pageviews of every counted host, added up hour by hour, for the little line.
+  const puntos = vis?.reports[0]?.pageviews.map((_, i) => vis.reports.reduce((n, r) => n + (r.pageviews[i]?.n ?? 0), 0)) ?? [];
+  const max = Math.max(1, ...puntos);
+  return (
+    <div className="datos">
+      <Link className="dato" to={`${base}/runs`}>
+        <span>{t("Latest run")}</span>
+        <b style={{ color: runTone }}>{run ? <RunBadge status={run.status} /> : "—"}</b>
+        <small>{run ? `${run.branch} · ${timeAgo(run.createdAt)}` : t("No runs yet")}</small>
+      </Link>
+      <Link className="dato" to={`${base}/releases`}>
+        <span>{t("Live")}</span>
+        <b>{app.status.release ? `#${app.status.release}` : "—"}</b>
+        <small>{live ? `${live.verifyStatus && verifyBadge[live.verifyStatus] ? t(verifyBadge[live.verifyStatus][1]) : ""} · ${timeAgo(live.createdAt)}` : t("No release yet")}</small>
+      </Link>
+      <Link className="dato" to={`${base}/reliability`}>
+        <span>{t("Available, 24 h")}</span>
+        <b>{app.uptime24h !== undefined ? fmtPct(Math.round(app.uptime24h * 100000), 100000) : "—"}</b>
+        <small>{(app.down?.length ?? 0) > 0 ? t("Down: {checks}", { checks: app.down!.join(", ") }) : app.uptime24h !== undefined ? t("Its checks answer") : t("No checks yet")}</small>
+      </Link>
+      <Link className="dato" to={`${base}/visits`}>
+        <span>{t("Visitors, 24 h")}</span>
+        <b>{visitors !== undefined ? visitors.toLocaleString() : "—"}</b>
+        {puntos.length > 1 ? (
+          <svg width="100%" height="22" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true">
+            <polyline points={puntos.map((n, i) => `${(i / (puntos.length - 1)) * 100},${20 - (n / max) * 18}`).join(" ")} fill="none" stroke="var(--cempasuchil)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+          </svg>
+        ) : <small>{vis && !vis.configured ? t("Visits are off") : t("Not counted")}</small>}
+      </Link>
+    </div>
+  );
+}
+
+/** "Lo último": the app's recent runs and releases on one line of time, newest first. */
+function LoUltimo({ name }: { name: string }) {
+  const { data: runs } = usePoll(() => api.runs(name), [name], 15000);
+  const { data: rels } = usePoll(() => api.releases(name), [name], 30000);
+  const hechos = [
+    ...(runs ?? []).slice(0, 6).map((r) => ({
+      at: r.createdAt, key: `r${r.id}`, to: `/apps/${name}/runs/${r.id}`,
+      tone: r.status === "succeeded" ? "var(--ok)" : r.status === "failed" ? "var(--bad)" : "var(--warn)",
+      que: t("Run #{n}", { n: r.id }), detalle: `${r.branch} · ${r.message ?? r.sha.slice(0, 7)}`, badge: <RunBadge status={r.status} />,
+    })),
+    ...(rels ?? []).slice(0, 4).map((r) => ({
+      at: r.createdAt, key: `v${r.id}`, to: `/apps/${name}/releases`,
+      tone: r.rollbackOf ? "var(--warn)" : "var(--grana)",
+      que: r.rollbackOf ? t("Rolled back to #{n}", { n: r.rollbackOf }) : t("Release #{n}", { n: r.number }), detalle: r.sha.slice(0, 7), badge: <VerifyBadge r={r} />,
+    })),
+  ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 6);
+  return (
+    <div className="card stack">
+      <strong>{t("The latest")}</strong>
+      {hechos.length === 0 && <span className="muted small">{t("Nothing yet.")}</span>}
+      <ol className="lo-ultimo">
+        {hechos.map((h, i) => (
+          <li key={h.key} style={{ ["--c" as string]: h.tone, ["--d" as string]: `${i * 60}ms` }}>
+            <Link to={h.to}><strong>{h.que}</strong></Link> {h.badge} <span className="muted small">{timeAgo(h.at)}</span>
+            <div className="small muted">{h.detalle}</div>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -113,23 +213,18 @@ function Overview({ name, app }: { name: string; app: Awaited<ReturnType<typeof 
           );
         })}
       </div>
-      <ProvidedNeeds name={name} app={app} />
-      <DependencyUpdates name={name} />
-      <h2>{t("Resources")}</h2>
-      <ErrorBox error={error} />
-      {tree && <ResourceTree node={tree} />}
-      {app.lastRun && (
-        <>
-          <h2>{t("Latest run")}</h2>
-          <Link to={`/apps/${name}/runs/${app.lastRun.id}`} className="card row">
-            <RunBadge status={app.lastRun.status} />
-            <span className="mono">{app.lastRun.sha.slice(0, 7)}</span>
-            <span>{app.lastRun.branch}</span>
-            <span className="muted small">{app.lastRun.message}</span>
-            <span className="muted small">{timeAgo(app.lastRun.createdAt)}</span>
-          </Link>
-        </>
-      )}
+      <div className="resumen-dos">
+        <LoUltimo name={name} />
+        <div className="stack">
+          <ProvidedNeeds name={name} app={app} />
+          <DependencyUpdates name={name} />
+        </div>
+      </div>
+      <details className="card">
+        <summary><strong>{t("What runs in the cluster")}</strong></summary>
+        <ErrorBox error={error} />
+        {tree && <ResourceTree node={tree} />}
+      </details>
     </div>
   );
 }
