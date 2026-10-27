@@ -244,6 +244,21 @@ pre.file { background: var(--surface-2); border-radius: 8px; padding: 12px; over
 .lang { width: 40px; height: 40px; border-radius: 9px; display: grid; place-items: center; font-weight: 700; font-size: 13px; background: var(--surface-2); flex: none; }
 ul.reasons { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
 
+/* New app on one screen: the services as rows to fill, more options folded away. */
+.nueva-servicios{border:none;margin:0;padding:0;min-width:0}
+.nueva-fila{display:grid;grid-template-columns:minmax(80px,.7fr) minmax(0,2fr) minmax(0,1.2fr) 80px;gap:10px;align-items:center}
+.nueva-cabeza{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding-bottom:4px}
+.nueva-servicio{padding:10px 0;border-top:1px solid var(--border);animation:vista-entra .35s ease both;animation-delay:var(--d)}
+.nueva-servicio strong{overflow-wrap:anywhere}
+.nueva-necesita{margin-top:8px;gap:8px}
+.nueva-mas>summary{cursor:pointer}
+.nueva-pie{display:flex;justify-content:flex-end;padding-top:14px;border-top:1px solid var(--border)}
+.ld-item.corre{background:linear-gradient(90deg,var(--border) 25%,var(--card) 50%,var(--border) 75%);background-size:200% 100%;animation:corre-brillo 1s linear infinite}
+@keyframes vista-entra{from{opacity:0;transform:translateY(8px)}}
+@keyframes corre-brillo{to{background-position:-200% 0}}
+@media (max-width:640px){.nueva-fila{grid-template-columns:1fr 1fr}.nueva-cabeza{display:none}.nueva-fila strong,.nueva-fila .domain-input{grid-column:1/-1}}
+@media (prefers-reduced-motion: reduce){.nueva-servicio,.ld-item.corre{animation:none}}
+
 /* Resource tree */
 .tree { list-style: none; margin: 0; padding: 0; }
 .tree .tree { padding-left: 22px; border-left: 1px dashed var(--border); margin-left: 9px; }
