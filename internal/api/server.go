@@ -1683,7 +1683,9 @@ func (s *Server) sse(w http.ResponseWriter, r *http.Request, topic string) {
 
 // ui serves the web UI built into the binary. Paths that are not files get
 // index.html, so the browser's router can show them; built assets (whose
-// names change with their content) are cached for a year.
+// names change with their content) are cached for a year. index.html is
+// asked about again on every visit (no-cache), so a new release shows at
+// once instead of the page the browser kept, which names the old assets.
 func (s *Server) ui() http.Handler {
 	if s.UI == nil {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1698,9 +1700,10 @@ func (s *Server) ui() http.Handler {
 		}
 		// Single-page app: unknown paths get index.html.
 		p := strings.TrimPrefix(r.URL.Path, "/")
-		if _, err := fs.Stat(s.UI, p); p == "" || err != nil {
+		if _, err := fs.Stat(s.UI, p); p == "" || p == "index.html" || err != nil {
 			r = r.Clone(r.Context())
 			r.URL.Path = "/"
+			w.Header().Set("Cache-Control", "no-cache")
 		} else if strings.HasPrefix(p, "assets/") {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		}

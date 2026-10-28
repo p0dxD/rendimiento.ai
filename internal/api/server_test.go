@@ -300,8 +300,11 @@ func TestUniverse(t *testing.T) {
 
 func TestUIFallback(t *testing.T) {
 	e := newEnv(t, true)
-	if _, body := e.do(t, "GET", "/apps/shop/runs/3", "", nil, nil); !strings.Contains(body, "<html>ui</html>") {
-		t.Fatalf("SPA fallback: %s", body)
+	if r, body := e.do(t, "GET", "/apps/shop/runs/3", "", nil, nil); !strings.Contains(body, "<html>ui</html>") || r.Header.Get("Cache-Control") != "no-cache" {
+		t.Fatalf("SPA fallback: %s (Cache-Control %q: the page must be asked for again, so a new release shows)", body, r.Header.Get("Cache-Control"))
+	}
+	if r, _ := e.do(t, "GET", "/", "", nil, nil); r.Header.Get("Cache-Control") != "no-cache" {
+		t.Fatalf("index: Cache-Control %q", r.Header.Get("Cache-Control"))
 	}
 	if r, _ := e.do(t, "GET", "/assets/app.js", "", nil, nil); !strings.Contains(r.Header.Get("Cache-Control"), "immutable") {
 		t.Fatal("assets should be cached")
