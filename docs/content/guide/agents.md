@@ -45,7 +45,7 @@ An **encargo** is work with an owner and a life cycle: **pending → taken → w
 
 - **Asking.** On **Ruta → Encargos**, write what to do, the detail and the app. On a failed run, **Ask an agent** makes one with the failed steps already in it. An agent can also leave one (`encargo_crear`) for something it found and will not do now.
 - **Taking.** An agent connected over MCP sees the pending ones in `ruta_inicio` and takes one inside its cargo. Only one agent can have it.
-- **Waiting.** After starting a run, the agent calls `encargo_esperar`: the call returns when the run ends, woken by the platform's own events (up to 15 minutes a call; it calls again to keep waiting). The encargo shows *waiting on run #N* meanwhile. No agent asks every 30 seconds.
+- **Waiting.** After starting a run, the agent calls `encargo_esperar`: the call returns when the run ends, woken by the platform's own events (up to 50 seconds a call, under the minute MCP clients wait for a tool; it calls again to keep waiting). The encargo shows *waiting on run #N* meanwhile. No agent asks every 30 seconds.
 - **Handing over.** `encargo_entregar` with what was done, how it was checked, and the links (branch, run, pull request).
 - **Review.** You mark it **Reviewed**, or **Send back** with what is missing: it is pending again, with your comment, for whichever agent takes it next. An agent that cannot finish lets it go (`encargo_soltar`) with the reason.
 
