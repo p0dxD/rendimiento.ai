@@ -70,6 +70,7 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 | GET | `/api/encargos/{id}` | un encargo con su historia |
 | POST | `/api/encargos/{id}/review` | aceptar un encargo entregado (`accept: true`) o devolverlo con un `comment` |
 | POST | `/api/encargos/{id}/cancel` | descartar un encargo |
+| POST | `/api/encargos/{id}/estimate` | volver a calificar un encargo (el estimador lo hace en unos 30 segundos) |
 | POST | `/api/encargos/{id}/route` | quién hace un encargo pendiente: `route` `platform` (la IA de la plataforma) o `local` (su propio agente) |
 | POST | `/api/notifications/test` | mandar ahora un correo de aviso de muestra (el botón de la página Entorno) |
 | POST | `/api/dns/sync` | volver a crear ahora los registros DNS de cada aplicación |

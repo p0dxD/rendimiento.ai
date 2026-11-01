@@ -146,6 +146,16 @@ func (s *Server) routeEncargo(w http.ResponseWriter, r *http.Request, login stri
 	s.encargoAnswer(w, e, err)
 }
 
+// reestimateEncargo asks the estimator to rate an encargo again.
+func (s *Server) reestimateEncargo(w http.ResponseWriter, r *http.Request, login string) {
+	id, ok := s.encargoID(w, r)
+	if !ok {
+		return
+	}
+	e, err := s.Store.ReestimateEncargo(r.Context(), id, login)
+	s.encargoAnswer(w, e, err)
+}
+
 // cancelEncargo cancels an encargo that is not finished.
 func (s *Server) cancelEncargo(w http.ResponseWriter, r *http.Request, login string) {
 	id, ok := s.encargoID(w, r)

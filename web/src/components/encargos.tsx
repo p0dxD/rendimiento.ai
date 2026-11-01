@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api, dollars, timeAgo, type Encargo, type EncargoStatus } from "../api";
 import { ErrorBox, usePoll } from "./ui";
-import { t } from "../i18n";
+import { t, tn } from "../i18n";
 import { TextoConFormato } from "./texto";
 
 const statusLabel: Record<EncargoStatus, string> = {
@@ -13,30 +13,79 @@ const statusClass: Record<EncargoStatus, string> = {
 };
 const eventLabel: Record<string, string> = {
   created: "created", taken: "taken", waiting: "waiting", resumed: "done waiting", delivered: "delivered",
-  reviewed: "reviewed", routed: "routed", returned: "sent back", released: "let go", cancelled: "dropped",
+  reviewed: "reviewed", routed: "routed", estimate: "asked to estimate it again", returned: "sent back", released: "let go", cancelled: "dropped",
 };
 
 const routeLabel = { platform: "For the platform's AI", local: "For your own agent" };
 
+/** A difficulty's color, from green (1, cheap) to red (10, expensive), in either theme. */
+const difficultyColor = (d: number) => `color-mix(in oklab, var(--bad) ${Math.round(((d - 1) / 9) * 100)}%, var(--ok))`;
+
+/** A difficulty as a chip in its color. */
+function DifficultyChip({ d }: { d: number }) {
+  return <span className="dificultad" style={{ ["--c" as string]: difficultyColor(d) }}>{d}/10</span>;
+}
+
 /**
- * What the estimator said of a pending encargo (how hard, what the
- * platform's AI would spend) and who should do it, with the choice to
- * change it: past the amount set on the AI page, it is for the person's own
- * agent, paid by the month rather than by the call.
+ * What the estimator said of an encargo (how hard, what the platform's AI
+ * would spend) and, while it is pending, who should do it, with the choice
+ * to change it: past the amount set on the AI page, it is for the person's
+ * own agent, paid by the month rather than by the call.
  */
 function Estimate({ e, act }: { e: Encargo; act: (p: Promise<unknown>) => void }) {
-  if (e.status !== "pending") return null;
+  if (e.status === "cancelled") return null;
+  const again = <button className="link small" onClick={() => act(api.reestimateEncargo(e.id))}>{t("Estimate again")}</button>;
   if (!e.difficulty) {
-    return <p className="small muted encargo-estimate">{e.estimateReason ? t("No estimate: {why}", { why: e.estimateReason }) : t("Estimating…")}</p>;
+    return <p className="small muted encargo-estimate">{e.estimateReason ? <>{t("No estimate: {why}", { why: e.estimateReason })} {again}</> : t("Estimating…")}</p>;
   }
+  const pending = e.status === "pending";
   return (
     <div className="small encargo-estimate">
-      <span className={`badge ${e.route === "platform" ? "ok" : ""}`}>{t(routeLabel[e.route ?? "local"])}</span>{" "}
-      <span>{t("difficulty {d}/10 · about {cost} with the platform's AI", { d: e.difficulty, cost: dollars(e.estimateMicros ?? 0) })}</span>
-      {e.estimateReason && <span className="muted"> · {e.estimateReason}</span>}{" "}
-      {e.route === "platform"
+      <DifficultyChip d={e.difficulty} />
+      {pending && <span className={`badge ${e.route === "platform" ? "ok" : ""}`}>{t(routeLabel[e.route ?? "local"])}</span>}
+      <span>{t("about {cost} with the platform's AI", { cost: dollars(e.estimateMicros ?? 0) })}</span>
+      {e.estimateReason && <span className="muted"> · {e.estimateReason}</span>}
+      {pending && (e.route === "platform"
         ? <button className="link small" onClick={() => act(api.routeEncargo(e.id, "local"))}>{t("Leave it to my agent")}</button>
-        : <button className="link small" onClick={() => act(api.routeEncargo(e.id, "platform"))}>{t("Do it with AI anyway")}</button>}
+        : <button className="link small" onClick={() => act(api.routeEncargo(e.id, "platform"))}>{t("Do it with AI anyway")}</button>)}
+      {again}
+    </div>
+  );
+}
+
+/**
+ * What the encargos would cost with the platform's AI: the open ones (all,
+ * and only the easy ones, under the amount), and what the done ones were
+ * worth, with the open ones by difficulty from green to red.
+ */
+function CostSummary({ list }: { list: Encargo[] }) {
+  const estimated = list.filter((e) => e.difficulty && e.status !== "cancelled");
+  if (!estimated.length) return null;
+  const open = estimated.filter((e) => e.status !== "delivered" && e.status !== "reviewed");
+  const easy = open.filter((e) => e.route === "platform");
+  const done = estimated.filter((e) => e.status === "delivered" || e.status === "reviewed");
+  const sum = (l: Encargo[]) => dollars(l.reduce((n, e) => n + (e.estimateMicros ?? 0), 0));
+  const waiting = list.filter((e) => !e.difficulty && e.status !== "cancelled").length;
+  const byDifficulty = Array.from({ length: 10 }, (_, i) => open.filter((e) => e.difficulty === i + 1));
+  return (
+    <div className="card stack encargo-costos">
+      <strong>{t("What the encargos would cost with the platform's AI")}</strong>
+      <div className="encargo-cifras">
+        <div><span className="cifra">{sum(open)}</span><span className="small muted">{tn(open.length, "to do the open one", "to do the {n} open ones")}</span></div>
+        <div><span className="cifra">{sum(easy)}</span><span className="small muted">{tn(easy.length, "to do only the easy one (under your amount)", "to do only the {n} easy ones (under your amount)")}</span></div>
+        <div><span className="cifra">{sum(done)}</span><span className="small muted">{tn(done.length, "what the done one was worth; your own agent did it, paid by the month", "what the {n} done ones were worth; your own agent did them, paid by the month")}</span></div>
+      </div>
+      {open.length > 0 && (
+        <div className="stack" style={{ gap: 4 }}>
+          <div className="dificultad-barra" role="img" aria-label={t("Open encargos by difficulty")}>
+            {byDifficulty.map((l, i) => l.length > 0 && (
+              <span key={i} style={{ flexGrow: l.length, background: difficultyColor(i + 1) }} title={t("{n} of difficulty {d}", { n: l.length, d: i + 1 })}>{i + 1}</span>
+            ))}
+          </div>
+          <div className="row between small muted"><span>{t("cheap")}</span><span>{t("expensive")}</span></div>
+        </div>
+      )}
+      {waiting > 0 && <span className="small muted">{tn(waiting, "{n} still to estimate", "{n} still to estimate")}</span>}
     </div>
   );
 }
@@ -135,11 +184,14 @@ function EncargoCard({ e, onChange }: { e: Encargo; onChange: () => void }) {
  */
 export function Encargos() {
   const [all, setAll] = useState(false);
-  const { data, error, reload } = usePoll(() => api.encargos(all), [all], 15000);
+  const { data, error, reload: reloadList } = usePoll(() => api.encargos(all), [all], 15000);
+  const { data: todos, reload: reloadAll } = usePoll(() => api.encargos(true), [], 15000);
+  const reload = () => { reloadList(); reloadAll(); };
   return (
     <>
       <p className="sub">{t("Work for agents. An agent connected over MCP sees the pending ones when it starts, takes one (nobody else can then), waits on its runs without asking over and over, and hands it over with what it did. You review it, or send it back with what is missing.")}</p>
       <NewEncargo onCreated={reload} />
+      {todos && <CostSummary list={todos} />}
       <div className="row between" style={{ marginTop: 16 }}>
         <h2 style={{ margin: 0 }}>{all ? t("All encargos") : t("Open encargos")}</h2>
         <label className="small"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> {t("Show reviewed and dropped")}</label>

@@ -206,6 +206,7 @@ func (s *Server) Handler() http.Handler {
 	auth(store.MemberCollaborator, "POST /api/encargos/{id}/review", s.reviewEncargo)
 	auth(store.MemberCollaborator, "POST /api/encargos/{id}/cancel", s.cancelEncargo)
 	auth(store.MemberCollaborator, "POST /api/encargos/{id}/route", s.routeEncargo)
+	auth(store.MemberCollaborator, "POST /api/encargos/{id}/estimate", s.reestimateEncargo)
 	auth(store.MemberAdmin, "GET /api/agent-keys", s.listAgentKeys)
 	auth(store.MemberAdmin, "POST /api/agent-keys", s.createAgentKey)
 	auth(store.MemberAdmin, "DELETE /api/agent-keys/{id}", s.revokeAgentKey)

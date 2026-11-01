@@ -45,7 +45,7 @@ var rutas = map[string]string{store.RoutePlatform: "la IA de la plataforma", sto
 
 var sucesos = map[string]string{
 	"created": "creado", "taken": "tomado", "waiting": "esperando", "resumed": "terminó la espera", "delivered": "entregado",
-	"reviewed": "revisado", "routed": "encaminado", "returned": "devuelto", "released": "soltado", "cancelled": "cancelado",
+	"reviewed": "revisado", "routed": "encaminado", "estimate": "pidió estimarlo otra vez", "returned": "devuelto", "released": "soltado", "cancelled": "cancelado",
 }
 
 // EncargoOut is an encargo as agents see it.

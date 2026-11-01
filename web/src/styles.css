@@ -1178,6 +1178,12 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 .encargo-who { margin: 0; }
 .encargo-result { border-left: 3px solid var(--border); padding-left: 10px; }
 .encargo-estimate { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; }
+.dificultad { font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 22%, transparent); }
+.encargo-cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.encargo-cifras > div { display: flex; flex-direction: column; gap: 2px; }
+.encargo-cifras .cifra { font-size: 1.5rem; font-weight: 700; }
+.dificultad-barra { display: flex; height: 22px; border-radius: 6px; overflow: hidden; gap: 2px; }
+.dificultad-barra span { display: flex; align-items: center; justify-content: center; min-width: 22px; font-size: .75rem; font-weight: 600; color: #fff; text-shadow: 0 0 2px rgb(0 0 0 / .6); }
 .encargo-result p { margin: 0 0 4px; white-space: pre-wrap; }
 .encargo-log { border-top: 1px solid var(--border); padding-top: 6px; display: grid; gap: 3px; }
 
