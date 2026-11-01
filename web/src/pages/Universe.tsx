@@ -497,6 +497,9 @@ function Sankey({ s, world, goApp }: { s: SystemInfo; world: World; goApp: (id: 
     return `M${x1} ${y1}C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}L${x2} ${y2 + th}C${mx} ${y2 + th} ${mx} ${y1 + th} ${x1} ${y1 + th}Z`;
   };
   const name = (id: string) => (id === "internet" ? t("Internet") : id);
+  // About 90 px are left for a label on each side: a long name is cut, and
+  // shown whole on hover.
+  const short = (s: string) => (s.length > 14 ? s.slice(0, 13) + "…" : s);
   const side = (list: typeof ins, left: boolean) => {
     const step = (H - 12) / Math.max(1, list.length);
     let y = 6, cy = cy0 + (cH - (left ? cIn : cOut)) / 2;
@@ -509,7 +512,8 @@ function Sankey({ s, world, goApp }: { s: SystemInfo; world: World; goApp: (id: 
           <path d={left ? band(xL + 6, ny, xC, c, th) : band(xC + cw, c, xR, ny, th)} />
           <rect x={left ? xL : xR} y={ny} width={6} height={th} rx={2} />
           <text x={left ? xL - 6 : xR + 12} y={ny + th / 2} textAnchor={left ? "end" : "start"} dominantBaseline="middle">
-            {name(x.id)}
+            <title>{name(x.id)}</title>
+            {short(name(x.id))}
             <tspan x={left ? xL - 6 : xR + 12} dy="12" className="num">{x.perMinute ? rate(x.perMinute) : t("not measured")}</tspan>
           </text>
         </g>

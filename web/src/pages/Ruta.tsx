@@ -7,6 +7,7 @@ import { api, timeAgo, type AgentKey, type AgentRole, type CreatedAgentKey, type
 import { Encargos } from "../components/encargos";
 import { ErrorBox, usePoll } from "../components/ui";
 import { t, tn } from "../i18n";
+import { TextoConFormato } from "../components/texto";
 
 type Tab = "ruta" | "encargos" | "vivido" | "cargos" | "llaves";
 const tabIds: Tab[] = ["ruta", "encargos", "vivido", "cargos", "llaves"];
@@ -182,7 +183,7 @@ function Pagina({ e, onBack, onChange }: { e: RutaEntry; onBack: () => void; onC
       {editing ? <EntryForm initial={e} kind={e.kind} onDone={() => { setEditing(false); onChange(); }} onCancel={() => setEditing(false)} /> : (
         <>
           <h2 className="mano pagina-titulo">{e.title}</h2>
-          {e.body && <div className="renglon-texto ruta-body">{e.body}</div>}
+          {e.body && <TextoConFormato text={e.body} className="renglon-texto ruta-body" />}
           <div className="renglon-texto"><Tags tags={e.tags} /> <Author e={e} /></div>
           <div className="row">
             <button onClick={() => setEditing(true)}>{t("Edit")}</button>
@@ -247,8 +248,8 @@ function Cargos() {
                 <span className={`badge ${c.endedAt ? "ok" : "warn"}`}>{c.endedAt ? t("handed over") : t("in progress")}</span>
               </div>
               <span className="small muted">{c.keyName} · {timeAgo(c.startedAt)}{c.endedAt ? ` → ${timeAgo(c.endedAt)}` : ""}</span>
-              {c.entrega && <div><div className="small muted">{t("Handover")}</div><div className="ruta-body">{c.entrega}</div></div>}
-              {c.pendientes && <div><div className="small muted">{t("Left to do")}</div><div className="ruta-body">{c.pendientes}</div></div>}
+              {c.entrega && <div><div className="small muted">{t("Handover")}</div><TextoConFormato text={c.entrega} className="ruta-body" /></div>}
+              {c.pendientes && <div><div className="small muted">{t("Left to do")}</div><TextoConFormato text={c.pendientes} className="ruta-body" /></div>}
             </div>
           </li>
         ))}
