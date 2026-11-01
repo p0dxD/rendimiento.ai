@@ -114,7 +114,7 @@ flowchart LR
     h2 --> win["gana el mayor → buildkitd-2"]
 ```
 
-Cada imagen tiene un **favorito estable**, así que siempre encuentra ahí su caché caliente, mientras que imágenes distintas se reparten por el grupo y se construyen en paralelo. Si un demonio desaparece, solo se mueven las imágenes que lo preferían; todo lo demás se queda donde estaba. Si ningún demonio está listo, las construcciones usan `BUILDKIT_ADDR`. El registro de la construcción dice qué demonio construyó cada imagen.
+Cada imagen tiene un **favorito estable**, así que siempre encuentra ahí su caché caliente, mientras que imágenes distintas se reparten por el grupo y se construyen en paralelo. Si un demonio desaparece, solo se mueven las imágenes que lo preferían; todo lo demás se queda donde estaba. Si ningún demonio está listo, las construcciones usan `BUILDKIT_ADDR`. Los demonios en nodos que no corren ejecuciones (`BUILD_EXCLUDE_NODES`, o apagados en la [Capacidad](../environment/deploy.md#capacity) de la página Entorno) quedan fuera mientras haya otro listo, así que apagar un nodo lento u ocupado manda sus imágenes a otro lado. El registro de la construcción dice qué demonio construyó cada imagen.
 
 ```go
 --8<-- "internal/pipeline/kube.go:buildkitFor"
