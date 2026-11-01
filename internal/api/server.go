@@ -33,6 +33,7 @@ import (
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/addon"
+	"github.com/p0dxD/rendimiento.ai/internal/agentes"
 	"github.com/p0dxD/rendimiento.ai/internal/analytics"
 	"github.com/p0dxD/rendimiento.ai/internal/catalog"
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
@@ -90,8 +91,12 @@ type Server struct {
 	AllowedUsers []string // the first administrators, when there are no members yet
 	// IA is the AI gateway (nil: off), and IAKeys where organizations'
 	// own keys are kept.
-	IA          *ia.Gateway
-	IAKeys      IAKeys
+	IA     *ia.Gateway
+	IAKeys IAKeys
+	// Translator puts diagnoses in the reader's language (nil: shown as
+	// written), and AgentLang is the language agents write in.
+	Translator  *agentes.Translator
+	AgentLang   string
 	routes      []route // authenticated routes and their roles (see Handler)
 	SetupToken  string  // guards the one-time GitHub App setup
 	AppName     string  // name for the GitHub App, e.g. "rendimiento-joserod"

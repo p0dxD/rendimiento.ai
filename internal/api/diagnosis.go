@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,7 +14,9 @@ import (
 )
 
 // getDiagnosis is a failed run's diagnosis by the diagnostician agent:
-// why it failed and how to fix it (404 when there is none yet).
+// why it failed and how to fix it (404 when there is none yet). With
+// ?lang= (es, en) it comes in the reader's language: translated by the AI
+// the first time someone reads it in that language, and kept.
 func (s *Server) getDiagnosis(w http.ResponseWriter, r *http.Request, _ string) {
 	id, ok := s.runID(w, r)
 	if !ok {
@@ -28,7 +31,48 @@ func (s *Server) getDiagnosis(w http.ResponseWriter, r *http.Request, _ string) 
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	if want := r.URL.Query().Get("lang"); want != "" && d.Status == store.DiagnosisDone && d.Text != "" {
+		s.translateDiagnosis(r, &d, want)
+	}
 	writeJSON(w, d)
+}
+
+// translateDiagnosis puts d in the language want: from its kept
+// translations, or translated now (and kept). When that fails, the reader
+// gets the original.
+func (s *Server) translateDiagnosis(r *http.Request, d *store.Diagnosis, want string) {
+	from := d.Lang
+	if from == "" {
+		from = s.AgentLang // written before diagnoses kept their language
+	}
+	if from == "" || want == from {
+		return
+	}
+	text, ok := d.Translations[want]
+	if !ok {
+		if s.Translator == nil {
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+		defer cancel()
+		run, err := s.Store.GetRun(ctx, d.RunID)
+		if err != nil {
+			return
+		}
+		app, err := s.Store.GetAppByID(ctx, run.AppID)
+		if err != nil {
+			return
+		}
+		key := fmt.Sprintf("diagnosis/%d/%d", d.RunID, d.UpdatedAt.UnixNano())
+		if text, err = s.Translator.Translate(ctx, app.OrgID, key, d.Text, from, want); err != nil {
+			s.Log.Warn("could not translate a diagnosis", "run", d.RunID, "to", want, "err", err)
+			return
+		}
+		if err := s.Store.SaveTranslation(context.WithoutCancel(ctx), d.RunID, d.Text, want, text); err != nil {
+			s.Log.Warn("could not keep a diagnosis's translation", "run", d.RunID, "err", err)
+		}
+	}
+	d.Text, d.Lang, d.TranslatedFrom = text, want, from
 }
 
 // askDiagnosis asks the diagnostician agent to explain a failed run (again).

@@ -419,6 +419,9 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		PlatformKey: os.Getenv("AI_PLATFORM_KEY"), PlatformModel: env("AI_PLATFORM_MODEL", ia.DefaultAnthropicModel),
 		PlatformCapMicros: int64(math.Round(aiCap * 1e6))}
 	srv.IAKeys = aiKeys
+	// Diagnoses are written in NOTIFY_LANG and translated for readers of the
+	// other language, once, by the same gateway.
+	srv.Translator, srv.AgentLang = &agentes.Translator{Model: srv.IA}, env("NOTIFY_LANG", "en")
 	// La Ruta's MCP server, with the Mercado's tools when it is on (an unset
 	// *Mercado must stay a nil interface, or the tools would appear broken).
 	rutaSrv := &ruta.Server{Store: st, Log: log.With("component", "ruta")}

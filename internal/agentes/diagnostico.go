@@ -125,7 +125,7 @@ func (d *Diagnostician) Diagnose(ctx context.Context, runID int64) error {
 		return err
 	}
 	prev, _ := d.Store.GetDiagnosis(ctx, runID)
-	out := store.Diagnosis{RunID: runID, AskedBy: prev.AskedBy}
+	out := store.Diagnosis{RunID: runID, AskedBy: prev.AskedBy, Lang: d.Lang}
 	if run.Status != store.RunFailed {
 		out.Status, out.Note = store.DiagnosisFailed, i18n.M("the run did not fail")
 		return d.Store.SaveDiagnosis(ctx, out)
