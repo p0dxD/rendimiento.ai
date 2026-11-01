@@ -750,15 +750,66 @@ func (k *KubeExecutor) waitStarted(ctx context.Context, pod, container string) e
 }
 
 // streamLogs copies a container's log to w as it is written, until the
-// container ends.
+// container ends. Some nodes' kubelets keep the stream open after the
+// container ended (seen on colorpi, for minutes): once the container is
+// done, the stream gets streamGrace to finish, and then it is closed.
 func (k *KubeExecutor) streamLogs(ctx context.Context, pod, container string, w io.Writer) error {
-	rc, err := k.Client.CoreV1().Pods(k.Namespace).GetLogs(pod, &corev1.PodLogOptions{Container: container, Follow: true}).Stream(ctx)
+	sctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	rc, err := k.Client.CoreV1().Pods(k.Namespace).GetLogs(pod, &corev1.PodLogOptions{Container: container, Follow: true}).Stream(sctx)
 	if err != nil {
 		return err
 	}
 	defer rc.Close()
-	_, err = io.Copy(w, rc)
-	return err
+	done := make(chan error, 1)
+	go func() {
+		_, err := io.Copy(w, rc)
+		done <- err
+	}()
+	tick := time.NewTicker(streamPoll)
+	defer tick.Stop()
+	for {
+		select {
+		case err := <-done:
+			return err
+		case <-tick.C:
+			if !k.containerEnded(ctx, pod, container) {
+				continue
+			}
+			select {
+			case err := <-done:
+				return err
+			case <-time.After(streamGrace):
+				cancel()
+				_ = rc.Close()
+				<-done
+				fmt.Fprintf(w, "rendimiento: the log stream stayed open after the container ended; went on\n")
+				return nil
+			}
+		}
+	}
+}
+
+// How often a log stream checks that its container still runs, and how
+// long it waits for the rest of the log once it ended.
+var (
+	streamPoll  = 5 * time.Second
+	streamGrace = 10 * time.Second
+)
+
+// containerEnded says whether a pod's container (or init container) has
+// terminated.
+func (k *KubeExecutor) containerEnded(ctx context.Context, pod, container string) bool {
+	p, err := k.Client.CoreV1().Pods(k.Namespace).Get(ctx, pod, metav1.GetOptions{})
+	if err != nil {
+		return apierrors.IsNotFound(err)
+	}
+	for _, cs := range append(append([]corev1.ContainerStatus{}, p.Status.InitContainerStatuses...), p.Status.ContainerStatuses...) {
+		if cs.Name == container {
+			return cs.State.Terminated != nil
+		}
+	}
+	return false
 }
 
 // waitDone polls the pod every second until it succeeds or fails, or the
