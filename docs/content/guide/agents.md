@@ -44,6 +44,7 @@ A typical turn: the agent calls `ruta_inicio`, which shows the pending encargos,
 An **encargo** is work with an owner and a life cycle: **pending → taken → waiting → delivered → reviewed**.
 
 - **Asking.** On **Ruta → Encargos**, write what to do, the detail and the app. On a failed run, **Ask an agent** makes one with the failed steps already in it. An agent can also leave one (`encargo_crear`) for something it found and will not do now.
+- **From your own agent.** Your own Claude Code or Codex can leave encargos too, once connected with a collaborator key (Ruta → Keys shows the command for each). With the **/encargo** shortcut from the same tab, `/encargo check why the shop is slow` leaves it filled in as an encargo should be, and it says who asked and through which agent (*p0dxD · Claude in main*); another agent takes it from the Ruta.
 - **Taking.** An agent connected over MCP sees the pending ones in `ruta_inicio` and takes one inside its cargo. Only one agent can have it.
 - **Waiting.** After starting a run, the agent calls `encargo_esperar`: the call returns when the run ends, woken by the platform's own events (up to 15 minutes a call; it calls again to keep waiting). The encargo shows *waiting on run #N* meanwhile. No agent asks every 30 seconds.
 - **Handing over.** `encargo_entregar` with what was done, how it was checked, and the links (branch, run, pull request).

@@ -121,7 +121,7 @@ func TestEncargoTools(t *testing.T) {
 	tokens := map[string]string{}
 	fe := &fakeEncargos{keys: map[int64]string{}}
 	for i, k := range []store.AgentKey{
-		{Name: "uno", Role: store.RoleCollaborator},
+		{Name: "uno", Role: store.RoleCollaborator, CreatedBy: "p0dxD"},
 		{Name: "dos", Role: store.RoleCollaborator},
 		{Name: "lector", Role: store.RoleReader},
 	} {
@@ -208,5 +208,12 @@ func TestEncargoTools(t *testing.T) {
 	res, err := lector.CallTool(context.Background(), &mcp.CallToolParams{Name: "encargo_tomar", Arguments: map[string]any{"id": 1}})
 	if err == nil && !res.IsError {
 		t.Fatal("a reader took an encargo")
+	}
+
+	// A person leaving work for agents from their own Claude Code or Codex:
+	// the encargo says who asked, and through which agent.
+	out, msg = call(t, uno, "encargo_crear", map[string]any{"titulo": "Revisar por qué la tienda está lenta", "app": "shop"})
+	if msg != "" || out["creado_por"] != "p0dxD · uno" {
+		t.Fatalf("created from an agent = %v %q", out, msg)
 	}
 }

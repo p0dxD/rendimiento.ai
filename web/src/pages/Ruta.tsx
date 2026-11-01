@@ -336,6 +336,7 @@ function NewKey({ onCreated }: { onCreated: (k: CreatedAgentKey) => void }) {
 function Connect({ k, onClose }: { k: CreatedAgentKey; onClose: () => void }) {
   const cli = `claude mcp add --transport http rendimiento ${k.endpoint} --header "Authorization: Bearer ${k.token}"`;
   const json = JSON.stringify({ mcpServers: { rendimiento: { type: "http", url: k.endpoint, headers: { Authorization: "Bearer ${RENDIMIENTO_MCP_TOKEN}" } } } }, null, 2);
+  const codex = `export RENDIMIENTO_MCP_TOKEN=${k.token}\ncodex mcp add rendimiento --url ${k.endpoint} --bearer-token-env-var RENDIMIENTO_MCP_TOKEN`;
   const copy = (s: string) => navigator.clipboard?.writeText(s);
   return (
     <div className="alert info stack" role="status">
@@ -343,10 +344,44 @@ function Connect({ k, onClose }: { k: CreatedAgentKey; onClose: () => void }) {
       <div className="row"><code className="mono ruta-token">{k.token}</code><button onClick={() => copy(k.token)}>{t("Copy")}</button></div>
       <div className="small">{t("In Claude Code, one command:")}</div>
       <div className="row"><pre className="mono ruta-snippet">{cli}</pre><button onClick={() => copy(cli)}>{t("Copy")}</button></div>
+      <div className="small">{t("In Codex: keep the key in an environment variable (in your shell's profile, so it stays), then add the server:")}</div>
+      <div className="row"><pre className="mono ruta-snippet">{codex}</pre><button onClick={() => copy(codex)}>{t("Copy")}</button></div>
       <div className="small">{t("Or, to share it with anyone who opens a repository, commit this .mcp.json and keep the key in the RENDIMIENTO_MCP_TOKEN environment variable, never in git:")}</div>
       <div className="row"><pre className="mono ruta-snippet">{json}</pre><button onClick={() => copy(json)}>{t("Copy")}</button></div>
       <div><button onClick={onClose}>{t("Done, I saved it")}</button></div>
     </div>
+  );
+}
+
+// What /encargo asks the agent to do: leave the work in the Ruta for an
+// agent to take, instead of doing it there and then.
+const encargoInstrucciones = `Use the rendimiento MCP tools to leave an encargo (a piece of work) for an agent to take later; do not do the work yourself.
+
+1. If you have no cargo open, take one with cargo_tomar (purpose: leave an encargo).
+2. Create it with encargo_crear: a short title of what needs doing; the app, when this repository or the request makes it clear; and in the body what is known, where to look, and how to know it is done.
+3. Answer with the encargo's number, and hand your cargo over with cargo_entregar.
+
+What to ask for:`;
+
+/**
+ * The /encargo shortcut for Claude Code and Codex: from a person's own
+ * agent, one line leaves work in the Ruta, filled in as an encargo should be.
+ */
+function Atajo() {
+  const claude = `---\ndescription: Leave an encargo in rendimiento's Ruta for an agent to take\nargument-hint: what needs doing\n---\n${encargoInstrucciones} $ARGUMENTS\n`;
+  const codex = `---\nname: encargo\ndescription: Leave an encargo in rendimiento's Ruta for an agent to take, when the person asks to leave work for later or for another agent.\n---\n${encargoInstrucciones} what the person asked for.\n`;
+  const copy = (s: string) => navigator.clipboard?.writeText(s);
+  return (
+    <details className="card" style={{ marginTop: 16 }}>
+      <summary className="small"><strong>{t("The /encargo shortcut")}</strong> · {t("leave work for agents from your own Claude Code or Codex")}</summary>
+      <div className="stack" style={{ marginTop: 8 }}>
+        <div className="small">{t("Claude Code: save this as .claude/commands/encargo.md (in a repository) or ~/.claude/commands/encargo.md (everywhere), then type /encargo and what needs doing.")}</div>
+        <div className="row"><pre className="mono ruta-snippet">{claude}</pre><button onClick={() => copy(claude)}>{t("Copy")}</button></div>
+        <div className="small">{t("Codex: save this as ~/.codex/skills/encargo/SKILL.md, then ask it to leave an encargo.")}</div>
+        <div className="row"><pre className="mono ruta-snippet">{codex}</pre><button onClick={() => copy(codex)}>{t("Copy")}</button></div>
+        <div className="small muted">{t("The encargo then says who asked and through which agent; another agent takes it from the Ruta.")}</div>
+      </div>
+    </details>
   );
 }
 
@@ -381,6 +416,7 @@ function Keys() {
           ))}
         </tbody>
       </table>
+      <Atajo />
     </>
   );
 }

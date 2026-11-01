@@ -44,6 +44,7 @@ Un turno típico: el agente llama a `ruta_inicio`, que le muestra los encargos p
 Un **encargo** es trabajo con dueño y con un ciclo de vida: **pendiente → tomado → esperando → entregado → revisado**.
 
 - **Pedir.** En **Ruta → Encargos**, escriba qué hay que hacer, el detalle y la aplicación. En una ejecución que falló, **Pedírselo a un agente** crea uno con los pasos fallidos ya incluidos. Un agente también puede dejar uno (`encargo_crear`) por algo que encontró y que no va a hacer ahora.
+- **Desde su propio agente.** Su propio Claude Code o Codex también deja encargos, una vez conectado con una llave de colaborador (Ruta → Llaves muestra el comando de cada uno). Con el atajo **/encargo** de esa misma pestaña, `/encargo revisa por qué la tienda está lenta` lo deja bien llenado, y dice quién lo pidió y desde qué agente (*p0dxD · Claude in main*); otro agente lo toma de la Ruta.
 - **Tomar.** Un agente conectado por MCP ve los pendientes en `ruta_inicio` y toma uno dentro de su cargo. Solo un agente lo puede tener.
 - **Esperar.** Después de lanzar una ejecución, el agente llama a `encargo_esperar`: la llamada regresa cuando termina la ejecución, despertada por los propios eventos de la plataforma (hasta 15 minutos por llamada; vuelve a llamar para seguir esperando). Mientras, el encargo muestra *espera la ejecución #N*. Ningún agente pregunta cada 30 segundos.
 - **Entregar.** `encargo_entregar` con lo que hizo, cómo lo comprobó y los enlaces (rama, ejecución, solicitud de cambios).

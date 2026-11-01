@@ -205,11 +205,22 @@ func (s *Server) encargoCrear(ctx context.Context, k store.AgentKey, in crearEnc
 	if err := checkText(in.Titulo, in.Cuerpo, nil); err != nil {
 		return EncargoOut{}, err
 	}
-	e, err := s.Encargos.CreateEncargo(ctx, store.Encargo{Title: strings.TrimSpace(in.Titulo), Body: in.Cuerpo, App: app, CreatedBy: k.Name, ByAgent: true, OrgID: k.OrgID})
+	e, err := s.Encargos.CreateEncargo(ctx, store.Encargo{Title: strings.TrimSpace(in.Titulo), Body: in.Cuerpo, App: app, CreatedBy: askedBy(k), ByAgent: true, OrgID: k.OrgID})
 	if err != nil {
 		return EncargoOut{}, err
 	}
 	return encargoOut(e, true), nil
+}
+
+// askedBy names who asked for an encargo an agent created: the person who
+// made the agent's key, through which agent ("p0dxD · Claude in main"),
+// since a person often leaves work for agents from their own Claude Code or
+// Codex.
+func askedBy(k store.AgentKey) string {
+	if k.CreatedBy == "" || k.CreatedBy == k.Name {
+		return k.Name
+	}
+	return k.CreatedBy + " · " + k.Name
 }
 
 // encargoTomar (encargo_tomar) takes a pending encargo in the agent's cargo.
