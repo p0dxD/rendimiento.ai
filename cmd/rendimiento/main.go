@@ -362,8 +362,9 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		CacheSize:         os.Getenv("TEST_CACHE_SIZE"),
 	}
 	// The capacity set on the Environment page overrides PARALLEL_RUNS,
-	// RUNS_PER_APP and BUILD_EXCLUDE_NODES, read again every 15 seconds.
-	capacity := &platform.CapacityHolder{Store: st}
+	// RUNS_PER_APP and BUILD_EXCLUDE_NODES, read again every 15 seconds; and
+	// nodes too full then take no new steps or builds.
+	capacity := &platform.CapacityHolder{Store: st, Kube: clientset, Exclude: executor.ExcludeNodes}
 	go capacity.Run(ctx)
 	executor.Limits, p.Capacity = capacity.Limits, capacity.Runs
 	p.Runner = pipeline.NewRunner(executor, p, parallel)

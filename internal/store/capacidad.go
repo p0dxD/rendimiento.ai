@@ -20,9 +20,12 @@ type Capacity struct {
 	// of a core (0: what each app asks); a step may still use free cores.
 	StepCPUMillis int64 `json:"stepCpuMillis"`
 	// NodesOff are nodes that take no runs (as BUILD_EXCLUDE_NODES).
-	NodesOff  []string  `json:"nodesOff"`
-	UpdatedBy string    `json:"updatedBy,omitempty"`
-	UpdatedAt time.Time `json:"updatedAt,omitzero"`
+	NodesOff []string `json:"nodesOff"`
+	// BusyPercent: a node whose CPU is reserved or in use at this percent
+	// or more takes no new steps or builds until it eases (0: 85; 100: never).
+	BusyPercent int       `json:"busyPercent"`
+	UpdatedBy   string    `json:"updatedBy,omitempty"`
+	UpdatedAt   time.Time `json:"updatedAt,omitzero"`
 }
 
 // GetCapacity is the capacity set on the Environment page (zero values
@@ -49,7 +52,7 @@ func (s *Store) SaveCapacity(ctx context.Context, c Capacity, by string) error {
 	if c.NodesOff == nil {
 		c.NodesOff = []string{}
 	}
-	raw, err := json.Marshal(Capacity{ParallelRuns: c.ParallelRuns, RunsPerApp: c.RunsPerApp, StepCPUMillis: c.StepCPUMillis, NodesOff: c.NodesOff})
+	raw, err := json.Marshal(Capacity{ParallelRuns: c.ParallelRuns, RunsPerApp: c.RunsPerApp, StepCPUMillis: c.StepCPUMillis, NodesOff: c.NodesOff, BusyPercent: c.BusyPercent})
 	if err != nil {
 		return err
 	}
