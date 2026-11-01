@@ -374,8 +374,11 @@ grep -o '"containerimage.digest": *"sha256:[a-f0-9]*"' /tmp/metadata.json | grep
 
 // buildkitFor picks the pool daemon for key by rendezvous hashing: each key
 // has a stable favourite among the ready daemons, and only the keys of a
-// daemon that goes away move elsewhere. It returns the address and the
-// daemon's name, or the single BuildkitAddr (and "") without a pool.
+// daemon that goes away move elsewhere. Daemons on nodes that take no runs
+// (BUILD_EXCLUDE_NODES, the Environment page's Capacity) are left out while
+// another is there: an image then builds elsewhere, with the cache it keeps
+// in the registry. It returns the address and the daemon's name, or the
+// single BuildkitAddr (and "") without a pool.
 func (k *KubeExecutor) buildkitFor(ctx context.Context, key string) (string, string) {
 	if k.BuildkitPool == "" {
 		return k.BuildkitAddr, ""
@@ -389,6 +392,17 @@ func (k *KubeExecutor) buildkitFor(ctx context.Context, key string) (string, str
 	_, srvs, err := res.LookupSRV(lctx, "buildkit", "tcp", k.BuildkitPool)
 	if err != nil || len(srvs) == 0 {
 		return k.BuildkitAddr, ""
+	}
+	if off := k.nodesOff(); len(off) > 0 {
+		var on []*net.SRV
+		for _, s := range srvs {
+			if !slices.Contains(off, k.daemonNode(ctx, s.Target)) {
+				on = append(on, s)
+			}
+		}
+		if len(on) > 0 {
+			srvs = on
+		}
 	}
 	var best *net.SRV
 	var bestScore uint64
@@ -405,6 +419,20 @@ func (k *KubeExecutor) buildkitFor(ctx context.Context, key string) (string, str
 }
 
 // --8<-- [end:buildkitFor]
+
+// daemonNode is the node a pool daemon's pod runs on ("" when it cannot
+// tell): its SRV target is <pod>.<service>.<namespace>.svc….
+func (k *KubeExecutor) daemonNode(ctx context.Context, target string) string {
+	parts := strings.Split(strings.TrimSuffix(target, "."), ".")
+	if len(parts) < 3 || k.Client == nil {
+		return ""
+	}
+	p, err := k.Client.CoreV1().Pods(parts[2]).Get(ctx, parts[0], metav1.GetOptions{})
+	if err != nil {
+		return ""
+	}
+	return p.Spec.NodeName
+}
 
 // pod is the pod a step runs in. An init container clones the commit (with
 // a short-lived token from a secret of the same name) into a shared
