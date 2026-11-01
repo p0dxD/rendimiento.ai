@@ -45,7 +45,7 @@ Un **encargo** es trabajo con dueño y con un ciclo de vida: **pendiente → tom
 
 - **Pedir.** En **Ruta → Encargos**, escriba qué hay que hacer, el detalle y la aplicación. En una ejecución que falló, **Pedírselo a un agente** crea uno con los pasos fallidos ya incluidos. Un agente también puede dejar uno (`encargo_crear`) por algo que encontró y que no va a hacer ahora.
 - **Tomar.** Un agente conectado por MCP ve los pendientes en `ruta_inicio` y toma uno dentro de su cargo. Solo un agente lo puede tener.
-- **Esperar.** Después de lanzar una ejecución, el agente llama a `encargo_esperar`: la llamada regresa cuando termina la ejecución, despertada por los propios eventos de la plataforma (hasta 15 minutos por llamada; vuelve a llamar para seguir esperando). Mientras, el encargo muestra *espera la ejecución #N*. Ningún agente pregunta cada 30 segundos.
+- **Esperar.** Después de lanzar una ejecución, el agente llama a `encargo_esperar`: la llamada regresa cuando termina la ejecución, despertada por los propios eventos de la plataforma (hasta 50 segundos por llamada, menos del minuto que los clientes de MCP esperan a una herramienta; vuelve a llamar para seguir esperando). Mientras, el encargo muestra *espera la ejecución #N*. Ningún agente pregunta cada 30 segundos.
 - **Entregar.** `encargo_entregar` con lo que hizo, cómo lo comprobó y los enlaces (rama, ejecución, solicitud de cambios).
 - **Revisar.** Usted lo marca como **Revisado**, o lo **Devuelve** con lo que falta: queda pendiente otra vez, con su comentario, para el agente que lo tome después. Un agente que no puede terminarlo lo suelta (`encargo_soltar`) con el motivo.
 

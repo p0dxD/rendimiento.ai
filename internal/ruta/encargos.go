@@ -26,10 +26,12 @@ type Encargos interface {
 }
 
 // Waits on a run: the default, and the longest one call may wait (the agent
-// calls again to keep waiting).
+// calls again to keep waiting). Under a minute, because MCP clients give up
+// on a tool call after about that long (Claude Code does at 60 seconds):
+// a longer wait came back to the agent as a timeout, not as an answer.
 const (
-	defaultWait = 5 * time.Minute
-	maxWait     = 15 * time.Minute
+	defaultWait = 45 * time.Second
+	maxWait     = 50 * time.Second
 )
 
 // estados are the encargo states as agents read them.
@@ -134,7 +136,7 @@ func (s *Server) addEncargoTools(srv *mcp.Server, write bool) {
 	}
 	addTool(s, srv, &mcp.Tool{Name: "encargo_crear", Description: "Crea un encargo pendiente: algo que hay que hacer y que usted no va a hacer ahora (p. ej. una falla que encontró). Necesita un cargo abierto."}, s.encargoCrear)
 	addTool(s, srv, &mcp.Tool{Name: "encargo_tomar", Description: "Toma un encargo pendiente: queda a su nombre y nadie más lo puede tomar. Necesita un cargo abierto."}, s.encargoTomar)
-	addTool(s, srv, &mcp.Tool{Name: "encargo_esperar", Description: "Espera a que termine una ejecución de CI de su encargo (hasta 15 minutos por llamada) y le dice cómo terminó. Si no terminó, vuelva a llamar. Úsela en vez de consultar una y otra vez."}, s.encargoEsperar)
+	addTool(s, srv, &mcp.Tool{Name: "encargo_esperar", Description: "Espera a que termine una ejecución de CI de su encargo (hasta 50 segundos por llamada) y le dice cómo terminó. Si no terminó, vuelva a llamar. Úsela en vez de consultar una y otra vez."}, s.encargoEsperar)
 	addTool(s, srv, &mcp.Tool{Name: "encargo_entregar", Description: "Entrega su encargo: qué hizo, cómo lo comprobó, y los enlaces (rama, ejecución, solicitud de cambios). La persona lo revisa o lo devuelve con un comentario."}, s.encargoEntregar)
 	addTool(s, srv, &mcp.Tool{Name: "encargo_soltar", Description: "Suelta un encargo que no puede terminar, con el motivo; vuelve a quedar pendiente para otro."}, s.encargoSoltar)
 }
@@ -252,7 +254,7 @@ func finished(status string) bool {
 }
 
 // encargoEsperar (encargo_esperar) waits for a run of the agent's encargo to
-// finish, up to 15 minutes a call: the encargo shows it is waiting, and the
+// finish, up to 50 seconds a call: the encargo shows it is waiting, and the
 // run's end (from the platform's events) wakes the call.
 func (s *Server) encargoEsperar(ctx context.Context, k store.AgentKey, in esperarIn) (esperarOut, error) {
 	if s.Plataforma == nil {
@@ -292,9 +294,18 @@ func (s *Server) encargoEsperar(ctx context.Context, k store.AgentKey, in espera
 	}
 	note := fmt.Sprintf("la ejecución %d terminó: %s", run.ID, run.Status)
 	if e.Status == store.EncargoWaiting {
-		if e, err = s.Encargos.ResumeEncargo(context.WithoutCancel(ctx), e.ID, k.ID, k.Name, note); err != nil {
+		resumed, err := s.Encargos.ResumeEncargo(context.WithoutCancel(ctx), e.ID, k.ID, k.Name, note)
+		switch {
+		case errors.Is(err, store.ErrEncargoState):
+			// Another call of the same agent (one its client gave up on)
+			// saw the run end first and already resumed the encargo.
+			if resumed, err = s.Encargos.Encargo(ctx, e.ID); err != nil {
+				return esperarOut{}, err
+			}
+		case err != nil:
 			return esperarOut{}, err
 		}
+		e = resumed
 	}
 	out.Encargo, out.Nota = encargoOut(e, false), note
 	return out, nil
