@@ -186,7 +186,7 @@ function Overview({ name, app }: { name: string; app: Awaited<ReturnType<typeof 
                 <span className="small muted">{st ? t("{ready}/{total} ready", { ready: st.readyReplicas, total: st.replicas }) : t("not deployed")}</span>
               </div>
               {[svc.domain, ...(svc.domain ? svc.aliases ?? [] : [])].filter(Boolean).map((h) => (
-                <a key={h} href={`https://${h}`} target="_blank" rel="noreferrer">https://{h}</a>
+                <div key={h} className="app-dominio"><a href={`https://${h}`} target="_blank" rel="noreferrer">https://{h}</a></div>
               ))}
               {svc.routes?.map((r) => (
                 <div key={r} className="row small">

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api, timeAgo, type Encargo, type EncargoStatus } from "../api";
 import { ErrorBox, usePoll } from "./ui";
 import { t } from "../i18n";
+import { TextoConFormato } from "./texto";
 
 const statusLabel: Record<EncargoStatus, string> = {
   pending: "Pending", taken: "Taken", waiting: "Waiting", delivered: "Delivered", reviewed: "Reviewed", cancelled: "Dropped",
@@ -73,7 +74,7 @@ function EncargoCard({ e, onChange }: { e: Encargo; onChange: () => void }) {
         {e.waitingRun && <> · {t("waiting on")} <Link to={`/apps/${e.app}/runs/${e.waitingRun}`}>{t("run #{n}", { n: e.waitingRun })}</Link></>}
         {e.runId && <> · {t("about")} <Link to={`/apps/${e.app}/runs/${e.runId}`}>{t("run #{n}", { n: e.runId })}</Link></>}
       </p>
-      {e.result && <div className="encargo-result"><p>{e.result}</p>
+      {e.result && <div className="encargo-result"><TextoConFormato text={e.result} />
         {e.links.map((l) => <div key={l}><a className="small" href={l} target="_blank" rel="noreferrer">{l}</a></div>)}</div>}
       {e.comment && e.status === "pending" && <p className="small"><strong>{t("Sent back:")}</strong> {e.comment}</p>}
       <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
@@ -91,7 +92,7 @@ function EncargoCard({ e, onChange }: { e: Encargo; onChange: () => void }) {
       </div>
       {open && (
         <div className="small encargo-log">
-          {full?.body && <p style={{ whiteSpace: "pre-wrap" }}>{full.body}</p>}
+          {full?.body && <TextoConFormato text={full.body} />}
           {full?.log?.map((l, i) => (
             <div key={i}><span className="muted">{new Date(l.at).toLocaleString()}</span> · {l.who} · {t(eventLabel[l.what] ?? l.what)}{l.note && ` · ${l.note}`}</div>
           ))}
