@@ -447,3 +447,32 @@ func TestCacheLetGoWhenItsNodeIsFull(t *testing.T) {
 		t.Fatalf("waitStarted: %v", err)
 	}
 }
+
+// A cache another run's test has mounted is in use: that test keeps it, and
+// a waiting one goes without it rather than deleting it.
+func TestCacheInUseByAnotherRun(t *testing.T) {
+	ctx := context.Background()
+	step := Step{ID: "platform:test", App: "ai"}
+	withCache := func(name, node string, phase corev1.PodPhase) *corev1.Pod {
+		return &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "b"},
+			Spec: corev1.PodSpec{NodeName: node, Volumes: []corev1.Volume{{Name: "cache", VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: cacheName(step)}}}}},
+			Status: corev1.PodStatus{Phase: phase}}
+	}
+	cs := fake.NewSimpleClientset(withCache("waiting", "", corev1.PodPending), withCache("done", "colorpi", corev1.PodSucceeded))
+	k := &KubeExecutor{Client: cs, Namespace: "b"}
+	k.defaults()
+	if k.cacheInUse(ctx, "waiting", step) {
+		t.Fatal("in use by itself, or by a finished pod")
+	}
+	_, _ = cs.CoreV1().Pods("b").Create(ctx, withCache("other-run", "colorpi", corev1.PodRunning), metav1.CreateOptions{})
+	if !k.cacheInUse(ctx, "waiting", step) {
+		t.Fatal("another run's running test has the cache")
+	}
+	if err := k.deletePod(ctx, "waiting"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cs.CoreV1().Pods("b").Get(ctx, "waiting", metav1.GetOptions{}); err == nil {
+		t.Fatal("the waiting pod is still there")
+	}
+}
