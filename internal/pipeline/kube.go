@@ -10,6 +10,7 @@ import (
 	"net"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -49,6 +50,9 @@ type KubeExecutor struct {
 	// enforce the build namespace's NetworkPolicy or that are reserved for
 	// other work.
 	ExcludeNodes []string
+	// Limits is what the Environment page sets now (nil: nothing): more
+	// nodes that take no runs, and the most CPU a step asks for.
+	Limits func() (nodesOff []string, stepCPUMillis int64)
 	// RailpackImage has the railpack CLI; it writes the build plan for
 	// services without a Dockerfile. Empty disables Railpack builds.
 	RailpackImage string
@@ -448,6 +452,7 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 		if err != nil {
 			return nil, err
 		}
+		k.capCPU(&res)
 		env := []corev1.EnvVar{{Name: "CI", Value: "true"}, {Name: "GIT_SHA", Value: src.SHA}}
 		if step.Postgres {
 			env = append(env, corev1.EnvVar{Name: "DATABASE_URL", Value: testDatabaseURL})
@@ -529,6 +534,7 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 		if err != nil {
 			return nil, err
 		}
+		k.capCPU(&res)
 		main = corev1.Container{
 			Name:       "step",
 			Image:      step.Image,
@@ -830,15 +836,66 @@ func (k *KubeExecutor) waitStarted(ctx context.Context, pod, container string) e
 }
 
 // streamLogs copies a container's log to w as it is written, until the
-// container ends.
+// container ends. Some nodes' kubelets keep the stream open after the
+// container ended (seen on colorpi, for minutes): once the container is
+// done, the stream gets streamGrace to finish, and then it is closed.
 func (k *KubeExecutor) streamLogs(ctx context.Context, pod, container string, w io.Writer) error {
-	rc, err := k.Client.CoreV1().Pods(k.Namespace).GetLogs(pod, &corev1.PodLogOptions{Container: container, Follow: true}).Stream(ctx)
+	sctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	rc, err := k.Client.CoreV1().Pods(k.Namespace).GetLogs(pod, &corev1.PodLogOptions{Container: container, Follow: true}).Stream(sctx)
 	if err != nil {
 		return err
 	}
 	defer rc.Close()
-	_, err = io.Copy(w, rc)
-	return err
+	done := make(chan error, 1)
+	go func() {
+		_, err := io.Copy(w, rc)
+		done <- err
+	}()
+	tick := time.NewTicker(streamPoll)
+	defer tick.Stop()
+	for {
+		select {
+		case err := <-done:
+			return err
+		case <-tick.C:
+			if !k.containerEnded(ctx, pod, container) {
+				continue
+			}
+			select {
+			case err := <-done:
+				return err
+			case <-time.After(streamGrace):
+				cancel()
+				_ = rc.Close()
+				<-done
+				fmt.Fprintf(w, "rendimiento: the log stream stayed open after the container ended; went on\n")
+				return nil
+			}
+		}
+	}
+}
+
+// How often a log stream checks that its container still runs, and how
+// long it waits for the rest of the log once it ended.
+var (
+	streamPoll  = 5 * time.Second
+	streamGrace = 10 * time.Second
+)
+
+// containerEnded says whether a pod's container (or init container) has
+// terminated.
+func (k *KubeExecutor) containerEnded(ctx context.Context, pod, container string) bool {
+	p, err := k.Client.CoreV1().Pods(k.Namespace).Get(ctx, pod, metav1.GetOptions{})
+	if err != nil {
+		return apierrors.IsNotFound(err)
+	}
+	for _, cs := range append(append([]corev1.ContainerStatus{}, p.Status.InitContainerStatuses...), p.Status.ContainerStatuses...) {
+		if cs.Name == container {
+			return cs.State.Terminated != nil
+		}
+	}
+	return false
 }
 
 // waitDone polls the pod every second until it succeeds or fails, or the
@@ -875,15 +932,43 @@ func terminationSummary(p *corev1.Pod) string {
 	return string(p.Status.Phase)
 }
 
-// affinity keeps step pods off the nodes in BUILD_EXCLUDE_NODES.
+// capCPU lowers a step's CPU request to the most the Environment page
+// allows; its limit, if any, is left alone, so it still uses free cores.
+func (k *KubeExecutor) capCPU(res *corev1.ResourceRequirements) {
+	if k.Limits == nil {
+		return
+	}
+	_, most := k.Limits()
+	if q, ok := res.Requests[corev1.ResourceCPU]; ok && most > 0 && q.MilliValue() > most {
+		res.Requests[corev1.ResourceCPU] = *resource.NewMilliQuantity(most, resource.DecimalSI)
+	}
+}
+
+// nodesOff are the nodes step pods stay off: BUILD_EXCLUDE_NODES and those
+// the Environment page turned off.
+func (k *KubeExecutor) nodesOff() []string {
+	out := append([]string{}, k.ExcludeNodes...)
+	if k.Limits != nil {
+		more, _ := k.Limits()
+		for _, n := range more {
+			if !slices.Contains(out, n) {
+				out = append(out, n)
+			}
+		}
+	}
+	return out
+}
+
+// affinity keeps step pods off the nodes that take no runs.
 func (k *KubeExecutor) affinity() *corev1.Affinity {
-	if len(k.ExcludeNodes) == 0 {
+	off := k.nodesOff()
+	if len(off) == 0 {
 		return nil
 	}
 	return &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{
 			MatchExpressions: []corev1.NodeSelectorRequirement{{
-				Key: "kubernetes.io/hostname", Operator: corev1.NodeSelectorOpNotIn, Values: k.ExcludeNodes,
+				Key: "kubernetes.io/hostname", Operator: corev1.NodeSelectorOpNotIn, Values: off,
 			}},
 		}}},
 	}}

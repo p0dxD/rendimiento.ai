@@ -34,7 +34,9 @@ builds:
       postgres: true
       cache: true
       # Two envtest API servers run at once (hack/ci-test.sh): with less
-      # than two cores, etcd times out.
+      # than two cores, etcd times out. 1.5 was tried on 2026-11-01 (run
+      # 881): three tests timed out. Where steps do not fit, the Environment
+      # page's Capacity lowers what steps reserve, or turns nodes off.
       resources: { cpu: "2", memory: 2Gi, memoryLimit: 5Gi }
 tasks:
   # The "rendimiento for …" libraries (sdk/): each is tested on every run

@@ -146,6 +146,33 @@ func (h *Holder) FirstParent(ctx context.Context, installation int64, repo, sha 
 	return c.FirstParent(ctx, repo, sha)
 }
 
+// Files downloads a repository at ref and returns its text files by path.
+func (h *Holder) Files(ctx context.Context, installation int64, repo, ref string, maxFile int) (map[string][]byte, error) {
+	c, err := h.client(installation)
+	if err != nil {
+		return nil, err
+	}
+	return c.Files(ctx, repo, ref, maxFile)
+}
+
+// CreateBranch makes branch point at sha (fine if it exists).
+func (h *Holder) CreateBranch(ctx context.Context, installation int64, repo, branch, sha string) error {
+	c, err := h.client(installation)
+	if err != nil {
+		return err
+	}
+	return c.CreateBranch(ctx, repo, branch, sha)
+}
+
+// CommitFiles commits files and removals on branch in one commit.
+func (h *Holder) CommitFiles(ctx context.Context, installation int64, repo, branch, message string, files map[string][]byte, remove []string) (string, error) {
+	c, err := h.client(installation)
+	if err != nil {
+		return "", err
+	}
+	return c.CommitFiles(ctx, repo, branch, message, files, remove)
+}
+
 // ForOwner returns an API client for the installation on an account
 // (user or organization), found by the account's login.
 func (h *Holder) ForOwner(ctx context.Context, owner string) (*Client, int64, error) {

@@ -100,6 +100,9 @@ type Platform struct {
 	// need not wait.
 	Workers int
 	PerApp  int
+	// Capacity is what the Environment page sets now, overriding Workers
+	// and PerApp (nil, or a zero: keep them). Up to MaxWorkers run at once.
+	Capacity func() (workers, perApp int)
 
 	claimMu sync.Mutex
 	going   map[int64]*appGoing // apps with runs going
@@ -679,6 +682,9 @@ func (p *Platform) Work(ctx context.Context) {
 		}
 	}()
 	n := max(p.Workers, 1)
+	if p.Capacity != nil {
+		n = MaxWorkers // the Environment page may raise it; limits() holds the rest back
+	}
 	var wg sync.WaitGroup
 	for range n {
 		wg.Add(1)
@@ -698,11 +704,32 @@ type appGoing struct {
 	branches  map[string]bool
 }
 
+// MaxWorkers is the most runs that can go at once, whatever the
+// Environment page says.
+const MaxWorkers = 8
+
+type limits struct{ workers, perApp int }
+
+// limits are how many runs go at once, and per app, right now.
+func (p *Platform) limits() limits {
+	l := limits{workers: max(p.Workers, 1), perApp: max(p.PerApp, 1)}
+	if p.Capacity != nil {
+		w, a := p.Capacity()
+		if w > 0 {
+			l.workers = min(w, MaxWorkers)
+		}
+		if a > 0 {
+			l.perApp = a
+		}
+	}
+	return l
+}
+
 // busy is what the runs going rule out for the next one (claimMu held).
 func (p *Platform) busy() store.Busy {
 	var b store.Busy
 	for id, g := range p.going {
-		if g.runs >= max(p.PerApp, 1) {
+		if g.runs >= p.limits().perApp {
 			b.Full = append(b.Full, id)
 		}
 		if g.deploying {
@@ -720,6 +747,19 @@ func (p *Platform) busy() store.Busy {
 func (p *Platform) work(ctx context.Context) {
 	for ctx.Err() == nil {
 		p.claimMu.Lock()
+		going := 0
+		for _, g := range p.going {
+			going += g.runs
+		}
+		if going >= p.limits().workers {
+			// As many runs as the Environment page allows: wait for one to end.
+			p.claimMu.Unlock()
+			select {
+			case <-ctx.Done():
+			case <-time.After(2 * time.Second):
+			}
+			continue
+		}
 		run, err := p.Store.ClaimRunFor(ctx, p.busy())
 		if err == nil {
 			if p.going == nil {

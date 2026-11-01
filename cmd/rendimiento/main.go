@@ -361,6 +361,11 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		CacheStorageClass: os.Getenv("TEST_CACHE_STORAGE_CLASS"),
 		CacheSize:         os.Getenv("TEST_CACHE_SIZE"),
 	}
+	// The capacity set on the Environment page overrides PARALLEL_RUNS,
+	// RUNS_PER_APP and BUILD_EXCLUDE_NODES, read again every 15 seconds.
+	capacity := &platform.CapacityHolder{Store: st}
+	go capacity.Run(ctx)
+	executor.Limits, p.Capacity = capacity.Limits, capacity.Runs
 	p.Runner = pipeline.NewRunner(executor, p, parallel)
 	// Runs of different apps go side by side (one per app, so an app's
 	// releases keep their order); MAX_PARALLEL_STEPS still bounds the load.
@@ -375,7 +380,7 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	srv := &api.Server{
 		BookURL: os.Getenv("BOOK_URL"), BookURLEs: os.Getenv("BOOK_URL_ES"),
 		Platform: p, Store: st, Kube: kube, GitHub: holder, Credentials: creds, DNS: dnsProvider, Log: log,
-		BaseURL: baseURL, AllowedUsers: users, SetupToken: os.Getenv("SETUP_TOKEN"),
+		BaseURL: baseURL, AllowedUsers: users, SetupToken: os.Getenv("SETUP_TOKEN"), Capacity: capacity,
 		AppName: env("GITHUB_APP_NAME", "rendimiento"), UI: web.Dist(),
 		Catalog:  &catalog.Builder{Kube: kube},
 		Renovate: renovateRunner,
@@ -595,10 +600,13 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	}
 
 	// The agents inside the platform (ROLE=agents): the diagnostician explains
-	// every failed run, and the estimator rates every new encargo, through the
-	// AI gateway, within each organization's caps. One process runs them at a time (a lock in Postgres).
+	// every failed run, the estimator rates every new encargo, and the coding
+	// agent does the encargos it is sent, through the AI gateway, within each
+	// organization's caps. One process runs them at a time (a lock in Postgres).
 	if runs("agents") {
 		diag := &agentes.Diagnostician{Store: st, Model: srv.IA, Logs: srv.StepLogText, Changes: holder,
+			Lang: env("NOTIFY_LANG", "en"), Log: log.With("component", "agents")}
+		coder := &agentes.Coder{Store: st, Repos: holder, Model: srv.IA, Logs: srv.StepLogText, BaseURL: env("BASE_URL", "http://localhost:8080"),
 			Lang: env("NOTIFY_LANG", "en"), Log: log.With("component", "agents")}
 		est := &agentes.Estimator{Store: st, Model: srv.IA, Lang: env("NOTIFY_LANG", "en"), Log: log.With("component", "agents")}
 		go func() {
@@ -607,8 +615,9 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 				return // ctx ended while waiting
 			}
 			defer release()
-			log.Info("starting the agents: the diagnostician and the estimator")
+			log.Info("starting the agents: the diagnostician, the estimator and the coding agent")
 			go est.Run(ctx)
+			go coder.Run(ctx)
 			diag.Run(ctx)
 		}()
 	}

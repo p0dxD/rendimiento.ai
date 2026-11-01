@@ -293,6 +293,7 @@ export interface AISettings {
   escalateTo: "" | "own" | "platform";
   escalateLimit: number;
   encargoAutoMicros: number;
+  codeAgent: CodeAgent;
   updatedBy?: string;
   updatedAt: string;
 }
@@ -371,6 +372,10 @@ export interface Member {
 
 export type EncargoStatus = "pending" | "taken" | "waiting" | "delivered" | "reviewed" | "cancelled";
 
+// What the platform's coding agent does: nothing, only the encargos a
+// person sends it, or also the easy ones on its own.
+export type CodeAgent = "off" | "asked" | "auto";
+
 // Work asked of agents (internal/store.Encargo).
 export interface Encargo {
   id: number;
@@ -392,6 +397,9 @@ export interface Encargo {
   estimateMicros?: number;
   estimateReason?: string;
   route?: "platform" | "local";
+  // Sent to the platform's coding agent, and what it spent on it.
+  doNow?: boolean;
+  spentMicros?: number;
   createdAt: string;
   updatedAt: string;
   log?: { at: string; who: string; what: string; note?: string }[];
@@ -707,7 +715,7 @@ export const api = {
   askDiagnosis: (run: number) => request<void>("POST", `/api/runs/${run}/diagnosis`),
   judgeDiagnosis: (run: number, useful: boolean, cause = "") =>
     request<{ feedback: string; rutaEntry: number }>("POST", `/api/runs/${run}/diagnosis/feedback`, { useful, cause }),
-  saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean; autoDiagnose?: boolean; escalateTo?: string; escalateLimit?: number; encargoAutoDollars?: number }) =>
+  saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean; autoDiagnose?: boolean; escalateTo?: string; escalateLimit?: number; encargoAutoDollars?: number; codeAgent?: CodeAgent }) =>
     request<IAView>("PUT", "/api/ia", v),
   testIA: (prompt: string) => request<IAAnswer>("POST", "/api/ia/test", { prompt }),
   iaOrgs: () => request<IAOrgs>("GET", "/api/ia/orgs"),
@@ -772,6 +780,7 @@ export const api = {
   reviewEncargo: (id: number, accept: boolean, comment = "") => request<Encargo>("POST", `/api/encargos/${id}/review`, { accept, comment }),
   cancelEncargo: (id: number) => request<Encargo>("POST", `/api/encargos/${id}/cancel`),
   routeEncargo: (id: number, route: "platform" | "local") => request<Encargo>("POST", `/api/encargos/${id}/route`, { route }),
+  doEncargos: (ids: number[]) => request<{ sent: number }>("POST", "/api/encargos/do", { ids }),
   reestimateEncargo: (id: number) => request<Encargo>("POST", `/api/encargos/${id}/estimate`),
   createAgentKey: (k: { name: string; role: AgentRole; apps: string[]; days: number }) => request<CreatedAgentKey>("POST", "/api/agent-keys", k),
   revokeAgentKey: (id: number) => request<void>("DELETE", `/api/agent-keys/${id}`),
@@ -859,7 +868,26 @@ export interface EnvNode {
   cpuUsed?: number;
   memBytes: number;
   memUsed?: number;
+  // What its pods ask for: the scheduler places by this, not by use.
+  cpuReserved: number;
+  memReserved: number;
   unschedulable?: boolean;
+}
+
+// How much the platform runs at once, set on the Environment page (0: the
+// environment variable's value).
+export interface Capacity {
+  parallelRuns: number;
+  runsPerApp: number;
+  stepCpuMillis: number;
+  nodesOff: string[];
+  updatedBy?: string;
+  updatedAt?: string;
+}
+export interface CapacityView {
+  saved: Capacity;
+  defaults: { parallelRuns: number; runsPerApp: number; nodesOff: string[] };
+  maxWorkers: number;
 }
 
 export interface EnvProblem {
@@ -888,6 +916,8 @@ export const envApi = {
   testEmail: () => request<{ sent: boolean; to: string[] }>("POST", "/api/notifications/test"),
   version: () => request<PlatformVersion>("GET", "/api/platform/version"),
   update: (release: number) => request<PlatformRelease>("POST", "/api/platform/update", { release }),
+  capacity: () => request<CapacityView>("GET", "/api/environment/capacity"),
+  saveCapacity: (c: Capacity) => request<CapacityView>("PUT", "/api/environment/capacity", c),
 };
 
 // rendimiento's own versions: the images its repository's builds made.

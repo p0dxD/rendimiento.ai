@@ -200,6 +200,16 @@ Para regresar a una imagen construida a mano: `kubectl -n rendimiento-system set
 !!! note "Un campo que la plataforma en marcha no conoce"
     La plataforma lee `rendimiento.yaml` de forma estricta. Un cambio que le agrega un campo (como `builds:`) debe publicarse **antes** de enviar la confirmación que lo usa; si no, la ejecución de ese envío no puede leer su propio spec.
 
+### Capacidad {#capacity}
+
+La sección **Capacidad** de la página Entorno muestra el procesador y la memoria de cada nodo dos veces: **en uso** (del servidor de métricas) y **reservada**, lo que piden sus pods. El planificador pone un pod nuevo solo donde lo que pide cabe en lo no reservado, aunque el nodo use poco de verdad; por eso una prueba que pide dos núcleos espera en un nodo ocupado al 15 % pero reservado al 94 %.
+
+Los administradores de la plataforma cambian, sin redesplegar (cada proceso lo sigue en unos 15 segundos):
+
+- **corre ejecuciones**, por nodo: los pasos de las ejecuciones solo van a los nodos que las corren. Los nodos en `BUILD_EXCLUDE_NODES` siempre quedan apagados.
+- **Ejecuciones a la vez** y **Ejecuciones de una aplicación a la vez**: reemplazan `PARALLEL_RUNS` y `RUNS_PER_APP` (vacío los conserva), hasta 8. Los despliegues de una aplicación siguen de uno en uno.
+- **CPU máxima que reserva un paso**: baja lo que pide el pod de cualquier paso, para que quepa en nodos ocupados; sin límite de CPU, aun así usa los núcleos libres que encuentre. Vacío: lo que pida `resources` de cada aplicación.
+
 ## El lado de las construcciones {#the-build-side}
 
 | Qué | De dónde viene |

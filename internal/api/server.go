@@ -103,9 +103,11 @@ type Server struct {
 	GitHubAPI   string  // overridden in tests
 	UI          fs.FS   // built web UI; nil serves a placeholder
 	Environment *environment.Checker
-	Catalog     *catalog.Builder
-	Renovate    *renovate.Runner
-	Addons      *addon.Syncer
+	// Capacity is the capacity set on the Environment page, as this process follows it.
+	Capacity *platform.CapacityHolder
+	Catalog  *catalog.Builder
+	Renovate *renovate.Runner
+	Addons   *addon.Syncer
 	// MCP serves /mcp, the agents' door to the Ruta (nil: off).
 	MCP http.Handler
 	// Analytics reads visitor numbers from Umami (nil: off); AnalyticsURL
@@ -187,6 +189,8 @@ func (s *Server) Handler() http.Handler {
 	plat(store.MemberAdmin, "GET /api/installations/{id}/repos", s.repos)
 	plat(store.MemberAdmin, "GET /api/zones", s.zones)
 	plat(store.MemberGuest, "GET /api/environment", s.environment)
+	plat(store.MemberGuest, "GET /api/environment/capacity", s.getCapacity)
+	plat(store.MemberAdmin, "PUT /api/environment/capacity", s.putCapacity)
 	plat(store.MemberGuest, "GET /api/platform/version", s.platformVersion)
 	plat(store.MemberAdmin, "POST /api/platform/update", s.updatePlatform)
 	plat(store.MemberGuest, "GET /api/services", s.services)
@@ -207,6 +211,7 @@ func (s *Server) Handler() http.Handler {
 	auth(store.MemberCollaborator, "POST /api/encargos/{id}/cancel", s.cancelEncargo)
 	auth(store.MemberCollaborator, "POST /api/encargos/{id}/route", s.routeEncargo)
 	auth(store.MemberCollaborator, "POST /api/encargos/{id}/estimate", s.reestimateEncargo)
+	auth(store.MemberCollaborator, "POST /api/encargos/do", s.doEncargos)
 	auth(store.MemberAdmin, "GET /api/agent-keys", s.listAgentKeys)
 	auth(store.MemberAdmin, "POST /api/agent-keys", s.createAgentKey)
 	auth(store.MemberAdmin, "DELETE /api/agent-keys/{id}", s.revokeAgentKey)

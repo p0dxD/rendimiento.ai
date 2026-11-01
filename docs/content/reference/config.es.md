@@ -12,7 +12,7 @@ rendimiento se configura solo con **variables de entorno**, que se leen una vez 
 | `BOOK_URL`, `BOOK_URL_ES` | *(vacío: sin enlace)* | `https://learn.example.com/`, `https://aprende.example.com/` | el libro en inglés y en español, enlazado desde la página de bienvenida que se ve antes de iniciar sesión |
 | `SELF_APP` | *(vacío: sin botón Actualizar)* | `rendimiento-ai` | la aplicación con la que está incorporado el repositorio de rendimiento; las imágenes `build:platform` de sus versiones son a las que la página Entorno puede [actualizar](../environment/deploy.md#updating-from-the-environment-page) (`SELF_BUILD`, `SELF_DEPLOYMENT` y `SELF_CONTAINER` son `platform`, `rendimiento` y `rendimiento` de forma predeterminada) |
 | `GITHUB_ACCOUNTS` | *(vacío: todas las instalaciones)* | `example-user,example-paginas` | las únicas cuentas (usuarios u organizaciones) cuyas instalaciones de la aplicación de GitHub usa rendimiento: las demás no aparecen en el asistente y sus envíos se ignoran. Póngalo antes de hacer pública la aplicación, lo que permite que cualquiera la instale |
-| `PARALLEL_RUNS` | `3` | `2` | cuántas ejecuciones van a la vez; `MAX_PARALLEL_STEPS` sigue limitando los pasos de todas |
+| `PARALLEL_RUNS` | `3` | `2` | cuántas ejecuciones van a la vez; `MAX_PARALLEL_STEPS` sigue limitando los pasos de todas. La [Capacidad](../environment/deploy.md#capacity) de la página Entorno la reemplaza |
 | `RUNS_PER_APP` | `2` | `1` | cuántas de ellas pueden ser de una misma aplicación: sus despliegues siguen yendo de uno en uno, en orden, y también las ejecuciones de cada rama, pero una rama no espera a otra rama ni a un despliegue |
 | `PAGES_ORG` | *(vacío: el Mercado está apagado)* | `example-paginas` | la organización de GitHub donde el [Mercado](../guide/mercado.md) crea el repositorio de cada página (ahí la aplicación necesita el permiso de administración) |
 | `ALLOWED_USERS` | *(vacío)* | `su-cuenta-de-github` | los primeros administradores (cuentas de GitHub separadas por comas o espacios), que se agregan solo mientras no haya [miembros](../guide/members.md); después, las personas se manejan en la página Miembros |
@@ -48,7 +48,7 @@ rendimiento se configura solo con **variables de entorno**, que se leen una vez 
 | `BUILDKIT_IMAGE` | `moby/buildkit:v0.18.2` | | la imagen del cliente `buildctl` en los pods de construcción |
 | `MAX_PARALLEL_STEPS` | `2` | `4` | los pasos que corren a la vez, entre todas las ejecuciones |
 | `STEP_TIMEOUT` | `45m` | | lo más que puede durar un paso (≥ 1m) |
-| `BUILD_EXCLUDE_NODES` | *(vacío)* | `gpu-node` | los nodos que deben evitar los pods de construcción |
+| `BUILD_EXCLUDE_NODES` | *(vacío)* | `gpu-node` | los nodos que deben evitar los pods de construcción; la [Capacidad](../environment/deploy.md#capacity) de la página Entorno puede apagar más |
 | `RAILPACK_IMAGE` | *(vacío: Railpack apagado)* | `registry.example.lan:5000/rendimiento-railpack:0.40.0` | la imagen con la herramienta de Railpack, para los servicios sin Dockerfile |
 | `RAILPACK_FRONTEND` | *(vacío)* | `ghcr.io/railwayapp/railpack-frontend:v0.40.0` | la interfaz de entrada de BuildKit que corresponde a esa versión |
 | `TEST_POSTGRES_IMAGE` | `postgres:17-alpine` | | la base de datos desechable de las pruebas con `postgres: true` |

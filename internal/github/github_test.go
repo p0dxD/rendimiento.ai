@@ -1,6 +1,9 @@
 package github
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto"
 	"crypto/hmac"
@@ -212,5 +215,41 @@ func TestVerifyWebhook(t *testing.T) {
 	}
 	if VerifyWebhook("", body, sig) {
 		t.Fatal("empty secret must reject")
+	}
+}
+
+// A repository comes down in one archive: its text files by path, without
+// the archive's top folder, big files or binary ones.
+func TestFilesFromOneArchive(t *testing.T) {
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(zw)
+	add := func(name string, body []byte) {
+		_ = tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(body)), Typeflag: tar.TypeReg})
+		_, _ = tw.Write(body)
+	}
+	_ = tw.WriteHeader(&tar.Header{Name: "o-r-abc123/", Typeflag: tar.TypeDir, Mode: 0o755})
+	add("o-r-abc123/main.go", []byte("package main\n"))
+	add("o-r-abc123/web/app.ts", []byte("export {}\n"))
+	add("o-r-abc123/logo.png", []byte{0x89, 'P', 'N', 'G', 0, 1})
+	add("o-r-abc123/big.txt", []byte(strings.Repeat("x", 200)))
+	_ = tw.Close()
+	_ = zw.Close()
+	a, _ := newApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/access_tokens"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"token": "t", "expires_at": time.Now().Add(time.Hour)})
+		case r.URL.Path == "/repos/o/r/tarball/encargo-7":
+			_, _ = w.Write(buf.Bytes())
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	files, err := a.Client(7).Files(context.Background(), "o/r", "encargo-7", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 || string(files["main.go"]) != "package main\n" || string(files["web/app.ts"]) != "export {}\n" {
+		t.Fatalf("files = %v", files)
 	}
 }

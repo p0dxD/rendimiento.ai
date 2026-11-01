@@ -2,6 +2,9 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"strings"
 	"time"
@@ -202,6 +205,27 @@ func scanCargo(row pgx.Row) (Cargo, error) {
 		return c, ErrNotFound
 	}
 	return c, err
+}
+
+// SystemKey is the agent key a platform agent signs with in an
+// organization (the coding agent): made the first time, with a token
+// nobody has, so it works only from inside the platform.
+func (s *Store) SystemKey(ctx context.Context, orgID int64, name string) (AgentKey, error) {
+	var id int64
+	err := s.pool.QueryRow(ctx, `SELECT id FROM agent_keys WHERE org_id = $1 AND name = $2 AND created_by = 'rendimiento'
+		AND revoked_at IS NULL AND expires_at > now() ORDER BY id DESC LIMIT 1`, orgOr(orgID), name).Scan(&id)
+	if err == nil {
+		return s.AgentKey(ctx, id)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return AgentKey{}, err
+	}
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return AgentKey{}, err
+	}
+	sum := sha256.Sum256(b)
+	return s.CreateAgentKey(ctx, orgOr(orgID), name, hex.EncodeToString(sum[:]), RoleCollaborator, nil, "rendimiento", time.Now().AddDate(100, 0, 0))
 }
 
 // TakeCargo opens a cargo for a key; ErrCargoOpen if it already has one.
