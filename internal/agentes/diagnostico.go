@@ -235,7 +235,8 @@ var ansi = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 
 // context is what the model reads: the run, its failed steps with the end
 // of their logs (lines that look like secrets left out), and the files
-// changed since the branch's last good run; and the failure's signature,
+// changed since the branch's last good run (the default branch's, for a
+// branch with none yet); and the failure's signature,
 // its telling line.
 func (d *Diagnostician) context(ctx context.Context, app *store.App, run *store.Run) (text, signature, clues string) {
 	signature = run.Message
@@ -253,12 +254,20 @@ func (d *Diagnostician) context(ctx context.Context, app *store.App, run *store.
 		fmt.Fprintf(&b, "Services: %s\n", strings.Join(services, ", "))
 	}
 	if d.Changes != nil && app.InstallationID != 0 {
-		if base, err := d.Store.LastGoodSHA(ctx, app.ID, run.Branch, run.ID); err == nil && base != run.SHA {
+		// A new branch has no good run of its own yet: compare it with the
+		// default branch's, where it started from.
+		from := run.Branch
+		base, err := d.Store.LastGoodSHA(ctx, app.ID, run.Branch, run.ID)
+		if err != nil && app.DefaultBranch != "" && run.Branch != app.DefaultBranch {
+			from = app.DefaultBranch
+			base, err = d.Store.LastGoodSHA(ctx, app.ID, app.DefaultBranch, run.ID)
+		}
+		if err == nil && base != run.SHA {
 			if files, _, err := d.Changes.ChangedFiles(ctx, app.InstallationID, app.Repo, base, run.SHA); err == nil && len(files) > 0 {
 				if len(files) > maxChanged {
 					files = append(files[:maxChanged], fmt.Sprintf("… and %d more", len(files)-maxChanged))
 				}
-				fmt.Fprintf(&b, "\nFiles changed since the last good run (%s):\n- %s\n", short(base), strings.Join(files, "\n- "))
+				fmt.Fprintf(&b, "\nFiles changed since the last good run of %s (%s):\n- %s\n", from, short(base), strings.Join(files, "\n- "))
 			}
 		}
 	}

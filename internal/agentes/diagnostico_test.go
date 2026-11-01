@@ -57,7 +57,7 @@ func (f *fakeStore) RunsToDiagnose(context.Context, time.Time, int) ([]int64, er
 }
 func (f *fakeStore) GetRun(_ context.Context, id int64) (*store.Run, error) { return f.runs[id], nil }
 func (f *fakeStore) GetAppByID(context.Context, int64) (*store.App, error) {
-	return &store.App{ID: 1, Name: "shop", Repo: "o/shop", InstallationID: 9, OrgID: 3,
+	return &store.App{ID: 1, Name: "shop", Repo: "o/shop", InstallationID: 9, OrgID: 3, DefaultBranch: "main",
 		Spec: spec.Spec{Services: []spec.Service{{Name: "web"}}}}, nil
 }
 func (f *fakeStore) GetDiagnosis(_ context.Context, id int64) (store.Diagnosis, error) {
@@ -70,7 +70,10 @@ func (f *fakeStore) SaveDiagnosis(_ context.Context, d store.Diagnosis) error {
 	f.saved[d.RunID] = d
 	return nil
 }
-func (f *fakeStore) LastGoodSHA(context.Context, int64, string, int64) (string, error) {
+func (f *fakeStore) LastGoodSHA(_ context.Context, _ int64, branch string, _ int64) (string, error) {
+	if branch != "main" {
+		return "", store.ErrNotFound // a new branch: no good run of its own yet
+	}
 	return "goodsha1234", nil
 }
 
@@ -137,7 +140,7 @@ func TestDiagnose(t *testing.T) {
 		t.Fatalf("saved %+v, org %d", got, m.org)
 	}
 	ctx := m.asked[0].Messages[0].Content
-	for _, want := range []string{"Failed step web:test (test): exit 1", "AssertionError: precio 0", "api/precios.py", "goodsha", "Services: web"} {
+	for _, want := range []string{"Failed step web:test (test): exit 1", "AssertionError: precio 0", "api/precios.py", "last good run of main (goodsha", "Services: web"} {
 		if !strings.Contains(ctx, want) {
 			t.Errorf("context misses %q:\n%s", want, ctx)
 		}
@@ -149,6 +152,17 @@ func TestDiagnose(t *testing.T) {
 	}
 	if !strings.Contains(m.asked[0].System, "español") {
 		t.Error("the answer's language")
+	}
+
+	// A new branch has no good run yet: its changes are counted from the
+	// default branch's last good run.
+	st.runs[9] = &store.Run{ID: 9, AppID: 1, Branch: "descuentos", SHA: "newsha9999", Event: "push", Status: store.RunFailed,
+		Steps: []store.Step{{ID: "web:test", Kind: "test", Status: "failed", Message: "exit 1"}}}
+	if err := d.Diagnose(context.Background(), 9); err != nil {
+		t.Fatal(err)
+	}
+	if ctx := m.asked[len(m.asked)-1].Messages[0].Content; !strings.Contains(ctx, "api/precios.py") || !strings.Contains(ctx, "last good run of main (goodsha") {
+		t.Errorf("a new branch's context misses its changes:\n%s", ctx)
 	}
 
 	m.err = ia.ErrNoModel
