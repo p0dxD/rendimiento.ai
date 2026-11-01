@@ -78,6 +78,7 @@ type Coder struct {
 const (
 	maxTurns    = 80
 	runWait     = 50 * time.Minute
+	noRunWait   = 5 * time.Minute // for the push to start a run
 	maxFileSize = 256 << 10
 	readChars   = 40_000
 	maxMatches  = 120
@@ -573,9 +574,12 @@ func (j *job) commitAndTest(ctx context.Context, message string) (string, bool) 
 // waiting on it meanwhile.
 func (j *job) waitRun(ctx context.Context, sha string) (*store.Run, error) {
 	c := j.c
-	deadline := time.Now().Add(runWait)
+	start := time.Now()
 	var run *store.Run
-	for time.Now().Before(deadline) {
+	for time.Since(start) < runWait {
+		if run == nil && time.Since(start) > noRunWait {
+			break
+		}
 		if run == nil {
 			runs, err := c.Store.ListRuns(ctx, j.app.ID, 30)
 			if err != nil {
