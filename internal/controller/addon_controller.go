@@ -54,6 +54,10 @@ var neverDelete = map[string]bool{
 // updates Addon objects; Target reads and changes what add-ons install and
 // acts as a separate, more privileged identity (the rendimiento-addons
 // service account), so those changes are attributed to it.
+// annotationPreHooksDone records the pre hooks that succeeded, as
+// "<event>:<render hash>", so a retry after a failed apply skips them.
+const annotationPreHooksDone = "rendimiento.ai/pre-hooks-done"
+
 type AddonReconciler struct {
 	client.Client
 	Target   client.Client
@@ -143,10 +147,23 @@ func (r *AddonReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			_ = r.saveStatus(ctx, &a, st)
 			return ctrl.Result{RequeueAfter: time.Minute}, nil
 		}
-		if err := r.runHooks(ctx, &a, st, res.Hooks, "pre-"+event); err != nil {
-			st.Phase, st.Message = v1alpha1.AddonError, M("%s; nothing was applied", err.Error())
-			_ = r.saveStatus(ctx, &a, st)
-			return ctrl.Result{RequeueAfter: addonResync}, nil
+		// Pre hooks that already succeeded for this very render (a migration)
+		// are not run again when only the apply after them failed.
+		done := event + ":" + res.Hash
+		if a.Annotations[annotationPreHooksDone] != done {
+			if err := r.runHooks(ctx, &a, st, res.Hooks, "pre-"+event); err != nil {
+				st.Phase, st.Message = v1alpha1.AddonError, M("%s; nothing was applied", err.Error())
+				_ = r.saveStatus(ctx, &a, st)
+				return ctrl.Result{RequeueAfter: addonResync}, nil
+			}
+			before := a.DeepCopy()
+			if a.Annotations == nil {
+				a.Annotations = map[string]string{}
+			}
+			a.Annotations[annotationPreHooksDone] = done
+			if err := r.Patch(ctx, &a, client.MergeFrom(before)); err != nil {
+				log.FromContext(ctx).Error(err, "addon: recording its pre hooks", "addon", a.Name)
+			}
 		}
 	}
 	if err := r.applyAll(ctx, objs); err != nil {
