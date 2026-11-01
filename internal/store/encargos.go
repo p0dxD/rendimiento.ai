@@ -45,14 +45,18 @@ type Encargo struct {
 	// spend) are the estimator's, with its reason; nil until it estimated.
 	// Route is who should do it: platform (its AI) or local (the person's
 	// own agent), "" until decided.
-	Difficulty     *int         `json:"difficulty,omitempty"`
-	EstimateMicros *int64       `json:"estimateMicros,omitempty"`
-	EstimateReason string       `json:"estimateReason,omitempty"`
-	Route          string       `json:"route,omitempty"`
-	OrgID          int64        `json:"orgId"`
-	CreatedAt      time.Time    `json:"createdAt"`
-	UpdatedAt      time.Time    `json:"updatedAt"`
-	Log            []EncargoLog `json:"log,omitempty"`
+	Difficulty     *int   `json:"difficulty,omitempty"`
+	EstimateMicros *int64 `json:"estimateMicros,omitempty"`
+	EstimateReason string `json:"estimateReason,omitempty"`
+	Route          string `json:"route,omitempty"`
+	// DoNow: a person sent it to the platform's coding agent; SpentMicros
+	// is what that agent spent on it.
+	DoNow       bool         `json:"doNow,omitempty"`
+	SpentMicros int64        `json:"spentMicros,omitempty"`
+	OrgID       int64        `json:"orgId"`
+	CreatedAt   time.Time    `json:"createdAt"`
+	UpdatedAt   time.Time    `json:"updatedAt"`
+	Log         []EncargoLog `json:"log,omitempty"`
 }
 
 // EncargoLog is one thing that happened to an encargo.
@@ -65,7 +69,7 @@ type EncargoLog struct {
 
 const encargoCols = `e.id, e.title, e.body, e.app, e.run_id, e.status, e.created_by, e.by_agent, e.key_id, COALESCE(k.name, ''),
 	e.cargo_id, e.waiting_run, e.result, e.links, e.comment, e.created_at, e.updated_at, e.org_id,
-	e.difficulty, e.estimate_micros, e.estimate_reason, e.route`
+	e.difficulty, e.estimate_micros, e.estimate_reason, e.route, e.do_now, e.spent_micros`
 
 const encargoFrom = ` FROM encargos e LEFT JOIN agent_keys k ON k.id = e.key_id`
 
@@ -73,7 +77,7 @@ func scanEncargo(row pgx.Row) (Encargo, error) {
 	var e Encargo
 	err := row.Scan(&e.ID, &e.Title, &e.Body, &e.App, &e.RunID, &e.Status, &e.CreatedBy, &e.ByAgent, &e.KeyID, &e.KeyName,
 		&e.CargoID, &e.WaitingRun, &e.Result, &e.Links, &e.Comment, &e.CreatedAt, &e.UpdatedAt, &e.OrgID,
-		&e.Difficulty, &e.EstimateMicros, &e.EstimateReason, &e.Route)
+		&e.Difficulty, &e.EstimateMicros, &e.EstimateReason, &e.Route, &e.DoNow, &e.SpentMicros)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return e, ErrNotFound
 	}
@@ -270,4 +274,59 @@ func (s *Store) ReestimateEncargo(ctx context.Context, id int64, who string) (En
 	return s.change(ctx, id, who, "estimate", "", `UPDATE encargos SET difficulty = NULL, estimate_micros = NULL, estimate_reason = '', estimated_at = NULL,
 		route = CASE WHEN EXISTS (SELECT 1 FROM encargo_log WHERE encargo_id = $1 AND what = 'routed') THEN route ELSE '' END, updated_at = now()
 		WHERE id = $1 AND status <> 'cancelled'`, id)
+}
+
+// EncargoForCoder is the oldest pending encargo of an app the platform's
+// coding agent should do: one a person sent it, or, where the organization
+// lets it, an easy one (route platform). ErrNotFound when there is none.
+func (s *Store) EncargoForCoder(ctx context.Context) (Encargo, error) {
+	return scanEncargo(s.pool.QueryRow(ctx, `SELECT `+encargoCols+encargoFrom+`
+		JOIN ai_settings a ON a.org_id = e.org_id
+		WHERE e.status = 'pending' AND e.app <> '' AND a.code_agent <> 'off'
+			AND (e.do_now OR (a.code_agent = 'auto' AND e.route = 'platform'))
+		ORDER BY e.do_now DESC, e.id LIMIT 1`))
+}
+
+// DoEncargos sends an organization's pending encargos to the platform's
+// coding agent, and returns how many it sent.
+func (s *Store) DoEncargos(ctx context.Context, orgID int64, ids []int64, who string) (int, error) {
+	n := 0
+	for _, id := range ids {
+		_, err := s.change(ctx, id, who, "sent", "", `UPDATE encargos SET do_now = true, route = 'platform', updated_at = now()
+			WHERE id = $1 AND org_id = $2 AND status = 'pending' AND app <> '' AND NOT do_now`, id, orgOr(orgID))
+		if errors.Is(err, ErrEncargoState) || errors.Is(err, ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, nil
+}
+
+// GiveBackEncargo is the coding agent letting an encargo go to the person's
+// own agent, with what it did and what is left: pending again, for their
+// agent, and no longer in its queue.
+func (s *Store) GiveBackEncargo(ctx context.Context, id, keyID int64, who, note string) (Encargo, error) {
+	return s.change(ctx, id, who, "released", note,
+		`UPDATE encargos SET status = 'pending', key_id = NULL, cargo_id = NULL, waiting_run = NULL, do_now = false, route = 'local', updated_at = now()
+		 WHERE id = $1 AND key_id = $2 AND status IN ('taken', 'waiting')`, id, keyID)
+}
+
+// AddEncargoSpent adds to what the coding agent spent on an encargo.
+func (s *Store) AddEncargoSpent(ctx context.Context, id, micros int64) error {
+	_, err := s.pool.Exec(ctx, `UPDATE encargos SET spent_micros = spent_micros + $2 WHERE id = $1`, id, micros)
+	return err
+}
+
+// EncargosOfSystemKey lists the encargos a platform agent has (taken or
+// waiting), in every organization.
+func (s *Store) EncargosOfSystemKey(ctx context.Context, name string) ([]Encargo, error) {
+	rows, err := s.pool.Query(ctx, `SELECT `+encargoCols+encargoFrom+`
+		WHERE k.name = $1 AND k.created_by = 'rendimiento' AND e.status IN ('taken', 'waiting')`, name)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Encargo, error) { return scanEncargo(r) })
 }

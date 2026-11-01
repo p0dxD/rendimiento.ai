@@ -99,6 +99,9 @@ type IAInput struct {
 	// EncargoAutoDollars is the most an encargo may be estimated to cost
 	// for the platform's AI to take it (nil: unchanged).
 	EncargoAutoDollars *float64 `json:"encargoAutoDollars"`
+	// CodeAgent is what the platform's coding agent does: off, asked or
+	// auto (nil: unchanged). It needs an Anthropic model.
+	CodeAgent *string `json:"codeAgent"`
 }
 
 // micros turns dollars into millionths of a dollar.
@@ -182,6 +185,21 @@ func (s *Server) putIA(w http.ResponseWriter, r *http.Request, login string) {
 			return
 		}
 		if err := s.Store.SetEncargoAuto(ctx, org, micros(*in.EncargoAutoDollars), login); err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	if in.CodeAgent != nil {
+		mode := *in.CodeAgent
+		if mode != store.CodeAgentOff && mode != store.CodeAgentAsked && mode != store.CodeAgentAuto {
+			httpError(w, http.StatusBadRequest, "the coding agent is off, asked or auto")
+			return
+		}
+		if mode != store.CodeAgentOff && !(in.Provider == store.AIPlatform || (in.Provider == store.AIOwn && in.Kind == "anthropic")) {
+			httpError(w, http.StatusBadRequest, "the coding agent needs an Anthropic model: your own Anthropic key or the platform's")
+			return
+		}
+		if err := s.Store.SetCodeAgent(ctx, org, mode, login); err != nil {
 			httpError(w, http.StatusInternalServerError, err.Error())
 			return
 		}

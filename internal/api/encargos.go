@@ -146,6 +146,36 @@ func (s *Server) routeEncargo(w http.ResponseWriter, r *http.Request, login stri
 	s.encargoAnswer(w, e, err)
 }
 
+// doEncargos sends pending encargos to the platform's coding agent.
+func (s *Server) doEncargos(w http.ResponseWriter, r *http.Request, login string) {
+	var in struct {
+		IDs []int64 `json:"ids"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	if len(in.IDs) == 0 || len(in.IDs) > 100 {
+		httpError(w, http.StatusBadRequest, "send 1 to 100 encargos")
+		return
+	}
+	set, err := s.Store.AISettingsOf(r.Context(), orgOf(r))
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if set.CodeAgent == store.CodeAgentOff {
+		httpError(w, http.StatusConflict, "the coding agent is off; an administrator turns it on on the AI page")
+		return
+	}
+	n, err := s.Store.DoEncargos(r.Context(), orgOf(r), in.IDs, login)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	s.Log.Info("encargos sent to the coding agent", "n", n, "by", login)
+	writeJSON(w, map[string]int{"sent": n})
+}
+
 // reestimateEncargo asks the estimator to rate an encargo again.
 func (s *Server) reestimateEncargo(w http.ResponseWriter, r *http.Request, login string) {
 	id, ok := s.encargoID(w, r)
