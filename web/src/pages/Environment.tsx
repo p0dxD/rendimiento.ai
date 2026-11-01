@@ -414,7 +414,7 @@ function Capacidad({ nodes }: { nodes: EnvNode[] }) {
           return (
             <div key={n.name} className="capacidad-nodo">
               <div className="row between" style={{ gap: 6 }}>
-                <strong>{n.name}</strong>
+                <strong>{n.name}{v.busy.includes(n.name) && <> <span className="badge warn" title={t("Too full now: new steps and builds go to other nodes until it eases.")}>{t("busy")}</span></>}</strong>
                 <label className="small" title={fixed ? t("Off in BUILD_EXCLUDE_NODES") : undefined}>
                   <input type="checkbox" checked={takes} disabled={!admin || fixed}
                     onChange={(e) => set({ nodesOff: e.target.checked ? c.nodesOff.filter((x) => x !== n.name) : [...c.nodesOff, n.name] })} />{" "}
@@ -442,6 +442,11 @@ function Capacidad({ nodes }: { nodes: EnvNode[] }) {
           <input type="number" min={0} max={v.maxWorkers} disabled={!admin} value={c.runsPerApp || ""} placeholder={String(v.defaults.runsPerApp)}
             onChange={(e) => set({ runsPerApp: Number(e.target.value) })} />
           <span className="small muted">{t("its deploys still go one at a time; empty: {n}", { n: v.defaults.runsPerApp })}</span>
+        </label>
+        <label className="field"><span>{t("A node is busy from (%)")}</span>
+          <input type="number" min={50} max={100} step={5} disabled={!admin} value={c.busyPercent || ""} placeholder={String(v.defaultBusyPercent)}
+            onChange={(e) => set({ busyPercent: Number(e.target.value) })} />
+          <span className="small muted">{t("CPU reserved or in use; a busy node takes nothing new until it eases. 100: never busy")}</span>
         </label>
         <label className="field"><span>{t("Most CPU a step reserves (cores)")}</span>
           <input type="number" min={0} step={0.25} disabled={!admin} value={c.stepCpuMillis ? c.stepCpuMillis / 1000 : ""} placeholder={t("what each app asks")}

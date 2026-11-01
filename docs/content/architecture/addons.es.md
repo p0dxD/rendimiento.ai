@@ -117,7 +117,7 @@ Los ganchos corren como los corre Helm ([`addon_hooks.go`](https://github.com/p0
 | adoptar lo que ya corre, o una resincronización sin nada nuevo | ninguno |
 | desinstalar | `pre-delete` (si falla, se detiene la desinstalación), borrar, `post-delete` |
 
-Los ganchos corren en orden de peso, después de que existen el espacio de nombres y los CRD. Se espera a los Jobs y los Pods (`hookTimeout`, 10 minutos de forma predeterminada); se respetan las políticas de borrado (`before-hook-creation`, la predeterminada, `hook-succeeded`, `hook-failed`). Un gancho previo fallido no aplica nada; un gancho posterior fallido deja los objetos aplicados y se reintenta en la siguiente sincronización.
+Los ganchos corren en orden de peso, después de que existen el espacio de nombres y los CRD. Se espera a los Jobs y los Pods (`hookTimeout`, 10 minutos de forma predeterminada); se respetan las políticas de borrado (`before-hook-creation`, la predeterminada, `hook-succeeded`, `hook-failed`). Un gancho previo fallido no aplica nada; un gancho posterior fallido deja los objetos aplicados y se reintenta en la siguiente sincronización. Los ganchos previos que salieron bien no se vuelven a correr cuando solo falló lo que se aplica después: la anotación `rendimiento.ai/pre-hooks-done` del complemento los registra (`install:<hash>`), así que una migración corre una vez por cada versión generada.
 
 ### Inventario y poda {#inventory-and-pruning}
 

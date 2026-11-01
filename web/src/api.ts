@@ -881,6 +881,7 @@ export interface Capacity {
   runsPerApp: number;
   stepCpuMillis: number;
   nodesOff: string[];
+  busyPercent: number;
   updatedBy?: string;
   updatedAt?: string;
 }
@@ -888,6 +889,8 @@ export interface CapacityView {
   saved: Capacity;
   defaults: { parallelRuns: number; runsPerApp: number; nodesOff: string[] };
   maxWorkers: number;
+  busy: string[];
+  defaultBusyPercent: number;
 }
 
 export interface EnvProblem {

@@ -117,7 +117,7 @@ Hooks run like Helm runs them ([`addon_hooks.go`](https://github.com/p0dxD/rendi
 | adopting what already runs, or a resync with nothing new | none |
 | uninstall | `pre-delete` (a failure stops the uninstall), delete, `post-delete` |
 
-Hooks run in weight order, after the namespace and CRDs exist. Jobs and Pods are waited for (`hookTimeout`, 10 minutes by default); delete policies (`before-hook-creation`, the default, `hook-succeeded`, `hook-failed`) are honored. A failed pre hook applies nothing; a failed post hook leaves the objects applied and is retried on the next sync.
+Hooks run in weight order, after the namespace and CRDs exist. Jobs and Pods are waited for (`hookTimeout`, 10 minutes by default); delete policies (`before-hook-creation`, the default, `hook-succeeded`, `hook-failed`) are honored. A failed pre hook applies nothing; a failed post hook leaves the objects applied and is retried on the next sync. Pre hooks that succeeded are not run again when only the apply after them failed: the add-on's `rendimiento.ai/pre-hooks-done` annotation records them (`install:<hash>`), so a migration runs once per render.
 
 ### Inventory and pruning
 
