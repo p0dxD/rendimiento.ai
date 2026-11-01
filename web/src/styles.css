@@ -214,6 +214,15 @@ button.corre{background:linear-gradient(90deg,var(--border) 25%,var(--card) 50%,
 .lo-ultimo li::before{content:"";position:absolute;left:-30px;top:4px;width:13px;height:13px;border-radius:50%;background:var(--c);border:3px solid var(--bg)}
 details.card>summary{cursor:pointer}
 @media (max-width:520px){.resumen-dos{grid-template-columns:minmax(0,1fr)}}
+@media (min-width:1100px){
+  .resumen-ancho{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"svc latest" "side latest" "tree tree";gap:18px;align-items:start}
+  .resumen-ancho>*{margin-top:0}
+  .resumen-ancho>.servicios{grid-area:svc;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  .resumen-ancho>.resumen-dos{display:contents}
+  .resumen-ancho>.resumen-dos>:first-child{grid-area:latest}
+  .resumen-ancho>.resumen-dos>:last-child{grid-area:side}
+  .resumen-ancho>details{grid-area:tree}
+}
 @media (prefers-reduced-motion: reduce){.app-vista,.lo-ultimo li,.app-tabs a.active::after,button.corre{animation:none}}
 
 table { width: 100%; border-collapse: collapse; }
