@@ -95,9 +95,13 @@ func setupWith(t *testing.T, opt render.Options) (client.Client, *fakeDNS) {
 	return c, dns
 }
 
+// eventually waits for cond. It returns as soon as cond holds, so its
+// minute only matters on a busy node: CI runs two envtest API servers at
+// once, beside other runs' steps, and 20 seconds timed out there
+// (TestAddonHooks, TestAddonLifecycle) with nothing wrong.
 func eventually(t *testing.T, what string, cond func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(20 * time.Second)
+	deadline := time.Now().Add(time.Minute)
 	for time.Now().Before(deadline) {
 		if cond() {
 			return
