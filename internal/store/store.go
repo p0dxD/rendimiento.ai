@@ -276,14 +276,37 @@ func (s *Store) CreateRun(ctx context.Context, r *Run, steps []pipeline.Step) er
 // run going), and marks it running. It returns ErrNotFound when there is
 // none. Safe across replicas.
 func (s *Store) ClaimRun(ctx context.Context, skip []int64) (*Run, error) {
-	if skip == nil {
-		skip = []int64{}
+	return s.ClaimRunFor(ctx, Busy{Full: skip})
+}
+
+// Busy is what the runs going rule out for the next one: apps that have as
+// many runs going as they may (Full), apps with a deploying run going
+// (Deploying: their next deploy waits, so releases keep their order), and
+// branches with a run going ("<app id>:<branch>", so a branch's runs keep
+// theirs).
+type Busy struct {
+	Full      []int64
+	Deploying []int64
+	Branches  []string
+}
+
+// ClaimRunFor takes the oldest queued run that b does not rule out, and marks
+// it running (ErrNotFound when there is none).
+func (s *Store) ClaimRunFor(ctx context.Context, b Busy) (*Run, error) {
+	for _, l := range []*[]int64{&b.Full, &b.Deploying} {
+		if *l == nil {
+			*l = []int64{}
+		}
+	}
+	if b.Branches == nil {
+		b.Branches = []string{}
 	}
 	return scanRun(s.pool.QueryRow(ctx, `
 		UPDATE runs SET status = 'running', started_at = now()
 		WHERE id = (SELECT id FROM runs WHERE status = 'queued' AND NOT (app_id = ANY($1))
+			AND NOT (deploy AND app_id = ANY($2)) AND NOT ((app_id::text || ':' || branch) = ANY($3))
 			ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1)
-		RETURNING `+runCols, skip))
+		RETURNING `+runCols, b.Full, b.Deploying, b.Branches))
 }
 
 // --8<-- [end:claim]

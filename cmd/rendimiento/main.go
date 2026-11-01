@@ -365,6 +365,7 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	// Runs of different apps go side by side (one per app, so an app's
 	// releases keep their order); MAX_PARALLEL_STEPS still bounds the load.
 	p.Workers, _ = strconv.Atoi(env("PARALLEL_RUNS", "3"))
+	p.PerApp, _ = strconv.Atoi(env("RUNS_PER_APP", "2"))
 	p.Caches = executor
 	renovateRunner := &renovate.Runner{
 		Kube: clientset, Namespace: executor.Namespace, ExcludeNodes: executor.ExcludeNodes,

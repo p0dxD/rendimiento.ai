@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -224,6 +225,57 @@ func TestClaimSkipsAppsWithARunGoing(t *testing.T) {
 	}
 	if got := claim(b.ID); got != a2.ID {
 		t.Fatalf("a free again = %d, want %d", got, a2.ID)
+	}
+}
+
+func TestClaimBranchesBesideADeploy(t *testing.T) {
+	s := open(t)
+	ctx := context.Background()
+	sp := spec.Spec{Services: []spec.Service{{Name: "web"}}}
+	sp.Default()
+	a := &App{Name: "ramas-a", Repo: "a/ramas", Spec: sp}
+	if err := s.CreateApp(ctx, a); err != nil {
+		t.Fatal(err)
+	}
+	m1 := &Run{AppID: a.ID, SHA: "1", Branch: "main", Event: "push", Deploy: true}
+	m2 := &Run{AppID: a.ID, SHA: "2", Branch: "main", Event: "push", Deploy: true}
+	x1 := &Run{AppID: a.ID, SHA: "3", Branch: "x", Event: "push"}
+	x2 := &Run{AppID: a.ID, SHA: "4", Branch: "x", Event: "push"}
+	y1 := &Run{AppID: a.ID, SHA: "5", Branch: "y", Event: "push"}
+	for _, r := range []*Run{m1, m2, x1, x2, y1} {
+		if err := s.CreateRun(ctx, r, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	key := func(br string) string { return fmt.Sprintf("%d:%s", a.ID, br) }
+	claim := func(b Busy) int64 {
+		r, err := s.ClaimRunFor(ctx, b)
+		if errors.Is(err, ErrNotFound) {
+			return 0
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.ID
+	}
+	if got := claim(Busy{}); got != m1.ID {
+		t.Fatalf("first claim = %d, want the first deploy %d", got, m1.ID)
+	}
+	// main deploying: the next deploy waits, a branch goes beside it.
+	if got := claim(Busy{Deploying: []int64{a.ID}, Branches: []string{key("main")}}); got != x1.ID {
+		t.Fatalf("beside a deploy = %d, want branch x's first run %d", got, x1.ID)
+	}
+	// x going too: its second run waits, y goes.
+	if got := claim(Busy{Deploying: []int64{a.ID}, Branches: []string{key("main"), key("x")}}); got != y1.ID {
+		t.Fatalf("x going = %d, want y's run %d", got, y1.ID)
+	}
+	// The app at its limit: nothing.
+	if got := claim(Busy{Full: []int64{a.ID}}); got != 0 {
+		t.Fatalf("app full = %d, want none", got)
+	}
+	// The deploy done: the second deploy is next.
+	if got := claim(Busy{Branches: []string{key("x"), key("y")}}); got != m2.ID {
+		t.Fatalf("deploy done = %d, want the second deploy %d", got, m2.ID)
 	}
 }
 
