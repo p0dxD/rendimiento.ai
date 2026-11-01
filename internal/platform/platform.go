@@ -93,12 +93,16 @@ type Platform struct {
 	Caches interface {
 		DeleteCaches(ctx context.Context, app string) error
 	}
-	// Workers is how many runs go at once (default 1), each of a different
-	// app; the Runner's limit on steps still holds across all of them.
+	// Workers is how many runs go at once (default 1); the Runner's limit on
+	// steps still holds across all of them. PerApp is how many of them may be
+	// of one app (default 1): an app's deploying runs still go one at a time,
+	// in order, and so do the runs of one branch, but its other branches
+	// need not wait.
 	Workers int
+	PerApp  int
 
 	claimMu sync.Mutex
-	busy    map[int64]bool // apps with a run going, which wait their turn
+	going   map[int64]*appGoing // apps with runs going
 
 	mu        sync.Mutex
 	cancels   map[int64]context.CancelFunc      // running run → cancel
@@ -686,21 +690,49 @@ func (p *Platform) Work(ctx context.Context) {
 	wg.Wait()
 }
 
-// work takes the oldest queued run of an app with no run going (so an
-// app's runs, and its releases, keep their order) until ctx ends.
+// appGoing is what one app has going: its runs, whether one deploys, and
+// their branches.
+type appGoing struct {
+	runs      int
+	deploying bool
+	branches  map[string]bool
+}
+
+// busy is what the runs going rule out for the next one (claimMu held).
+func (p *Platform) busy() store.Busy {
+	var b store.Busy
+	for id, g := range p.going {
+		if g.runs >= max(p.PerApp, 1) {
+			b.Full = append(b.Full, id)
+		}
+		if g.deploying {
+			b.Deploying = append(b.Deploying, id)
+		}
+		for br := range g.branches {
+			b.Branches = append(b.Branches, fmt.Sprintf("%d:%s", id, br))
+		}
+	}
+	return b
+}
+
+// work takes the oldest queued run that the runs going allow (an app's
+// deploys, and each branch's runs, keep their order) until ctx ends.
 func (p *Platform) work(ctx context.Context) {
 	for ctx.Err() == nil {
 		p.claimMu.Lock()
-		busy := make([]int64, 0, len(p.busy))
-		for id := range p.busy {
-			busy = append(busy, id)
-		}
-		run, err := p.Store.ClaimRun(ctx, busy)
+		run, err := p.Store.ClaimRunFor(ctx, p.busy())
 		if err == nil {
-			if p.busy == nil {
-				p.busy = map[int64]bool{}
+			if p.going == nil {
+				p.going = map[int64]*appGoing{}
 			}
-			p.busy[run.AppID] = true
+			g := p.going[run.AppID]
+			if g == nil {
+				g = &appGoing{branches: map[string]bool{}}
+				p.going[run.AppID] = g
+			}
+			g.runs++
+			g.deploying = g.deploying || run.Deploy
+			g.branches[run.Branch] = true
 		}
 		p.claimMu.Unlock()
 		if errors.Is(err, store.ErrNotFound) {
@@ -717,7 +749,16 @@ func (p *Platform) work(ctx context.Context) {
 		}
 		p.execute(ctx, run)
 		p.claimMu.Lock()
-		delete(p.busy, run.AppID)
+		if g := p.going[run.AppID]; g != nil {
+			g.runs--
+			delete(g.branches, run.Branch)
+			if run.Deploy {
+				g.deploying = false
+			}
+			if g.runs == 0 {
+				delete(p.going, run.AppID)
+			}
+		}
 		p.claimMu.Unlock()
 	}
 }

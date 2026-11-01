@@ -53,7 +53,7 @@ Las ejecuciones son filas. Los trabajadores apartan una con `SELECT … FOR UPDA
 ```
 
 - **Por qué:** Postgres ya está ahí; no hay Redis ni RabbitMQ que mantener. `SKIP LOCKED` deja que muchos trabajadores aparten filas distintas sin estorbarse, y una caída deja la fila disponible otra vez (`RequeueOrphans` al arrancar).
-- **Una ejecución por aplicación:** `PARALLEL_RUNS` trabajadores (3) apartan a la vez, y cada uno salta las aplicaciones que ya tienen una ejecución en marcha, así la construcción larga de una aplicación nunca detiene la página de otra y las versiones de cada aplicación conservan su orden.
+- **Un despliegue por aplicación:** `PARALLEL_RUNS` trabajadores (3) apartan a la vez. Cada uno salta una aplicación con `RUNS_PER_APP` ejecuciones en marcha (2), un despliegue cuando la aplicación ya tiene uno en marcha y una rama con una ejecución en marcha, así la construcción larga de una aplicación nunca detiene la página de otra, sus ramas no se esperan entre sí y sus versiones conservan su orden.
 
 ### GitOps para la configuración, base de datos para las versiones {#gitops-for-configuration-database-for-releases}
 
