@@ -10,6 +10,7 @@ import (
 	"net"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -49,6 +50,9 @@ type KubeExecutor struct {
 	// enforce the build namespace's NetworkPolicy or that are reserved for
 	// other work.
 	ExcludeNodes []string
+	// Limits is what the Environment page sets now (nil: nothing): more
+	// nodes that take no runs, and the most CPU a step asks for.
+	Limits func() (nodesOff []string, stepCPUMillis int64)
 	// RailpackImage has the railpack CLI; it writes the build plan for
 	// services without a Dockerfile. Empty disables Railpack builds.
 	RailpackImage string
@@ -420,6 +424,7 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 		if err != nil {
 			return nil, err
 		}
+		k.capCPU(&res)
 		env := []corev1.EnvVar{{Name: "CI", Value: "true"}, {Name: "GIT_SHA", Value: src.SHA}}
 		if step.Postgres {
 			env = append(env, corev1.EnvVar{Name: "DATABASE_URL", Value: testDatabaseURL})
@@ -501,6 +506,7 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 		if err != nil {
 			return nil, err
 		}
+		k.capCPU(&res)
 		main = corev1.Container{
 			Name:       "step",
 			Image:      step.Image,
@@ -795,15 +801,43 @@ func terminationSummary(p *corev1.Pod) string {
 	return string(p.Status.Phase)
 }
 
-// affinity keeps step pods off the nodes in BUILD_EXCLUDE_NODES.
+// capCPU lowers a step's CPU request to the most the Environment page
+// allows; its limit, if any, is left alone, so it still uses free cores.
+func (k *KubeExecutor) capCPU(res *corev1.ResourceRequirements) {
+	if k.Limits == nil {
+		return
+	}
+	_, most := k.Limits()
+	if q, ok := res.Requests[corev1.ResourceCPU]; ok && most > 0 && q.MilliValue() > most {
+		res.Requests[corev1.ResourceCPU] = *resource.NewMilliQuantity(most, resource.DecimalSI)
+	}
+}
+
+// nodesOff are the nodes step pods stay off: BUILD_EXCLUDE_NODES and those
+// the Environment page turned off.
+func (k *KubeExecutor) nodesOff() []string {
+	out := append([]string{}, k.ExcludeNodes...)
+	if k.Limits != nil {
+		more, _ := k.Limits()
+		for _, n := range more {
+			if !slices.Contains(out, n) {
+				out = append(out, n)
+			}
+		}
+	}
+	return out
+}
+
+// affinity keeps step pods off the nodes that take no runs.
 func (k *KubeExecutor) affinity() *corev1.Affinity {
-	if len(k.ExcludeNodes) == 0 {
+	off := k.nodesOff()
+	if len(off) == 0 {
 		return nil
 	}
 	return &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{
 			MatchExpressions: []corev1.NodeSelectorRequirement{{
-				Key: "kubernetes.io/hostname", Operator: corev1.NodeSelectorOpNotIn, Values: k.ExcludeNodes,
+				Key: "kubernetes.io/hostname", Operator: corev1.NodeSelectorOpNotIn, Values: off,
 			}},
 		}}},
 	}}

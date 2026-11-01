@@ -98,6 +98,7 @@ var catalog = map[string]string{
 	"that website is not one of this app's": "ese sitio no es de esta aplicación",
 	"route must be platform or local": "la ruta debe ser platform o local",
 	"the amount for encargos must be between $0 and $100": "el monto para encargos debe estar entre $0 y $100",
+	"runs at once and per app go from 1 to 8, and a step's CPU from 0.25 cores": "las ejecuciones a la vez y por aplicación van de 1 a 8, y la CPU de un paso desde 0.25 núcleos",
 	"stopped: %s failed":                                                                              "detenido: falló %s",
 	"%s failed two checks in a row. rendimiento keeps checking every minute and will email you when it recovers.": "Fallaron dos comprobaciones seguidas de %s. rendimiento sigue comprobando cada minuto y le enviará un correo cuando se recupere.",
 	"%s installed on %s": "%s instalada en %s",

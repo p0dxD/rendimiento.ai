@@ -323,6 +323,10 @@ button.sello:hover{transform:rotate(0) scale(1.04)}
 @keyframes casa-tiembla{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
 .calle-leyenda{margin:8px 0 0}
 .calle-nodo{max-width:420px;margin-top:12px;animation:casa-brota .35s ease both}
+.capacidad{margin-top:16px}
+.capacidad-nodos{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.capacidad-nodo{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;min-width:0}
+.capacidad-nodo .meter{margin-bottom:2px}
 .letreros{display:flex;flex-wrap:wrap;gap:18px;justify-content:space-around;margin-top:24px}
 .letrero{display:flex;flex-direction:column;align-items:center;border:none;background:transparent;cursor:pointer;padding:0;color:inherit}
 .letrero .cuerdas{width:70px;height:12px;border-left:2px solid #7A5A2A;border-right:2px solid #7A5A2A}

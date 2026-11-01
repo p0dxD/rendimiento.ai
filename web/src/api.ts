@@ -859,7 +859,26 @@ export interface EnvNode {
   cpuUsed?: number;
   memBytes: number;
   memUsed?: number;
+  // What its pods ask for: the scheduler places by this, not by use.
+  cpuReserved: number;
+  memReserved: number;
   unschedulable?: boolean;
+}
+
+// How much the platform runs at once, set on the Environment page (0: the
+// environment variable's value).
+export interface Capacity {
+  parallelRuns: number;
+  runsPerApp: number;
+  stepCpuMillis: number;
+  nodesOff: string[];
+  updatedBy?: string;
+  updatedAt?: string;
+}
+export interface CapacityView {
+  saved: Capacity;
+  defaults: { parallelRuns: number; runsPerApp: number; nodesOff: string[] };
+  maxWorkers: number;
 }
 
 export interface EnvProblem {
@@ -888,6 +907,8 @@ export const envApi = {
   testEmail: () => request<{ sent: boolean; to: string[] }>("POST", "/api/notifications/test"),
   version: () => request<PlatformVersion>("GET", "/api/platform/version"),
   update: (release: number) => request<PlatformRelease>("POST", "/api/platform/update", { release }),
+  capacity: () => request<CapacityView>("GET", "/api/environment/capacity"),
+  saveCapacity: (c: Capacity) => request<CapacityView>("PUT", "/api/environment/capacity", c),
 };
 
 // rendimiento's own versions: the images its repository's builds made.

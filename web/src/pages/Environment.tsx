@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { envApi, timeAgo, type EnvCheck, type EnvNode, type EnvProvider, type EnvReport, type EnvStatus } from "../api";
+import { envApi, session, timeAgo, type Capacity, type EnvCheck, type EnvNode, type EnvProvider, type EnvReport, type EnvStatus } from "../api";
 import { ErrorBox, usePoll } from "../components/ui";
 import { locale, t, tn } from "../i18n";
 import { PlatformVersion } from "./Version";
@@ -96,6 +96,7 @@ export function Environment() {
       </div>
       <p className="small muted calle-leyenda">{t("Lit windows are the processor; the red skirting rises with memory. A note on the door says the node is missing something. The parroquia is the node in charge.")}</p>
       {nodo && <div className="calle-nodo"><NodeCard n={nodo} /></div>}
+      <Capacidad nodes={r.nodes} />
 
       <div className="letreros">
         {letreros.map((l, i) => (
@@ -366,6 +367,97 @@ function Meter({ label: l, used, total, fmt }: { label: string; used?: number; t
         <div style={{ width: `${pct}%`, background: color }} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Capacity: every node's processor and memory (in use, and reserved by its pods, which is what decides where a new
+ * pod fits) and whether it takes runs; and how much the platform runs at once. Administrators change it here, and
+ * the platform follows within 15 seconds, with no redeploy.
+ */
+function Capacidad({ nodes }: { nodes: EnvNode[] }) {
+  const { data: v, setData } = usePoll(envApi.capacity, [], 60000);
+  const [edit, setEdit] = useState<Capacity>();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>();
+  if (!v) return null;
+  // The platform's administrators: those of its own organization.
+  const admin = session.operator;
+  const c = edit ?? v.saved;
+  const set = (patch: Partial<Capacity>) => setEdit({ ...c, ...patch });
+  const changed = !!edit && JSON.stringify(edit) !== JSON.stringify(v.saved);
+  const always = v.defaults.nodesOff;
+  const pct = (a: number, b: number) => (b ? Math.min(100, Math.round((a / b) * 100)) : 0);
+  const color = (p: number) => (p >= 90 ? "var(--bad)" : p >= 75 ? "var(--warn)" : "var(--ok)");
+  const bar = (p: number, label: string) => (
+    <div className="meter" role="meter" aria-valuenow={p} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
+      <div style={{ width: `${p}%`, background: color(p) }} />
+    </div>
+  );
+  const save = () => {
+    if (!edit) return;
+    setBusy(true); setErr(undefined);
+    envApi.saveCapacity(edit).then((nv) => { setBusy(false); setEdit(undefined); setData(nv); }, (e) => { setBusy(false); setErr(e); });
+  };
+  return (
+    <section className="card stack capacidad">
+      <div>
+        <h2 style={{ margin: 0 }}>{t("Capacity")}</h2>
+        <p className="small muted" style={{ margin: 0 }}>{t("Reserved is what the pods on a node ask for: a new pod goes only where it fits, however little the node really uses. Runs' steps go only to the nodes that take runs.")}</p>
+      </div>
+      <div className="capacidad-nodos">
+        {nodes.map((n) => {
+          const cpuRes = pct(n.cpuReserved, n.cpuCores);
+          const memRes = pct(n.memReserved, n.memBytes);
+          const fixed = always.includes(n.name);
+          const takes = !fixed && !c.nodesOff.includes(n.name);
+          return (
+            <div key={n.name} className="capacidad-nodo">
+              <div className="row between" style={{ gap: 6 }}>
+                <strong>{n.name}</strong>
+                <label className="small" title={fixed ? t("Off in BUILD_EXCLUDE_NODES") : undefined}>
+                  <input type="checkbox" checked={takes} disabled={!admin || fixed}
+                    onChange={(e) => set({ nodesOff: e.target.checked ? c.nodesOff.filter((x) => x !== n.name) : [...c.nodesOff, n.name] })} />{" "}
+                  {t("takes runs")}
+                </label>
+              </div>
+              <span className="small muted">{(n.roles?.length ? n.roles.join(", ") : t("worker"))} · {cores(n.cpuCores)} · {gib(n.memBytes)}</span>
+              <div className="small row between"><span>{t("CPU in use")}</span><span className="muted">{n.cpuUsed !== undefined ? `${pct(n.cpuUsed, n.cpuCores)}%` : "—"}</span></div>
+              {n.cpuUsed !== undefined && bar(pct(n.cpuUsed, n.cpuCores), t("CPU in use"))}
+              <div className="small row between"><span>{t("CPU reserved")}</span><span className="muted">{cores(n.cpuReserved)} · {cpuRes}%</span></div>
+              {bar(cpuRes, t("CPU reserved"))}
+              <div className="small row between"><span>{t("Memory in use / reserved")}</span><span className="muted">{n.memUsed !== undefined ? `${pct(n.memUsed, n.memBytes)}%` : "—"} / {memRes}%</span></div>
+              {bar(memRes, t("Memory reserved"))}
+            </div>
+          );
+        })}
+      </div>
+      <div className="form-grid">
+        <label className="field"><span>{t("Runs at once")}</span>
+          <input type="number" min={0} max={v.maxWorkers} disabled={!admin} value={c.parallelRuns || ""} placeholder={String(v.defaults.parallelRuns)}
+            onChange={(e) => set({ parallelRuns: Number(e.target.value) })} />
+          <span className="small muted">{t("empty: {n}, from PARALLEL_RUNS", { n: v.defaults.parallelRuns })}</span>
+        </label>
+        <label className="field"><span>{t("Runs of one app at once")}</span>
+          <input type="number" min={0} max={v.maxWorkers} disabled={!admin} value={c.runsPerApp || ""} placeholder={String(v.defaults.runsPerApp)}
+            onChange={(e) => set({ runsPerApp: Number(e.target.value) })} />
+          <span className="small muted">{t("its deploys still go one at a time; empty: {n}", { n: v.defaults.runsPerApp })}</span>
+        </label>
+        <label className="field"><span>{t("Most CPU a step reserves (cores)")}</span>
+          <input type="number" min={0} step={0.25} disabled={!admin} value={c.stepCpuMillis ? c.stepCpuMillis / 1000 : ""} placeholder={t("what each app asks")}
+            onChange={(e) => set({ stepCpuMillis: Math.round(Number(e.target.value) * 1000) })} />
+          <span className="small muted">{t("lower it so steps fit on busy nodes; they still use free cores")}</span>
+        </label>
+      </div>
+      <ErrorBox error={err} />
+      {admin ? changed && (
+        <div className="row" style={{ gap: 8 }}>
+          <button className="primary" disabled={busy} onClick={save}>{busy ? t("Saving…") : t("Save")}</button>
+          <button disabled={busy} onClick={() => setEdit(undefined)}>{t("Discard")}</button>
+        </div>
+      ) : <p className="small muted" style={{ margin: 0 }}>{t("Only administrators change this.")}</p>}
+      {v.saved.updatedBy && <span className="small muted">{t("changed by {who} {when}", { who: v.saved.updatedBy, when: timeAgo(v.saved.updatedAt!) })}</span>}
+    </section>
   );
 }
 

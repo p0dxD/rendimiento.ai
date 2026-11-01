@@ -464,3 +464,19 @@ func TestAddons(t *testing.T) {
 		t.Fatal("run lists leave the log out")
 	}
 }
+
+// The capacity is empty until set, and kept as set.
+func TestCapacity(t *testing.T) {
+	s := open(t)
+	ctx := context.Background()
+	if c, err := s.GetCapacity(ctx); err != nil || c.ParallelRuns != 0 || c.NodesOff == nil {
+		t.Fatalf("unset: %+v (%v)", c, err)
+	}
+	if err := s.SaveCapacity(ctx, Capacity{ParallelRuns: 4, RunsPerApp: 1, StepCPUMillis: 1500, NodesOff: []string{"colorpi"}}, "p0dxD"); err != nil {
+		t.Fatal(err)
+	}
+	c, err := s.GetCapacity(ctx)
+	if err != nil || c.ParallelRuns != 4 || c.RunsPerApp != 1 || c.StepCPUMillis != 1500 || len(c.NodesOff) != 1 || c.UpdatedBy != "p0dxD" {
+		t.Fatalf("saved: %+v (%v)", c, err)
+	}
+}
