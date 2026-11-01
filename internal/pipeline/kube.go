@@ -203,6 +203,13 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 	if err != nil {
 		return fail("%v", err)
 	}
+	if step.Kind == KindTest && step.Cache && k.cacheInUse(ctx, name, step) {
+		// Another run's test has the cache. A volume one node at a time
+		// (Longhorn's ReadWriteOnce) would keep this pod waiting for it: this
+		// test goes without it instead.
+		fmt.Fprintf(w, "rendimiento: another run is using this test's cache; this test runs without it\n")
+		withoutCache(pod)
+	}
 	cleanup := func() {
 		bg := context.Background()
 		_ = k.Client.CoreV1().Pods(k.Namespace).Delete(bg, name, metav1.DeleteOptions{})
@@ -235,11 +242,7 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 			if err := k.deletePod(ctx, name); err != nil {
 				return fail("%v", err)
 			}
-			for i, v := range pod.Spec.Volumes {
-				if v.Name == "cache" {
-					pod.Spec.Volumes[i].VolumeSource = corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}
-				}
-			}
+			withoutCache(pod)
 			if err := k.createPod(ctx, pod); err != nil {
 				return fail("create pod: %v", err)
 			}
@@ -684,6 +687,16 @@ func (k *KubeExecutor) stuckOnCache(ctx context.Context, pod string, wait time.D
 		case <-ctx.Done():
 			return "", nil
 		case <-time.After(time.Second):
+		}
+	}
+}
+
+// withoutCache gives a test's pod an empty folder at /cache instead of the
+// cache volume.
+func withoutCache(pod *corev1.Pod) {
+	for i, v := range pod.Spec.Volumes {
+		if v.Name == "cache" {
+			pod.Spec.Volumes[i].VolumeSource = corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}
 		}
 	}
 }
