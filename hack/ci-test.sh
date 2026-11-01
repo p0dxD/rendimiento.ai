@@ -17,12 +17,28 @@ export GOBIN=$TOOLS PATH=$TOOLS:$PATH
 
 cd "$(dirname "$0")/.."
 git config --global --add safe.directory "$PWD" 2>/dev/null || true
-controller-gen --version 2>/dev/null | grep -q "$CONTROLLER_GEN" || go install "sigs.k8s.io/controller-tools/cmd/controller-gen@$CONTROLLER_GEN"
-[ -x "$TOOLS/setup-envtest" ] || go install "sigs.k8s.io/controller-runtime/tools/setup-envtest@$SETUP_ENVTEST"
+
+# Compiling with an empty cache prints nothing for many minutes: each
+# section says when it starts, and a line every minute says it is alive.
+start=$(date +%s)
+section() { echo "== $1 ($(($(date +%s) - start))s)"; }
+(while sleep 60; do echo "   … still working, $(($(date +%s) - start))s"; done) &
+heartbeat=$!
+trap 'kill $heartbeat 2>/dev/null || true' EXIT
+
+section tools
+if ! controller-gen --version 2>/dev/null | grep -q "$CONTROLLER_GEN"; then
+  echo "   installing controller-gen $CONTROLLER_GEN (the cache is empty or old)"
+  go install "sigs.k8s.io/controller-tools/cmd/controller-gen@$CONTROLLER_GEN"
+fi
+if [ ! -x "$TOOLS/setup-envtest" ]; then
+  echo "   installing setup-envtest $SETUP_ENVTEST"
+  go install "sigs.k8s.io/controller-runtime/tools/setup-envtest@$SETUP_ENVTEST"
+fi
 # The built UI is not in git; vet and tests only need something to embed.
 [ -n "$(ls -A web/dist 2>/dev/null)" ] || { mkdir -p web/dist && echo placeholder > web/dist/index.html; }
 
-echo '== generate'
+section generate
 controller-gen object paths=./api/... paths=./internal/spec/...
 controller-gen crd paths=./api/... output:crd:dir=deploy/crds
 if [ -n "${CHECK_GENERATED:-}" ] && ! git diff --quiet -- api internal/spec deploy/crds; then
@@ -30,9 +46,9 @@ if [ -n "${CHECK_GENERATED:-}" ] && ! git diff --quiet -- api internal/spec depl
   echo "generated files are out of date: run make generate (or make test-remote) and commit them"
   exit 1
 fi
-echo '== vet'
+section 'vet (compiles everything: the longest part with an empty cache)'
 go vet ./...
-echo '== test'
+section test
 KUBEBUILDER_ASSETS=$(setup-envtest use "$ENVTEST_K8S" -p path --bin-dir "$(dirname "$TOOLS")/envtest")
 export KUBEBUILDER_ASSETS
 # store, platform and api share one test database, so they run one at a
@@ -44,9 +60,14 @@ go test -v -p 1 $(go list ./... | grep -E "$shared") >"$out/shared.log" 2>&1 &
 a=$!
 go test -v -p 2 $(go list ./... | grep -vE "$shared") >"$out/rest.log" 2>&1 &
 b=$!
+# Each package as it finishes, so a long run shows where it is (tail ends
+# with this script, and the rest of the pipe with it).
+tail -n +1 -F --pid=$$ "$out/shared.log" "$out/rest.log" 2>/dev/null | grep --line-buffered -E '^(ok|FAIL)[[:space:]]' | sed -u 's/^/   finished: /' &
 failed=()
 wait $a || failed+=("$out/shared.log")
 wait $b || failed+=("$out/rest.log")
+sleep 2 # the last packages' lines, before the summary
+section summary
 
 # What `go test` prints without -v: one line per package.
 grep -hE '^(ok|FAIL)[[:space:]]' "$out"/*.log | sort -k2
