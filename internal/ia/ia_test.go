@@ -190,3 +190,31 @@ func TestCompleteVia(t *testing.T) {
 		t.Fatalf("its usual provider stays the local one: %+v", res)
 	}
 }
+
+func TestAnthropicAsksAgainAfterThinkingOnly(t *testing.T) {
+	var bodies []map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		bodies = append(bodies, body)
+		if len(bodies) == 1 {
+			_ = json.NewEncoder(w).Encode(map[string]any{"content": []map[string]any{{"type": "thinking", "thinking": ""}},
+				"stop_reason": "max_tokens", "usage": map[string]any{"input_tokens": 100, "output_tokens": 2000}})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"content": []map[string]any{{"type": "text", "text": "falló etcd"}},
+			"stop_reason": "end_turn", "usage": map[string]any{"input_tokens": 100, "output_tokens": 300}})
+	}))
+	defer srv.Close()
+	a := anthropic{url: srv.URL, key: "k", http: srv.Client()}
+	text, in, out, err := a.complete(context.Background(), "m", Request{MaxTokens: 2000, Messages: []Message{{Role: "user", Content: "¿por qué?"}}})
+	if err != nil || text != "falló etcd" || in != 200 || out != 2300 {
+		t.Fatalf("got %q %d %d %v", text, in, out, err)
+	}
+	if len(bodies) != 2 || bodies[0]["output_config"] != nil || bodies[1]["max_tokens"].(float64) != 4000 {
+		t.Fatalf("calls = %v", bodies)
+	}
+	if c, _ := bodies[1]["output_config"].(map[string]any); c["effort"] != "low" {
+		t.Fatalf("second call's output_config = %v, want effort low", bodies[1]["output_config"])
+	}
+}
