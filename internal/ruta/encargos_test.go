@@ -184,6 +184,31 @@ func TestEncargoTools(t *testing.T) {
 		t.Fatalf("waited = %v %q", out, msg)
 	}
 
+	// Two waits on the same run (the first one's client gave up): when the
+	// run ends, both answer, and neither fails because the other resumed
+	// the encargo first.
+	out, _ = call(t, uno, "ejecucion_lanzar", map[string]any{"app": "shop", "rama": "carrito"})
+	run2 := int64(out["id"].(float64))
+	type espera struct {
+		out map[string]any
+		msg string
+	}
+	both := make(chan espera, 2)
+	for range 2 {
+		go func() {
+			o, m := call(t, uno, "encargo_esperar", map[string]any{"id": 1, "ejecucion": run2, "segundos": 30})
+			both <- espera{o, m}
+		}()
+	}
+	time.Sleep(200 * time.Millisecond)
+	fp.finish(run2, store.RunSucceeded)
+	for range 2 {
+		r := <-both
+		if r.msg != "" || r.out["terminada"] != true || r.out["encargo"].(map[string]any)["estado"] != "tomado" {
+			t.Fatalf("a second wait = %v %q", r.out, r.msg)
+		}
+	}
+
 	out, msg = call(t, uno, "encargo_entregar", map[string]any{"id": 1, "resultado": "Arreglado en la rama carrito; la ejecución pasó.",
 		"enlaces": []string{"https://github.com/o/shop/pull/new/carrito"}})
 	if msg != "" || out["estado"] != "entregado" {
@@ -194,7 +219,7 @@ func TestEncargoTools(t *testing.T) {
 	for _, h := range out["historia"].([]any) {
 		steps = append(steps, h.(map[string]any)["que"].(string))
 	}
-	if got := strings.Join(steps, ", "); got != "creado, tomado, esperando, terminó la espera, entregado" {
+	if got := strings.Join(steps, ", "); got != "creado, tomado, esperando, terminó la espera, esperando, esperando, terminó la espera, entregado" {
 		t.Fatalf("history = %s", got)
 	}
 
