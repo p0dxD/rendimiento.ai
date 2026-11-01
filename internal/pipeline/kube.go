@@ -220,6 +220,14 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 		if err != nil {
 			return fail("%v", err)
 		}
+		if stuck != "" && strings.Contains(stuck, "Insufficient") {
+			// Busy, not gone: another run's steps hold the node, and end in
+			// minutes. Starting cold costs more than waiting for them.
+			fmt.Fprintf(w, "rendimiento: the node that keeps this test's cache is busy; waiting up to %s more for room\n", cacheBusyWait)
+			if stuck, err = k.stuckOnCache(ctx, name, cacheBusyWait); err != nil {
+				return fail("%v", err)
+			}
+		}
 		if stuck != "" {
 			fmt.Fprintf(w, "rendimiento: the node that keeps this test's cache has no room (%s); starting with an empty cache\n", stuck)
 			if err := k.dropCache(ctx, name, step); err != nil {
@@ -608,6 +616,10 @@ func (k *KubeExecutor) ensureCache(ctx context.Context, step Step) error {
 // cacheWait is how long a test with a cache waits for room on the node
 // that keeps the cache before it starts over with an empty one.
 var cacheWait = 3 * time.Minute
+
+// cacheBusyWait is how much longer it waits when that node is only busy
+// (its CPU or memory taken by other runs' steps, which end in minutes).
+var cacheBusyWait = 10 * time.Minute
 
 // createPod creates the step's pod, retrying brief API errors.
 func (k *KubeExecutor) createPod(ctx context.Context, pod *corev1.Pod) error {
