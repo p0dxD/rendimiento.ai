@@ -114,7 +114,7 @@ flowchart LR
     h2 --> win["highest wins → buildkitd-2"]
 ```
 
-Each image has a **stable favourite**, so it always finds its warm cache there, while different images spread across the pool and build in parallel. If a daemon disappears, only the images that favoured it move; everything else stays put. If no daemon is ready, builds fall back to `BUILDKIT_ADDR`. The build log says which daemon built each image.
+Each image has a **stable favourite**, so it always finds its warm cache there, while different images spread across the pool and build in parallel. If a daemon disappears, only the images that favoured it move; everything else stays put. If no daemon is ready, builds fall back to `BUILDKIT_ADDR`. Daemons on nodes that take no runs (`BUILD_EXCLUDE_NODES`, or turned off in the Environment page's [Capacity](../environment/deploy.md#capacity)) are left out while another is ready, so turning a slow or busy node off moves its images elsewhere. The build log says which daemon built each image.
 
 ```go
 --8<-- "internal/pipeline/kube.go:buildkitFor"

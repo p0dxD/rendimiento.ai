@@ -206,7 +206,7 @@ The Environment page's **Capacity** section shows every node's processor and mem
 
 Administrators of the platform change, without a redeploy (every process follows within 15 seconds):
 
-- **takes runs**, per node: runs' steps go only to the nodes that take them. Nodes in `BUILD_EXCLUDE_NODES` are always off.
+- **takes runs**, per node: runs' steps go only to the nodes that take them, and so do images: a BuildKit daemon on a node that is off builds nothing while another is there (the image builds on another daemon, with the cache it keeps in the registry). Nodes in `BUILD_EXCLUDE_NODES` are always off.
 - **Runs at once** and **Runs of one app at once**: override `PARALLEL_RUNS` and `RUNS_PER_APP` (empty keeps them), up to 8. An app's deploys still go one at a time.
 - **Most CPU a step reserves**: lowers what any step's pod asks for, so steps fit on busy nodes; with no CPU limit they still use the free cores they find. Empty: what each app's `resources` asks.
 

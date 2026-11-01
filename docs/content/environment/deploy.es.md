@@ -206,7 +206,7 @@ La sección **Capacidad** de la página Entorno muestra el procesador y la memor
 
 Los administradores de la plataforma cambian, sin redesplegar (cada proceso lo sigue en unos 15 segundos):
 
-- **corre ejecuciones**, por nodo: los pasos de las ejecuciones solo van a los nodos que las corren. Los nodos en `BUILD_EXCLUDE_NODES` siempre quedan apagados.
+- **corre ejecuciones**, por nodo: los pasos de las ejecuciones solo van a los nodos que las corren, y las imágenes también: un demonio de BuildKit en un nodo apagado no construye nada mientras haya otro (la imagen se construye en otro demonio, con la caché que guarda en el registro). Los nodos en `BUILD_EXCLUDE_NODES` siempre quedan apagados.
 - **Ejecuciones a la vez** y **Ejecuciones de una aplicación a la vez**: reemplazan `PARALLEL_RUNS` y `RUNS_PER_APP` (vacío los conserva), hasta 8. Los despliegues de una aplicación siguen de uno en uno.
 - **CPU máxima que reserva un paso**: baja lo que pide el pod de cualquier paso, para que quepa en nodos ocupados; sin límite de CPU, aun así usa los núcleos libres que encuentre. Vacío: lo que pida `resources` de cada aplicación.
 
