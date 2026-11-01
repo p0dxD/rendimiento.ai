@@ -595,18 +595,20 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	}
 
 	// The agents inside the platform (ROLE=agents): the diagnostician explains
-	// every failed run through the AI gateway, within each organization's
-	// caps. One process runs them at a time (a lock in Postgres).
+	// every failed run, and the estimator rates every new encargo, through the
+	// AI gateway, within each organization's caps. One process runs them at a time (a lock in Postgres).
 	if runs("agents") {
 		diag := &agentes.Diagnostician{Store: st, Model: srv.IA, Logs: srv.StepLogText, Changes: holder,
 			Lang: env("NOTIFY_LANG", "en"), Log: log.With("component", "agents")}
+		est := &agentes.Estimator{Store: st, Model: srv.IA, Lang: env("NOTIFY_LANG", "en"), Log: log.With("component", "agents")}
 		go func() {
 			release, err := st.LockAgents(ctx, 5*time.Second)
 			if err != nil {
 				return // ctx ended while waiting
 			}
 			defer release()
-			log.Info("starting the agents: the diagnostician")
+			log.Info("starting the agents: the diagnostician and the estimator")
+			go est.Run(ctx)
 			diag.Run(ctx)
 		}()
 	}

@@ -34,10 +34,14 @@ type AISettings struct {
 	// EscalateTo is who answers new failures (nothing alike in the Ruta):
 	// "" (nobody: the usual provider), own or platform; at most
 	// EscalateLimit times a month.
-	EscalateTo    string    `json:"escalateTo"`
-	EscalateLimit int       `json:"escalateLimit"`
-	UpdatedBy     string    `json:"updatedBy,omitempty"`
-	UpdatedAt     time.Time `json:"updatedAt"`
+	EscalateTo    string `json:"escalateTo"`
+	EscalateLimit int    `json:"escalateLimit"`
+	// EncargoAutoMicros is the most an encargo may be estimated to cost
+	// for the platform's AI to take it; above it, it is for the person's
+	// own agent.
+	EncargoAutoMicros int64     `json:"encargoAutoMicros"`
+	UpdatedBy         string    `json:"updatedBy,omitempty"`
+	UpdatedAt         time.Time `json:"updatedAt"`
 }
 
 // AIUsage is one measured call to a model.
@@ -59,11 +63,11 @@ type AIUsage struct {
 // none yet: the local model, a $1 cap, no allowance).
 func (s *Store) AISettingsOf(ctx context.Context, orgID int64) (AISettings, error) {
 	a := AISettings{OrgID: orgID}
-	err := s.pool.QueryRow(ctx, `SELECT provider, kind, base_url, model, cap_micros, allowance_micros, auto_diagnose, escalate_to, escalate_limit, updated_by, updated_at
+	err := s.pool.QueryRow(ctx, `SELECT provider, kind, base_url, model, cap_micros, allowance_micros, auto_diagnose, escalate_to, escalate_limit, encargo_auto_micros, updated_by, updated_at
 		FROM ai_settings WHERE org_id = $1`, orgID).Scan(&a.Provider, &a.Kind, &a.BaseURL, &a.Model, &a.CapMicros, &a.AllowanceMicros, &a.AutoDiagnose,
-		&a.EscalateTo, &a.EscalateLimit, &a.UpdatedBy, &a.UpdatedAt)
+		&a.EscalateTo, &a.EscalateLimit, &a.EncargoAutoMicros, &a.UpdatedBy, &a.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return AISettings{OrgID: orgID, Provider: AILocal, CapMicros: 1_000_000, AutoDiagnose: true, EscalateLimit: 10}, nil
+		return AISettings{OrgID: orgID, Provider: AILocal, CapMicros: 1_000_000, AutoDiagnose: true, EscalateLimit: 10, EncargoAutoMicros: DefaultEncargoAuto}, nil
 	}
 	return a, err
 }
@@ -144,4 +148,16 @@ func (s *Store) AICalls(ctx context.Context, orgID int64, source string, now tim
 	var n int
 	err := s.pool.QueryRow(ctx, `SELECT count(*) FROM ai_usage WHERE org_id = $1 AND source = $2 AND at >= $3`, orgID, source, monthStart(now)).Scan(&n)
 	return n, err
+}
+
+// DefaultEncargoAuto is the amount under which an encargo goes to the
+// platform's AI: 50 cents.
+const DefaultEncargoAuto = 500_000
+
+// SetEncargoAuto is the most an encargo may be estimated to cost for the
+// platform's AI to take it.
+func (s *Store) SetEncargoAuto(ctx context.Context, orgID, micros int64, by string) error {
+	_, err := s.pool.Exec(ctx, `INSERT INTO ai_settings (org_id, encargo_auto_micros, updated_by, updated_at) VALUES ($1, $2, $3, now())
+		ON CONFLICT (org_id) DO UPDATE SET encargo_auto_micros = $2, updated_by = $3, updated_at = now()`, orgID, micros, by)
+	return err
 }

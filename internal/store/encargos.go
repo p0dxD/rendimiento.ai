@@ -26,25 +26,33 @@ var ErrEncargoState = errors.New("the encargo is not in a state that allows this
 
 // Encargo is work asked of agents.
 type Encargo struct {
-	ID         int64        `json:"id"`
-	Title      string       `json:"title"`
-	Body       string       `json:"body"`
-	App        string       `json:"app,omitempty"`
-	RunID      *int64       `json:"runId,omitempty"`
-	Status     string       `json:"status"`
-	CreatedBy  string       `json:"createdBy"`
-	ByAgent    bool         `json:"byAgent"`
-	KeyID      *int64       `json:"keyId,omitempty"`
-	KeyName    string       `json:"keyName,omitempty"` // the agent that has it
-	CargoID    *int64       `json:"cargoId,omitempty"`
-	WaitingRun *int64       `json:"waitingRun,omitempty"`
-	Result     string       `json:"result,omitempty"`
-	Links      []string     `json:"links"`
-	Comment    string       `json:"comment,omitempty"`
-	OrgID      int64        `json:"orgId"`
-	CreatedAt  time.Time    `json:"createdAt"`
-	UpdatedAt  time.Time    `json:"updatedAt"`
-	Log        []EncargoLog `json:"log,omitempty"`
+	ID         int64    `json:"id"`
+	Title      string   `json:"title"`
+	Body       string   `json:"body"`
+	App        string   `json:"app,omitempty"`
+	RunID      *int64   `json:"runId,omitempty"`
+	Status     string   `json:"status"`
+	CreatedBy  string   `json:"createdBy"`
+	ByAgent    bool     `json:"byAgent"`
+	KeyID      *int64   `json:"keyId,omitempty"`
+	KeyName    string   `json:"keyName,omitempty"` // the agent that has it
+	CargoID    *int64   `json:"cargoId,omitempty"`
+	WaitingRun *int64   `json:"waitingRun,omitempty"`
+	Result     string   `json:"result,omitempty"`
+	Links      []string `json:"links"`
+	Comment    string   `json:"comment,omitempty"`
+	// Difficulty (1 to 10) and EstimateMicros (what the platform's AI would
+	// spend) are the estimator's, with its reason; nil until it estimated.
+	// Route is who should do it: platform (its AI) or local (the person's
+	// own agent), "" until decided.
+	Difficulty     *int         `json:"difficulty,omitempty"`
+	EstimateMicros *int64       `json:"estimateMicros,omitempty"`
+	EstimateReason string       `json:"estimateReason,omitempty"`
+	Route          string       `json:"route,omitempty"`
+	OrgID          int64        `json:"orgId"`
+	CreatedAt      time.Time    `json:"createdAt"`
+	UpdatedAt      time.Time    `json:"updatedAt"`
+	Log            []EncargoLog `json:"log,omitempty"`
 }
 
 // EncargoLog is one thing that happened to an encargo.
@@ -56,14 +64,16 @@ type EncargoLog struct {
 }
 
 const encargoCols = `e.id, e.title, e.body, e.app, e.run_id, e.status, e.created_by, e.by_agent, e.key_id, COALESCE(k.name, ''),
-	e.cargo_id, e.waiting_run, e.result, e.links, e.comment, e.created_at, e.updated_at, e.org_id`
+	e.cargo_id, e.waiting_run, e.result, e.links, e.comment, e.created_at, e.updated_at, e.org_id,
+	e.difficulty, e.estimate_micros, e.estimate_reason, e.route`
 
 const encargoFrom = ` FROM encargos e LEFT JOIN agent_keys k ON k.id = e.key_id`
 
 func scanEncargo(row pgx.Row) (Encargo, error) {
 	var e Encargo
 	err := row.Scan(&e.ID, &e.Title, &e.Body, &e.App, &e.RunID, &e.Status, &e.CreatedBy, &e.ByAgent, &e.KeyID, &e.KeyName,
-		&e.CargoID, &e.WaitingRun, &e.Result, &e.Links, &e.Comment, &e.CreatedAt, &e.UpdatedAt, &e.OrgID)
+		&e.CargoID, &e.WaitingRun, &e.Result, &e.Links, &e.Comment, &e.CreatedAt, &e.UpdatedAt, &e.OrgID,
+		&e.Difficulty, &e.EstimateMicros, &e.EstimateReason, &e.Route)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return e, ErrNotFound
 	}
@@ -213,4 +223,41 @@ func (s *Store) ReleaseEncargo(ctx context.Context, id, keyID int64, who, note s
 func (s *Store) CancelEncargo(ctx context.Context, id int64, who, note string) (Encargo, error) {
 	return s.change(ctx, id, who, "cancelled", note,
 		`UPDATE encargos SET status = 'cancelled', waiting_run = NULL, updated_at = now() WHERE id = $1 AND status NOT IN ('reviewed', 'cancelled')`, id)
+}
+
+// Encargo routes: the platform's AI, or the person's own agent.
+const (
+	RoutePlatform = "platform"
+	RouteLocal    = "local"
+)
+
+// EncargosToEstimate lists pending encargos of the last day nobody has
+// estimated yet, the oldest first.
+func (s *Store) EncargosToEstimate(ctx context.Context, limit int) ([]Encargo, error) {
+	rows, err := s.pool.Query(ctx, `SELECT `+encargoCols+encargoFrom+`
+		WHERE e.status = 'pending' AND e.estimated_at IS NULL AND e.created_at > now() - interval '1 day' ORDER BY e.id LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Encargo, error) { return scanEncargo(r) })
+}
+
+// SaveEstimate keeps the estimator's answer (difficulty 0: it could not
+// estimate, and reason says why) and the route it implies, unless a person
+// chose one already.
+func (s *Store) SaveEstimate(ctx context.Context, id int64, difficulty int, micros int64, reason, route string) error {
+	var d *int
+	var m *int64
+	if difficulty > 0 {
+		d, m = &difficulty, &micros
+	}
+	_, err := s.pool.Exec(ctx, `UPDATE encargos SET difficulty = $2, estimate_micros = $3, estimate_reason = $4,
+		route = CASE WHEN route = '' THEN $5 ELSE route END, estimated_at = now() WHERE id = $1`, id, d, m, reason, route)
+	return err
+}
+
+// RouteEncargo is a person's choice of who does a pending encargo: the
+// platform's AI or their own agent.
+func (s *Store) RouteEncargo(ctx context.Context, id int64, who, route string) (Encargo, error) {
+	return s.change(ctx, id, who, "routed", route, `UPDATE encargos SET route = $2, updated_at = now() WHERE id = $1 AND status = 'pending'`, id, route)
 }

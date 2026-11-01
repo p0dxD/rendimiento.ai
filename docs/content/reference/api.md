@@ -56,7 +56,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | POST | `/api/orgs` | create an organization (`slug`, `name`); the platform's operators only; the creator is its first administrator |
 | POST | `/api/orgs/{id}/switch` | work in another of the person's organizations |
 | GET | `/api/ia` | the organization's AI: provider, model, cap, the end of its own key, this month's spending, the latest calls |
-| PUT | `/api/ia` | change it (`provider`: `local`, `own`, `platform`; `kind`, `baseUrl`, `model`, `capDollars`, `key`, `removeKey`, `autoDiagnose`, `escalateTo`: `own`, `platform` or empty, `escalateLimit`); administrators |
+| PUT | `/api/ia` | change it (`provider`: `local`, `own`, `platform`; `kind`, `baseUrl`, `model`, `capDollars`, `key`, `removeKey`, `autoDiagnose`, `escalateTo`: `own`, `platform` or empty, `escalateLimit`, `encargoAutoDollars`: the most an encargo may be estimated to cost for the platform's AI to take it); administrators |
 | POST | `/api/ia/test` | ask the organization's model one question (`prompt`), measured; collaborators |
 | GET | `/api/ia/orgs` | every organization's allowance of the platform's AI and spending, and the platform's bill; operators |
 | PUT | `/api/ia/orgs/{id}/allowance` | an organization's monthly allowance of the platform's AI (`dollars`); operators |
@@ -69,6 +69,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/encargos/{id}` | one encargo with its history |
 | POST | `/api/encargos/{id}/review` | accept a delivered encargo (`accept: true`) or send it back with a `comment` |
 | POST | `/api/encargos/{id}/cancel` | drop an encargo |
+| POST | `/api/encargos/{id}/route` | who does a pending encargo: `route` `platform` (the platform's AI) or `local` (your own agent) |
 | POST | `/api/notifications/test` | send a sample notification email now (the Environment page's button) |
 | POST | `/api/dns/sync` | re-create every app's DNS records now |
 | POST | `/api/propose` | detect a repo and return a proposed `rendimiento.yaml` + Dockerfile |

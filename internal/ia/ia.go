@@ -110,6 +110,10 @@ func (g *Gateway) cost(model string, in, out int64) int64 {
 	return int64(math.Ceil((float64(in)*float64(p.In) + float64(out)*float64(p.Out)) / 1e6))
 }
 
+// Price is what in and out tokens of a model cost, in millionths of a
+// dollar (what an estimate of work is priced at).
+func (g *Gateway) Price(model string, in, out int64) int64 { return g.cost(model, in, out) }
+
 func (g *Gateway) clock() time.Time {
 	if g.now != nil {
 		return g.now()

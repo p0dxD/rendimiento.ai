@@ -125,6 +125,27 @@ func (s *Server) reviewEncargo(w http.ResponseWriter, r *http.Request, login str
 	s.encargoAnswer(w, e, err)
 }
 
+// routeEncargo is who does a pending encargo: the platform's AI, or the
+// person's own agent.
+func (s *Server) routeEncargo(w http.ResponseWriter, r *http.Request, login string) {
+	id, ok := s.encargoID(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Route string `json:"route"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	if in.Route != store.RoutePlatform && in.Route != store.RouteLocal {
+		httpError(w, http.StatusBadRequest, "route must be platform or local")
+		return
+	}
+	e, err := s.Store.RouteEncargo(r.Context(), id, login, in.Route)
+	s.encargoAnswer(w, e, err)
+}
+
 // cancelEncargo cancels an encargo that is not finished.
 func (s *Server) cancelEncargo(w http.ResponseWriter, r *http.Request, login string) {
 	id, ok := s.encargoID(w, r)

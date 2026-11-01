@@ -40,25 +40,35 @@ var estados = map[string]string{
 	store.EncargoDelivered: "entregado", store.EncargoReviewed: "revisado", store.EncargoCancelled: "cancelado",
 }
 
+// rutas are who should do an encargo, as agents read it.
+var rutas = map[string]string{store.RoutePlatform: "la IA de la plataforma", store.RouteLocal: "el agente de la persona"}
+
 var sucesos = map[string]string{
 	"created": "creado", "taken": "tomado", "waiting": "esperando", "resumed": "terminó la espera", "delivered": "entregado",
-	"reviewed": "revisado", "returned": "devuelto", "released": "soltado", "cancelled": "cancelado",
+	"reviewed": "revisado", "routed": "encaminado", "returned": "devuelto", "released": "soltado", "cancelled": "cancelado",
 }
 
 // EncargoOut is an encargo as agents see it.
 type EncargoOut struct {
-	ID          int64       `json:"id"`
-	Titulo      string      `json:"titulo"`
-	Cuerpo      string      `json:"cuerpo,omitempty"`
-	App         string      `json:"app,omitempty"`
-	Ejecucion   *int64      `json:"ejecucion,omitempty"`
-	Estado      string      `json:"estado"`
-	CreadoPor   string      `json:"creado_por"`
-	Agente      string      `json:"agente,omitempty"`
-	EsperaA     *int64      `json:"espera_a,omitempty"`
-	Resultado   string      `json:"resultado,omitempty"`
-	Enlaces     []string    `json:"enlaces,omitempty"`
-	Comentario  string      `json:"comentario,omitempty"`
+	ID         int64    `json:"id"`
+	Titulo     string   `json:"titulo"`
+	Cuerpo     string   `json:"cuerpo,omitempty"`
+	App        string   `json:"app,omitempty"`
+	Ejecucion  *int64   `json:"ejecucion,omitempty"`
+	Estado     string   `json:"estado"`
+	CreadoPor  string   `json:"creado_por"`
+	Agente     string   `json:"agente,omitempty"`
+	EsperaA    *int64   `json:"espera_a,omitempty"`
+	Resultado  string   `json:"resultado,omitempty"`
+	Enlaces    []string `json:"enlaces,omitempty"`
+	Comentario string   `json:"comentario,omitempty"`
+	// Dificultad (1 a 10), Estimado (lo que gastaría la AI de la
+	// plataforma) y Para (quién debería hacerlo: "la IA de la plataforma" o
+	// "el agente de la persona"), del estimador.
+	Dificultad  *int        `json:"dificultad,omitempty"`
+	Estimado    string      `json:"estimado,omitempty"`
+	Razon       string      `json:"razon,omitempty"`
+	Para        string      `json:"para,omitempty"`
 	Actualizado time.Time   `json:"actualizado"`
 	Historia    []SucesoOut `json:"historia,omitempty"`
 }
@@ -73,7 +83,11 @@ type SucesoOut struct {
 
 func encargoOut(e store.Encargo, full bool) EncargoOut {
 	o := EncargoOut{ID: e.ID, Titulo: e.Title, App: e.App, Ejecucion: e.RunID, Estado: estados[e.Status], CreadoPor: e.CreatedBy,
-		Agente: e.KeyName, EsperaA: e.WaitingRun, Resultado: e.Result, Enlaces: e.Links, Comentario: e.Comment, Actualizado: e.UpdatedAt}
+		Agente: e.KeyName, EsperaA: e.WaitingRun, Resultado: e.Result, Enlaces: e.Links, Comentario: e.Comment, Actualizado: e.UpdatedAt,
+		Dificultad: e.Difficulty, Razon: e.EstimateReason, Para: rutas[e.Route]}
+	if e.EstimateMicros != nil {
+		o.Estimado = fmt.Sprintf("$%.2f", float64(*e.EstimateMicros)/1e6)
+	}
 	if full {
 		o.Cuerpo = e.Body
 		for _, l := range e.Log {

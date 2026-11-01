@@ -1168,6 +1168,7 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 .encargo-title { overflow-wrap: anywhere; }
 .encargo-who { margin: 0; }
 .encargo-result { border-left: 3px solid var(--border); padding-left: 10px; }
+.encargo-estimate { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; }
 .encargo-result p { margin: 0 0 4px; white-space: pre-wrap; }
 .encargo-log { border-top: 1px solid var(--border); padding-top: 6px; display: grid; gap: 3px; }
 

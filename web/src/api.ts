@@ -292,6 +292,7 @@ export interface AISettings {
   autoDiagnose: boolean;
   escalateTo: "" | "own" | "platform";
   escalateLimit: number;
+  encargoAutoMicros: number;
   updatedBy?: string;
   updatedAt: string;
 }
@@ -385,6 +386,12 @@ export interface Encargo {
   result?: string;
   links: string[];
   comment?: string;
+  // The estimator's: how hard (1 to 10), what the platform's AI would
+  // spend, why; and who should do it.
+  difficulty?: number;
+  estimateMicros?: number;
+  estimateReason?: string;
+  route?: "platform" | "local";
   createdAt: string;
   updatedAt: string;
   log?: { at: string; who: string; what: string; note?: string }[];
@@ -700,7 +707,7 @@ export const api = {
   askDiagnosis: (run: number) => request<void>("POST", `/api/runs/${run}/diagnosis`),
   judgeDiagnosis: (run: number, useful: boolean, cause = "") =>
     request<{ feedback: string; rutaEntry: number }>("POST", `/api/runs/${run}/diagnosis/feedback`, { useful, cause }),
-  saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean; autoDiagnose?: boolean; escalateTo?: string; escalateLimit?: number }) =>
+  saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean; autoDiagnose?: boolean; escalateTo?: string; escalateLimit?: number; encargoAutoDollars?: number }) =>
     request<IAView>("PUT", "/api/ia", v),
   testIA: (prompt: string) => request<IAAnswer>("POST", "/api/ia/test", { prompt }),
   iaOrgs: () => request<IAOrgs>("GET", "/api/ia/orgs"),
@@ -764,6 +771,7 @@ export const api = {
   createEncargo: (e: { title: string; body: string; app?: string; runId?: number }) => request<Encargo>("POST", "/api/encargos", e),
   reviewEncargo: (id: number, accept: boolean, comment = "") => request<Encargo>("POST", `/api/encargos/${id}/review`, { accept, comment }),
   cancelEncargo: (id: number) => request<Encargo>("POST", `/api/encargos/${id}/cancel`),
+  routeEncargo: (id: number, route: "platform" | "local") => request<Encargo>("POST", `/api/encargos/${id}/route`, { route }),
   createAgentKey: (k: { name: string; role: AgentRole; apps: string[]; days: number }) => request<CreatedAgentKey>("POST", "/api/agent-keys", k),
   revokeAgentKey: (id: number) => request<void>("DELETE", `/api/agent-keys/${id}`),
   reliability: (app: string, range: ReliabilityRange) => request<Reliability>("GET", `/api/apps/${app}/reliability?range=${range}`),
