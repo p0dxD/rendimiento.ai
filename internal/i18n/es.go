@@ -84,7 +84,7 @@ var catalog = map[string]string{
 	"the cause is too long (4,000 characters at most)": "la causa es demasiado larga (4,000 caracteres a lo más)",
 	"there is no explanation to judge yet": "todavía no hay una explicación que calificar",
 	"escalate to own or platform (or nobody), at most 1,000 times a month": "escale a own o platform (o a nadie), a lo más 1,000 veces al mes",
-	"runs at once and per app go from 1 to 8, and a step's CPU from 0.25 cores": "las ejecuciones a la vez y por aplicación van de 1 a 8, y la CPU de un paso desde 0.25 núcleos",
+	"runs at once and per app go from 1 to 8, a step's CPU from 0.25 cores, and a busy node from 50% to 100%": "las ejecuciones a la vez y por aplicación van de 1 a 8, la CPU de un paso desde 0.25 núcleos, y un nodo ocupado del 50 % al 100 %",
 	"a new failure (nothing alike in the Ruta): asked a stronger model": "una falla nueva (nada parecido en la Ruta): se le preguntó a un modelo más fuerte",
 	"the model wrote no explanation (it used its whole answer thinking); ask again":                   "el modelo no escribió explicación (se le fue toda la respuesta en pensar); pídala de nuevo",
 	"the run did not fail":                                                                            "la ejecución no falló",

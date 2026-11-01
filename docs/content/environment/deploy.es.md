@@ -208,6 +208,7 @@ Los administradores de la plataforma cambian, sin redesplegar (cada proceso lo s
 
 - **corre ejecuciones**, por nodo: los pasos de las ejecuciones solo van a los nodos que las corren, y las imágenes también: un demonio de BuildKit en un nodo apagado no construye nada mientras haya otro (la imagen se construye en otro demonio, con la caché que guarda en el registro). Los nodos en `BUILD_EXCLUDE_NODES` siempre quedan apagados.
 - **Ejecuciones a la vez** y **Ejecuciones de una aplicación a la vez**: reemplazan `PARALLEL_RUNS` y `RUNS_PER_APP` (vacío los conserva), hasta 8. Los despliegues de una aplicación siguen de uno en uno.
+- **Un nodo está ocupado desde (%)**: cada 15 segundos la plataforma mide la CPU de cada nodo, reservada y en uso; uno en ese porcentaje o más (85 si no se cambia) no recibe pasos ni construcciones nuevas hasta que se desahogue, y dice *ocupado*. Si todos los nodos están así de llenos, el menos lleno sigue recibiendo trabajo. Con 100 se apaga.
 - **CPU máxima que reserva un paso**: baja lo que pide el pod de cualquier paso, para que quepa en nodos ocupados; sin límite de CPU, aun así usa los núcleos libres que encuentre. Vacío: lo que pida `resources` de cada aplicación.
 
 ## El lado de las construcciones {#the-build-side}

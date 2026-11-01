@@ -19,6 +19,9 @@ type CapacityView struct {
 		NodesOff     []string `json:"nodesOff"` // BUILD_EXCLUDE_NODES, always off
 	} `json:"defaults"`
 	MaxWorkers int `json:"maxWorkers"`
+	// Busy are the nodes too full right now to take new steps or builds.
+	Busy               []string `json:"busy"`
+	DefaultBusyPercent int      `json:"defaultBusyPercent"`
 }
 
 func (s *Server) capacityView(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +31,10 @@ func (s *Server) capacityView(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	v.MaxWorkers = platform.MaxWorkers
+	v.MaxWorkers, v.DefaultBusyPercent, v.Busy = platform.MaxWorkers, platform.DefaultBusyPercent, []string{}
+	if s.Capacity != nil {
+		v.Busy = s.Capacity.Busy()
+	}
 	if s.Platform != nil {
 		v.Defaults.ParallelRuns, v.Defaults.RunsPerApp = max(s.Platform.Workers, 1), max(s.Platform.PerApp, 1)
 	}
@@ -50,8 +56,9 @@ func (s *Server) putCapacity(w http.ResponseWriter, r *http.Request, login strin
 		return
 	}
 	if in.ParallelRuns < 0 || in.ParallelRuns > platform.MaxWorkers || in.RunsPerApp < 0 || in.RunsPerApp > platform.MaxWorkers ||
-		in.StepCPUMillis < 0 || (in.StepCPUMillis > 0 && in.StepCPUMillis < 250) || in.StepCPUMillis > 64_000 || len(in.NodesOff) > 100 {
-		httpError(w, http.StatusBadRequest, "runs at once and per app go from 1 to 8, and a step's CPU from 0.25 cores")
+		in.StepCPUMillis < 0 || (in.StepCPUMillis > 0 && in.StepCPUMillis < 250) || in.StepCPUMillis > 64_000 || len(in.NodesOff) > 100 ||
+		in.BusyPercent < 0 || (in.BusyPercent > 0 && in.BusyPercent < 50) || in.BusyPercent > 100 {
+		httpError(w, http.StatusBadRequest, "runs at once and per app go from 1 to 8, a step's CPU from 0.25 cores, and a busy node from 50% to 100%")
 		return
 	}
 	nodes := []string{}
@@ -70,6 +77,6 @@ func (s *Server) putCapacity(w http.ResponseWriter, r *http.Request, login strin
 			s.Capacity.Set(c)
 		}
 	}
-	s.Log.Info("capacity saved", "parallel", in.ParallelRuns, "perApp", in.RunsPerApp, "stepCPU", in.StepCPUMillis, "nodesOff", in.NodesOff, "by", login)
+	s.Log.Info("capacity saved", "parallel", in.ParallelRuns, "perApp", in.RunsPerApp, "stepCPU", in.StepCPUMillis, "nodesOff", in.NodesOff, "busy", in.BusyPercent, "by", login)
 	s.capacityView(w, r)
 }
