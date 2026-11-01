@@ -171,12 +171,13 @@ function LoUltimo({ name }: { name: string }) {
 
 /**
  * The Overview tab: each service with its addresses and health, the last run, and the tree of what runs in the cluster.
+ * On a wide screen the services and the add-ons go on the left and the latest on the right, so no row is left half empty.
  */
 function Overview({ name, app }: { name: string; app: Awaited<ReturnType<typeof api.app>> }) {
   const { data: tree, error } = usePoll(() => api.resources(name), [name], 5000);
   return (
-    <div className="stack">
-      <div className="grid">
+    <div className="stack resumen-ancho">
+      <div className="grid servicios">
         {app.spec.services.map((svc) => {
           const st = app.status.services?.find((s) => s.name === svc.name);
           return (
