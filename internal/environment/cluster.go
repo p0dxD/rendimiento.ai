@@ -117,9 +117,16 @@ func (c *Checker) snapshot(ctx context.Context) *snapshot {
 	}
 
 	podsPerNode := map[string]int{}
+	reserved := map[string][2]int64{} // node → {milliCPU, bytes} its pods ask for
 	for _, p := range pods.Items {
 		if p.Spec.NodeName != "" && p.Status.Phase != corev1.PodSucceeded && p.Status.Phase != corev1.PodFailed {
 			podsPerNode[p.Spec.NodeName]++
+			r := reserved[p.Spec.NodeName]
+			for _, ct := range p.Spec.Containers {
+				r[0] += ct.Resources.Requests.Cpu().MilliValue()
+				r[1] += ct.Resources.Requests.Memory().Value()
+			}
+			reserved[p.Spec.NodeName] = r
 		}
 	}
 	for _, n := range nodes.Items {
@@ -132,6 +139,8 @@ func (c *Checker) snapshot(ctx context.Context) *snapshot {
 			CPUCores:      float64(n.Status.Capacity.Cpu().MilliValue()) / 1000,
 			MemBytes:      n.Status.Capacity.Memory().Value(),
 			Unschedulable: n.Spec.Unschedulable,
+			CPUReserved:   float64(reserved[n.Name][0]) / 1000,
+			MemReserved:   reserved[n.Name][1],
 		}
 		if q, ok := n.Status.Capacity["nvidia.com/gpu"]; ok {
 			node.GPUs = q.Value()
