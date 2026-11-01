@@ -239,7 +239,7 @@ function Cargos() {
       <p className="sub">{t("A cargo is an agent's turn of work: taken with a purpose, handed over with what it did and what is left, so the next one (another session, another model, or a person) knows where things stand.")}</p>
       <ErrorBox error={error} />
       {data && data.cargos.length === 0 && <div className="card empty"><p>{t("No agent has taken a cargo yet.")}</p></div>}
-      <ol className="ruta-vuelo">
+      <ol className="ruta-cargos">
         {data?.cargos.map((c) => (
           <li key={c.id} className={c.endedAt ? "" : "open"}>
             <div className="card stack">
