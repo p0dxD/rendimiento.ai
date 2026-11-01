@@ -231,11 +231,12 @@ const (
 	RouteLocal    = "local"
 )
 
-// EncargosToEstimate lists pending encargos of the last day nobody has
-// estimated yet, the oldest first.
+// EncargosToEstimate lists encargos nobody has estimated yet (new ones,
+// old ones from before the estimator, ones a person asked to estimate
+// again), the oldest first; not the dropped ones.
 func (s *Store) EncargosToEstimate(ctx context.Context, limit int) ([]Encargo, error) {
 	rows, err := s.pool.Query(ctx, `SELECT `+encargoCols+encargoFrom+`
-		WHERE e.status = 'pending' AND e.estimated_at IS NULL AND e.created_at > now() - interval '1 day' ORDER BY e.id LIMIT $1`, limit)
+		WHERE e.status <> 'cancelled' AND e.estimated_at IS NULL ORDER BY e.id LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -260,4 +261,13 @@ func (s *Store) SaveEstimate(ctx context.Context, id int64, difficulty int, micr
 // platform's AI or their own agent.
 func (s *Store) RouteEncargo(ctx context.Context, id int64, who, route string) (Encargo, error) {
 	return s.change(ctx, id, who, "routed", route, `UPDATE encargos SET route = $2, updated_at = now() WHERE id = $1 AND status = 'pending'`, id, route)
+}
+
+// ReestimateEncargo forgets an encargo's estimate so the estimator rates it
+// again (its detail changed, or the estimate failed). The route goes with
+// it, unless a person chose it.
+func (s *Store) ReestimateEncargo(ctx context.Context, id int64, who string) (Encargo, error) {
+	return s.change(ctx, id, who, "estimate", "", `UPDATE encargos SET difficulty = NULL, estimate_micros = NULL, estimate_reason = '', estimated_at = NULL,
+		route = CASE WHEN EXISTS (SELECT 1 FROM encargo_log WHERE encargo_id = $1 AND what = 'routed') THEN route ELSE '' END, updated_at = now()
+		WHERE id = $1 AND status <> 'cancelled'`, id)
 }

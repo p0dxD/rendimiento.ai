@@ -69,6 +69,7 @@ All routes are registered in `Server.Handler` (`internal/api/server.go`). The UI
 | GET | `/api/encargos/{id}` | one encargo with its history |
 | POST | `/api/encargos/{id}/review` | accept a delivered encargo (`accept: true`) or send it back with a `comment` |
 | POST | `/api/encargos/{id}/cancel` | drop an encargo |
+| POST | `/api/encargos/{id}/estimate` | rate an encargo again (the estimator does it within 30 seconds) |
 | POST | `/api/encargos/{id}/route` | who does a pending encargo: `route` `platform` (the platform's AI) or `local` (your own agent) |
 | POST | `/api/notifications/test` | send a sample notification email now (the Environment page's button) |
 | POST | `/api/dns/sync` | re-create every app's DNS records now |

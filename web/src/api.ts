@@ -772,6 +772,7 @@ export const api = {
   reviewEncargo: (id: number, accept: boolean, comment = "") => request<Encargo>("POST", `/api/encargos/${id}/review`, { accept, comment }),
   cancelEncargo: (id: number) => request<Encargo>("POST", `/api/encargos/${id}/cancel`),
   routeEncargo: (id: number, route: "platform" | "local") => request<Encargo>("POST", `/api/encargos/${id}/route`, { route }),
+  reestimateEncargo: (id: number) => request<Encargo>("POST", `/api/encargos/${id}/estimate`),
   createAgentKey: (k: { name: string; role: AgentRole; apps: string[]; days: number }) => request<CreatedAgentKey>("POST", "/api/agent-keys", k),
   revokeAgentKey: (id: number) => request<void>("DELETE", `/api/agent-keys/${id}`),
   reliability: (app: string, range: ReliabilityRange) => request<Reliability>("GET", `/api/apps/${app}/reliability?range=${range}`),

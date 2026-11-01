@@ -125,10 +125,19 @@ func TestEncargoEstimate(t *testing.T) {
 	if b, _ = s.Encargo(ctx, b.ID); b.Route != RouteLocal || b.Log[len(b.Log)-1].What != "routed" {
 		t.Fatalf("a person's route was replaced: %+v", b)
 	}
+	if a, err := s.ReestimateEncargo(ctx, a.ID, "p0dxD"); err != nil || a.Difficulty != nil || a.Route != "" || !waiting(a.ID) {
+		t.Fatalf("estimate again: %+v (%v)", a, err)
+	}
+	if b, err := s.ReestimateEncargo(ctx, b.ID, "p0dxD"); err != nil || b.Route != RouteLocal {
+		t.Fatalf("estimating again dropped a person's route: %+v (%v)", b, err)
+	}
 	if _, err := s.CancelEncargo(ctx, a.ID, "p0dxD", ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.RouteEncargo(ctx, a.ID, "p0dxD", RouteLocal); !errors.Is(err, ErrEncargoState) {
 		t.Fatalf("routed a cancelled encargo: %v", err)
+	}
+	if waiting(a.ID) {
+		t.Fatal("a dropped encargo is listed to estimate")
 	}
 }
