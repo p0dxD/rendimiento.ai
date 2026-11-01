@@ -7,6 +7,7 @@
 | envío a la rama principal | los servicios que cambiaron (vea abajo) | sí, si todo sale bien | sí |
 | envío a cualquier otra rama (incluidas las de solicitudes de incorporación y las de Renovate) | todos los servicios | no | sí, en la solicitud |
 | botón **Construir ahora** (rama principal) | todos los servicios | sí | sí |
+| **▾ Probar una rama**, junto a él: una que corrió hace poco, o cualquiera por su nombre | todos los servicios | no | sí |
 | solicitud de incorporación desde una bifurcación | nada | — | — |
 
 ## Dockerfile o Railpack {#dockerfile-or-railpack}
