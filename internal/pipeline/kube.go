@@ -220,6 +220,31 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 		if err != nil {
 			return fail("%v", err)
 		}
+		if stuck != "" && strings.Contains(stuck, "Insufficient") {
+			// Busy, not gone: another run's steps hold the node, and end in
+			// minutes. Starting cold costs more than waiting for them.
+			fmt.Fprintf(w, "rendimiento: the node that keeps this test's cache is busy; waiting up to %s more for room\n", cacheBusyWait)
+			if stuck, err = k.stuckOnCache(ctx, name, cacheBusyWait); err != nil {
+				return fail("%v", err)
+			}
+		}
+		if stuck != "" && k.cacheInUse(ctx, name, step) {
+			// Another run's test has the cache: deleting it would wait for
+			// that run, and take its cache away. This test goes without it.
+			fmt.Fprintf(w, "rendimiento: the node that keeps this test's cache has no room, and another run is using the cache; this test runs without it\n")
+			if err := k.deletePod(ctx, name); err != nil {
+				return fail("%v", err)
+			}
+			for i, v := range pod.Spec.Volumes {
+				if v.Name == "cache" {
+					pod.Spec.Volumes[i].VolumeSource = corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}
+				}
+			}
+			if err := k.createPod(ctx, pod); err != nil {
+				return fail("create pod: %v", err)
+			}
+			stuck = ""
+		}
 		if stuck != "" {
 			fmt.Fprintf(w, "rendimiento: the node that keeps this test's cache has no room (%s); starting with an empty cache\n", stuck)
 			if err := k.dropCache(ctx, name, step); err != nil {
@@ -609,6 +634,10 @@ func (k *KubeExecutor) ensureCache(ctx context.Context, step Step) error {
 // that keeps the cache before it starts over with an empty one.
 var cacheWait = 3 * time.Minute
 
+// cacheBusyWait is how much longer it waits when that node is only busy
+// (its CPU or memory taken by other runs' steps, which end in minutes).
+var cacheBusyWait = 10 * time.Minute
+
 // createPod creates the step's pod, retrying brief API errors.
 func (k *KubeExecutor) createPod(ctx context.Context, pod *corev1.Pod) error {
 	return transientRetry(ctx, func() error {
@@ -654,6 +683,44 @@ func (k *KubeExecutor) stuckOnCache(ctx context.Context, pod string, wait time.D
 		select {
 		case <-ctx.Done():
 			return "", nil
+		case <-time.After(time.Second):
+		}
+	}
+}
+
+// cacheInUse says whether a pod other than pod (another run's test) has
+// the step's cache volume mounted on a node.
+func (k *KubeExecutor) cacheInUse(ctx context.Context, pod string, step Step) bool {
+	l, err := k.Client.CoreV1().Pods(k.Namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return false
+	}
+	for _, p := range l.Items {
+		if p.Name == pod || p.Spec.NodeName == "" || p.Status.Phase == corev1.PodSucceeded || p.Status.Phase == corev1.PodFailed {
+			continue
+		}
+		for _, v := range p.Spec.Volumes {
+			if v.PersistentVolumeClaim != nil && v.PersistentVolumeClaim.ClaimName == cacheName(step) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// deletePod deletes a pod and waits until it is gone.
+func (k *KubeExecutor) deletePod(ctx context.Context, pod string) error {
+	pods := k.Client.CoreV1().Pods(k.Namespace)
+	if err := pods.Delete(ctx, pod, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	for {
+		if _, err := pods.Get(ctx, pod, metav1.GetOptions{}); apierrors.IsNotFound(err) {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
 		case <-time.After(time.Second):
 		}
 	}
