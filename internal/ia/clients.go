@@ -83,18 +83,37 @@ type anthropic struct {
 	http     *http.Client
 }
 
+// A model that thinks first (Haiku 5.5 and later do by default) can spend
+// all of max_tokens thinking and write nothing; it is asked once more, told
+// to think little, with room for twice the tokens. Only such a model gets
+// there, and only those take the effort setting.
 func (a anthropic) complete(ctx context.Context, model string, req Request) (string, int64, int64, error) {
+	text, in, out, stop, err := a.call(ctx, model, req, nil)
+	if err == nil && strings.TrimSpace(text) == "" && stop == "max_tokens" {
+		req.MaxTokens = min(2*req.MaxTokens, 4096)
+		var in2, out2 int64
+		text, in2, out2, _, err = a.call(ctx, model, req, map[string]any{"effort": "low"})
+		in, out = in+in2, out+out2
+	}
+	return text, in, out, err
+}
+
+func (a anthropic) call(ctx context.Context, model string, req Request, config map[string]any) (string, int64, int64, string, error) {
 	url := or(a.url, "https://api.anthropic.com")
 	body := map[string]any{"model": model, "max_tokens": req.MaxTokens, "messages": req.Messages}
 	if req.System != "" {
 		body["system"] = req.System
+	}
+	if config != nil {
+		body["output_config"] = config
 	}
 	var out struct {
 		Content []struct {
 			Type string `json:"type"`
 			Text string `json:"text"`
 		} `json:"content"`
-		Usage struct {
+		StopReason string `json:"stop_reason"`
+		Usage      struct {
 			In  int64 `json:"input_tokens"`
 			Out int64 `json:"output_tokens"`
 		} `json:"usage"`
@@ -107,7 +126,7 @@ func (a anthropic) complete(ctx context.Context, model string, req Request) (str
 			text.WriteString(c.Text)
 		}
 	}
-	return text.String(), out.Usage.In, out.Usage.Out, err
+	return text.String(), out.Usage.In, out.Usage.Out, out.StopReason, err
 }
 
 // openai is any OpenAI-compatible chat completions API (OpenAI, and the
