@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { api, dollars, timeAgo, type Encargo, type EncargoStatus } from "../api";
+import { api, dollars, timeAgo, type CodeAgent, type Encargo, type EncargoStatus } from "../api";
 import { ErrorBox, usePoll } from "./ui";
 import { t, tn } from "../i18n";
 import { TextoConFormato } from "./texto";
@@ -13,7 +13,7 @@ const statusClass: Record<EncargoStatus, string> = {
 };
 const eventLabel: Record<string, string> = {
   created: "created", taken: "taken", waiting: "waiting", resumed: "done waiting", delivered: "delivered",
-  reviewed: "reviewed", routed: "routed", estimate: "asked to estimate it again", returned: "sent back", released: "let go", cancelled: "dropped",
+  reviewed: "reviewed", routed: "routed", estimate: "asked to estimate it again", sent: "sent it to the coding agent", returned: "sent back", released: "let go", cancelled: "dropped",
 };
 
 const routeLabel = { platform: "For the platform's AI", local: "For your own agent" };
@@ -58,7 +58,7 @@ function Estimate({ e, act }: { e: Encargo; act: (p: Promise<unknown>) => void }
  * and only the easy ones, under the amount), and what the done ones were
  * worth, with the open ones by difficulty from green to red.
  */
-function CostSummary({ list }: { list: Encargo[] }) {
+function CostSummary({ list, codeAgent, chosen, onDo }: { list: Encargo[]; codeAgent?: CodeAgent; chosen: number[]; onDo: (ids: number[]) => void }) {
   const estimated = list.filter((e) => e.difficulty && e.status !== "cancelled");
   if (!estimated.length) return null;
   const open = estimated.filter((e) => e.status !== "delivered" && e.status !== "reviewed");
@@ -67,14 +67,33 @@ function CostSummary({ list }: { list: Encargo[] }) {
   const sum = (l: Encargo[]) => dollars(l.reduce((n, e) => n + (e.estimateMicros ?? 0), 0));
   const waiting = list.filter((e) => !e.difficulty && e.status !== "cancelled").length;
   const byDifficulty = Array.from({ length: 10 }, (_, i) => open.filter((e) => e.difficulty === i + 1));
+  const spent = list.reduce((n, e) => n + (e.spentMicros ?? 0), 0);
+  // What can be sent to the coding agent: pending, of an app, not sent yet.
+  const sendable = open.filter((e) => e.status === "pending" && e.app && !e.doNow);
+  const easyToSend = sendable.filter((e) => e.route === "platform");
+  const hardToSend = sendable.filter((e) => e.route !== "platform");
+  const chosenList = list.filter((e) => chosen.includes(e.id));
+  const send = (l: Encargo[], ask: boolean) => {
+    if (!l.length) return;
+    if (ask && !confirm(t("Send {n} encargos to the platform's coding agent? It would spend about {cost}, at most twice that.", { n: l.length, cost: sum(l) }))) return;
+    onDo(l.map((e) => e.id));
+  };
   return (
     <div className="card stack encargo-costos">
       <strong>{t("What the encargos would cost with the platform's AI")}</strong>
       <div className="encargo-cifras">
         <div><span className="cifra">{sum(open)}</span><span className="small muted">{tn(open.length, "to do the open one", "to do the {n} open ones")}</span></div>
         <div><span className="cifra">{sum(easy)}</span><span className="small muted">{tn(easy.length, "to do only the easy one (under your amount)", "to do only the {n} easy ones (under your amount)")}</span></div>
-        <div><span className="cifra">{sum(done)}</span><span className="small muted">{tn(done.length, "what the done one was worth; your own agent did it, paid by the month", "what the {n} done ones were worth; your own agent did them, paid by the month")}</span></div>
+        <div><span className="cifra">{sum(done)}</span><span className="small muted">{tn(done.length, "what the done one was worth", "what the {n} done ones were worth")}</span></div>
+        <div><span className="cifra">{dollars(spent)}</span><span className="small muted">{t("what the platform's coding agent spent on them; the rest was done by your own agent, paid by the month")}</span></div>
       </div>
+      {codeAgent && codeAgent !== "off" ? (
+        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+          <button disabled={!easyToSend.length} onClick={() => send(easyToSend, false)}>{t("Do the easy ones ({n} · {cost})", { n: easyToSend.length, cost: sum(easyToSend) })}</button>
+          <button disabled={!hardToSend.length} onClick={() => send(hardToSend, true)}>{t("Do the hard ones ({n} · {cost})", { n: hardToSend.length, cost: sum(hardToSend) })}</button>
+          <button className="primary" disabled={!chosenList.length} onClick={() => send(chosenList, true)}>{t("Do the chosen ones ({n} · {cost})", { n: chosenList.length, cost: sum(chosenList) })}</button>
+        </div>
+      ) : codeAgent === "off" && <span className="small muted">{t("To have the platform's AI do them, an administrator turns on the coding agent on the AI page.")}</span>}
       {open.length > 0 && (
         <div className="stack" style={{ gap: 4 }}>
           <div className="dificultad-barra" role="img" aria-label={t("Open encargos by difficulty")}>
@@ -126,7 +145,7 @@ function NewEncargo({ onCreated }: { onCreated: () => void }) {
 }
 
 /** One encargo: what was asked, who has it, what it waits on, what came back, and its history. */
-function EncargoCard({ e, onChange }: { e: Encargo; onChange: () => void }) {
+function EncargoCard({ e, onChange, choosable, chosen, onChoose }: { e: Encargo; onChange: () => void; choosable: boolean; chosen: boolean; onChoose: (on: boolean) => void }) {
   const [open, setOpen] = useState(false);
   const [full, setFull] = useState<Encargo>();
   const act = (p: Promise<unknown>) => p.then(onChange, (err: Error) => alert(err.message));
@@ -138,7 +157,9 @@ function EncargoCard({ e, onChange }: { e: Encargo; onChange: () => void }) {
     <div className="card encargo">
       <div className="row between">
         <div className="row" style={{ gap: 8, minWidth: 0 }}>
+          {choosable && <input type="checkbox" checked={chosen} onChange={(ev) => onChoose(ev.target.checked)} aria-label={t("Choose it")} />}
           <span className={`badge ${statusClass[e.status]}`}>{t(statusLabel[e.status])}</span>
+          {e.doNow && e.status === "pending" && <span className="badge warn live">{t("in the coding agent's queue")}</span>}
           <strong className="encargo-title">{e.title}</strong>
         </div>
         <span className="small muted">{e.app && <Link to={`/apps/${e.app}`}>{e.app}</Link>} · {timeAgo(e.updatedAt)}</span>
@@ -149,6 +170,7 @@ function EncargoCard({ e, onChange }: { e: Encargo; onChange: () => void }) {
         {e.runId && <> · {t("about")} <Link to={`/apps/${e.app}/runs/${e.runId}`}>{t("run #{n}", { n: e.runId })}</Link></>}
       </p>
       <Estimate e={e} act={act} />
+      {!!e.spentMicros && <p className="small muted encargo-estimate">{t("The coding agent spent {cost} on it.", { cost: dollars(e.spentMicros) })}</p>}
       {e.result && <div className="encargo-result"><TextoConFormato text={e.result} />
         {e.links.map((l) => <div key={l}><a className="small" href={l} target="_blank" rel="noreferrer">{l}</a></div>)}</div>}
       {e.comment && e.status === "pending" && <p className="small"><strong>{t("Sent back:")}</strong> {e.comment}</p>}
@@ -187,11 +209,19 @@ export function Encargos() {
   const { data, error, reload: reloadList } = usePoll(() => api.encargos(all), [all], 15000);
   const { data: todos, reload: reloadAll } = usePoll(() => api.encargos(true), [], 15000);
   const reload = () => { reloadList(); reloadAll(); };
+  const { data: ia } = usePoll(api.ia, [], 60000);
+  const codeAgent = ia?.settings.codeAgent;
+  const [chosen, setChosen] = useState<number[]>([]);
+  const [sent, setSent] = useState<string>();
+  const doThem = (ids: number[]) => api.doEncargos(ids).then((r) => {
+    setChosen([]); setSent(tn(r.sent, "Sent {n} encargo to the coding agent.", "Sent {n} encargos to the coding agent.")); reload();
+  }, (err: Error) => alert(err.message));
   return (
     <>
       <p className="sub">{t("Work for agents. An agent connected over MCP sees the pending ones when it starts, takes one (nobody else can then), waits on its runs without asking over and over, and hands it over with what it did. You review it, or send it back with what is missing.")}</p>
       <NewEncargo onCreated={reload} />
-      {todos && <CostSummary list={todos} />}
+      {todos && <CostSummary list={todos} codeAgent={codeAgent} chosen={chosen} onDo={doThem} />}
+      {sent && <p className="small" role="status">{sent}</p>}
       <div className="row between" style={{ marginTop: 16 }}>
         <h2 style={{ margin: 0 }}>{all ? t("All encargos") : t("Open encargos")}</h2>
         <label className="small"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> {t("Show reviewed and dropped")}</label>
@@ -199,7 +229,11 @@ export function Encargos() {
       <ErrorBox error={error} />
       {data && !data.length && <p className="muted">{t("No encargos. Ask agents for something above, or from a failed run.")}</p>}
       <div className="stack" style={{ marginTop: 8 }}>
-        {data?.map((e) => <EncargoCard key={e.id} e={e} onChange={reload} />)}
+        {data?.map((e) => (
+          <EncargoCard key={e.id} e={e} onChange={reload} chosen={chosen.includes(e.id)}
+            choosable={!!codeAgent && codeAgent !== "off" && e.status === "pending" && !!e.app && !e.doNow}
+            onChoose={(on) => setChosen(on ? [...chosen, e.id] : chosen.filter((id) => id !== e.id))} />
+        ))}
       </div>
     </>
   );

@@ -141,3 +141,73 @@ func TestEncargoEstimate(t *testing.T) {
 		t.Fatal("a dropped encargo is listed to estimate")
 	}
 }
+
+// The coding agent gets the encargos a person sent it first, then (in auto)
+// the easy ones; giving one back leaves it for the person's own agent.
+func TestEncargosForTheCoder(t *testing.T) {
+	s := open(t)
+	ctx := context.Background()
+	org, err := s.CreateOrg(ctx, "codigo-org", "Código", "p0dxD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	easy, _ := s.CreateEncargo(ctx, Encargo{Title: "codigo-facil", App: "tienda", CreatedBy: "p0dxD", OrgID: org.ID})
+	hard, _ := s.CreateEncargo(ctx, Encargo{Title: "codigo-dificil", App: "tienda", CreatedBy: "p0dxD", OrgID: org.ID})
+	noApp, _ := s.CreateEncargo(ctx, Encargo{Title: "codigo-sin-app", CreatedBy: "p0dxD", OrgID: org.ID})
+	_ = s.SaveEstimate(ctx, easy.ID, 1, 110_000, "", RoutePlatform)
+	_ = s.SaveEstimate(ctx, hard.ID, 8, 7_000_000, "", RouteLocal)
+	next := func() int64 {
+		for {
+			e, err := s.EncargoForCoder(ctx)
+			if errors.Is(err, ErrNotFound) {
+				return 0
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if e.OrgID == org.ID {
+				return e.ID
+			}
+			// another test's encargo: not this organization's business
+			t.Fatalf("an encargo of org %d, from another test", e.OrgID)
+		}
+	}
+	if got := next(); got != 0 {
+		t.Fatalf("the coding agent is off, yet got %d", got)
+	}
+	if err := s.SetCodeAgent(ctx, org.ID, CodeAgentAsked, "p0dxD"); err != nil {
+		t.Fatal(err)
+	}
+	if got := next(); got != 0 {
+		t.Fatalf("asked, with nothing sent, got %d", got)
+	}
+	if n, err := s.DoEncargos(ctx, org.ID, []int64{hard.ID, noApp.ID, 999999}, "p0dxD"); err != nil || n != 1 {
+		t.Fatalf("sent %d (%v), want only the one with an app", n, err)
+	}
+	if got := next(); got != hard.ID {
+		t.Fatalf("asked: got %d, want the one sent %d", got, hard.ID)
+	}
+	_ = s.SetCodeAgent(ctx, org.ID, CodeAgentAuto, "p0dxD")
+	key, err := s.SystemKey(ctx, org.ID, "agente de código")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again, _ := s.SystemKey(ctx, org.ID, "agente de código"); again.ID != key.ID {
+		t.Fatalf("a second key %d for the same agent (%d)", again.ID, key.ID)
+	}
+	cg, _ := s.TakeCargo(ctx, key.ID, "codigo")
+	if _, err := s.TakeEncargo(ctx, hard.ID, key.ID, cg.ID, "agente de código"); err != nil {
+		t.Fatal(err)
+	}
+	if got := next(); got != easy.ID {
+		t.Fatalf("auto: got %d, want the easy one %d", got, easy.ID)
+	}
+	if list, _ := s.EncargosOfSystemKey(ctx, "agente de código"); len(list) == 0 {
+		t.Fatal("the agent's encargo is not listed")
+	}
+	_ = s.AddEncargoSpent(ctx, hard.ID, 1_000)
+	h, err := s.GiveBackEncargo(ctx, hard.ID, key.ID, "agente de código", "no pude")
+	if err != nil || h.Status != EncargoPending || h.DoNow || h.Route != RouteLocal || h.SpentMicros != 1_000 {
+		t.Fatalf("given back %+v (%v)", h, err)
+	}
+}

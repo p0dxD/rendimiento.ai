@@ -293,6 +293,7 @@ export interface AISettings {
   escalateTo: "" | "own" | "platform";
   escalateLimit: number;
   encargoAutoMicros: number;
+  codeAgent: CodeAgent;
   updatedBy?: string;
   updatedAt: string;
 }
@@ -371,6 +372,10 @@ export interface Member {
 
 export type EncargoStatus = "pending" | "taken" | "waiting" | "delivered" | "reviewed" | "cancelled";
 
+// What the platform's coding agent does: nothing, only the encargos a
+// person sends it, or also the easy ones on its own.
+export type CodeAgent = "off" | "asked" | "auto";
+
 // Work asked of agents (internal/store.Encargo).
 export interface Encargo {
   id: number;
@@ -392,6 +397,9 @@ export interface Encargo {
   estimateMicros?: number;
   estimateReason?: string;
   route?: "platform" | "local";
+  // Sent to the platform's coding agent, and what it spent on it.
+  doNow?: boolean;
+  spentMicros?: number;
   createdAt: string;
   updatedAt: string;
   log?: { at: string; who: string; what: string; note?: string }[];
@@ -707,7 +715,7 @@ export const api = {
   askDiagnosis: (run: number) => request<void>("POST", `/api/runs/${run}/diagnosis`),
   judgeDiagnosis: (run: number, useful: boolean, cause = "") =>
     request<{ feedback: string; rutaEntry: number }>("POST", `/api/runs/${run}/diagnosis/feedback`, { useful, cause }),
-  saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean; autoDiagnose?: boolean; escalateTo?: string; escalateLimit?: number; encargoAutoDollars?: number }) =>
+  saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean; autoDiagnose?: boolean; escalateTo?: string; escalateLimit?: number; encargoAutoDollars?: number; codeAgent?: CodeAgent }) =>
     request<IAView>("PUT", "/api/ia", v),
   testIA: (prompt: string) => request<IAAnswer>("POST", "/api/ia/test", { prompt }),
   iaOrgs: () => request<IAOrgs>("GET", "/api/ia/orgs"),
@@ -772,6 +780,7 @@ export const api = {
   reviewEncargo: (id: number, accept: boolean, comment = "") => request<Encargo>("POST", `/api/encargos/${id}/review`, { accept, comment }),
   cancelEncargo: (id: number) => request<Encargo>("POST", `/api/encargos/${id}/cancel`),
   routeEncargo: (id: number, route: "platform" | "local") => request<Encargo>("POST", `/api/encargos/${id}/route`, { route }),
+  doEncargos: (ids: number[]) => request<{ sent: number }>("POST", "/api/encargos/do", { ids }),
   reestimateEncargo: (id: number) => request<Encargo>("POST", `/api/encargos/${id}/estimate`),
   createAgentKey: (k: { name: string; role: AgentRole; apps: string[]; days: number }) => request<CreatedAgentKey>("POST", "/api/agent-keys", k),
   revokeAgentKey: (id: number) => request<void>("DELETE", `/api/agent-keys/${id}`),

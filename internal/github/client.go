@@ -1,7 +1,9 @@
 package github
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -14,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 // Client makes API calls as one installation.
@@ -595,4 +598,72 @@ func (c *Client) CommitFiles(ctx context.Context, repo, branch, message string, 
 // (pull, triage, push, maintain or admin).
 func (c *Client) AddCollaborator(ctx context.Context, repo, login, permission string) error {
 	return c.do(ctx, http.MethodPut, "/repos/"+repo+"/collaborators/"+url.PathEscape(login), map[string]string{"permission": permission}, nil)
+}
+
+// MaxTarball bounds a repository's downloaded archive.
+const MaxTarball = 64 << 20
+
+// Files downloads a repository at ref (one archive, not a call per file)
+// and returns its text files by path, leaving out those over maxFile bytes
+// and those that are not UTF-8 text.
+func (c *Client) Files(ctx context.Context, repo, ref string, maxFile int) (map[string][]byte, error) {
+	tok, err := c.app.InstallationToken(ctx, c.installation)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.app.base()+"/repos/"+repo+"/tarball/"+url.PathEscape(ref), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "token "+tok)
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	resp, err := (&http.Client{Timeout: 3 * time.Minute}).Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return nil, &APIError{Status: resp.StatusCode, Method: http.MethodGet, Path: "/repos/" + repo + "/tarball", Body: string(msg)}
+	}
+	zr, err := gzip.NewReader(io.LimitReader(resp.Body, MaxTarball))
+	if err != nil {
+		return nil, err
+	}
+	files := map[string][]byte{}
+	tr := tar.NewReader(zr)
+	for {
+		h, err := tr.Next()
+		if err == io.EOF {
+			return files, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if h.Typeflag != tar.TypeReg || h.Size > int64(maxFile) {
+			continue
+		}
+		// The archive puts everything under one folder named after the commit.
+		_, name, ok := strings.Cut(h.Name, "/")
+		if !ok || name == "" {
+			continue
+		}
+		b, err := io.ReadAll(tr)
+		if err != nil {
+			return nil, err
+		}
+		if utf8.Valid(b) && !bytes.ContainsRune(b, 0) {
+			files[name] = b
+		}
+	}
+}
+
+// CreateBranch makes branch point at sha; it is fine if it already exists.
+func (c *Client) CreateBranch(ctx context.Context, repo, branch, sha string) error {
+	err := c.do(ctx, http.MethodPost, "/repos/"+repo+"/git/refs", map[string]any{"ref": "refs/heads/" + branch, "sha": sha}, nil)
+	var apiErr *APIError
+	if errorsAs(err, &apiErr) && apiErr.Status == http.StatusUnprocessableEntity && strings.Contains(apiErr.Body, "already exists") {
+		return nil
+	}
+	return err
 }
