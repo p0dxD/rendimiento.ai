@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { api, timeAgo, type Encargo, type EncargoStatus } from "../api";
+import { api, dollars, timeAgo, type Encargo, type EncargoStatus } from "../api";
 import { ErrorBox, usePoll } from "./ui";
 import { t } from "../i18n";
 import { TextoConFormato } from "./texto";
@@ -13,8 +13,33 @@ const statusClass: Record<EncargoStatus, string> = {
 };
 const eventLabel: Record<string, string> = {
   created: "created", taken: "taken", waiting: "waiting", resumed: "done waiting", delivered: "delivered",
-  reviewed: "reviewed", returned: "sent back", released: "let go", cancelled: "dropped",
+  reviewed: "reviewed", routed: "routed", returned: "sent back", released: "let go", cancelled: "dropped",
 };
+
+const routeLabel = { platform: "For the platform's AI", local: "For your own agent" };
+
+/**
+ * What the estimator said of a pending encargo (how hard, what the
+ * platform's AI would spend) and who should do it, with the choice to
+ * change it: past the amount set on the AI page, it is for the person's own
+ * agent, paid by the month rather than by the call.
+ */
+function Estimate({ e, act }: { e: Encargo; act: (p: Promise<unknown>) => void }) {
+  if (e.status !== "pending") return null;
+  if (!e.difficulty) {
+    return <p className="small muted encargo-estimate">{e.estimateReason ? t("No estimate: {why}", { why: e.estimateReason }) : t("Estimating…")}</p>;
+  }
+  return (
+    <div className="small encargo-estimate">
+      <span className={`badge ${e.route === "platform" ? "ok" : ""}`}>{t(routeLabel[e.route ?? "local"])}</span>{" "}
+      <span>{t("difficulty {d}/10 · about {cost} with the platform's AI", { d: e.difficulty, cost: dollars(e.estimateMicros ?? 0) })}</span>
+      {e.estimateReason && <span className="muted"> · {e.estimateReason}</span>}{" "}
+      {e.route === "platform"
+        ? <button className="link small" onClick={() => act(api.routeEncargo(e.id, "local"))}>{t("Leave it to my agent")}</button>
+        : <button className="link small" onClick={() => act(api.routeEncargo(e.id, "platform"))}>{t("Do it with AI anyway")}</button>}
+    </div>
+  );
+}
 
 /** The form to ask agents for something: what, the detail, and the app. */
 function NewEncargo({ onCreated }: { onCreated: () => void }) {
@@ -74,6 +99,7 @@ function EncargoCard({ e, onChange }: { e: Encargo; onChange: () => void }) {
         {e.waitingRun && <> · {t("waiting on")} <Link to={`/apps/${e.app}/runs/${e.waitingRun}`}>{t("run #{n}", { n: e.waitingRun })}</Link></>}
         {e.runId && <> · {t("about")} <Link to={`/apps/${e.app}/runs/${e.runId}`}>{t("run #{n}", { n: e.runId })}</Link></>}
       </p>
+      <Estimate e={e} act={act} />
       {e.result && <div className="encargo-result"><TextoConFormato text={e.result} />
         {e.links.map((l) => <div key={l}><a className="small" href={l} target="_blank" rel="noreferrer">{l}</a></div>)}</div>}
       {e.comment && e.status === "pending" && <p className="small"><strong>{t("Sent back:")}</strong> {e.comment}</p>}
@@ -94,7 +120,7 @@ function EncargoCard({ e, onChange }: { e: Encargo; onChange: () => void }) {
         <div className="small encargo-log">
           {full?.body && <TextoConFormato text={full.body} />}
           {full?.log?.map((l, i) => (
-            <div key={i}><span className="muted">{new Date(l.at).toLocaleString()}</span> · {l.who} · {t(eventLabel[l.what] ?? l.what)}{l.note && ` · ${l.note}`}</div>
+            <div key={i}><span className="muted">{new Date(l.at).toLocaleString()}</span> · {l.who} · {t(eventLabel[l.what] ?? l.what)}{l.note && ` · ${l.what === "routed" ? t(routeLabel[l.note as "platform" | "local"] ?? l.note) : l.note}`}</div>
           ))}
         </div>
       )}

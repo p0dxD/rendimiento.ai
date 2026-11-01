@@ -132,13 +132,14 @@ function Settings({ v, onSaved }: { v: IAView; onSaved: () => void }) {
   const [auto, setAuto] = useState(s.autoDiagnose);
   const [escalateTo, setEscalateTo] = useState(s.escalateTo);
   const [escalateLimit, setEscalateLimit] = useState(s.escalateLimit);
+  const [encargoAuto, setEncargoAuto] = useState(s.encargoAutoMicros / 1e6);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<unknown>();
   const reset = () => {
     setProvider(s.provider); setKind(s.kind ?? "anthropic"); setBaseUrl(s.baseUrl ?? "");
     setModel(s.model ?? ""); setCap(s.capMicros / 1e6); setAuto(s.autoDiagnose);
-    setEscalateTo(s.escalateTo); setEscalateLimit(s.escalateLimit); setKey("");
+    setEscalateTo(s.escalateTo); setEscalateLimit(s.escalateLimit); setEncargoAuto(s.encargoAutoMicros / 1e6); setKey("");
   };
   // Polling brings a new object every time: reset only when the saved settings change.
   useEffect(reset, [JSON.stringify(s)]);
@@ -159,11 +160,12 @@ function Settings({ v, onSaved }: { v: IAView; onSaved: () => void }) {
   if (auto !== s.autoDiagnose) changes.push([t("Explain failed runs"), onOff(s.autoDiagnose), onOff(auto)]);
   if (auto && escalateTo !== s.escalateTo) changes.push([t("New failures"), t(escalateName[s.escalateTo]), t(escalateName[escalateTo])]);
   if (auto && escalateTo && escalateLimit !== s.escalateLimit) changes.push([t("Times a month"), String(s.escalateLimit), String(escalateLimit)]);
+  if (Math.round(encargoAuto * 1e6) !== s.encargoAutoMicros) changes.push([t("Encargos for the platform's AI"), dollars(s.encargoAutoMicros), dollars(Math.round(encargoAuto * 1e6))]);
   if (Math.round(cap * 1e6) !== s.capMicros) changes.push([t("Monthly cap"), dollars(s.capMicros), dollars(Math.round(cap * 1e6))]);
 
   const save = (extra: { removeKey?: boolean } = {}) => {
     setBusy(true); setErr(undefined);
-    api.saveIA({ provider, kind, baseUrl, model, capDollars: cap, key: key || undefined, autoDiagnose: auto, escalateTo, escalateLimit, ...extra })
+    api.saveIA({ provider, kind, baseUrl, model, capDollars: cap, key: key || undefined, autoDiagnose: auto, escalateTo, escalateLimit, encargoAutoDollars: encargoAuto, ...extra })
       .then(() => { setBusy(false); setKey(""); setSaved(true); onSaved(); }, (e) => { setBusy(false); setErr(e); });
   };
   const allowance = Math.min(s.allowanceMicros, s.capMicros);
@@ -246,6 +248,14 @@ function Settings({ v, onSaved }: { v: IAView; onSaved: () => void }) {
         <p className="small muted">{t("The most this organization spends on paid models in a month; past it, the local model answers.")}</p>
         <label className="field ia-narrow"><span>{t("Dollars")}</span>
           <input disabled={!admin} type="number" min={0} max={1000} step={0.5} value={cap} onChange={(e) => setCap(Number(e.target.value))} />
+        </label>
+      </section>
+
+      <section className="stack">
+        <h2>{t("4. Encargos")}</h2>
+        <p className="small muted">{t("Each new encargo is estimated: how hard it is, and what the platform's AI would spend doing it. Up to this amount, it is for the platform's AI; above it, for your own agent (Claude Code or Codex, paid by the month rather than by the call). On each encargo you can change it.")}</p>
+        <label className="field ia-narrow"><span>{t("Dollars per encargo")}</span>
+          <input disabled={!admin} type="number" min={0} max={100} step={0.25} value={encargoAuto} onChange={(e) => setEncargoAuto(Number(e.target.value))} />
         </label>
       </section>
 

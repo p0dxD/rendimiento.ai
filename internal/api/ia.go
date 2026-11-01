@@ -96,6 +96,9 @@ type IAInput struct {
 	// EscalateLimit times a month (nil: unchanged).
 	EscalateTo    *string `json:"escalateTo"`
 	EscalateLimit *int    `json:"escalateLimit"`
+	// EncargoAutoDollars is the most an encargo may be estimated to cost
+	// for the platform's AI to take it (nil: unchanged).
+	EncargoAutoDollars *float64 `json:"encargoAutoDollars"`
 }
 
 // micros turns dollars into millionths of a dollar.
@@ -169,6 +172,16 @@ func (s *Server) putIA(w http.ResponseWriter, r *http.Request, login string) {
 			return
 		}
 		if err := s.Store.SetEscalation(ctx, org, *in.EscalateTo, limit, login); err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	if in.EncargoAutoDollars != nil {
+		if *in.EncargoAutoDollars < 0 || *in.EncargoAutoDollars > 100 {
+			httpError(w, http.StatusBadRequest, "the amount for encargos must be between $0 and $100")
+			return
+		}
+		if err := s.Store.SetEncargoAuto(ctx, org, micros(*in.EncargoAutoDollars), login); err != nil {
 			httpError(w, http.StatusInternalServerError, err.Error())
 			return
 		}

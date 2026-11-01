@@ -82,3 +82,53 @@ func joinWords(w []string) string {
 	}
 	return out
 }
+
+// The estimator's answer keeps the route it implies, unless a person chose
+// one already; an estimated encargo is not listed to estimate again, and
+// only a pending one can be routed.
+func TestEncargoEstimate(t *testing.T) {
+	s := open(t)
+	ctx := context.Background()
+	a, _ := s.CreateEncargo(ctx, Encargo{Title: "estimar-a", CreatedBy: "p0dxD"})
+	b, _ := s.CreateEncargo(ctx, Encargo{Title: "estimar-b", CreatedBy: "p0dxD"})
+	waiting := func(id int64) bool {
+		list, err := s.EncargosToEstimate(ctx, 200)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range list {
+			if e.ID == id {
+				return true
+			}
+		}
+		return false
+	}
+	if !waiting(a.ID) || !waiting(b.ID) {
+		t.Fatal("new encargos not listed to estimate")
+	}
+	if _, err := s.RouteEncargo(ctx, b.ID, "p0dxD", RouteLocal); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveEstimate(ctx, a.ID, 2, 440_000, "un texto", RoutePlatform); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveEstimate(ctx, b.ID, 1, 110_000, "otro", RoutePlatform); err != nil {
+		t.Fatal(err)
+	}
+	if waiting(a.ID) || waiting(b.ID) {
+		t.Fatal("estimated encargos still listed to estimate")
+	}
+	a, _ = s.Encargo(ctx, a.ID)
+	if a.Difficulty == nil || *a.Difficulty != 2 || *a.EstimateMicros != 440_000 || a.EstimateReason != "un texto" || a.Route != RoutePlatform {
+		t.Fatalf("estimated %+v", a)
+	}
+	if b, _ = s.Encargo(ctx, b.ID); b.Route != RouteLocal || b.Log[len(b.Log)-1].What != "routed" {
+		t.Fatalf("a person's route was replaced: %+v", b)
+	}
+	if _, err := s.CancelEncargo(ctx, a.ID, "p0dxD", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.RouteEncargo(ctx, a.ID, "p0dxD", RouteLocal); !errors.Is(err, ErrEncargoState) {
+		t.Fatalf("routed a cancelled encargo: %v", err)
+	}
+}
