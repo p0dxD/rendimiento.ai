@@ -1032,6 +1032,8 @@ export const es: Record<string, string> = {
   "the diagnostician agent reads the failed steps and their logs, and says why and how to fix it, on the run's page": "el agente diagnosticador lee los pasos que fallaron y sus registros, y dice por qué y cómo arreglarlo, en la página de la ejecución",
   "The diagnostician's explanation:": "La explicación del diagnosticador:",
   "Why did it fail?": "¿Por qué falló?",
+  "Translated by AI from Spanish.": "Traducido por la IA del español.",
+  "Translated by AI from English.": "Traducido por la IA del inglés.",
   "Jump to the error": "Saltar al error",
   "Steps": "Pasos",
   "Ran at the same time as {steps}": "Corrió al mismo tiempo que {steps}",

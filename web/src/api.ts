@@ -311,6 +311,9 @@ export interface Diagnosis {
   feedback?: "useful" | "wrong" | "";
   feedbackBy?: string;
   rutaEntry?: number;
+  /** The language text is in; translatedFrom, when the AI translated it for this reader. */
+  lang?: "en" | "es";
+  translatedFrom?: "en" | "es";
 }
 
 export interface AIUsage {
@@ -693,7 +696,7 @@ export const api = {
   switchOrg: (id: number) => request<void>("POST", `/api/orgs/${id}/switch`),
   members: () => request<Member[]>("GET", "/api/members"),
   ia: () => request<IAView>("GET", "/api/ia"),
-  diagnosis: (run: number) => request<Diagnosis>("GET", `/api/runs/${run}/diagnosis`),
+  diagnosis: (run: number, lang?: string) => request<Diagnosis>("GET", `/api/runs/${run}/diagnosis${lang ? `?lang=${lang}` : ""}`),
   askDiagnosis: (run: number) => request<void>("POST", `/api/runs/${run}/diagnosis`),
   judgeDiagnosis: (run: number, useful: boolean, cause = "") =>
     request<{ feedback: string; rutaEntry: number }>("POST", `/api/runs/${run}/diagnosis/feedback`, { useful, cause }),

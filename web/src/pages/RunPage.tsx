@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, dollars, duration, session, subscribe, timeAgo, type Diagnosis, type Run, type Step } from "../api";
 import { ErrorBox, RunBadge } from "../components/ui";
-import { t } from "../i18n";
+import { lang, t } from "../i18n";
 import { TextoConFormato } from "../components/texto";
 
 /** A run's page: why it failed, its steps with when each ran, live as they go, and the log of the step chosen. */
@@ -212,7 +212,7 @@ function WhyFailed({ run, d, setD }: { run: Run; d: Diagnosis | null | undefined
   const [asking, setAsking] = useState(false);
   useEffect(() => {
     let live = true;
-    const load = () => api.diagnosis(run.id).then((x) => live && setD(x), () => live && setD(null));
+    const load = () => api.diagnosis(run.id, lang).then((x) => live && setD(x), () => live && setD(null));
     load();
     const every = setInterval(load, 8000);
     return () => { live = false; clearInterval(every); };
@@ -229,6 +229,7 @@ function WhyFailed({ run, d, setD }: { run: Run; d: Diagnosis | null | undefined
       {d === null && <p className="muted small">{t("No explanation yet. If automatic diagnosis is on (AI page), the diagnostician agent writes one within a minute of the failure.")}</p>}
       {d?.status === "pending" && <p className="muted small">{t("The diagnostician agent is reading the logs…")}</p>}
       {d?.status === "done" && d.text && <TextoConFormato text={d.text} className="why-text" />}
+      {d?.status === "done" && d.translatedFrom && <p className="small muted" style={{ margin: 0 }}>{d.translatedFrom === "es" ? t("Translated by AI from Spanish.") : t("Translated by AI from English.")}</p>}
       {d?.status === "failed" && <p className="small">{t("It could not explain it: {why}", { why: d.note ?? "" })}</p>}
       {d?.status === "done" && <Judge run={run} d={d} setD={setD} />}
       {d && d.status !== "pending" && d.model && (

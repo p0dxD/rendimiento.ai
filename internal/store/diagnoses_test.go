@@ -39,8 +39,25 @@ func TestDiagnoses(t *testing.T) {
 	if err != nil || len(ids) != 1 || ids[0] != bad {
 		t.Fatalf("to diagnose: %v %v", ids, err)
 	}
-	if err := s.SaveDiagnosis(ctx, Diagnosis{RunID: bad, Status: DiagnosisDone, Text: "falló la prueba", Model: "qwen"}); err != nil {
+	if err := s.SaveDiagnosis(ctx, Diagnosis{RunID: bad, Status: DiagnosisDone, Text: "falló la prueba", Model: "qwen", Lang: "es"}); err != nil {
 		t.Fatal(err)
+	}
+	// A translation is kept with it, and dropped when it is diagnosed again;
+	// one made from an older text is not kept.
+	if err := s.SaveTranslation(ctx, bad, "falló la prueba", "en", "the test failed"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveTranslation(ctx, bad, "otro texto", "en", "stale"); err != nil {
+		t.Fatal(err)
+	}
+	if d, err := s.GetDiagnosis(ctx, bad); err != nil || d.Lang != "es" || d.Translations["en"] != "the test failed" {
+		t.Fatalf("translated: %+v %v", d, err)
+	}
+	if err := s.SaveDiagnosis(ctx, Diagnosis{RunID: bad, Status: DiagnosisDone, Text: "falló otra vez", Lang: "es"}); err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := s.GetDiagnosis(ctx, bad); len(d.Translations) != 0 {
+		t.Fatalf("an old translation survived a new diagnosis: %v", d.Translations)
 	}
 	if ids, _ := s.RunsToDiagnose(ctx, time.Now().Add(-time.Hour), 10); len(ids) != 0 {
 		t.Fatalf("diagnosed again: %v", ids)

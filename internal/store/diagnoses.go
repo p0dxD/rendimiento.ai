@@ -33,14 +33,20 @@ type Diagnosis struct {
 	Feedback   string `json:"feedback,omitempty"`
 	FeedbackBy string `json:"feedbackBy,omitempty"`
 	RutaEntry  *int64 `json:"rutaEntry,omitempty"`
+	// Lang is the language Text was written in (es, en; empty before it was
+	// kept). Translations holds it in other languages, made when first read;
+	// the API answers with the reader's, and TranslatedFrom says from which.
+	Lang           string            `json:"lang,omitempty"`
+	Translations   map[string]string `json:"-"`
+	TranslatedFrom string            `json:"translatedFrom,omitempty"`
 }
 
 // GetDiagnosis is a run's diagnosis (ErrNotFound when there is none).
 func (s *Store) GetDiagnosis(ctx context.Context, runID int64) (Diagnosis, error) {
 	d := Diagnosis{RunID: runID}
-	err := s.pool.QueryRow(ctx, `SELECT status, text, provider, model, cost_micros, note, asked_by, updated_at, signature, feedback, feedback_by, ruta_entry
+	err := s.pool.QueryRow(ctx, `SELECT status, text, provider, model, cost_micros, note, asked_by, updated_at, signature, feedback, feedback_by, ruta_entry, lang, translations
 		FROM run_diagnoses WHERE run_id = $1`, runID).
-		Scan(&d.Status, &d.Text, &d.Provider, &d.Model, &d.CostMicros, &d.Note, &d.AskedBy, &d.UpdatedAt, &d.Signature, &d.Feedback, &d.FeedbackBy, &d.RutaEntry)
+		Scan(&d.Status, &d.Text, &d.Provider, &d.Model, &d.CostMicros, &d.Note, &d.AskedBy, &d.UpdatedAt, &d.Signature, &d.Feedback, &d.FeedbackBy, &d.RutaEntry, &d.Lang, &d.Translations)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return d, ErrNotFound
 	}
@@ -57,11 +63,19 @@ func (s *Store) AskDiagnosis(ctx context.Context, runID int64, by string) error 
 
 // SaveDiagnosis keeps the agent's answer.
 func (s *Store) SaveDiagnosis(ctx context.Context, d Diagnosis) error {
-	_, err := s.pool.Exec(ctx, `INSERT INTO run_diagnoses (run_id, status, text, provider, model, cost_micros, note, asked_by, signature)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	_, err := s.pool.Exec(ctx, `INSERT INTO run_diagnoses (run_id, status, text, provider, model, cost_micros, note, asked_by, signature, lang)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (run_id) DO UPDATE SET status = $2, text = $3, provider = $4, model = $5, cost_micros = $6, note = $7, signature = $9,
-		  feedback = '', feedback_by = '', updated_at = now()`,
-		d.RunID, d.Status, d.Text, d.Provider, d.Model, d.CostMicros, d.Note, d.AskedBy, d.Signature)
+		  lang = $10, translations = '{}'::jsonb, feedback = '', feedback_by = '', updated_at = now()`,
+		d.RunID, d.Status, d.Text, d.Provider, d.Model, d.CostMicros, d.Note, d.AskedBy, d.Signature, d.Lang)
+	return err
+}
+
+// SaveTranslation keeps a diagnosis in another language, unless the
+// diagnosis was written again since (its text is no longer original).
+func (s *Store) SaveTranslation(ctx context.Context, runID int64, original, lang, text string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE run_diagnoses SET translations = translations || jsonb_build_object($3::text, $4::text)
+		WHERE run_id = $1 AND text = $2`, runID, original, lang, text)
 	return err
 }
 
