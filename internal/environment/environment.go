@@ -96,20 +96,25 @@ type Provider struct {
 
 // Node is one cluster node with its capacity, usage and health.
 type Node struct {
-	Name          string   `json:"name"`
-	Roles         []string `json:"roles"`
-	Ready         bool     `json:"ready"`
-	Arch          string   `json:"arch"`
-	OS            string   `json:"os"`
-	Kubelet       string   `json:"kubelet"`
-	Pressure      []string `json:"pressure,omitempty"` // MemoryPressure, DiskPressure, PIDPressure
-	Pods          int      `json:"pods"`
-	CPUCores      float64  `json:"cpuCores"`
-	CPUUsed       *float64 `json:"cpuUsed,omitempty"` // cores; nil without metrics-server
-	MemBytes      int64    `json:"memBytes"`
-	MemUsed       *int64   `json:"memUsed,omitempty"`
-	Unschedulable bool     `json:"unschedulable,omitempty"`
-	GPUs          int64    `json:"gpus,omitempty"` // nvidia.com/gpu capacity
+	Name     string   `json:"name"`
+	Roles    []string `json:"roles"`
+	Ready    bool     `json:"ready"`
+	Arch     string   `json:"arch"`
+	OS       string   `json:"os"`
+	Kubelet  string   `json:"kubelet"`
+	Pressure []string `json:"pressure,omitempty"` // MemoryPressure, DiskPressure, PIDPressure
+	Pods     int      `json:"pods"`
+	CPUCores float64  `json:"cpuCores"`
+	CPUUsed  *float64 `json:"cpuUsed,omitempty"` // cores; nil without metrics-server
+	MemBytes int64    `json:"memBytes"`
+	MemUsed  *int64   `json:"memUsed,omitempty"`
+	// CPUReserved (cores) and MemReserved are what its pods ask for: the
+	// scheduler places a pod only where that leaves room, however little
+	// the node really uses.
+	CPUReserved   float64 `json:"cpuReserved"`
+	MemReserved   int64   `json:"memReserved"`
+	Unschedulable bool    `json:"unschedulable,omitempty"`
+	GPUs          int64   `json:"gpus,omitempty"` // nvidia.com/gpu capacity
 }
 
 // Problem is an unhealthy workload or certificate somewhere in the cluster.
