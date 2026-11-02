@@ -23,6 +23,7 @@ export const es: Record<string, string> = {
   "Blooming": "Florece",
   "Withered flower": "Flor marchita",
   "Blooming flower": "Flor viva",
+  "A bud: not live yet": "Un botón: todavía no está en vivo",
   "Switch to night": "Cambiar a la noche",
   "Switch to day": "Cambiar al día",
   "Turn movement on": "Activar el movimiento",
