@@ -21,6 +21,21 @@ type fakeStore struct {
 	settings  store.AISettings
 	escalated int
 	links     map[int64]int64
+	encargos  []store.Encargo
+}
+
+func (f *fakeStore) EncargoForRun(_ context.Context, run int64) (store.Encargo, error) {
+	for _, e := range f.encargos {
+		if e.RunID != nil && *e.RunID == run {
+			return e, nil
+		}
+	}
+	return store.Encargo{}, store.ErrNotFound
+}
+func (f *fakeStore) CreateEncargo(_ context.Context, e store.Encargo) (store.Encargo, error) {
+	e.ID = int64(len(f.encargos) + 1)
+	f.encargos = append(f.encargos, e)
+	return e, nil
 }
 
 func (f *fakeStore) AISettingsOf(context.Context, int64) (store.AISettings, error) {
@@ -254,5 +269,35 @@ func TestEscalation(t *testing.T) {
 	}
 	if last := m.asked[len(m.asked)-1]; last.MaxTokens != AnswerTokens {
 		t.Fatalf("max tokens = %d", last.MaxTokens)
+	}
+}
+
+// An explained failure opens an encargo when the organization (or the app,
+// which wins) asks for it: on branches only, or everywhere; never twice.
+func TestOpenEncargo(t *testing.T) {
+	ctx := context.Background()
+	st := &fakeStore{settings: store.AISettings{AutoEncargo: store.AutoEncargoBranches}}
+	d := &Diagnostician{Store: st, Lang: "es"}
+	app := &store.App{ID: 4, Name: "propinas", DefaultBranch: "main", OrgID: 1}
+	branch := &store.Run{ID: 30, Branch: "propina-redonda", SHA: "abcdef123", Steps: []store.Step{{ID: "web:test", Status: store.RunFailed, Message: "exited with code 1"}}}
+	main := &store.Run{ID: 31, Branch: "main", SHA: "1234567890"}
+	diag := store.Diagnosis{Text: "Se pierde un centavo al redondear."}
+	_ = d.openEncargo(ctx, app, branch, diag)
+	_ = d.openEncargo(ctx, app, branch, diag) // not twice
+	_ = d.openEncargo(ctx, app, main, diag)   // branches only
+	if len(st.encargos) != 1 {
+		t.Fatalf("%d encargos, want 1", len(st.encargos))
+	}
+	e := st.encargos[0]
+	if e.Title != "Arreglar la ejecución #30 de propinas" || *e.RunID != 30 || e.App != "propinas" || !e.ByAgent ||
+		!strings.Contains(e.Body, "web:test: exited with code 1") || !strings.Contains(e.Body, "Se pierde un centavo") {
+		t.Fatalf("encargo %+v", e)
+	}
+	app.AutoEncargo = store.AutoEncargoAll // the app wins over the organization
+	_ = d.openEncargo(ctx, app, main, diag)
+	app.AutoEncargo = store.AutoEncargoOff
+	_ = d.openEncargo(ctx, app, &store.Run{ID: 32, Branch: "otra"}, diag)
+	if len(st.encargos) != 2 || *st.encargos[1].RunID != 31 {
+		t.Fatalf("with the app's own choice: %d encargos", len(st.encargos))
 	}
 }

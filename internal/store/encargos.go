@@ -330,3 +330,10 @@ func (s *Store) EncargosOfSystemKey(ctx context.Context, name string) ([]Encargo
 	}
 	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Encargo, error) { return scanEncargo(r) })
 }
+
+// EncargoForRun is the encargo about a run that is not dropped
+// (ErrNotFound when there is none).
+func (s *Store) EncargoForRun(ctx context.Context, runID int64) (Encargo, error) {
+	return scanEncargo(s.pool.QueryRow(ctx, `SELECT `+encargoCols+encargoFrom+`
+		WHERE e.run_id = $1 AND e.status <> 'cancelled' ORDER BY e.id DESC LIMIT 1`, runID))
+}

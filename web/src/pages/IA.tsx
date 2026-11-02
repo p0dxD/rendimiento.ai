@@ -1,10 +1,16 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { api, dollars, session, timeAgo, type AIProvider, type CodeAgent, type IAAnswer, type IAView } from "../api";
+import { api, dollars, session, timeAgo, type AIProvider, type AutoEncargo, type CodeAgent, type IAAnswer, type IAView } from "../api";
 import { ErrorBox, Switch, usePoll } from "../components/ui";
 import { t } from "../i18n";
 
 const providerLabel: Record<AIProvider, string> = { local: "local model", own: "own key", platform: "the platform's" };
 const providerName: Record<AIProvider, string> = { local: "The local model", own: "Your own key", platform: "The platform's" };
+export const autoEncargoName: Record<AutoEncargo, string> = { off: "By hand", branches: "On branches", all: "On every failure" };
+const autoEncargoCost: Record<AutoEncargo, string> = {
+  off: "you open them with Ask an agent",
+  branches: "when a branch fails; the default branch is left to you",
+  all: "the default branch too",
+};
 const codeAgentName: Record<CodeAgent, string> = { off: "Off", asked: "Only when I send it", auto: "Also the easy ones on its own" };
 const escalateName: Record<"" | AIProvider, string> = { "": "Do not escalate", local: "Do not escalate", own: "Your own key", platform: "The platform's" };
 
@@ -135,13 +141,14 @@ function Settings({ v, onSaved }: { v: IAView; onSaved: () => void }) {
   const [escalateLimit, setEscalateLimit] = useState(s.escalateLimit);
   const [encargoAuto, setEncargoAuto] = useState(s.encargoAutoMicros / 1e6);
   const [codeAgent, setCodeAgent] = useState<CodeAgent>(s.codeAgent);
+  const [autoEncargo, setAutoEncargo] = useState<AutoEncargo>(s.autoEncargo);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<unknown>();
   const reset = () => {
     setProvider(s.provider); setKind(s.kind ?? "anthropic"); setBaseUrl(s.baseUrl ?? "");
     setModel(s.model ?? ""); setCap(s.capMicros / 1e6); setAuto(s.autoDiagnose);
-    setEscalateTo(s.escalateTo); setEscalateLimit(s.escalateLimit); setEncargoAuto(s.encargoAutoMicros / 1e6); setCodeAgent(s.codeAgent); setKey("");
+    setEscalateTo(s.escalateTo); setEscalateLimit(s.escalateLimit); setEncargoAuto(s.encargoAutoMicros / 1e6); setCodeAgent(s.codeAgent); setAutoEncargo(s.autoEncargo); setKey("");
   };
   // Polling brings a new object every time: reset only when the saved settings change.
   useEffect(reset, [JSON.stringify(s)]);
@@ -163,12 +170,13 @@ function Settings({ v, onSaved }: { v: IAView; onSaved: () => void }) {
   if (auto && escalateTo !== s.escalateTo) changes.push([t("New failures"), t(escalateName[s.escalateTo]), t(escalateName[escalateTo])]);
   if (auto && escalateTo && escalateLimit !== s.escalateLimit) changes.push([t("Times a month"), String(s.escalateLimit), String(escalateLimit)]);
   if (Math.round(encargoAuto * 1e6) !== s.encargoAutoMicros) changes.push([t("Encargos for the platform's AI"), dollars(s.encargoAutoMicros), dollars(Math.round(encargoAuto * 1e6))]);
+  if (auto && autoEncargo !== s.autoEncargo) changes.push([t("Encargos for failures"), t(autoEncargoName[s.autoEncargo]), t(autoEncargoName[autoEncargo])]);
   if (codeAgent !== s.codeAgent) changes.push([t("The coding agent"), t(codeAgentName[s.codeAgent]), t(codeAgentName[codeAgent])]);
   if (Math.round(cap * 1e6) !== s.capMicros) changes.push([t("Monthly cap"), dollars(s.capMicros), dollars(Math.round(cap * 1e6))]);
 
   const save = (extra: { removeKey?: boolean } = {}) => {
     setBusy(true); setErr(undefined);
-    api.saveIA({ provider, kind, baseUrl, model, capDollars: cap, key: key || undefined, autoDiagnose: auto, escalateTo, escalateLimit, encargoAutoDollars: encargoAuto, codeAgent, ...extra })
+    api.saveIA({ provider, kind, baseUrl, model, capDollars: cap, key: key || undefined, autoDiagnose: auto, escalateTo, escalateLimit, encargoAutoDollars: encargoAuto, codeAgent, autoEncargo, ...extra })
       .then(() => { setBusy(false); setKey(""); setSaved(true); onSaved(); }, (e) => { setBusy(false); setErr(e); });
   };
   const allowance = Math.min(s.allowanceMicros, s.capMicros);
@@ -245,6 +253,13 @@ function Settings({ v, onSaved }: { v: IAView; onSaved: () => void }) {
             <p className="small muted" style={{ margin: 0 }}>{escalateTo
               ? t("What the stronger model answers is kept in the Ruta as an unconfirmed known failure, so the local model knows it next time.")
               : t("Known failures always go to the usual model, which reads what the Ruta knows.")}</p>
+            <p className="small" style={{ margin: 0 }}><strong>{t("Encargos for failures")}</strong> <span className="muted">{t("once a failure is explained, open an encargo for it, as Ask an agent does; each app may choose for itself in its Settings")}</span></p>
+            <div className="ia-tiles">
+              {(["off", "branches", "all"] as AutoEncargo[]).map((m) => (
+                <Tile key={m} name="auto-encargo" title={t(autoEncargoName[m])} checked={autoEncargo === m} disabled={!admin} onPick={() => setAutoEncargo(m)}
+                  cost={t(autoEncargoCost[m])} status={<span className="badge ok">{t("$0 more")}</span>} />
+              ))}
+            </div>
           </>
         )}
       </section>

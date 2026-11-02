@@ -161,6 +161,7 @@ export interface AppStatus {
 export interface App {
   id: number;
   name: string;
+  autoEncargo: AutoEncargo | ""; // "" follows the organization
   repo: string;
   installationId: number;
   defaultBranch: string;
@@ -294,6 +295,7 @@ export interface AISettings {
   escalateLimit: number;
   encargoAutoMicros: number;
   codeAgent: CodeAgent;
+  autoEncargo: AutoEncargo;
   updatedBy?: string;
   updatedAt: string;
 }
@@ -371,6 +373,9 @@ export interface Member {
 }
 
 export type EncargoStatus = "pending" | "taken" | "waiting" | "delivered" | "reviewed" | "cancelled";
+
+// When an encargo opens by itself for an explained failure.
+export type AutoEncargo = "off" | "branches" | "all";
 
 // What the platform's coding agent does: nothing, only the encargos a
 // person sends it, or also the easy ones on its own.
@@ -715,7 +720,7 @@ export const api = {
   askDiagnosis: (run: number) => request<void>("POST", `/api/runs/${run}/diagnosis`),
   judgeDiagnosis: (run: number, useful: boolean, cause = "") =>
     request<{ feedback: string; rutaEntry: number }>("POST", `/api/runs/${run}/diagnosis/feedback`, { useful, cause }),
-  saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean; autoDiagnose?: boolean; escalateTo?: string; escalateLimit?: number; encargoAutoDollars?: number; codeAgent?: CodeAgent }) =>
+  saveIA: (v: { provider: AIProvider; kind?: string; baseUrl?: string; model?: string; capDollars: number; key?: string; removeKey?: boolean; autoDiagnose?: boolean; escalateTo?: string; escalateLimit?: number; encargoAutoDollars?: number; codeAgent?: CodeAgent; autoEncargo?: AutoEncargo }) =>
     request<IAView>("PUT", "/api/ia", v),
   testIA: (prompt: string) => request<IAAnswer>("POST", "/api/ia/test", { prompt }),
   iaOrgs: () => request<IAOrgs>("GET", "/api/ia/orgs"),
@@ -781,6 +786,7 @@ export const api = {
   cancelEncargo: (id: number) => request<Encargo>("POST", `/api/encargos/${id}/cancel`),
   routeEncargo: (id: number, route: "platform" | "local") => request<Encargo>("POST", `/api/encargos/${id}/route`, { route }),
   doEncargos: (ids: number[]) => request<{ sent: number }>("POST", "/api/encargos/do", { ids }),
+  setAppAutoEncargo: (app: string, mode: AutoEncargo | "") => request<void>("PUT", `/api/apps/${app}/auto-encargo`, { mode }),
   reestimateEncargo: (id: number) => request<Encargo>("POST", `/api/encargos/${id}/estimate`),
   createAgentKey: (k: { name: string; role: AgentRole; apps: string[]; days: number }) => request<CreatedAgentKey>("POST", "/api/agent-keys", k),
   revokeAgentKey: (id: number) => request<void>("DELETE", `/api/agent-keys/${id}`),

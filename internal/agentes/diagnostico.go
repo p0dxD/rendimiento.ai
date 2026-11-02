@@ -32,6 +32,8 @@ type Store interface {
 	AICalls(ctx context.Context, orgID int64, source string, now time.Time) (int, error)
 	AddRuta(ctx context.Context, e store.RutaEntry) (store.RutaEntry, error)
 	LinkDiagnosisRuta(ctx context.Context, runID, entry int64) error
+	EncargoForRun(ctx context.Context, runID int64) (store.Encargo, error)
+	CreateEncargo(ctx context.Context, e store.Encargo) (store.Encargo, error)
 }
 
 // KnownTag marks the Ruta's known failures: what people confirmed or
@@ -163,10 +165,69 @@ func (d *Diagnostician) Diagnose(ctx context.Context, runID int64) error {
 	if err := d.Store.SaveDiagnosis(context.WithoutCancel(ctx), out); err != nil {
 		return err
 	}
+	if err := d.openEncargo(context.WithoutCancel(ctx), app, run, out); err != nil {
+		d.Log.Warn("diagnostician: opening an encargo", "run", runID, "err", err)
+	}
 	if escalated && out.Text != "" {
 		return d.remember(context.WithoutCancel(ctx), app, run, out)
 	}
 	return nil
+}
+
+// DiagnosticianName is who opens the encargos the diagnostician opens.
+const DiagnosticianName = "agente diagnosticador"
+
+// openEncargo opens an encargo for an explained failure when the
+// organization asked for it (branches, or all), the way "Ask an agent"
+// does by hand: the failed steps and the explanation, for an agent to fix.
+// Never a second one for the same run.
+func (d *Diagnostician) openEncargo(ctx context.Context, app *store.App, run *store.Run, diag store.Diagnosis) error {
+	set, err := d.Store.AISettingsOf(ctx, app.OrgID)
+	if err != nil {
+		return err
+	}
+	mode := set.AutoEncargo
+	if app.AutoEncargo != "" {
+		mode = app.AutoEncargo // the app chose for itself
+	}
+	switch {
+	case mode == store.AutoEncargoAll:
+	case mode == store.AutoEncargoBranches && run.Branch != app.DefaultBranch:
+	default:
+		return nil
+	}
+	if _, err := d.Store.EncargoForRun(ctx, run.ID); !errors.Is(err, store.ErrNotFound) {
+		return err // there is one already (or the store failed)
+	}
+	es := d.Lang == "es"
+	say := func(spanish, english string, args ...any) string {
+		if es {
+			return fmt.Sprintf(spanish, args...)
+		}
+		return fmt.Sprintf(english, args...)
+	}
+	lines := []string{say("La ejecución #%d de %s falló en %s (%s).", "Run #%d of %s failed on %s (%s).", run.ID, app.Name, run.Branch, short(run.SHA))}
+	for _, s := range run.Steps {
+		if s.Status == store.RunFailed {
+			lines = append(lines, "- "+s.ID+": "+s.Message)
+		}
+	}
+	if diag.Text != "" {
+		lines = append(lines, say("La explicación del diagnosticador:", "The diagnostician's explanation:")+"\n"+diag.Text)
+	}
+	lines = append(lines, say("Averigüe por qué (ejecucion_leer, paso_registro), arréglelo en una rama, pruébelo ahí y entréguelo con el enlace.",
+		"Find out why (ejecucion_leer, paso_registro), fix it on a branch, test it there and hand it over with the link."))
+	id := run.ID
+	_, err = d.Store.CreateEncargo(ctx, store.Encargo{Title: say("Arreglar la ejecución #%d de %s", "Fix run #%d of %s", run.ID, app.Name),
+		Body: strings.Join(lines, "\n"), App: app.Name, RunID: &id, CreatedBy: DiagnosticianName, ByAgent: true, OrgID: app.OrgID})
+	return err
+}
+
+func short(sha string) string {
+	if len(sha) > 7 {
+		return sha[:7]
+	}
+	return sha
 }
 
 // escalation is who answers a new failure for the organization ("" for
@@ -417,11 +478,4 @@ func clean(log string, n int) string {
 		out = append(out, l)
 	}
 	return strings.Join(out, "\n")
-}
-
-func short(sha string) string {
-	if len(sha) > 7 {
-		return sha[:7]
-	}
-	return sha
 }

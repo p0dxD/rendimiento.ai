@@ -103,6 +103,8 @@ var catalog = map[string]string{
 	"the coding agent needs an Anthropic model: your own Anthropic key or the platform's": "el agente de código necesita un modelo de Anthropic: su propia llave de Anthropic o la de la plataforma",
 	"send 1 to 100 encargos": "mande de 1 a 100 encargos",
 	"the coding agent is off; an administrator turns it on on the AI page": "el agente de código está apagado; un administrador lo enciende en la página IA",
+	"an encargo opens for failures off, on branches or on all": "un encargo se abre para las fallas: off, branches o all",
+	"an encargo opens for failures off, on branches or on all, or as the organization says": "un encargo se abre para las fallas: off, branches, all, o como diga la organización",
 	"stopped: %s failed":                                                                              "detenido: falló %s",
 	"%s failed two checks in a row. rendimiento keeps checking every minute and will email you when it recovers.": "Fallaron dos comprobaciones seguidas de %s. rendimiento sigue comprobando cada minuto y le enviará un correo cuando se recupere.",
 	"%s installed on %s": "%s instalada en %s",

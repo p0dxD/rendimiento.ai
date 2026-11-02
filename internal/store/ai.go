@@ -42,9 +42,12 @@ type AISettings struct {
 	EncargoAutoMicros int64 `json:"encargoAutoMicros"`
 	// CodeAgent is what the platform's coding agent does: off, asked (only
 	// the encargos a person sends it) or auto (also the easy ones).
-	CodeAgent string    `json:"codeAgent"`
-	UpdatedBy string    `json:"updatedBy,omitempty"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	CodeAgent string `json:"codeAgent"`
+	// AutoEncargo opens an encargo for each failed run once it is
+	// explained: off, branches (not the default branch) or all.
+	AutoEncargo string    `json:"autoEncargo"`
+	UpdatedBy   string    `json:"updatedBy,omitempty"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // AIUsage is one measured call to a model.
@@ -66,11 +69,11 @@ type AIUsage struct {
 // none yet: the local model, a $1 cap, no allowance).
 func (s *Store) AISettingsOf(ctx context.Context, orgID int64) (AISettings, error) {
 	a := AISettings{OrgID: orgID}
-	err := s.pool.QueryRow(ctx, `SELECT provider, kind, base_url, model, cap_micros, allowance_micros, auto_diagnose, escalate_to, escalate_limit, encargo_auto_micros, code_agent, updated_by, updated_at
+	err := s.pool.QueryRow(ctx, `SELECT provider, kind, base_url, model, cap_micros, allowance_micros, auto_diagnose, escalate_to, escalate_limit, encargo_auto_micros, code_agent, auto_encargo, updated_by, updated_at
 		FROM ai_settings WHERE org_id = $1`, orgID).Scan(&a.Provider, &a.Kind, &a.BaseURL, &a.Model, &a.CapMicros, &a.AllowanceMicros, &a.AutoDiagnose,
-		&a.EscalateTo, &a.EscalateLimit, &a.EncargoAutoMicros, &a.CodeAgent, &a.UpdatedBy, &a.UpdatedAt)
+		&a.EscalateTo, &a.EscalateLimit, &a.EncargoAutoMicros, &a.CodeAgent, &a.AutoEncargo, &a.UpdatedBy, &a.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return AISettings{OrgID: orgID, Provider: AILocal, CapMicros: 1_000_000, AutoDiagnose: true, EscalateLimit: 10, EncargoAutoMicros: DefaultEncargoAuto, CodeAgent: CodeAgentOff}, nil
+		return AISettings{OrgID: orgID, Provider: AILocal, CapMicros: 1_000_000, AutoDiagnose: true, EscalateLimit: 10, EncargoAutoMicros: DefaultEncargoAuto, CodeAgent: CodeAgentOff, AutoEncargo: AutoEncargoOff}, nil
 	}
 	return a, err
 }
@@ -176,5 +179,19 @@ const (
 func (s *Store) SetCodeAgent(ctx context.Context, orgID int64, mode, by string) error {
 	_, err := s.pool.Exec(ctx, `INSERT INTO ai_settings (org_id, code_agent, updated_by, updated_at) VALUES ($1, $2, $3, now())
 		ON CONFLICT (org_id) DO UPDATE SET code_agent = $2, updated_by = $3, updated_at = now()`, orgID, mode, by)
+	return err
+}
+
+// When an encargo opens by itself for a failed run.
+const (
+	AutoEncargoOff      = "off"
+	AutoEncargoBranches = "branches"
+	AutoEncargoAll      = "all"
+)
+
+// SetAutoEncargo is when an encargo opens by itself for a failed run.
+func (s *Store) SetAutoEncargo(ctx context.Context, orgID int64, mode, by string) error {
+	_, err := s.pool.Exec(ctx, `INSERT INTO ai_settings (org_id, auto_encargo, updated_by, updated_at) VALUES ($1, $2, $3, now())
+		ON CONFLICT (org_id) DO UPDATE SET auto_encargo = $2, updated_by = $3, updated_at = now()`, orgID, mode, by)
 	return err
 }

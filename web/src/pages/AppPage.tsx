@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { addonsApi, api, appSecretNames, duration, subscribe, timeAgo, type App, type Release, type ReleaseTask } from "../api";
+import { addonsApi, api, appSecretNames, duration, session, subscribe, timeAgo, type App, type AutoEncargo, type Release, type ReleaseTask } from "../api";
+import { autoEncargoName } from "./IA";
 import { ErrorBox, PhaseBadge, ResourceTree, RunBadge, Switch, usePoll } from "../components/ui";
 import { fmtPct, ReliabilityTab } from "../components/reliability";
 import { VisitsTab } from "../components/visits";
@@ -72,7 +73,7 @@ export function AppPage() {
       {tab === "releases" && <Releases name={name} current={app.status.release} />}
       {tab === "reliability" && <ReliabilityTab app={app} />}
       {tab === "visits" && <VisitsTab app={app} />}
-      {tab === "settings" && <Settings name={name} secrets={appSecretNames(app.spec)} />}
+      {tab === "settings" && <Settings name={name} app={app} secrets={appSecretNames(app.spec)} />}
       </div>
     </>
   );
@@ -503,12 +504,39 @@ function VerificationBanner({ name }: { name: string }) {
   return null;
 }
 
-/** The Settings tab: the app's secrets (values set here, never in git) and the danger zone. */
-function Settings({ name, secrets }: { name: string; secrets: string[] }) {
+/**
+ * Whether an encargo opens by itself for this app's explained failures: as the organization says on the AI page,
+ * or the app's own choice.
+ */
+function AutoEncargoSetting({ app }: { app: App }) {
+  const [mode, setMode] = useState<AutoEncargo | "">(app.autoEncargo ?? "");
+  const [busy, setBusy] = useState(false);
+  const admin = session.role === "admin";
+  return (
+    <div className="card stack">
+      <label className="field" style={{ maxWidth: 420 }}><span>{t("Encargos for this app's failures")}</span>
+        <select id="auto-encargo" value={mode} disabled={!admin || busy} onChange={(e) => {
+          const m = e.target.value as AutoEncargo | "";
+          setBusy(true);
+          api.setAppAutoEncargo(app.name, m).then(() => { setBusy(false); setMode(m); }, (err: Error) => { setBusy(false); alert(err.message); });
+        }}>
+          <option value="">{t("As the organization says (AI page)")}</option>
+          {(["off", "branches", "all"] as AutoEncargo[]).map((m) => <option key={m} value={m}>{t(autoEncargoName[m])}</option>)}
+        </select>
+      </label>
+      <span className="small muted">{t("Once the diagnostician explains a failure, an encargo opens for it, as Ask an agent does. With the coding agent on, the easy ones get fixed on their own.")}</span>
+    </div>
+  );
+}
+
+/** The Settings tab: when encargos open for failures, the app's secrets (values set here, never in git) and the danger zone. */
+function Settings({ name, app, secrets }: { name: string; app: App; secrets: string[] }) {
   const nav = useNavigate();
   return (
     <div className="stack">
-      <h2 style={{ marginTop: 0 }}>{t("Secrets")}</h2>
+      <h2 style={{ marginTop: 0 }}>{t("Encargos")}</h2>
+      <AutoEncargoSetting app={app} />
+      <h2>{t("Secrets")}</h2>
       {secrets.length === 0 && <p className="muted">{t("This app declares no secrets. Add names under")} <code>secrets:</code> {t("in rendimiento.yaml.")}</p>}
       {secrets.map((s) => <SecretForm key={s} app={name} secret={s} />)}
       <h2>{t("Danger zone")}</h2>
