@@ -22,6 +22,7 @@ import { EnvironmentNavLink } from "./pages/Version";
 import { Cielo, Guardapolvo, MovimientoSwitch, TemaSwitch, Techo } from "./components/ambiente";
 import { LangSwitch, Logo } from "./components/marca";
 import { Bienvenida, type BookLinks } from "./pages/Bienvenida";
+import { Avisos } from "./components/avisos";
 import "./styles.css";
 
 /**
@@ -107,6 +108,7 @@ function Shell() {
           <Route path="*" element={<div className="empty">{t("Page not found.")} <Link to="/">{t("Go home")}</Link></div>} />
         </Routes>
       </main>
+      <Avisos />
       <Guardapolvo />
     </>
   );
