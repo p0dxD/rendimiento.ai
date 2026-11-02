@@ -208,11 +208,16 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 		return fail("%v", err)
 	}
 	if step.Kind == KindTest && step.Cache && k.cacheInUse(ctx, name, step) {
-		// Another run's test has the cache. A volume one node at a time
-		// (Longhorn's ReadWriteOnce) would keep this pod waiting for it: this
-		// test goes without it instead.
-		fmt.Fprintf(w, "rendimiento: another run is using this test's cache; this test runs without it\n")
-		withoutCache(pod)
+		// Another run's test has the cache (a volume one node at a time, like
+		// Longhorn's ReadWriteOnce). With it, a test takes minutes; without it,
+		// everything compiles again, many times longer: wait for it a while.
+		fmt.Fprintf(w, "rendimiento: another run is using this test's cache; waiting up to %s for it\n", cacheInUseWait)
+		if k.waitCacheFree(ctx, name, step, cacheInUseWait) {
+			fmt.Fprintf(w, "rendimiento: the cache is free\n")
+		} else {
+			fmt.Fprintf(w, "rendimiento: the cache is still in use; this test runs without it\n")
+			withoutCache(pod)
+		}
 	}
 	cleanup := func() {
 		bg := context.Background()
@@ -723,6 +728,27 @@ func (k *KubeExecutor) stuckOnCache(ctx context.Context, pod string, wait time.D
 		case <-time.After(time.Second):
 		}
 	}
+}
+
+// cacheInUseWait is how long a test waits for another run's test to let
+// its cache go, before it runs without one.
+var cacheInUseWait = 10 * time.Minute
+
+// waitCacheFree waits up to wait for no other test to have the step's
+// cache; false when one still has it.
+func (k *KubeExecutor) waitCacheFree(ctx context.Context, pod string, step Step, wait time.Duration) bool {
+	deadline := time.Now().Add(wait)
+	for k.cacheInUse(ctx, pod, step) {
+		if !time.Now().Before(deadline) {
+			return false
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(5 * time.Second):
+		}
+	}
+	return true
 }
 
 // withoutCache gives a test's pod an empty folder at /cache instead of the
