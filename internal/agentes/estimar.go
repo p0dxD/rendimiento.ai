@@ -136,6 +136,7 @@ func (e *Estimator) system() string {
 5-6: a feature or a fix that needs reading around, several files and new tests.
 7-8: a change across parts of the system, or a cause still to be found.
 9-10: a design change, a migration, or something vague and large.
-When the detail is too vague to know, rate it higher, not lower.
+Rate the size of the fix, not the length of the detail: a failed run with its log, and its cause already explained (a wrong formula in one function), is a clear small fix, 2 or 3, however long the log.
+When what to do is too vague to know, rate it higher, not lower.
 Answer only with JSON: {"difficulty": <1-10>, "reason": "<one sentence in %s>"}`, lang)
 }
