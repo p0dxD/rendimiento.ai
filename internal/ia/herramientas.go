@@ -5,9 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
+	"net"
 	"net/http"
+	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/p0dxD/rendimiento.ai/internal/store"
@@ -99,6 +103,15 @@ func (g *Gateway) CompleteTools(ctx context.Context, orgID int64, source string,
 	a.http = &http.Client{Timeout: 10 * time.Minute} // a long answer takes minutes
 	model := or(req.Model, t.model)
 	res, u, err := a.tools(ctx, model, req)
+	// A dropped connection or a busy API passes: try again a few times
+	// before failing the turn (and, for the coding agent, the encargo).
+	for try := 1; err != nil && passing(err) && try <= 3 && ctx.Err() == nil; try++ {
+		select {
+		case <-ctx.Done():
+		case <-time.After(time.Duration(try*try) * retryPause):
+		}
+		res, u, err = a.tools(ctx, model, req)
+	}
 	res.Provider, res.Model = t.provider, model
 	res.InputTokens, res.OutputTokens = u.In+u.CacheWrite+u.CacheRead, u.Out
 	// Cached input costs a tenth to read and a quarter more to write.
@@ -178,4 +191,24 @@ func UserResults(results []ToolResult) Turn {
 	}
 	b, _ := json.Marshal(results)
 	return Turn{Role: "user", Content: b}
+}
+
+// retryPause is the first pause before trying a turn again (then 4× and 9×).
+var retryPause = 2 * time.Second
+
+var busyStatus = regexp.MustCompile(`answered (429|5\d\d)`)
+
+// passing says whether an error is one that goes away by itself: the
+// connection dropped or timed out, or the API answered that it is busy
+// (429, 5xx, 529 overloaded).
+func passing(err error) bool {
+	if errors.Is(err, context.Canceled) {
+		return false
+	}
+	var ne net.Error
+	if errors.As(err, &ne) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, syscall.ECONNRESET) {
+		return true
+	}
+	s := err.Error()
+	return busyStatus.MatchString(s) || strings.Contains(s, "connection reset") || strings.Contains(s, "EOF")
 }

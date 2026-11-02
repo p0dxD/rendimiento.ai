@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 )
@@ -52,5 +53,33 @@ func TestCompleteTools(t *testing.T) {
 	}
 	if _, err := g.CompleteTools(context.Background(), 1, "agent: coder", req); !errors.Is(err, ErrNoToolModel) {
 		t.Fatalf("the local model answered a turn with tools: %v", err)
+	}
+}
+
+// A dropped connection or a busy API is tried again; a real error is not.
+func TestCompleteToolsTriesAgain(t *testing.T) {
+	retryPause = time.Millisecond
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		switch calls {
+		case 1: // the connection drops
+			conn, _, _ := w.(http.Hijacker).Hijack()
+			_ = conn.Close()
+		case 2:
+			http.Error(w, `{"error":{"type":"overloaded_error"}}`, 529)
+		default:
+			_, _ = w.Write([]byte(`{"content":[{"type":"text","text":"listo"}],"stop_reason":"end_turn","usage":{"input_tokens":10,"output_tokens":5}}`))
+		}
+	}))
+	defer srv.Close()
+	st := &memStore{settings: map[int64]store.AISettings{2: {OrgID: 2, Provider: store.AIOwn, Kind: "anthropic", CapMicros: 1_000_000}}}
+	g := &Gateway{Store: st, Keys: keys{2: "sk-2"}, AnthropicURL: srv.URL}
+	res, err := g.CompleteTools(context.Background(), 2, "agent: coder", ToolRequest{Model: "claude-sonnet-5-5", Turns: []Turn{UserText("hola")}})
+	if err != nil || res.Text != "listo" || calls != 3 {
+		t.Fatalf("after %d calls: %q %v", calls, res.Text, err)
+	}
+	if passing(errors.New("https://api.anthropic.com/v1/messages answered 400: bad request")) {
+		t.Fatal("a 400 is not passing")
 	}
 }
