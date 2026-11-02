@@ -191,6 +191,11 @@ label.field > span { display: block; font-size: 13px; color: var(--muted); margi
 .app-cabeza{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
 .app-titulo{flex:1 1 280px;min-width:0}
 .app-titulo h1{margin:0;overflow-wrap:anywhere}
+.build-now{position:relative;display:inline-flex;gap:2px}
+.build-now-mas{padding-left:10px;padding-right:10px}
+.build-now-ramas{position:absolute;right:0;top:calc(100% + 6px);z-index:20;width:min(320px,calc(100vw - 32px));display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.build-now-ramas .row{width:100%}
+.build-now-ramas input{flex:1;min-width:0}
 .btn-link{display:inline-flex;align-items:center;min-height:40px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-weight:700}
 .btn-link:hover{text-decoration:none;border-color:var(--muted)}
 button.corre{background:linear-gradient(90deg,var(--border) 25%,var(--card) 50%,var(--border) 75%);background-size:200% 100%;animation:corre-brillo 1s linear infinite;color:var(--muted)}
