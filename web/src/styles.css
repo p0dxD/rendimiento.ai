@@ -163,6 +163,8 @@ input, select, textarea {
   font: inherit; color: var(--text); background: var(--surface);
   border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; width: 100%;
 }
+/* Circles and boxes keep their own size: the rule above is for text fields (stretched, an absolutely placed radio spanned its whole card). */
+input[type="radio"], input[type="checkbox"] { width: auto; padding: 0; accent-color: var(--accent); }
 input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 label.field { display: block; }
 label.field > span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
