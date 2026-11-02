@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/yaml"
@@ -524,11 +526,25 @@ func fromUnstructured(u *unstructured.Unstructured, into any) error {
 	return yaml.Unmarshal(b, into)
 }
 
+// peopleAnnotationsChanged wakes the controller when a person changes an
+// add-on's annotations (pausing it, asking for a sync), but not for the
+// record of its pre hooks, which the controller writes itself in the middle
+// of a sync: waking on that synced again at once, from a cache that had not
+// seen the status yet, and ran the post hooks a second time.
+var peopleAnnotationsChanged = predicate.Funcs{UpdateFunc: func(e event.UpdateEvent) bool {
+	without := func(m map[string]string) map[string]string {
+		m = maps.Clone(m)
+		delete(m, annotationPreHooksDone)
+		return m
+	}
+	return !maps.Equal(without(e.ObjectOld.GetAnnotations()), without(e.ObjectNew.GetAnnotations()))
+}}
+
 // SetupWithManager registers the controller; it reacts to spec and annotation changes, and resyncs
 // periodically.
 func (r *AddonReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.Addon{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, predicate.AnnotationChangedPredicate{}))).
+		For(&v1alpha1.Addon{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, peopleAnnotationsChanged))).
 		Named("addon").
 		Complete(r)
 }
