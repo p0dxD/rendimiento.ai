@@ -16,6 +16,16 @@ rendimiento le envía un correo cuando algo requiere su atención, para que no t
 
 Las construcciones de otras ramas y de solicitudes de incorporación no envían correo; su resultado está en la comprobación de GitHub de la confirmación.
 
+## Avisos en la interfaz {#notices-in-the-ui}
+
+Mientras la plataforma está abierta en un navegador, en la esquina de abajo a la derecha de cualquier página aparecen avisos de lo que va pasando en su organización, cada uno con un enlace a lo que pasó:
+
+- una ejecución **empezó**, **pasó**, **falló** o **se canceló** (qué aplicación y qué rama, y si despliega);
+- una versión **salió en vivo**, o la aplicación **regresó a la anterior**;
+- un encargo se **creó**, se **mandó** al agente de código, se **tomó**, se **entregó**, se **devolvió**, se **regresó** con un comentario o se **revisó**.
+
+Las fallas se quedan más tiempo (12 segundos) que las buenas noticias (6). Vienen de `GET /api/activity/stream`, que lee la base de datos cada pocos segundos, así que también aparece lo que hizo otra réplica o un agente. Respetan el interruptor de movimiento y la preferencia de reducir el movimiento.
+
 ## Control del ruido {#noise-control}
 
 Como Alertmanager de Prometheus, rendimiento espera antes de avisarle y junta lo que pasa al mismo tiempo:

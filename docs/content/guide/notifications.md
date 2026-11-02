@@ -16,6 +16,16 @@ rendimiento emails you when something needs your attention, so you don't have to
 
 Branch and pull-request builds don't email you; their result is on the commit's GitHub check.
 
+## Notices in the UI
+
+While the platform is open in a browser, notices appear in the bottom-right corner of any page as things happen in your organization, each leading to what happened:
+
+- a run **started**, **passed**, **failed** or was **cancelled** (which app and branch, and whether it deploys);
+- a release **went live**, or the app **rolled back**;
+- an encargo was **created**, **sent** to the coding agent, **taken**, **delivered**, **given back**, **sent back** or **reviewed**.
+
+Failures stay longer (12 seconds) than good news (6). They come from `GET /api/activity/stream`, which reads the database every few seconds, so what another replica or agent did shows up too. They follow the movement switch and reduced motion.
+
 ## Noise control
 
 Like Prometheus's Alertmanager, rendimiento waits before it tells you, and puts together what happens at once:

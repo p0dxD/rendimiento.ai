@@ -480,3 +480,52 @@ func TestCapacity(t *testing.T) {
 		t.Fatalf("saved: %+v (%v)", c, err)
 	}
 }
+
+// Activity shows what happened after a cursor: a run that started and
+// ended, an encargo's moves; and not again from the next cursor.
+func TestActivity(t *testing.T) {
+	s := open(t)
+	ctx := context.Background()
+	since, last, err := s.ActivityCursor(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sp := spec.Spec{Services: []spec.Service{{Name: "web"}}}
+	sp.Default()
+	app := &App{Name: "actividad-a", Repo: "a/actividad", Spec: sp}
+	if err := s.CreateApp(ctx, app); err != nil {
+		t.Fatal(err)
+	}
+	run := &Run{AppID: app.ID, SHA: "1", Branch: "rama", Event: "push"}
+	if err := s.CreateRun(ctx, run, nil); err != nil {
+		t.Fatal(err)
+	}
+	// Claiming it here could take other tests' runs: it starts by hand.
+	if _, err := s.pool.Exec(ctx, `UPDATE runs SET status = 'running', started_at = now() WHERE id = $1`, run.ID); err != nil {
+		t.Fatal(err)
+	}
+	_ = s.FinishRun(ctx, run.ID, RunFailed, "test failed")
+	e, _ := s.CreateEncargo(ctx, Encargo{Title: "actividad-encargo", App: "actividad-a", CreatedBy: "p0dxD"})
+	items, now, last2, err := s.ActivitySince(ctx, DefaultOrg, since, last)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, a := range items {
+		if a.Run == run.ID || a.Encargo == e.ID {
+			got = append(got, a.Kind+":"+a.Event)
+		}
+	}
+	if strings.Join(got, " ") != "run:started run:failed encargo:created" {
+		t.Fatalf("activity %v", got)
+	}
+	again, _, _, err := s.ActivitySince(ctx, DefaultOrg, now, last2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range again {
+		if a.Run == run.ID || a.Encargo == e.ID {
+			t.Fatalf("shown twice: %+v", a)
+		}
+	}
+}

@@ -204,6 +204,7 @@ func (s *Server) Handler() http.Handler {
 	auth(store.MemberCollaborator, "PUT /api/ruta/{id}", s.updateRuta)
 	auth(store.MemberCollaborator, "POST /api/ruta/{id}/archive", s.archiveRuta)
 	auth(store.MemberGuest, "GET /api/ruta/activity", s.rutaActivity)
+	auth(store.MemberGuest, "GET /api/activity/stream", s.activityStream)
 	auth(store.MemberGuest, "GET /api/encargos", s.listEncargos)
 	auth(store.MemberCollaborator, "POST /api/encargos", s.createEncargo)
 	auth(store.MemberGuest, "GET /api/encargos/{id}", s.getEncargo)
