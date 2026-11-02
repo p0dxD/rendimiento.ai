@@ -148,6 +148,7 @@ type job struct {
 	app      *store.App
 	key      store.AgentKey
 	branch   string
+	from     string // the branch it was made from: the default one, or the failed run's
 	files    map[string][]byte
 	changed  map[string][]byte
 	removed  map[string]bool
@@ -216,7 +217,15 @@ func (j *job) work(ctx context.Context) error {
 		return fmt.Errorf("no app %q", j.e.App)
 	}
 	j.app = app
-	base, err := c.Repos.BranchSHA(ctx, app.InstallationID, app.Repo, app.DefaultBranch)
+	// An encargo about a run that failed on another branch is about that
+	// branch's code: the error lives there, not on the default branch.
+	j.from = app.DefaultBranch
+	if j.e.RunID != nil {
+		if run, err := c.Store.GetRun(ctx, *j.e.RunID); err == nil && run.AppID == app.ID && run.Branch != "" {
+			j.from = run.Branch
+		}
+	}
+	base, err := c.Repos.BranchSHA(ctx, app.InstallationID, app.Repo, j.from)
 	if err != nil {
 		return err
 	}
@@ -279,8 +288,11 @@ func (j *job) commitLeft(ctx context.Context) {
 // own instructions for agents.
 func (j *job) brief() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Encargo %d: %s\n\nApp: %s (repository %s, default branch %s). You work on branch %s, made from it.\n",
-		j.e.ID, j.e.Title, j.app.Name, j.app.Repo, j.app.DefaultBranch, j.branch)
+	fmt.Fprintf(&b, "Encargo %d: %s\n\nApp: %s (repository %s, default branch %s). You work on branch %s, made from %s.\n",
+		j.e.ID, j.e.Title, j.app.Name, j.app.Repo, j.app.DefaultBranch, j.branch, j.from)
+	if j.from != j.app.DefaultBranch {
+		fmt.Fprintf(&b, "That is the branch where run #%d failed: the code to fix is there, and your branch will be merged into it.\n", *j.e.RunID)
+	}
 	if j.e.Body != "" {
 		fmt.Fprintf(&b, "\nThe detail:\n%s\n", truncate(j.e.Body, 8000))
 	}
@@ -652,7 +664,11 @@ func (j *job) deliver(ctx context.Context, summary string) (string, bool) {
 		return "the latest commit has no passing run yet; commit_and_test first", true
 	}
 	result := strings.TrimSpace(summary) + "\n\n" + c.say("Gastó %s (estimado: %s).", "Spent %s (estimated: %s).", ia.Dollars(j.spent), ia.Dollars(j.budget/2))
+	// The pull request goes into the branch it was made from.
 	links := []string{fmt.Sprintf("https://github.com/%s/pull/new/%s", j.app.Repo, j.branch)}
+	if j.from != j.app.DefaultBranch {
+		links[0] = fmt.Sprintf("https://github.com/%s/compare/%s...%s?expand=1", j.app.Repo, j.from, j.branch)
+	}
 	if c.BaseURL != "" {
 		links = append(links, fmt.Sprintf("%s/apps/%s/runs/%d", strings.TrimRight(c.BaseURL, "/"), j.app.Name, j.lastRun.ID))
 	}

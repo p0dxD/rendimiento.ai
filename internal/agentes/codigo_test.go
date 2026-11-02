@@ -14,6 +14,7 @@ import (
 )
 
 type coderStore struct {
+	runID     *int64 // the run the encargo is about
 	runs      []*store.Run
 	delivered string
 	links     []string
@@ -43,7 +44,7 @@ func (s *coderStore) HandOver(_ context.Context, _ int64, entrega, _ string) err
 	return nil
 }
 func (s *coderStore) TakeEncargo(_ context.Context, id, _, _ int64, _ string) (store.Encargo, error) {
-	return store.Encargo{ID: id, OrgID: 1, App: "tienda", Title: "Saludar en español", Status: store.EncargoTaken}, nil
+	return store.Encargo{ID: id, OrgID: 1, App: "tienda", Title: "Saludar en español", Status: store.EncargoTaken, RunID: s.runID}, nil
 }
 func (s *coderStore) WaitEncargo(_ context.Context, _, _, run int64, _ string) (store.Encargo, error) {
 	s.waited = append(s.waited, run)
@@ -88,6 +89,7 @@ type repos struct {
 	removed [][]string
 	results []string
 	st      *coderStore
+	from    string // the sha the agent's branch was made from
 }
 
 func (r *repos) Files(context.Context, int64, string, string, int) (map[string][]byte, error) {
@@ -97,10 +99,13 @@ func (r *repos) Files(context.Context, int64, string, string, int) (map[string][
 	}
 	return out, nil
 }
-func (r *repos) BranchSHA(context.Context, int64, string, string) (string, error) {
-	return "base000", nil
+func (r *repos) BranchSHA(_ context.Context, _ int64, _, branch string) (string, error) {
+	return "head-of-" + branch, nil
 }
-func (r *repos) CreateBranch(context.Context, int64, string, string, string) error { return nil }
+func (r *repos) CreateBranch(_ context.Context, _ int64, _, _, sha string) error {
+	r.from = sha
+	return nil
+}
 func (r *repos) CommitFiles(_ context.Context, _ int64, _, branch, _ string, files map[string][]byte, remove []string) (string, error) {
 	if branch != "encargo-12" {
 		return "", fmt.Errorf("committed to %s", branch)
@@ -218,5 +223,27 @@ func TestCoderStopsAtTwiceTheEstimate(t *testing.T) {
 	}
 	if len(r.commits) != 1 || string(r.commits[0]["saludo.go"]) != "const Saludo = \"Hola\"\n" || m.n != 3 {
 		t.Fatalf("commits %q after %d turns", r.commits, m.n)
+	}
+}
+
+// An encargo about a run that failed on another branch is worked on a
+// branch made from that one, and its pull request goes into it.
+func TestCoderWorksFromTheFailedRunsBranch(t *testing.T) {
+	run := int64(808)
+	st := &coderStore{runID: &run, runs: []*store.Run{{ID: 808, AppID: 4, Branch: "propina-redonda", SHA: "abc", Status: store.RunFailed}}}
+	r := &repos{st: st, files: map[string][]byte{"saludo.go": []byte("const Saludo = \"Hi\"\n")}, results: []string{store.RunSucceeded}}
+	m := &script{t: t, cost: 10_000, turns: [][]ia.ToolCall{
+		{call("edit_file", map[string]string{"path": "saludo.go", "old_text": "Hi", "new_text": "Hola"})},
+		{call("commit_and_test", map[string]string{"message": "Saludo"})},
+		{call("deliver", map[string]string{"summary": "Listo."})},
+	}}
+	if err := newCoder(st, r, m).Do(context.Background(), store.Encargo{ID: 12, OrgID: 1, App: "tienda", RunID: &run}); err != nil {
+		t.Fatal(err)
+	}
+	if r.from != "head-of-propina-redonda" {
+		t.Fatalf("made from %q, want the failed run's branch", r.from)
+	}
+	if len(st.links) == 0 || st.links[0] != "https://github.com/o/tienda/compare/propina-redonda...encargo-12?expand=1" {
+		t.Fatalf("links %v", st.links)
 	}
 }
