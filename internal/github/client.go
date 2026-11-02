@@ -658,12 +658,23 @@ func (c *Client) Files(ctx context.Context, repo, ref string, maxFile int) (map[
 	}
 }
 
-// CreateBranch makes branch point at sha; it is fine if it already exists.
+// CreateBranch makes branch start at sha. A branch that already exists and
+// contains sha is kept (a second try goes on from the first); one that does
+// not was made from elsewhere, and is moved to sha.
 func (c *Client) CreateBranch(ctx context.Context, repo, branch, sha string) error {
 	err := c.do(ctx, http.MethodPost, "/repos/"+repo+"/git/refs", map[string]any{"ref": "refs/heads/" + branch, "sha": sha}, nil)
 	var apiErr *APIError
-	if errorsAs(err, &apiErr) && apiErr.Status == http.StatusUnprocessableEntity && strings.Contains(apiErr.Body, "already exists") {
+	if !errorsAs(err, &apiErr) || apiErr.Status != http.StatusUnprocessableEntity || !strings.Contains(apiErr.Body, "already exists") {
+		return err
+	}
+	var cmp struct {
+		Status string `json:"status"` // ahead or identical: the branch contains sha
+	}
+	if err := c.do(ctx, http.MethodGet, "/repos/"+repo+"/compare/"+url.PathEscape(sha)+"..."+url.PathEscape(branch)+"?per_page=1", nil, &cmp); err != nil {
+		return err
+	}
+	if cmp.Status == "ahead" || cmp.Status == "identical" {
 		return nil
 	}
-	return err
+	return c.do(ctx, http.MethodPatch, "/repos/"+repo+"/git/refs/heads/"+branch, map[string]any{"sha": sha, "force": true}, nil)
 }

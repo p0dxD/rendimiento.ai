@@ -253,3 +253,34 @@ func TestFilesFromOneArchive(t *testing.T) {
 		t.Fatalf("files = %v", files)
 	}
 }
+
+// A branch that exists is kept when it contains the commit to start from,
+// and moved to it when it was made from elsewhere.
+func TestCreateBranchFromTheRightCommit(t *testing.T) {
+	var moved []string
+	status := "behind"
+	a, _ := newApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/access_tokens"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"token": "t", "expires_at": time.Now().Add(time.Hour)})
+		case r.Method == http.MethodPost && r.URL.Path == "/repos/o/r/git/refs":
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			_, _ = w.Write([]byte(`{"message":"Reference already exists"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/repos/o/r/compare/abc...encargo-8":
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": status})
+		case r.Method == http.MethodPatch && r.URL.Path == "/repos/o/r/git/refs/heads/encargo-8":
+			b, _ := io.ReadAll(r.Body)
+			moved = append(moved, string(b))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	c := a.Client(7)
+	if err := c.CreateBranch(context.Background(), "o/r", "encargo-8", "abc"); err != nil || len(moved) != 1 || !strings.Contains(moved[0], `"force":true`) {
+		t.Fatalf("made from elsewhere: moved %v (%v)", moved, err)
+	}
+	status = "ahead"
+	if err := c.CreateBranch(context.Background(), "o/r", "encargo-8", "abc"); err != nil || len(moved) != 1 {
+		t.Fatalf("containing it: moved %v (%v)", moved, err)
+	}
+}
