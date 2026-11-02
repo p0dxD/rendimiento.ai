@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { addonsApi, api, appSecretNames, duration, session, subscribe, timeAgo, type App, type AutoEncargo, type Release, type ReleaseTask } from "../api";
 import { autoEncargoName } from "./IA";
@@ -7,7 +7,7 @@ import { fmtPct, ReliabilityTab } from "../components/reliability";
 import { VisitsTab } from "../components/visits";
 import { CaminosTab } from "../components/caminos-tab";
 import { AppProblems } from "./Problems";
-import { Flor } from "../components/ambiente";
+import { Flor, LluviaDePetalos } from "../components/ambiente";
 import { t, tn } from "../i18n";
 
 const tabs = [
@@ -26,6 +26,15 @@ const tabs = [
 export function AppPage() {
   const { name = "", tab = "" } = useParams();
   const { data: app, error, reload } = usePoll(() => api.app(name), [name], 5000);
+  // The first release while the page is open: the bud opens, and petals fall.
+  const [lluvia, setLluvia] = useState(0);
+  const primera = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!app) return;
+    const n = app.status.release ?? 0;
+    if (primera.current === 0 && n > 0) setLluvia(Date.now());
+    primera.current = n;
+  }, [app?.status.release]);
 
   useEffect(() => subscribe(`/api/apps/${name}/events`, { run: reload, release: reload }), [name]);
 
@@ -36,9 +45,10 @@ export function AppPage() {
   const site = (app.status.services ?? []).map((x) => x.url ?? x.lanURL).find((u): u is string => !!u);
   return (
     <>
+      <LluviaDePetalos cuando={lluvia} />
       <div className="app-cabeza">
-        <Flor estado={caida ? "marchita" : "viva"} size={64}
-          label={(app.down?.length ?? 0) > 0 ? t("Withered: {checks}", { checks: app.down!.join(", ") }) : caida ? t("Withered flower") : t("Blooming flower")} />
+        <Flor estado={!app.status.release ? "brote" : caida ? "marchita" : "viva"} size={64}
+          label={!app.status.release ? t("A bud: not live yet") : (app.down?.length ?? 0) > 0 ? t("Withered: {checks}", { checks: app.down!.join(", ") }) : caida ? t("Withered flower") : t("Blooming flower")} />
         <div className="app-titulo">
           <h1>{app.name}</h1>
           <div className="row small muted">

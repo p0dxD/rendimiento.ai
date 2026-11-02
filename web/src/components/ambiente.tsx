@@ -112,23 +112,24 @@ export function Guardapolvo() {
 
 // ---- the cempasúchil ----
 
-export type FlorEstado = "viva" | "marchita";
+export type FlorEstado = "brote" | "viva" | "marchita";
 
-/** A cempasúchil: alive (it breathes), withered (it droops and drops
- *  petals) and, when it comes back, reviving with a burst of petals. */
+/** A cempasúchil: a green bud while the app has never gone live; alive (it breathes); withered (it droops and drops
+ *  petals); reviving with a burst of petals when it comes back; and, the first time it goes live, born: the bud
+ *  opens petal by petal. */
 export function Flor({ estado, size = 56, label }: { estado: FlorEstado; size?: number; label?: string }) {
-  const [reviviendo, setReviviendo] = useState(false);
+  const [cambio, setCambio] = useState<"" | "reviviendo" | "naciendo">("");
   const antes = useRef(estado);
   useEffect(() => {
-    if (antes.current === "marchita" && estado === "viva") {
-      setReviviendo(true);
-      const timer = setTimeout(() => setReviviendo(false), 1600);
-      antes.current = estado;
-      return () => clearTimeout(timer);
-    }
+    const de = antes.current;
     antes.current = estado;
+    if (estado !== "viva" || (de !== "marchita" && de !== "brote")) return;
+    setCambio(de === "brote" ? "naciendo" : "reviviendo");
+    const timer = setTimeout(() => setCambio(""), de === "brote" ? 2600 : 1600);
+    return () => clearTimeout(timer);
   }, [estado]);
-  const clase = `flor ${reviviendo ? "reviviendo" : estado}`;
+  const reviviendo = cambio !== "";
+  const clase = `flor ${cambio || estado}`;
   return (
     <span className={clase} style={{ width: size, height: size }} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
       <svg viewBox="0 0 88 88" width={size} height={size}>
@@ -148,7 +149,8 @@ export function Flor({ estado, size = 56, label }: { estado: FlorEstado; size?: 
       )}
       {reviviendo && Array.from({ length: 8 }, (_, i) => {
         const a = (i / 8) * Math.PI * 2;
-        return <i key={i} className="petalo-chispa" style={{ ["--dx" as string]: `${Math.round(Math.cos(a) * size * 0.9)}px`, ["--dy" as string]: `${Math.round(Math.sin(a) * size * 0.9)}px` }} />;
+        return <i key={i} className="petalo-chispa" style={{ ["--dx" as string]: `${Math.round(Math.cos(a) * size * 0.9)}px`, ["--dy" as string]: `${Math.round(Math.sin(a) * size * 0.9)}px`,
+          animationDelay: cambio === "naciendo" ? "1.3s" : undefined }} />;
       })}
     </span>
   );

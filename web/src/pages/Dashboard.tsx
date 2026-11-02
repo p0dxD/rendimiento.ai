@@ -154,7 +154,7 @@ export function Dashboard() {
               <div className="teja-picado" aria-hidden="true" />
               <div className="teja-cuerpo">
                 <div className="teja-nombre">
-                  <Flor estado={caida ? "marchita" : "viva"} size={30} label={caida ? t("Withered flower") : t("Blooming flower")} />
+                  <Flor estado={!a.status.release ? "brote" : caida ? "marchita" : "viva"} size={30} label={!a.status.release ? t("A bud: not live yet") : caida ? t("Withered flower") : t("Blooming flower")} />
                   <h3><Link to={`/apps/${a.name}`} onClick={(e) => e.stopPropagation()}>{resaltar(a.name, q)}</Link></h3>
                 </div>
                 <div className={`teja-estado ${caida ? "mal" : "bien"}`} title={t("Share of successful uptime checks in the last 24 hours")}>{estado}</div>
