@@ -95,15 +95,18 @@ type App struct {
 	OrgID          int64     `json:"orgId"`
 	Spec           spec.Spec `json:"spec"`
 	CreatedAt      time.Time `json:"createdAt"`
+	// AutoEncargo is the app's own choice of when an encargo opens by
+	// itself for a failed run ("" follows the organization's).
+	AutoEncargo string `json:"autoEncargo"`
 }
 
-const appCols = `id, name, repo, installation_id, default_branch, spec, created_at, org_id`
+const appCols = `id, name, repo, installation_id, default_branch, spec, created_at, org_id, auto_encargo`
 
 // scanApp reads an app row (with its spec, stored as JSON).
 func scanApp(row pgx.Row) (*App, error) {
 	var a App
 	var raw []byte
-	if err := row.Scan(&a.ID, &a.Name, &a.Repo, &a.InstallationID, &a.DefaultBranch, &raw, &a.CreatedAt, &a.OrgID); err != nil {
+	if err := row.Scan(&a.ID, &a.Name, &a.Repo, &a.InstallationID, &a.DefaultBranch, &raw, &a.CreatedAt, &a.OrgID, &a.AutoEncargo); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -696,3 +699,10 @@ func (s *Store) ResetForTests(ctx context.Context) error {
 
 // Ping checks the database connection.
 func (s *Store) Ping(ctx context.Context) error { return s.pool.Ping(ctx) }
+
+// SetAppAutoEncargo is an app's own choice of when an encargo opens by
+// itself for a failed run ("" to follow the organization).
+func (s *Store) SetAppAutoEncargo(ctx context.Context, appID int64, mode string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE apps SET auto_encargo = $2 WHERE id = $1`, appID, mode)
+	return err
+}

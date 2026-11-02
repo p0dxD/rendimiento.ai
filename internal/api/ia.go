@@ -102,6 +102,9 @@ type IAInput struct {
 	// CodeAgent is what the platform's coding agent does: off, asked or
 	// auto (nil: unchanged). It needs an Anthropic model.
 	CodeAgent *string `json:"codeAgent"`
+	// AutoEncargo opens an encargo for each explained failure: off,
+	// branches or all (nil: unchanged).
+	AutoEncargo *string `json:"autoEncargo"`
 }
 
 // micros turns dollars into millionths of a dollar.
@@ -200,6 +203,16 @@ func (s *Server) putIA(w http.ResponseWriter, r *http.Request, login string) {
 			return
 		}
 		if err := s.Store.SetCodeAgent(ctx, org, mode, login); err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	if in.AutoEncargo != nil {
+		if !autoEncargoMode(*in.AutoEncargo, false) {
+			httpError(w, http.StatusBadRequest, "an encargo opens for failures off, on branches or on all")
+			return
+		}
+		if err := s.Store.SetAutoEncargo(ctx, org, *in.AutoEncargo, login); err != nil {
 			httpError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -321,5 +334,36 @@ func (s *Server) putIAAllowance(w http.ResponseWriter, r *http.Request, login st
 		return
 	}
 	s.Log.Info("AI allowance set", "org", id, "dollars", in.Dollars, "by", login)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// autoEncargoMode says whether mode is one an organization (or, with
+// empty allowed, an app following it) may choose.
+func autoEncargoMode(mode string, empty bool) bool {
+	return mode == store.AutoEncargoOff || mode == store.AutoEncargoBranches || mode == store.AutoEncargoAll || (empty && mode == "")
+}
+
+// putAppAutoEncargo is an app's own choice of when an encargo opens for its
+// failures ("" follows the organization's AI page).
+func (s *Server) putAppAutoEncargo(w http.ResponseWriter, r *http.Request, login string) {
+	a := s.app(w, r)
+	if a == nil {
+		return
+	}
+	var in struct {
+		Mode string `json:"mode"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	if !autoEncargoMode(in.Mode, true) {
+		httpError(w, http.StatusBadRequest, "an encargo opens for failures off, on branches or on all, or as the organization says")
+		return
+	}
+	if err := s.Store.SetAppAutoEncargo(r.Context(), a.ID, in.Mode); err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	s.Log.Info("app auto encargo set", "app", a.Name, "mode", in.Mode, "by", login)
 	w.WriteHeader(http.StatusNoContent)
 }
