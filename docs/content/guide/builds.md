@@ -6,7 +6,8 @@
 |---|---|---|---|
 | push to the default branch | changed services (see below) | yes, if everything succeeds | yes |
 | push to any other branch (including PR branches and Renovate's) | every service | no | yes, shown on the PR |
-| **Run** button (default branch) | every service | yes | yes |
+| **Build now** button (default branch) | every service | yes | yes |
+| **▾ Test a branch**, beside it: one that ran lately, or any by name | every service | no | yes |
 | pull request from a fork | nothing | — | — |
 
 ## Dockerfile or Railpack

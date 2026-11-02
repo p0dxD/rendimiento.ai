@@ -48,7 +48,7 @@ export function AppPage() {
         </div>
         <div className="row">
           {site && <a className="btn-link" href={site} target="_blank" rel="noreferrer">{t("Open the site ↗")}</a>}
-          <BuildNow name={name} onDone={reload} />
+          <BuildNow name={name} main={app.defaultBranch} onDone={reload} />
         </div>
       </div>
       {app.status.message && app.status.phase !== "Healthy" && (
@@ -78,13 +78,22 @@ export function AppPage() {
   );
 }
 
-/** "Build now", shimmering while the run is being asked for. */
-function BuildNow({ name, onDone }: { name: string; onDone: () => void }) {
+/**
+ * "Build now", shimmering while the run is being asked for: the default branch, which deploys. Beside it, testing
+ * another branch: one of those that ran lately, or any by name; it only builds and tests, and never deploys.
+ */
+function BuildNow({ name, main, onDone }: { name: string; main: string; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
-  const go = async () => {
+  const [open, setOpen] = useState(false);
+  const [branch, setBranch] = useState("");
+  const { data: runs } = usePoll(() => (open ? api.runs(name) : Promise.resolve([])), [name, open], 0);
+  const recent = [...new Set((runs ?? []).map((r) => r.branch).filter((b) => b && b !== main))].slice(0, 12);
+  const go = async (b?: string) => {
     setBusy(true);
     try {
-      await api.triggerRun(name);
+      await api.triggerRun(name, b);
+      setOpen(false);
+      setBranch("");
       onDone();
     } catch (e) {
       alert((e as Error).message);
@@ -92,7 +101,28 @@ function BuildNow({ name, onDone }: { name: string; onDone: () => void }) {
       setBusy(false);
     }
   };
-  return <button className={`primary${busy ? " corre" : ""}`} disabled={busy} onClick={go}>{busy ? t("Starting…") : t("Build now")}</button>;
+  const other = branch.trim();
+  return (
+    <div className="build-now">
+      <button className={`primary${busy ? " corre" : ""}`} disabled={busy} onClick={() => go()}
+        title={t("Builds {branch} and deploys it if it passes", { branch: main })}>{busy ? t("Starting…") : t("Build now")}</button>
+      <button className="build-now-mas" aria-expanded={open} aria-label={t("Test another branch")} disabled={busy} onClick={() => setOpen(!open)}>▾</button>
+      {open && (
+        <div className="card build-now-ramas">
+          <strong className="small">{t("Test a branch")}</strong>
+          <span className="small muted">{t("It builds and tests the branch; it never deploys it.")}</span>
+          {recent.map((b) => (
+            <button key={b} className="link" disabled={busy} onClick={() => go(b)}>{b}</button>
+          ))}
+          <div className="row" style={{ gap: 6 }}>
+            <input value={branch} placeholder={t("another branch, by name")} onChange={(e) => setBranch(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && other && go(other)} />
+            <button disabled={busy || !other || other === main} onClick={() => go(other)}>{t("Test it")}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** The four facts under the name, each a door to its tab: the last run, the live release, availability and visits. */
