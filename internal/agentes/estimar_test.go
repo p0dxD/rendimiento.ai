@@ -44,7 +44,7 @@ func (estimateModel) Price(model string, in, out int64) int64 {
 // over it for the person's own agent; an answer with no difficulty is kept
 // as such, so it is not asked again.
 func TestEstimate(t *testing.T) {
-	st := &estimateStore{auto: store.DefaultEncargoAuto, saved: map[int64][]any{}}
+	st := &estimateStore{auto: 100_000, saved: map[int64][]any{}}
 	m := estimateModel{answers: map[string]string{
 		"Title: un texto\n":  `{"difficulty": 2, "reason": "Cambiar un \"texto\"."}`,
 		"Title: la cola\n":   "Pienso... ```json\n{\"difficulty\": 7, \"reason\": \"Toca la cola.\"}\n```",
@@ -56,11 +56,11 @@ func TestEstimate(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if got := st.saved[1]; got[0] != 2 || got[1] != int64(440_000) || got[2] != `Cambiar un "texto".` || got[3] != store.RoutePlatform {
-		t.Errorf("difficulty 2 = %v, want $0.44 for the platform's AI", got)
+	if got := st.saved[1]; got[0] != 2 || got[1] != int64(12_000) || got[2] != `Cambiar un "texto".` || got[3] != store.RoutePlatform {
+		t.Errorf("difficulty 2 = %v, want $0.012 for the platform's AI", got)
 	}
-	if got := st.saved[2]; got[0] != 7 || got[1] != int64(5_390_000) || got[3] != store.RouteLocal {
-		t.Errorf("difficulty 7 = %v, want $5.39 for the person's agent", got)
+	if got := st.saved[2]; got[0] != 7 || got[1] != int64(147_000) || got[3] != store.RouteLocal {
+		t.Errorf("difficulty 7 = %v, want $0.147, over the $0.10 amount: for the person's agent", got)
 	}
 	if got := st.saved[3]; got[0] != 0 || got[3] != "" {
 		t.Errorf("no difficulty = %v, want it kept with no route", got)

@@ -19,12 +19,14 @@ const EstimateSource = "agent: estimator"
 // WorkModel is the model the platform's AI would do an encargo with, and
 // what an estimate is priced at. An encargo's work grows faster than its
 // difficulty (more files read, more tries): at difficulty d it reads about
-// 40,000·d² tokens and writes about 3,000·d², so with Sonnet 5.5 a
-// difficulty 2 costs about $0.44, a 5 about $2.75 and a 10 about $11.
+// 1,000·d² tokens at full price (most of what it reads comes from the cache,
+// at a tenth) and writes about 100·d². The first real encargo (8, a one-line
+// fix rated 5) read 57,000 tokens, wrote 2,100 and cost $0.026; this table
+// prices a 5 at $0.075, a 2 at $0.012 and a 10 at $0.30.
 const (
 	WorkModel     = "claude-sonnet-5-5"
-	workTokensIn  = 40_000
-	workTokensOut = 3_000
+	workTokensIn  = 1_000
+	workTokensOut = 100
 )
 
 // EstimatorStore is what the estimator reads and keeps.
