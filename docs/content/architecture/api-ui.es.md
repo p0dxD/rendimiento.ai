@@ -31,7 +31,7 @@ sequenceDiagram
 ```
 
 - Las sesiones son tokens aleatorios de 32 bytes; solo se guarda su **SHA-256**, así que una fuga de la base de datos no filtra sesiones.
-- `requireRole` comprueba la galleta, la membresía y la función de la persona en cada petición: cada ruta declara la función mínima que pide (invitado, colaborador, administrador), y quitar a alguien de **Miembros** le cierra el paso de inmediato. Una prueba recorre todas las rutas como invitado y como colaborador.
+- `requireRole` comprueba la galleta, la membresía y la función de la persona en cada petición: cada ruta declara la función mínima que pide (invitado, colaborador, administrador), y quitar a alguien de **Miembros** le cierra el paso de inmediato. Una prueba recorre todas las rutas como invitado y como colaborador. Una [liga de demostración](../guide/members.md#demo-links) (`GET /demo/{code}`) abre una sesión como su propio invitado, `demo~<id>`, que ningún usuario de GitHub puede ser; `requireRole` lo mantiene como invitado y le niega todas las rutas de la plataforma.
 - `guard` agrega encabezados de seguridad (`nosniff`, marcos en `DENY`, referencias del mismo origen) y rechaza las peticiones **de otro origen** que cambian el estado (el encabezado `Origin` debe coincidir), además de las galletas `SameSite=Lax`.
 
 ## Avisos web {#webhooks}

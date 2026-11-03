@@ -31,7 +31,7 @@ sequenceDiagram
 ```
 
 - Sessions are random 32-byte tokens; only their **SHA-256** is stored, so a database leak does not leak sessions.
-- `requireRole` checks the cookie, the person's membership and their role on every request: each route declares the least role it takes (guest, collaborator, admin), and removing someone from **Members** locks them out immediately. A test walks every route as a guest and as a collaborator.
+- `requireRole` checks the cookie, the person's membership and their role on every request: each route declares the least role it takes (guest, collaborator, admin), and removing someone from **Members** locks them out immediately. A test walks every route as a guest and as a collaborator. A [demo link](../guide/members.md#demo-links) (`GET /demo/{code}`) opens a session as its own guest, `demo~<id>`, which no GitHub login can be; `requireRole` keeps it a guest and refuses it every platform route.
 - `guard` adds security headers (`nosniff`, `DENY` framing, same-origin referrer) and refuses **cross-origin** state-changing requests (the `Origin` header must match), on top of `SameSite=Lax` cookies.
 
 ## Webhooks

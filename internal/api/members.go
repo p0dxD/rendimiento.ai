@@ -19,10 +19,13 @@ func (s *Server) listMembers(w http.ResponseWriter, r *http.Request, _ string) {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if ms == nil {
-		ms = []store.Member{}
+	people := []store.Member{} // demo links' guests are listed with their links
+	for _, m := range ms {
+		if !store.IsDemoLogin(m.Login) {
+			people = append(people, m)
+		}
 	}
-	writeJSON(w, ms)
+	writeJSON(w, people)
 }
 
 // putMember adds a person by their GitHub login, or changes their role.

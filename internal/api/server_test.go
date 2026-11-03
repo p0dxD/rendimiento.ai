@@ -922,6 +922,106 @@ func TestOrgIsolation(t *testing.T) {
 	}
 }
 
+// A demo link opens a read-only session in its organization, never in the
+// platform's: it sees that organization's apps and nothing else, cannot act
+// even if its guest was given more, and stops working once turned off.
+func TestDemoLinks(t *testing.T) {
+	e := newEnv(t, false)
+	ctx := context.Background()
+	sp := spec.Spec{Services: []spec.Service{{Name: "web"}}}
+	sp.Default()
+	if err := e.store.CreateApp(ctx, &store.App{Name: "tienda", Repo: "p0dxD/tienda", DefaultBranch: "main", Spec: sp}); err != nil {
+		t.Fatal(err)
+	}
+	me := e.session(t, "p0dxD")
+	if r, body := e.do(t, "POST", "/api/demo-links", `{"days":7}`, me, nil); r.StatusCode != 409 {
+		t.Fatalf("a demo link to the platform's organization: %d %s", r.StatusCode, body)
+	}
+	r, body := e.do(t, "POST", "/api/orgs", `{"slug":"demo","name":"Demo"}`, me, nil)
+	var demo store.Org
+	if r.StatusCode != 201 || json.Unmarshal([]byte(body), &demo) != nil {
+		t.Fatalf("create org: %d %s", r.StatusCode, body)
+	}
+	if err := e.store.CreateApp(ctx, &store.App{Name: "propinas", Repo: "p0dxD/propinas", DefaultBranch: "main", Spec: sp, OrgID: demo.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := e.do(t, "POST", fmt.Sprintf("/api/orgs/%d/switch", demo.ID), "", me, nil); r.StatusCode != 204 {
+		t.Fatalf("switch: %d", r.StatusCode)
+	}
+	for _, in := range []string{`{"days":0}`, `{"days":91}`} {
+		if r, _ := e.do(t, "POST", "/api/demo-links", in, me, nil); r.StatusCode != 400 {
+			t.Fatalf("%s: %d", in, r.StatusCode)
+		}
+	}
+	r, body = e.do(t, "POST", "/api/demo-links", `{"days":30,"note":"YC"}`, me, nil)
+	var link CreatedDemoLink
+	if r.StatusCode != 201 || json.Unmarshal([]byte(body), &link) != nil || !strings.HasPrefix(link.URL, "https://rendimiento.example/demo/") {
+		t.Fatalf("create: %d %s", r.StatusCode, body)
+	}
+	path := strings.TrimPrefix(link.URL, "https://rendimiento.example")
+	if _, body := e.do(t, "GET", "/api/demo-links", "", me, nil); strings.Contains(body, strings.TrimPrefix(path, "/demo/")) || !strings.Contains(body, `"note":"YC"`) {
+		t.Fatalf("the list shows the code, or not the link: %s", body)
+	}
+	if _, body := e.do(t, "GET", "/api/members", "", me, nil); strings.Contains(body, "demo~") {
+		t.Fatalf("the link's guest among the people: %s", body)
+	}
+
+	if r, _ := e.do(t, "GET", "/demo/"+strings.Repeat("0", 64), "", nil, nil); r.StatusCode != 404 {
+		t.Fatalf("an unknown code: %d", r.StatusCode)
+	}
+	r, _ = e.do(t, "GET", path, "", nil, nil)
+	var guest *http.Cookie
+	for _, c := range r.Cookies() {
+		if c.Name == sessionCookie {
+			guest = c
+		}
+	}
+	if r.StatusCode != 302 || guest == nil {
+		t.Fatalf("open: %d, cookie %v", r.StatusCode, guest)
+	}
+	if _, body := e.do(t, "GET", "/api/me", "", guest, nil); !strings.Contains(body, `"demo":true`) || !strings.Contains(body, `"role":"guest"`) || !strings.Contains(body, `"slug":"demo"`) {
+		t.Fatalf("me: %s", body)
+	}
+	if r, body := e.do(t, "GET", "/api/apps", "", guest, nil); r.StatusCode != 200 || !strings.Contains(body, "propinas") || strings.Contains(body, "tienda") {
+		t.Fatalf("apps: %d %s", r.StatusCode, body)
+	}
+	if r, _ := e.do(t, "GET", "/api/apps/tienda", "", guest, nil); r.StatusCode != 404 {
+		t.Fatalf("the platform's app: %d", r.StatusCode)
+	}
+	if r, _ := e.do(t, "POST", "/api/orgs/1/switch", "", guest, nil); r.StatusCode != 404 {
+		t.Fatalf("switching to the platform's organization: %d", r.StatusCode)
+	}
+	// Even made an administrator behind the page's back, the guest only reads.
+	if err := e.store.SetMember(ctx, demo.ID, store.DemoLogin(link.ID), store.MemberAdmin, "p0dxD"); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.store.SetMember(ctx, store.DefaultOrg, store.DemoLogin(link.ID), store.MemberAdmin, "p0dxD"); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ method, path, body string }{
+		{"GET", "/api/environment", ""}, {"GET", "/api/problems", ""}, {"GET", "/api/installed", ""},
+		{"POST", "/api/apps/propinas/runs", `{}`}, {"PUT", "/api/ia", `{}`}, {"GET", "/api/demo-links", ""},
+		{"POST", "/api/demo-links", `{"days":7}`}, {"PUT", "/api/members/ana", `{"role":"admin"}`}, {"GET", "/api/agent-keys", ""},
+	} {
+		if r, _ := e.do(t, c.method, c.path, c.body, guest, nil); r.StatusCode != 403 {
+			t.Errorf("%s %s as the demo guest: %d, want 403", c.method, c.path, r.StatusCode)
+		}
+	}
+	if err := e.store.RemoveMember(ctx, store.DefaultOrg, store.DemoLogin(link.ID)); err != nil {
+		t.Fatal(err)
+	}
+
+	if r, _ := e.do(t, "DELETE", fmt.Sprintf("/api/demo-links/%d", link.ID), "", me, nil); r.StatusCode != 204 {
+		t.Fatalf("turn off: %d", r.StatusCode)
+	}
+	if r, _ := e.do(t, "GET", "/api/apps", "", guest, nil); r.StatusCode != 401 {
+		t.Fatalf("after turning it off, the session: %d", r.StatusCode)
+	}
+	if r, _ := e.do(t, "GET", path, "", nil, nil); r.StatusCode != 404 {
+		t.Fatalf("after turning it off, the link: %d", r.StatusCode)
+	}
+}
+
 type memIAKeys map[int64]string
 
 func (k memIAKeys) KeyHint(_ context.Context, org int64) (string, error) {

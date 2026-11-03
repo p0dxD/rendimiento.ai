@@ -23,3 +23,11 @@ Todo pertenece a una **organización**: sus aplicaciones (con sus ejecuciones, v
 La **organización de la plataforma** (la primera) es la que la opera. Sus administradores son los **operadores**: solo ellos ven las páginas del clúster (Entorno, Complementos, Servicios, Problemas, el Mercado), actualizan la plataforma y, por ahora, crean organizaciones (en Miembros → Organizaciones) e incorporan aplicaciones, en la organización en la que estén trabajando. Una llave de agente pertenece a la organización en la que se creó, y sus herramientas solo ven esa organización.
 
 Hoy todas las organizaciones comparten el clúster de la plataforma. Las organizaciones en un clúster virtual dedicado, o en su propio clúster en cualquier nube, llegan después.
+
+## Ligas de demostración {#demo-links}
+
+Una **liga de demostración** deja que alguien sin cuenta de GitHub aquí (un revisor, un inversionista) recorra una organización en modo de solo lectura. Un administrador la hace al final de **Miembros**, con una nota para sí mismo (para quién es) y cuánto dura, de 7 a 90 días. La dirección, `https://<plataforma>/demo/<código>`, se muestra una sola vez; rendimiento solo guarda el resumen criptográfico del código.
+
+Al abrirla, el navegador entra como el **invitado** propio de esa liga, con *Demostración de solo lectura* en la barra de arriba. El invitado ve las aplicaciones, las ejecuciones, los registros, los encargos y la Ruta de la organización, y nada más: no puede actuar aunque alguien le suba la función, nunca ve las páginas del clúster y no puede cambiarse a otra organización. **Apagar** termina la liga y las sesiones que abrió de inmediato; una liga vencida deja de funcionar sola.
+
+La organización de la plataforma no tiene ligas de demostración, porque sus invitados ven el clúster. Cree una organización para la demostración (Miembros → Organizaciones), cámbiese a ella y haga ahí la liga.

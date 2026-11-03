@@ -273,6 +273,21 @@ export interface Me {
   role: MemberRole;
   org: Org;
   operator: boolean;
+  demo?: boolean; // signed in by a demo link: read-only
+}
+
+// A demo link (internal/store.DemoLink): a secret address that opens a
+// read-only session in the organization. Its address is shown only once.
+export interface DemoLink {
+  id: number;
+  orgId: number;
+  note: string;
+  createdBy: string;
+  createdAt: string;
+  expiresAt: string;
+  uses: number;
+  lastUsedAt?: string;
+  url?: string;
 }
 
 // The signed-in person, set once when the app loads (switching organization
@@ -727,6 +742,9 @@ export const api = {
   setIAAllowance: (org: number, dollars: number) => request<void>("PUT", `/api/ia/orgs/${org}/allowance`, { dollars }),
   setMember: (login: string, role: MemberRole) => request<Member[]>("PUT", `/api/members/${encodeURIComponent(login)}`, { role }),
   removeMember: (login: string) => request<void>("DELETE", `/api/members/${encodeURIComponent(login)}`),
+  demoLinks: () => request<DemoLink[]>("GET", "/api/demo-links"),
+  createDemoLink: (note: string, days: number) => request<DemoLink>("POST", "/api/demo-links", { note, days }),
+  deleteDemoLink: (id: number) => request<void>("DELETE", `/api/demo-links/${id}`),
   logout: () => request<void>("POST", "/api/auth/logout"),
   setupStatus: () => request<{ configured: boolean; appSlug?: string; installURL?: string; book?: { en?: string; es?: string }; activity?: boolean }>("GET", "/api/setup/status"),
   publicActivity: () => request<PublicActivity>("GET", "/api/public/activity"),
