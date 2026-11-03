@@ -470,6 +470,10 @@ button.nota:hover{transform:rotate(0) translateY(-2px)}
 @media (prefers-reduced-motion: reduce){.ld-detalle,.ld-item.on::before,.ld-flujo{animation:none}}
 .ld-titulo{margin:0;font-family:Fraunces,Georgia,serif;font-size:28px;overflow-wrap:anywhere}
 .ld-h3{margin:8px 0 0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.demo-ligas{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.demo-ligas li{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
+.demo-nueva input{flex:1;min-width:0;font-family:var(--mono)}
+.demo-badge{background:var(--surface-2);border:1px solid var(--accent);color:var(--accent)}
 .ld-detalle .card{box-shadow:none}
 
 /* ---- switch ---- */

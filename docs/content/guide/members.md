@@ -23,3 +23,11 @@ Everything belongs to an **organization**: its apps (with their runs, releases a
 The **platform's organization** (the first one) runs the platform. Its administrators are the **operators**: they alone see the cluster's pages (Environment, Add-ons, Services, Problems, the Mercado), update the platform, and, for now, create organizations (under Members → Organizations) and onboard apps, in whichever organization they are working in. An agent key belongs to the organization it was made in, and its tools see only that organization.
 
 Today all organizations share the platform's cluster. Organizations in a dedicated virtual cluster, or on their own cluster in any cloud, come later.
+
+## Demo links {#demo-links}
+
+A **demo link** lets someone without a GitHub account here (a reviewer, an investor) look around one organization, read-only. An administrator makes it at the bottom of **Members**, with a note for themselves (who it is for) and how long it lasts, from 7 to 90 days. The address, `https://<platform>/demo/<code>`, is shown only once; rendimiento keeps only the code's hash.
+
+Opening it signs the browser in as that link's own **guest**, with *Read-only demo* in the top bar. The guest sees the organization's apps, runs, logs, encargos and Ruta, and nothing else: it cannot act even if someone raised its role, never sees the cluster's pages, and cannot switch to another organization. **Turn off** ends the link and the sessions it opened at once; an expired link stops working by itself.
+
+The platform's own organization has no demo links, since its guests see the cluster. Make an organization for the demo (Members → Organizations), switch to it, and make the link there.

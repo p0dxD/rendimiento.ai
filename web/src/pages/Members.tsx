@@ -36,7 +36,7 @@ function Inicial({ login, size = 34 }: { login: string; size?: number }) {
  * lets them do. An administrator adds someone by their GitHub username (they can sign in from then on), changes a
  * role, or removes them; there is always at least one administrator.
  */
-export function Members({ me, role }: { me: string; role: MemberRole }) {
+export function Members({ me, role, org }: { me: string; role: MemberRole; org?: Org }) {
   const { data, error, reload } = usePoll(api.members, [], 0);
   const [params, setParams] = useSearchParams();
   const [err, setErr] = useState<unknown>();
@@ -106,7 +106,77 @@ export function Members({ me, role }: { me: string; role: MemberRole }) {
           </main>
         )}
       </div>
+      {admin && <DemoLinks org={org} />}
       <Orgs />
+    </>
+  );
+}
+
+/**
+ * Demo links: a secret address for someone without GitHub here (a reviewer, an investor) to look around this
+ * organization, read-only, until the link expires or is turned off. The address is shown once. The platform's own
+ * organization has none, since its guests see the cluster: they are made in another one, such as a "Demo".
+ */
+function DemoLinks({ org }: { org?: Org }) {
+  const platformOrg = org?.id === 1;
+  const { data, error, reload } = usePoll(() => (platformOrg ? Promise.resolve([]) : api.demoLinks()), [org?.id], 0);
+  const [note, setNote] = useState("");
+  const [days, setDays] = useState(30);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>();
+  const [nueva, setNueva] = useState<string>();
+  const [copiada, setCopiada] = useState(false);
+  return (
+    <>
+      <h2 style={{ marginTop: 28 }}>{t("Demo links")}</h2>
+      <p className="sub">{t("A secret address that lets someone without GitHub here look around this organization, read-only: apps, runs, logs, encargos and the Ruta. They change nothing and never see the cluster or your other organizations.")}</p>
+      {platformOrg ? (
+        <p className="small muted">{t("The platform's own organization has no demo links, since its guests see the cluster. Create an organization for the demo below, switch to it, and make the link there.")}</p>
+      ) : (
+        <div className="card stack">
+          <ErrorBox error={error ?? err} />
+          {nueva && (
+            <div className="stack demo-nueva">
+              <strong>{t("Here is the link. It is shown only this once:")}</strong>
+              <div className="row" style={{ gap: 8 }}>
+                <input readOnly value={nueva} onFocus={(e) => e.target.select()} aria-label={t("Demo link")} />
+                <button onClick={() => navigator.clipboard?.writeText(nueva).then(() => setCopiada(true), () => setCopiada(false))}>{copiada ? t("Copied") : t("Copy")}</button>
+              </div>
+            </div>
+          )}
+          {(data ?? []).length > 0 && (
+            <ul className="demo-ligas">
+              {data!.map((d) => (
+                <li key={d.id}>
+                  <div style={{ minWidth: 0 }}>
+                    <strong>{d.note || t("Demo link #{n}", { n: d.id })}</strong>
+                    <div className="small muted">
+                      {t("by {who} · expires {when}", { who: d.createdBy, when: new Date(d.expiresAt).toLocaleDateString() })}
+                      {" · "}{d.uses === 0 ? t("not opened yet") : t("opened {n} times, last {when}", { n: d.uses, when: timeAgo(d.lastUsedAt!) })}
+                    </div>
+                  </div>
+                  <button onClick={() => confirm(t("Turn off this demo link? Whoever opened it loses access at once.")) &&
+                    api.deleteDemoLink(d.id).then(() => { setNueva(undefined); reload(); }, setErr)}>{t("Turn off")}</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="form-grid">
+            <label className="field"><span>{t("Who it is for (a note for you)")}</span>
+              <input value={note} maxLength={120} onChange={(e) => setNote(e.target.value)} placeholder={t("e.g. Y Combinator reviewers")} />
+            </label>
+            <label className="field"><span>{t("Lasts")}</span>
+              <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
+                {[7, 30, 60, 90].map((n) => <option key={n} value={n}>{t("{n} days", { n })}</option>)}
+              </select>
+            </label>
+          </div>
+          <div><button className="primary" disabled={busy} onClick={() => {
+            setBusy(true); setErr(undefined); setCopiada(false);
+            api.createDemoLink(note.trim(), days).then((d) => { setBusy(false); setNote(""); setNueva(d.url); reload(); }, (e) => { setBusy(false); setErr(e); });
+          }}>{t("Make a demo link")}</button></div>
+        </div>
+      )}
     </>
   );
 }

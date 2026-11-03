@@ -152,6 +152,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/auth/login", s.login)
 	mux.HandleFunc("GET /api/auth/callback", s.callback)
 	mux.HandleFunc("POST /api/auth/logout", s.logout)
+	mux.HandleFunc("GET /demo/{code}", s.openDemo)
 	mux.HandleFunc("GET /api/setup/status", s.setupStatus)
 	mux.HandleFunc("GET /api/setup/github", s.setupStart)
 	mux.HandleFunc("GET /api/setup/github/callback", s.setupCallback)
@@ -185,6 +186,9 @@ func (s *Server) Handler() http.Handler {
 	plat(store.MemberAdmin, "PUT /api/ia/orgs/{id}/allowance", s.putIAAllowance)
 	auth(store.MemberAdmin, "PUT /api/members/{login}", s.putMember)
 	auth(store.MemberAdmin, "DELETE /api/members/{login}", s.deleteMember)
+	auth(store.MemberAdmin, "GET /api/demo-links", s.listDemoLinks)
+	auth(store.MemberAdmin, "POST /api/demo-links", s.createDemoLink)
+	auth(store.MemberAdmin, "DELETE /api/demo-links/{id}", s.deleteDemoLink)
 	plat(store.MemberAdmin, "GET /api/installations", s.installations)
 	plat(store.MemberAdmin, "GET /api/installations/{id}/repos", s.repos)
 	plat(store.MemberAdmin, "GET /api/zones", s.zones)
@@ -422,6 +426,14 @@ func (s *Server) requireRole(platform bool, min string, h func(http.ResponseWrit
 		if err != nil {
 			httpError(w, http.StatusInternalServerError, err.Error())
 			return
+		}
+		if store.IsDemoLogin(login) {
+			// A demo link's guest only ever reads its own organization.
+			if platform {
+				httpError(w, http.StatusForbidden, "this belongs to the platform's operators")
+				return
+			}
+			role = store.MemberGuest
 		}
 		need := role
 		if platform {

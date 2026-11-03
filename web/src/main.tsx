@@ -29,7 +29,7 @@ import "./styles.css";
  * The app's frame: setup until the GitHub App exists, the welcome page until you sign in, then the menu and pages.
  */
 function Shell() {
-  const [state, setState] = useState<{ login?: string; role?: MemberRole; org?: Org; operator?: boolean; configured?: boolean; book?: BookLinks; activity?: boolean; loading: boolean }>({ loading: true });
+  const [state, setState] = useState<{ login?: string; role?: MemberRole; org?: Org; operator?: boolean; demo?: boolean; configured?: boolean; book?: BookLinks; activity?: boolean; loading: boolean }>({ loading: true });
 
   useEffect(() => {
     (async () => {
@@ -39,7 +39,7 @@ function Shell() {
         const me = await api.me();
         session.operator = me.operator;
         session.role = me.role;
-        setState({ login: me.login, role: me.role, org: me.org, operator: me.operator, configured: true, loading: false });
+        setState({ login: me.login, role: me.role, org: me.org, operator: me.operator, demo: me.demo, configured: true, loading: false });
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) setState({ configured: true, book: setup.book, activity: setup.activity, loading: false });
         else throw e;
@@ -77,7 +77,9 @@ function Shell() {
         <span className="spacer" />
         {state.role === "admin" && <Link to="/new" className="btn primary">{t("New app")}</Link>}
         <OrgSwitch current={state.org} />
-        <NavLink to="/members" className="nav-link small" title={t(memberRoleLabel[state.role ?? "guest"])}>{state.login}</NavLink>
+        {state.demo
+          ? <span className="badge demo-badge" title={t("You are seeing a demo: you can look at everything, and change nothing.")}>{t("Read-only demo")}</span>
+          : <NavLink to="/members" className="nav-link small" title={t(memberRoleLabel[state.role ?? "guest"])}>{state.login}</NavLink>}
         <TemaSwitch />
         <MovimientoSwitch />
         <LangSwitch />
@@ -98,7 +100,7 @@ function Shell() {
           <Route path="/problems" element={<Problems />} />
           <Route path="/ruta" element={<Ruta />} />
           <Route path="/ia" element={<IA />} />
-          <Route path="/members" element={<Members me={state.login ?? ""} role={state.role ?? "guest"} />} />
+          <Route path="/members" element={<Members me={state.login ?? ""} role={state.role ?? "guest"} org={state.org} />} />
           <Route path="/addons/:name" element={<Addons />} />
           <Route path="/services/:ns/:name" element={<Services />} />
           <Route path="/apps/:name" element={<AppPage />} />

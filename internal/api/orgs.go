@@ -21,11 +21,12 @@ type Me struct {
 	Role     string    `json:"role"`
 	Org      store.Org `json:"org"`
 	Operator bool      `json:"operator"`
+	Demo     bool      `json:"demo,omitempty"` // signed in by a demo link: read-only
 }
 
 // me is the signed-in person, for the top bar.
 func (s *Server) me(w http.ResponseWriter, r *http.Request, login string) {
-	out := Me{Login: login, Role: roleOf(r)}
+	out := Me{Login: login, Role: roleOf(r), Demo: store.IsDemoLogin(login)}
 	o, err := s.Store.GetOrg(r.Context(), orgOf(r))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
