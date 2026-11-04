@@ -28,6 +28,7 @@ import (
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/controller"
+	"github.com/p0dxD/rendimiento.ai/internal/destino"
 	"github.com/p0dxD/rendimiento.ai/internal/detect"
 	"github.com/p0dxD/rendimiento.ai/internal/events"
 	"github.com/p0dxD/rendimiento.ai/internal/generate"
@@ -87,6 +88,8 @@ type Platform struct {
 	VerifyElsewhere bool
 	// Notify emails failed runs and rolled-back releases (nil: no email).
 	Notify *notify.Notifier
+	// Destino is where releases run (nil: the cluster, through Kube).
+	Destino destino.Destino
 	// Clientset runs post-deploy tasks (Jobs in app namespaces) and reads their logs.
 	Clientset kubernetes.Interface
 	// Caches deletes the cache volumes of an app's tests (nil: none).
@@ -364,23 +367,17 @@ func (p *Platform) Register(ctx context.Context, req OnboardRequest) (*store.App
 		}
 		return nil, err
 	}
-	cr := &v1alpha1.App{
-		ObjectMeta: metav1.ObjectMeta{Name: app.Name, Labels: map[string]string{"rendimiento.ai/app-id": strconv.FormatInt(app.ID, 10)}},
-		Spec: v1alpha1.AppSpec{Repo: app.Repo, Services: app.Spec.Services, Jobs: app.Spec.Jobs, SharedNamespace: app.Spec.SharedNamespace,
-			Postgres: app.Spec.Postgres, Redis: app.Spec.Redis, Observe: app.Spec.Observe, Adopt: req.Adopt},
-	}
-	if err := p.Kube.Create(ctx, cr); err != nil {
+	if err := p.target().Crear(ctx, app, req.Adopt); err != nil {
 		_ = p.Store.DeleteApp(ctx, app.ID)
-		return nil, fmt.Errorf("create App object: %w", err)
+		return nil, err
 	}
 	return app, nil
 }
 
-// DeleteApp removes the App object (the controller then removes DNS and,
-// through owner references, the namespace) and the app's records.
+// DeleteApp removes the app from its destination (in Kubernetes, the
+// namespace and DNS go with the App object) and the app's records.
 func (p *Platform) DeleteApp(ctx context.Context, app *store.App) error {
-	err := p.Kube.Delete(ctx, &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: app.Name}})
-	if err != nil && !apierrors.IsNotFound(err) {
+	if err := p.target().Quitar(ctx, app.Name); err != nil {
 		return err
 	}
 	if p.Caches != nil {
@@ -1165,29 +1162,21 @@ func (p *Platform) rollbackTo(ctx context.Context, app *store.App, old *store.Re
 	return rel, nil
 }
 
-// pointApp writes the release into the App object; the controller does the rest.
+// pointApp makes the release the one its destination runs.
 func (p *Platform) pointApp(ctx context.Context, name string, rel *store.Release) error {
-	for attempt := 0; ; attempt++ {
-		var cr v1alpha1.App
-		if err := p.Kube.Get(ctx, client.ObjectKey{Name: name}, &cr); err != nil {
-			return err
-		}
-		cr.Spec.Services = rel.Spec.Services
-		cr.Spec.Jobs = rel.Spec.Jobs
-		cr.Spec.SharedNamespace = rel.Spec.SharedNamespace
-		cr.Spec.Postgres, cr.Spec.Redis = rel.Spec.Postgres, rel.Spec.Redis
-		cr.Spec.Observe = rel.Spec.Observe
-		cr.Spec.Images = rel.Images
-		cr.Spec.Release = rel.Number
-		err := p.Kube.Update(ctx, &cr)
-		if apierrors.IsConflict(err) && attempt < 5 {
-			continue
-		}
-		if err == nil {
-			p.Hub.Publish(appTopic(name), events.Event{Type: "release", Data: rel})
-		}
-		return err
+	err := p.target().Aplicar(ctx, name, rel)
+	if err == nil {
+		p.Hub.Publish(appTopic(name), events.Event{Type: "release", Data: rel})
 	}
+	return err
+}
+
+// target is where the platform's apps run: Destino, or the cluster.
+func (p *Platform) target() destino.Destino {
+	if p.Destino != nil {
+		return p.Destino
+	}
+	return destino.Kubernetes{Kube: p.Kube}
 }
 
 // ---- GitHub check runs ----

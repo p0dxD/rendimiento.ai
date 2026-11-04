@@ -94,7 +94,8 @@ Las flechas significan "importa". Las capas de abajo nunca importan a las de arr
 flowchart TB
     cmd[cmd/rendimiento] --> api
     api[internal/api] --> platform & controller & catalog & environment & renovate & addon
-    platform[internal/platform] --> pipeline & controller & generate & store & github & events & render
+    platform[internal/platform] --> pipeline & destino & controller & generate & store & github & events & render
+    destino[internal/destino] --> crd & store
     controller[internal/controller] --> render & addon & dns
     renovate[internal/renovate] --> store & github
     catalog[internal/catalog] --> render
@@ -112,6 +113,7 @@ flowchart TB
 - **`render`** es puro: entran la especificación y las imágenes, salen objetos de Kubernetes. Sin entrada ni salida, lo que lo hace fácil de probar con archivos de referencia.
 - **`controller`** y **`pipeline`** hacen la entrada y salida contra Kubernetes.
 - **`platform`** une la integración continua, el almacén y GitHub.
+- **`destino`** es donde corren las versiones. La plataforma le pide crear una aplicación, aplicar una versión, informar cómo va el despliegue y quitar la aplicación; no sabe cómo lo hace. Kubernetes es el primer destino (escribe el objeto `App`, que el controlador despliega); la computadora propia, un servidor por SSH y las nubes vienen después.
 - **`api`** es la capa más externa.
 
 Todo lo que está bajo `internal/` es privado de este módulo (una regla de Go): otros proyectos no lo pueden importar. Eso nos deja libres de cambiarlo. Si algún día unas partes deben volverse una biblioteca pública, saldrían de `internal/`.
