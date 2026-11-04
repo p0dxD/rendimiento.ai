@@ -170,6 +170,10 @@ Al reiniciar, la plataforma:
 !!! warning "`:latest` no tiene historial"
     Revertir una plataforma construida a mano significa volver a construir la confirmación anterior (`git checkout <confirmación buena> && make image`). Las imágenes que rendimiento construye de sí mismo se guardan por versión, así que [actualizar desde la página Entorno](#updating-from-the-environment-page) tiene un historial al cual regresar.
 
+### La imagen pública {#the-public-image}
+
+Cada cambio que llega a `main`, y cada etiqueta `v1.2.3`, también se publica para **arm64 y amd64** en `ghcr.io/p0dxd/rendimiento`, con un flujo de GitHub Actions (`.github/workflows/imagen.yml`) que solo construye y publica: las pruebas ya corrieron en rendimiento antes de juntar. Sus etiquetas son `:main` y `:sha-<commit>` para `main`, y `:1.2.3`, `:1.2` y `:latest` para una versión. Para instalarlo en otro clúster, apunte el `image:` de los Deployments a una de ellas en vez de construir la suya. El Dockerfile compila de forma cruzada, así que la imagen de la otra arquitectura no necesita emulación.
+
 ## rendimiento se construye a sí mismo {#rendimiento-builds-itself}
 
 El repositorio de rendimiento está incorporado como cualquier aplicación. Su `rendimiento.yaml` tiene el libro (`docs`, un servicio) y la imagen de la plataforma (`builds: platform`), así que cada envío corre:

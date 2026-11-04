@@ -170,6 +170,10 @@ On restart the platform:
 !!! warning "`:latest` has no history"
     Rolling back a hand-built platform means rebuilding the previous commit (`git checkout <good commit> && make image`). The images rendimiento builds itself are kept by release, so [updating from the Environment page](#updating-from-the-environment-page) has a history to go back to.
 
+### The public image {#the-public-image}
+
+Every change that reaches `main`, and every `v1.2.3` tag, is also published for **arm64 and amd64** at `ghcr.io/p0dxd/rendimiento`, by a GitHub Actions workflow (`.github/workflows/imagen.yml`) that only builds and publishes: the tests ran in rendimiento before the merge. Its tags are `:main` and `:sha-<commit>` for `main`, and `:1.2.3`, `:1.2` and `:latest` for a release. To install on another cluster, point the Deployments' `image:` at one of them instead of building your own. The Dockerfile cross-compiles, so the image for the other architecture needs no emulation.
+
 ## rendimiento builds itself {#rendimiento-builds-itself}
 
 rendimiento's repository is onboarded like any app. Its `rendimiento.yaml` has the book (`docs`, a service) and the platform's own image (`builds: platform`), so every push runs:
