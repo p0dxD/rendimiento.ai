@@ -361,7 +361,7 @@ func (p *Platform) waitRollout(ctx context.Context, app string, number int64) (b
 	}
 	state := p.Verify.Rollout
 	if state == nil {
-		state = p.target().Estado
+		state = p.Target().Estado
 	}
 	deadline := time.Now().Add(timeout)
 	for {

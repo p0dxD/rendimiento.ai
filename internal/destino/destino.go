@@ -7,6 +7,7 @@ package destino
 import (
 	"context"
 
+	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 )
 
@@ -35,4 +36,42 @@ type Destino interface {
 	// Quitar removes the app and what runs for it; an app that is not
 	// there is already removed.
 	Quitar(ctx context.Context, app string) error
+
+	// Situacion is how the app runs now, for the Apps page.
+	Situacion(ctx context.Context, app string) (Situacion, error)
+	// Recursos is what runs for the app, as a tree with each part's health.
+	Recursos(ctx context.Context, app *store.App) (*Recurso, error)
+	// Reiniciar restarts the app's services (after its secrets change).
+	Reiniciar(ctx context.Context, app string) error
+	// Impacto lists what removing the app would destroy, asked before.
+	Impacto(ctx context.Context, app string) (*Impacto, error)
+	// Desconectar stops managing the app and leaves it running as it is; an
+	// app that is not there is already disconnected.
+	Desconectar(ctx context.Context, app string) error
+}
+
+// Situacion is an app as it runs now: the status its page shows, and
+// whether it is suspended.
+type Situacion struct {
+	Status     v1alpha1.AppStatus
+	Suspendida bool
+}
+
+// Recurso is one part of what runs for an app, in the tree on its page.
+type Recurso struct {
+	Kind     string    `json:"kind"`
+	Name     string    `json:"name"`
+	Health   string    `json:"health"` // Healthy | Progressing | Degraded | Missing
+	Info     []string  `json:"info,omitempty"`
+	Children []Recurso `json:"children,omitempty"`
+}
+
+// Impacto describes what removing an app would destroy.
+type Impacto struct {
+	Namespace string   `json:"namespace"`
+	Volumes   []string `json:"volumes"` // "name (size)"
+	Secrets   []string `json:"secrets"`
+	Adopted   bool     `json:"adopted"` // it ran before rendimiento took it over
+	// SharedNamespace: the namespace and whatever else lives in it are kept.
+	SharedNamespace bool `json:"sharedNamespace"`
 }

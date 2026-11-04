@@ -113,7 +113,7 @@ flowchart TB
 - **`render`** is pure: spec plus images in, Kubernetes objects out. No I/O, which makes it easy to test with golden files.
 - **`controller`** and **`pipeline`** do the I/O against Kubernetes.
 - **`platform`** ties CI, the store and GitHub together.
-- **`destino`** is where releases run. The platform asks it to create an app, apply a release, report the rollout and remove the app; it does not know how. Kubernetes is the first destination (it writes the `App` object, which the controller deploys); one's own computer, a server over SSH and the clouds are planned.
+- **`destino`** is where releases run. The platform asks it to create an app, apply a release, report the rollout and remove the app, and for the app's page, what runs for it, a restart, and what deleting or disconnecting it would do; the platform does not know how. Kubernetes is the first destination (it writes the `App` object, which the controller deploys); one's own computer, a server over SSH and the clouds are planned.
 - **`api`** is the outermost layer.
 
 Everything under `internal/` is private to this module (a Go rule): other projects cannot import it. That keeps us free to change it. If parts should become a public library one day, they would move out of `internal/`.

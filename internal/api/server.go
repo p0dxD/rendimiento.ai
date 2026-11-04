@@ -24,9 +24,7 @@ import (
 	"strings"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -1068,12 +1066,11 @@ func (s *Server) downChecks(ctx context.Context) map[int64][]string {
 }
 
 // view is an app as the UI shows it: the stored app, its live status from
-// its App object in the cluster, and its last run.
+// its destination, and its last run.
 func (s *Server) view(ctx context.Context, a *store.App) appView {
 	v := appView{App: a}
-	var cr v1alpha1.App
-	if err := s.Kube.Get(ctx, client.ObjectKey{Name: a.Name}, &cr); err == nil {
-		v.Status, v.Suspended = cr.Status, cr.Spec.Suspend
+	if st, err := s.Platform.Target().Situacion(ctx, a.Name); err == nil {
+		v.Status, v.Suspended = st.Status, st.Suspendida
 	}
 	if runs, err := s.Store.ListRuns(ctx, a.ID, 1); err == nil && len(runs) > 0 {
 		v.LastRun = runs[0]
@@ -1321,141 +1318,20 @@ func (s *Server) rollback(w http.ResponseWriter, r *http.Request, login string) 
 	writeJSON(w, rel)
 }
 
-// Resource tree for the Argo-style view.
-type resourceNode struct {
-	Kind     string         `json:"kind"`
-	Name     string         `json:"name"`
-	Health   string         `json:"health"` // Healthy | Progressing | Degraded | Missing
-	Info     []string       `json:"info,omitempty"`
-	Children []resourceNode `json:"children,omitempty"`
-}
-
-// resources is the app's resource tree: per service, its Deployment and
-// pods, Service, Ingress and volume, each with a health (Healthy,
-// Progressing, Degraded or Missing), rolled up to the app.
+// resources is the app's resource tree, from its destination: each part
+// with its health (Healthy, Progressing, Degraded or Missing), rolled up to
+// the app.
 func (s *Server) resources(w http.ResponseWriter, r *http.Request, _ string) {
 	a := s.app(w, r)
 	if a == nil {
 		return
 	}
-	ctx := r.Context()
-	ns := client.InNamespace(a.Name)
-	sel := client.MatchingLabels{render.LabelApp: a.Name}
-	var deps appsv1.DeploymentList
-	var pods corev1.PodList
-	var svcs corev1.ServiceList
-	var ings networkingv1.IngressList
-	var pvcs corev1.PersistentVolumeClaimList
-	for _, l := range []client.ObjectList{&deps, &pods, &svcs, &ings, &pvcs} {
-		if err := s.Kube.List(ctx, l, ns, sel); err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-	}
-	root := resourceNode{Kind: "App", Name: a.Name, Health: "Healthy"}
-	for _, svc := range a.Spec.Services {
-		node := resourceNode{Kind: "Service", Name: svc.Name, Health: "Missing"}
-		for _, d := range deps.Items {
-			if d.Name != svc.Name {
-				continue
-			}
-			dn := resourceNode{Kind: "Deployment", Name: d.Name, Health: deploymentHealth(&d),
-				Info: []string{fmt.Sprintf("%d/%d ready", d.Status.ReadyReplicas, ptrOr(d.Spec.Replicas, 1))}}
-			for _, p := range pods.Items {
-				if p.Labels[render.LabelService] == svc.Name {
-					dn.Children = append(dn.Children, podNode(&p))
-				}
-			}
-			node.Health = dn.Health
-			node.Children = append(node.Children, dn)
-		}
-		for _, sv := range svcs.Items {
-			if sv.Name == svc.Name {
-				node.Children = append(node.Children, resourceNode{Kind: "Service", Name: sv.Name, Health: "Healthy", Info: []string{sv.Spec.ClusterIP}})
-			}
-		}
-		for _, ing := range ings.Items {
-			if ing.Name == svc.Name {
-				info := []string{}
-				for _, rule := range ing.Spec.Rules {
-					info = append(info, "https://"+rule.Host)
-				}
-				h := "Progressing"
-				if len(ing.Status.LoadBalancer.Ingress) > 0 {
-					h = "Healthy"
-				}
-				node.Children = append(node.Children, resourceNode{Kind: "Ingress", Name: ing.Name, Health: h, Info: info})
-			}
-		}
-		for _, pvc := range pvcs.Items {
-			if pvc.Name == svc.Name+"-data" {
-				h := "Progressing"
-				if pvc.Status.Phase == corev1.ClaimBound {
-					h = "Healthy"
-				}
-				node.Children = append(node.Children, resourceNode{Kind: "Volume", Name: pvc.Name, Health: h, Info: []string{string(pvc.Status.Phase)}})
-			}
-		}
-		if node.Health != "Healthy" && root.Health != "Degraded" {
-			root.Health = node.Health
-			if node.Health == "Missing" {
-				root.Health = "Progressing"
-			}
-		}
-		root.Children = append(root.Children, node)
+	root, err := s.Platform.Target().Recursos(r.Context(), a)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 	writeJSON(w, root)
-}
-
-// deploymentHealth is Healthy when every replica of the current version is
-// ready, Degraded when Kubernetes gave up waiting for it, else Progressing.
-func deploymentHealth(d *appsv1.Deployment) string {
-	for _, c := range d.Status.Conditions {
-		if c.Type == appsv1.DeploymentProgressing && c.Reason == "ProgressDeadlineExceeded" {
-			return "Degraded"
-		}
-	}
-	want := ptrOr(d.Spec.Replicas, 1)
-	if d.Status.ObservedGeneration >= d.Generation && d.Status.UpdatedReplicas == want && d.Status.ReadyReplicas == want {
-		return "Healthy"
-	}
-	return "Progressing"
-}
-
-// podNode is a pod in the resource tree: Healthy when ready, Degraded when
-// crash-looping or unable to pull its image, with its restarts and node.
-func podNode(p *corev1.Pod) resourceNode {
-	n := resourceNode{Kind: "Pod", Name: p.Name, Health: "Progressing", Info: []string{string(p.Status.Phase)}}
-	ready := false
-	for _, c := range p.Status.Conditions {
-		if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
-			ready = true
-		}
-	}
-	for _, cs := range p.Status.ContainerStatuses {
-		if w := cs.State.Waiting; w != nil && (w.Reason == "CrashLoopBackOff" || w.Reason == "ImagePullBackOff" || w.Reason == "ErrImagePull") {
-			n.Health = "Degraded"
-			n.Info = append(n.Info, w.Reason)
-		}
-		if cs.RestartCount > 0 {
-			n.Info = append(n.Info, fmt.Sprintf("%d restarts", cs.RestartCount))
-		}
-	}
-	if ready {
-		n.Health = "Healthy"
-	}
-	if p.Spec.NodeName != "" {
-		n.Info = append(n.Info, "node "+p.Spec.NodeName)
-	}
-	return n
-}
-
-// ptrOr is *p, or d when p is nil.
-func ptrOr(p *int32, d int32) int32 {
-	if p == nil {
-		return d
-	}
-	return *p
 }
 
 // secretTarget is the app and the Secret named in the URL, when the name is
@@ -1555,17 +1431,9 @@ func (s *Server) putSecret(w http.ResponseWriter, r *http.Request, login string)
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	// Restart pods so the new values are picked up.
-	var deps appsv1.DeploymentList
-	_ = s.Kube.List(r.Context(), &deps, client.InNamespace(a.Name), client.MatchingLabels{render.LabelApp: a.Name})
-	for i := range deps.Items {
-		d := &deps.Items[i]
-		patch := client.MergeFrom(d.DeepCopy())
-		if d.Spec.Template.Annotations == nil {
-			d.Spec.Template.Annotations = map[string]string{}
-		}
-		d.Spec.Template.Annotations["rendimiento.ai/restartedAt"] = time.Now().Format(time.RFC3339)
-		_ = s.Kube.Patch(r.Context(), d, patch)
+	// Restart the services so the new values are picked up.
+	if err := s.Platform.Target().Reiniciar(r.Context(), a.Name); err != nil {
+		s.Log.Warn("restarting after a secret change", "app", a.Name, "err", err)
 	}
 	keys := make([]string, 0, len(data))
 	for k := range data {
