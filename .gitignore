@@ -9,3 +9,4 @@ sdk/node/node_modules/
 sdk/python/**/__pycache__/
 sdk/python/*.egg-info/
 sdk/java/target/
+docs/site/
