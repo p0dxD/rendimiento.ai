@@ -113,7 +113,7 @@ flowchart TB
 - **`render`** es puro: entran la especificación y las imágenes, salen objetos de Kubernetes. Sin entrada ni salida, lo que lo hace fácil de probar con archivos de referencia.
 - **`controller`** y **`pipeline`** hacen la entrada y salida contra Kubernetes.
 - **`platform`** une la integración continua, el almacén y GitHub.
-- **`destino`** es donde corren las versiones. La plataforma le pide crear una aplicación, aplicar una versión, informar cómo va el despliegue y quitar la aplicación; no sabe cómo lo hace. Kubernetes es el primer destino (escribe el objeto `App`, que el controlador despliega); la computadora propia, un servidor por SSH y las nubes vienen después.
+- **`destino`** es donde corren las versiones. La plataforma le pide crear una aplicación, aplicar una versión, informar cómo va el despliegue y quitar la aplicación, y para la página de la aplicación, lo que corre para ella, un reinicio y lo que haría borrarla o desconectarla; la plataforma no sabe cómo lo hace. Kubernetes es el primer destino (escribe el objeto `App`, que el controlador despliega); la computadora propia, un servidor por SSH y las nubes vienen después.
 - **`api`** es la capa más externa.
 
 Todo lo que está bajo `internal/` es privado de este módulo (una regla de Go): otros proyectos no lo pueden importar. Eso nos deja libres de cambiarlo. Si algún día unas partes deben volverse una biblioteca pública, saldrían de `internal/`.

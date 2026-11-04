@@ -17,17 +17,12 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
-	"github.com/p0dxD/rendimiento.ai/internal/controller"
 	"github.com/p0dxD/rendimiento.ai/internal/destino"
 	"github.com/p0dxD/rendimiento.ai/internal/detect"
 	"github.com/p0dxD/rendimiento.ai/internal/events"
@@ -367,7 +362,7 @@ func (p *Platform) Register(ctx context.Context, req OnboardRequest) (*store.App
 		}
 		return nil, err
 	}
-	if err := p.target().Crear(ctx, app, req.Adopt); err != nil {
+	if err := p.Target().Crear(ctx, app, req.Adopt); err != nil {
 		_ = p.Store.DeleteApp(ctx, app.ID)
 		return nil, err
 	}
@@ -377,7 +372,7 @@ func (p *Platform) Register(ctx context.Context, req OnboardRequest) (*store.App
 // DeleteApp removes the app from its destination (in Kubernetes, the
 // namespace and DNS go with the App object) and the app's records.
 func (p *Platform) DeleteApp(ctx context.Context, app *store.App) error {
-	if err := p.target().Quitar(ctx, app.Name); err != nil {
+	if err := p.Target().Quitar(ctx, app.Name); err != nil {
 		return err
 	}
 	if p.Caches != nil {
@@ -389,145 +384,25 @@ func (p *Platform) DeleteApp(ctx context.Context, app *store.App) error {
 }
 
 // Impact describes what deleting an app would destroy.
-type Impact struct {
-	Namespace string   `json:"namespace"`
-	Volumes   []string `json:"volumes"` // "name (size)"
-	Secrets   []string `json:"secrets"`
-	Adopted   bool     `json:"adopted"` // it ran before rendimiento took it over
-	// SharedNamespace: the namespace and whatever else lives in it are kept.
-	SharedNamespace bool `json:"sharedNamespace"`
-}
+type Impact = destino.Impacto
 
 // DeleteImpact lists what deleting an app would remove (namespace, volumes, secrets), shown before
 // deleting.
 func (p *Platform) DeleteImpact(ctx context.Context, app *store.App) (*Impact, error) {
-	im := &Impact{Namespace: app.Name, Volumes: []string{}, Secrets: []string{}}
-	var cr v1alpha1.App
-	if err := p.Kube.Get(ctx, client.ObjectKey{Name: app.Name}, &cr); err == nil {
-		im.Adopted = cr.Spec.Adopt
-		im.SharedNamespace = cr.Spec.SharedNamespace
-	}
-	own := func(o metav1.Object) bool {
-		// With a shared namespace only objects rendimiento owns are deleted.
-		if !im.SharedNamespace {
-			return true
-		}
-		for _, r := range o.GetOwnerReferences() {
-			if r.UID == cr.UID {
-				return true
-			}
-		}
-		return false
-	}
-	var pvcs corev1.PersistentVolumeClaimList
-	if err := p.Kube.List(ctx, &pvcs, client.InNamespace(app.Name)); err != nil {
-		return nil, err
-	}
-	for _, v := range pvcs.Items {
-		if !own(&v) {
-			continue
-		}
-		size := v.Spec.Resources.Requests[corev1.ResourceStorage]
-		im.Volumes = append(im.Volumes, fmt.Sprintf("%s (%s)", v.Name, size.String()))
-	}
-	var secs corev1.SecretList
-	if err := p.Kube.List(ctx, &secs, client.InNamespace(app.Name)); err != nil {
-		return nil, err
-	}
-	for _, sec := range secs.Items {
-		if sec.Type == corev1.SecretTypeOpaque && own(&sec) {
-			im.Secrets = append(im.Secrets, sec.Name)
-		}
-	}
-	return im, nil
+	return p.Target().Impacto(ctx, app.Name)
 }
 
-// DisconnectApp stops managing an app but leaves everything running: the
-// namespace and its objects lose rendimiento's ownership (so deleting the
-// App garbage-collects nothing) and labels, DNS records stay, and the App
-// and its history are removed. It is the reverse of a migration: the app
-// can be migrated back later, or managed some other way.
+// DisconnectApp stops managing an app but leaves everything running where
+// it is (in Kubernetes, its objects lose rendimiento's ownership and labels,
+// and DNS records stay), and removes the app and its history. It is the
+// reverse of a migration: the app can be migrated back later, or managed
+// some other way.
 func (p *Platform) DisconnectApp(ctx context.Context, app *store.App) error {
-	var cr v1alpha1.App
-	err := p.Kube.Get(ctx, client.ObjectKey{Name: app.Name}, &cr)
-	if apierrors.IsNotFound(err) {
-		return p.Store.DeleteApp(ctx, app.ID)
-	}
-	if err != nil {
+	if err := p.Target().Desconectar(ctx, app.Name); err != nil {
 		return err
 	}
-	// 1. Stop reconciling, and mark the App so its deletion keeps DNS.
-	patch := client.MergeFrom(cr.DeepCopy())
-	cr.Spec.Suspend = true
-	if cr.Annotations == nil {
-		cr.Annotations = map[string]string{}
-	}
-	cr.Annotations[controller.AnnotationDisconnect] = "true"
-	if err := p.Kube.Patch(ctx, &cr, patch); err != nil {
-		return fmt.Errorf("suspend: %w", err)
-	}
-	// 2. Release every object: drop the owner reference and rendimiento's
-	// labels (metadata only, so no pod restarts).
-	var ns corev1.Namespace
-	objs := []client.Object{}
-	if err := p.Kube.Get(ctx, client.ObjectKey{Name: app.Name}, &ns); err == nil {
-		objs = append(objs, &ns)
-	}
-	lists := []client.ObjectList{&appsv1.DeploymentList{}, &corev1.ServiceList{}, &networkingv1.IngressList{},
-		&corev1.PersistentVolumeClaimList{}, &batchv1.CronJobList{}, &corev1.SecretList{}}
-	for _, l := range lists {
-		if err := p.Kube.List(ctx, l, client.InNamespace(app.Name)); err != nil {
-			return err
-		}
-		items, err := meta.ExtractList(l)
-		if err != nil {
-			return err
-		}
-		for _, it := range items {
-			objs = append(objs, it.(client.Object))
-		}
-	}
-	for _, o := range objs {
-		if err := release(ctx, p.Kube, o, cr.UID); err != nil {
-			return fmt.Errorf("release %T %s: %w", o, o.GetName(), err)
-		}
-	}
-	// 3. Delete the App; nothing is owned by it any more.
-	if err := p.Kube.Delete(ctx, &cr); client.IgnoreNotFound(err) != nil {
-		return err
-	}
-	p.Log.Info("app disconnected; its workloads keep running unmanaged", "app", app.Name, "objects", len(objs))
+	p.Log.Info("app disconnected; its workloads keep running unmanaged", "app", app.Name)
 	return p.Store.DeleteApp(ctx, app.ID)
-}
-
-// release removes owner references to the App and rendimiento's top-level
-// labels from one object.
-func release(ctx context.Context, c client.Client, o client.Object, owner types.UID) error {
-	// Snapshot first: GetLabels returns the object's own map, so editing it
-	// before taking the patch base would hide the change from the patch.
-	patch := client.MergeFrom(o.DeepCopyObject().(client.Object))
-	var refs []metav1.OwnerReference
-	changed := false
-	for _, r := range o.GetOwnerReferences() {
-		if r.UID == owner {
-			changed = true
-			continue
-		}
-		refs = append(refs, r)
-	}
-	labels := o.GetLabels()
-	if labels[render.LabelManagedBy] == render.ManagedBy {
-		for _, k := range []string{render.LabelManagedBy, render.LabelApp, render.LabelService} {
-			delete(labels, k)
-		}
-		changed = true
-	}
-	if !changed {
-		return nil
-	}
-	o.SetOwnerReferences(refs)
-	o.SetLabels(labels)
-	return c.Patch(ctx, o, patch)
 }
 
 // ---- webhooks ----
@@ -1164,15 +1039,15 @@ func (p *Platform) rollbackTo(ctx context.Context, app *store.App, old *store.Re
 
 // pointApp makes the release the one its destination runs.
 func (p *Platform) pointApp(ctx context.Context, name string, rel *store.Release) error {
-	err := p.target().Aplicar(ctx, name, rel)
+	err := p.Target().Aplicar(ctx, name, rel)
 	if err == nil {
 		p.Hub.Publish(appTopic(name), events.Event{Type: "release", Data: rel})
 	}
 	return err
 }
 
-// target is where the platform's apps run: Destino, or the cluster.
-func (p *Platform) target() destino.Destino {
+// Target is where the platform's apps run: Destino, or the cluster.
+func (p *Platform) Target() destino.Destino {
 	if p.Destino != nil {
 		return p.Destino
 	}

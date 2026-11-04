@@ -4,11 +4,17 @@ import (
 	"context"
 	"testing"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
+	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 )
@@ -68,5 +74,57 @@ func TestKubernetes(t *testing.T) {
 	}
 	if err := d.Quitar(ctx, "tienda"); err != nil {
 		t.Fatalf("removing it again: %v", err)
+	}
+}
+
+// The app's page from the cluster: its status, the resource tree with each
+// part's health, a restart, and what deleting it would remove.
+func TestKubernetesPaginas(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	_ = v1alpha1.AddToScheme(scheme)
+	_ = clientgoscheme.AddToScheme(scheme)
+	one := int32(1)
+	labels := map[string]string{render.LabelApp: "tienda", render.LabelService: "web"}
+	kube := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+		&v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "tienda"}, Spec: v1alpha1.AppSpec{Suspend: true}, Status: v1alpha1.AppStatus{Release: 4}},
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "web", Namespace: "tienda", Labels: labels},
+			Spec:   appsv1.DeploymentSpec{Replicas: &one},
+			Status: appsv1.DeploymentStatus{ReadyReplicas: 1, UpdatedReplicas: 1}},
+		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "web-1", Namespace: "tienda", Labels: labels},
+			Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{RestartCount: 2, State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "CrashLoopBackOff"}}}}}},
+		&corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "web-data", Namespace: "tienda", Labels: labels},
+			Spec: corev1.PersistentVolumeClaimSpec{Resources: corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Gi")}}}},
+		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "llaves", Namespace: "tienda"}, Type: corev1.SecretTypeOpaque},
+	).Build()
+	d := Kubernetes{Kube: kube}
+
+	if st, err := d.Situacion(ctx, "tienda"); err != nil || !st.Suspendida || st.Status.Release != 4 {
+		t.Fatalf("situacion: %+v %v", st, err)
+	}
+	sp := spec.Spec{Services: []spec.Service{{Name: "web"}}}
+	root, err := d.Recursos(ctx, &store.App{Name: "tienda", Spec: sp})
+	if err != nil || len(root.Children) != 1 {
+		t.Fatalf("recursos: %+v %v", root, err)
+	}
+	web := root.Children[0]
+	if web.Health != "Healthy" || len(web.Children) != 2 || web.Children[0].Children[0].Health != "Degraded" || web.Children[1].Kind != "Volume" {
+		t.Fatalf("web: %+v", web)
+	}
+
+	if err := d.Reiniciar(ctx, "tienda"); err != nil {
+		t.Fatal(err)
+	}
+	var dep appsv1.Deployment
+	if err := kube.Get(ctx, client.ObjectKey{Namespace: "tienda", Name: "web"}, &dep); err != nil || dep.Spec.Template.Annotations["rendimiento.ai/restartedAt"] == "" {
+		t.Fatalf("restart: %v %v", err, dep.Spec.Template.Annotations)
+	}
+
+	im, err := d.Impacto(ctx, "tienda")
+	if err != nil || len(im.Volumes) != 1 || im.Volumes[0] != "web-data (1Gi)" || len(im.Secrets) != 1 {
+		t.Fatalf("impacto: %+v %v", im, err)
+	}
+	if err := d.Desconectar(ctx, "nadie"); err != nil {
+		t.Fatalf("disconnecting an app that is not there: %v", err)
 	}
 }
