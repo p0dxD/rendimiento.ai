@@ -85,7 +85,8 @@ type Platform struct {
 	Notify *notify.Notifier
 	// Destino is where releases run (nil: the cluster, through Kube).
 	Destino destino.Destino
-	// Clientset runs post-deploy tasks (Jobs in app namespaces) and reads their logs.
+	// Clientset runs deploy tasks in the cluster (Jobs in app namespaces) and
+	// reads their logs.
 	Clientset kubernetes.Interface
 	// Caches deletes the cache volumes of an app's tests (nil: none).
 	Caches interface {
@@ -1051,7 +1052,7 @@ func (p *Platform) Target() destino.Destino {
 	if p.Destino != nil {
 		return p.Destino
 	}
-	return destino.Kubernetes{Kube: p.Kube}
+	return destino.Kubernetes{Kube: p.Kube, Clientset: p.Clientset}
 }
 
 // ---- GitHub check runs ----

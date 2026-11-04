@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
+	"github.com/p0dxD/rendimiento.ai/internal/spec"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 )
 
@@ -33,6 +34,9 @@ type Destino interface {
 	Aplicar(ctx context.Context, app string, rel *store.Release) error
 	// Estado reports a release's rollout, with a reason for people.
 	Estado(ctx context.Context, app string, release int64) (Estado, string, error)
+	// Tarea runs one of the release's deploy tasks (before or after it goes
+	// live) to the end, with its log.
+	Tarea(ctx context.Context, app *store.App, rel *store.Release, t spec.Task) store.ReleaseTask
 	// Quitar removes the app and what runs for it; an app that is not
 	// there is already removed.
 	Quitar(ctx context.Context, app string) error

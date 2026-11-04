@@ -7,6 +7,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
@@ -17,6 +18,9 @@ import (
 // the controller turns into its namespace, workloads, ingresses and needs.
 type Kubernetes struct {
 	Kube client.Client
+	// Clientset runs deploy tasks (Jobs in app namespaces) and reads their
+	// logs.
+	Clientset kubernetes.Interface
 }
 
 // Nombre is "kubernetes".
