@@ -30,6 +30,7 @@ rendimiento se configura solo con **variables de entorno**, que se leen una vez 
 |---|---|---|
 | `GITHUB_APP_NAME` | `rendimiento` | el nombre de la aplicación, que se usa al crearla con el flujo de manifiesto (`rendimiento` aquí) |
 | `GITHUB_SECRET` | `rendimiento-github` | el Secret donde se guardan las credenciales de la aplicación después de la configuración |
+| `SECRETS_KEY_FILE` | | un archivo con una llave (32 bytes al azar en base64: `head -c32 /dev/urandom \| base64`); con él, las credenciales de la aplicación de GitHub y las llaves de IA de las organizaciones se guardan selladas con AES-256-GCM en Postgres en vez de Secrets de Kubernetes, para correr sin clúster. Guarde el archivo fuera de la base de datos y respáldelo: sin él no se pueden abrir |
 
 ## Construcciones {#builds}
 

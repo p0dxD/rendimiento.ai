@@ -30,6 +30,7 @@ rendimiento is configured only through **environment variables**, read once at s
 |---|---|---|
 | `GITHUB_APP_NAME` | `rendimiento` | the App's name, used when creating it with the manifest flow (`rendimiento` here) |
 | `GITHUB_SECRET` | `rendimiento-github` | the Secret the App's credentials are saved in after setup |
+| `SECRETS_KEY_FILE` | | a file with a key (32 random bytes in base64: `head -c32 /dev/urandom \| base64`); when set, the GitHub App's credentials and organizations' AI keys are sealed with AES-256-GCM in Postgres instead of Kubernetes Secrets, for running without a cluster. Keep the file outside the database and back it up: without it they do not open |
 
 ## Builds
 
