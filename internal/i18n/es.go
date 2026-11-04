@@ -58,6 +58,7 @@ var catalog = map[string]string{
 	"an organization needs at least one administrator": "una organización necesita al menos un administrador",
 	"no such member": "no existe ese miembro",
 	"no such demo link": "no existe esa liga de demostración",
+	"the app's namespace does not exist yet; set secrets after the first deploy starts": "el espacio de nombres de la aplicación todavía no existe; ponga los secretos cuando empiece el primer despliegue",
 	"bad demo link id": "identificador de liga de demostración no válido",
 	"this demo link does not work: it expired or was turned off": "esta liga de demostración no funciona: venció o la apagaron",
 	"a demo link lasts from 1 to 90 days": "una liga de demostración dura de 1 a 90 días",

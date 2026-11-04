@@ -24,9 +24,6 @@ import (
 	"strings"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
@@ -34,6 +31,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/agentes"
 	"github.com/p0dxD/rendimiento.ai/internal/analytics"
 	"github.com/p0dxD/rendimiento.ai/internal/catalog"
+	"github.com/p0dxD/rendimiento.ai/internal/destino"
 	"github.com/p0dxD/rendimiento.ai/internal/dns"
 	"github.com/p0dxD/rendimiento.ai/internal/environment"
 	"github.com/p0dxD/rendimiento.ai/internal/events"
@@ -43,7 +41,6 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/mercado"
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/platform"
-	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/renovate"
 	"github.com/p0dxD/rendimiento.ai/internal/selfupdate"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
@@ -1334,101 +1331,62 @@ func (s *Server) resources(w http.ResponseWriter, r *http.Request, _ string) {
 	writeJSON(w, root)
 }
 
-// secretTarget is the app and the Secret named in the URL, when the name is
-// declared in rendimiento.yaml and the app's namespace exists (it writes the
-// error otherwise, and returns nil).
-func (s *Server) secretTarget(w http.ResponseWriter, r *http.Request) (*store.App, *corev1.Secret) {
+// secretTarget is the app and the secret named in the URL, when the name
+// is declared in rendimiento.yaml (it writes the error otherwise, and
+// returns nil).
+func (s *Server) secretTarget(w http.ResponseWriter, r *http.Request) (*store.App, string) {
 	a := s.app(w, r)
 	if a == nil {
-		return nil, nil
+		return nil, ""
 	}
 	name := r.PathValue("secret")
 	if !slices.Contains(a.Spec.SecretNames(), name) {
 		httpError(w, http.StatusBadRequest, fmt.Sprintf("secret %q is not used by any service, job or task in rendimiento.yaml (secrets, secretEnv or secretFiles)", name))
-		return nil, nil
+		return nil, ""
 	}
-	var ns corev1.Namespace
-	if err := s.Kube.Get(r.Context(), client.ObjectKey{Name: a.Name}, &ns); err != nil || ns.Labels[render.LabelApp] != a.Name {
-		httpError(w, http.StatusConflict, "the app's namespace does not exist yet; set secrets after the first deploy starts")
-		return nil, nil
+	return a, name
+}
+
+// secretError answers a destination's error about secrets: 409 when the
+// app has no place for them yet.
+func secretError(w http.ResponseWriter, err error) {
+	if errors.Is(err, destino.ErrSinLugar) {
+		httpError(w, http.StatusConflict, err.Error())
+		return
 	}
-	return a, &corev1.Secret{
-		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"},
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: a.Name, Labels: map[string]string{render.LabelApp: a.Name, render.LabelManagedBy: render.ManagedBy}},
-	}
+	httpError(w, http.StatusInternalServerError, err.Error())
 }
 
 // getSecret lists the keys a secret holds, never their values, so the page
 // can show what is already set.
 func (s *Server) getSecret(w http.ResponseWriter, r *http.Request, _ string) {
-	_, sec := s.secretTarget(w, r)
-	if sec == nil {
+	a, name := s.secretTarget(w, r)
+	if a == nil {
 		return
 	}
-	keys := []string{}
-	err := s.Kube.Get(r.Context(), client.ObjectKeyFromObject(sec), sec)
-	if err != nil && !apierrors.IsNotFound(err) {
-		httpError(w, http.StatusInternalServerError, err.Error())
+	keys, err := s.Platform.Target().LlavesSecreto(r.Context(), a.Name, name)
+	if err != nil {
+		secretError(w, err)
 		return
 	}
-	for k := range sec.Data {
-		keys = append(keys, k)
-	}
-	for k := range sec.StringData {
-		if _, dup := sec.Data[k]; !dup {
-			keys = append(keys, k)
-		}
-	}
-	slices.Sort(keys)
 	writeJSON(w, map[string]any{"keys": keys})
 }
 
-// putSecret writes app secret values straight into the app's namespace;
+// putSecret writes app secret values straight into the app's destination;
 // they are never stored in git, in Postgres, or returned by the API. The
 // keys sent are added or replaced and the others are kept; a key sent as
 // null is removed.
 func (s *Server) putSecret(w http.ResponseWriter, r *http.Request, login string) {
-	a, sec := s.secretTarget(w, r)
-	if sec == nil {
+	a, name := s.secretTarget(w, r)
+	if a == nil {
 		return
 	}
-	name := sec.Name
 	var data map[string]*string
 	if !readJSON(w, r, &data) {
 		return
 	}
-	var existing corev1.Secret
-	err := s.Kube.Get(r.Context(), client.ObjectKeyFromObject(sec), &existing)
-	switch {
-	case apierrors.IsNotFound(err):
-		sec.StringData = map[string]string{}
-		for k, v := range data {
-			if v != nil {
-				sec.StringData[k] = *v
-			}
-		}
-		err = s.Kube.Create(r.Context(), sec)
-	case err == nil:
-		if existing.Data == nil {
-			existing.Data = map[string][]byte{}
-		}
-		// The API server folds stringData into data on write; a fake client
-		// does not, so fold it here too.
-		for k, v := range existing.StringData {
-			existing.Data[k] = []byte(v)
-		}
-		existing.StringData = nil
-		for k, v := range data {
-			if v == nil {
-				delete(existing.Data, k)
-			} else {
-				existing.Data[k] = []byte(*v)
-			}
-		}
-		err = s.Kube.Update(r.Context(), &existing)
-	}
-	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
+	if err := s.Platform.Target().GuardarSecreto(r.Context(), a.Name, name, data); err != nil {
+		secretError(w, err)
 		return
 	}
 	// Restart the services so the new values are picked up.
