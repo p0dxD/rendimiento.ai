@@ -13,8 +13,8 @@ services:
   - name: web                                 # a DNS label: lowercase, digits, dashes
     path: web                                 # folder to build (default ".")
     port: 3000                                # the port the app listens on (default 8080)
-    domain: shop.joserod.space                # public HTTPS address (DNS + certificate)
-    aliases: [www.shop.joserod.space]         # more hosts, same certificate
+    domain: shop.example.com                # public HTTPS address (DNS + certificate)
+    aliases: [www.shop.example.com]         # more hosts, same certificate
     size: medium                              # small | medium | large
     replicas: 2                               # >1 = zero-downtime rollouts
     health: { path: /api/health }             # readiness + liveness
@@ -26,7 +26,7 @@ services:
   - name: api
     path: api
     port: 8000
-    routes: [shop.joserod.space/api]          # a path on web's host
+    routes: [shop.example.com/api]          # a path on web's host
     needs: [postgres]                         # DATABASE_URL + PG* injected
     secretEnv: { STRIPE_KEY: shop-api/stripe } # one variable from a secret key
     resources: { memory: 512Mi, memoryLimit: 1Gi }
@@ -150,7 +150,7 @@ A service with a volume uses the **Recreate** strategy (a volume attaches to one
 |---|---|---|
 | `domain` | hostname | Public HTTPS address: an Ingress, a certificate and a DNS record. |
 | `aliases` | hostnames | More hosts on the same certificate (needs `domain`). |
-| `routes` | `host/path` list | Send a path on a host owned by another service of this app to this service, e.g. `shop.joserod.space/api`. |
+| `routes` | `host/path` list | Send a path on a host owned by another service of this app to this service, e.g. `shop.example.com/api`. |
 | `tlsSecret` | name | Certificate secret name (default `<name>-tls`); keep an existing one when migrating. |
 | `ingress.name` | name | Keep an existing Ingress's name when migrating. |
 | `ingress.annotations` | map | Extra `nginx.ingress.kubernetes.io/*` settings (rate limits, body size, CORS…). Snippets are refused. |

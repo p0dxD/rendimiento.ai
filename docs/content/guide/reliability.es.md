@@ -101,7 +101,7 @@ La ventana de toda la plataforma es `VERIFY_WINDOW` (de forma predeterminada `5m
 
 ## Estadísticas públicas {#public-stats}
 
-Con `PUBLIC_STATS=true`, rendimiento publica **cifras agregadas** en `GET /api/public/stats` para una página pública. [joserod.space](https://joserod.space/#live) las usa en su sección *Live from the Home Lab*.
+Con `PUBLIC_STATS=true`, rendimiento publica **cifras agregadas** en `GET /api/public/stats` para una página pública. Un portafolio puede mostrarlas, por ejemplo, en una sección *En vivo desde el laboratorio de casa*.
 
 Con `STATS_LISTEN` definido (aquí `:8081`), las estadísticas se sirven **solo en ese puerto interno**, que el Service expone como `stats` y que la entrada pública no dirige. La página las obtiene del lado del servidor por la red del clúster (`http://rendimiento.rendimiento-system.svc.cluster.local:8081/api/public/stats`), así que se pueden alcanzar desde dentro del clúster pero **no desde internet**.
 

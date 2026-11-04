@@ -7,7 +7,7 @@ Las tareas están ordenadas por valor según el esfuerzo, primero para este clú
 | # | Tarea | Por qué | Dónde |
 |---|---|---|---|
 | 1 | **Métricas de la plataforma en Grafana**: recolectar `METRICS_ADDR` (las métricas de disponibilidad ya se exportan ahí), agregar métricas de construcción y un panel | ver que las construcciones se vuelven lentas o que crecen las colas antes que los usuarios | un `VMServiceScrape`, un puerto de métricas en el Service, `pipeline`, `platform` |
-| 2 | **Entornos de vista previa** por cada solicitud de incorporación (`pr-42.app.joserod.space`) | probar los cambios antes de integrarlos | `platform` (avisos web de solicitudes), `render` (sufijo en el nombre), limpieza al cerrarse |
+| 2 | **Entornos de vista previa** por cada solicitud de incorporación (`pr-42.app.example.com`) | probar los cambios antes de integrarlos | `platform` (avisos web de solicitudes), `render` (sufijo en el nombre), limpieza al cerrarse |
 
 ## A mediano plazo {#medium-term}
 

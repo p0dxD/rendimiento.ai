@@ -26,7 +26,7 @@ services:
     test: { image: node:20-bookworm, command: npm ci && npm test }
     size: medium
     replicas: 2
-    domain: secplus.joserod.space
+    domain: secplus.example.com
     health: { path: /api/health }
     env: { NODE_ENV: production }
     secrets: [secplus-practice]
@@ -73,7 +73,7 @@ func TestSecplusShape(t *testing.T) {
 services:
   - name: web
     port: 3000
-    domain: secplus.joserod.space
+    domain: secplus.example.com
     streaming: true
     tlsSecret: secplus-tls
     env: { PRACTICE_FILE: /private/practice.json }
@@ -110,8 +110,8 @@ func TestPodoiShape(t *testing.T) {
 services:
   - name: podoi-website
     port: 3000
-    domain: joserod.space
-    aliases: [www.joserod.space]
+    domain: example.com
+    aliases: [www.example.com]
     tlsSecret: podoi-website-tls
   - name: blog-postgres
     image: postgres:15-alpine
@@ -124,7 +124,7 @@ services:
 		t.Fatal(err)
 	}
 	web, db := s.Services[0], s.Services[1]
-	if strings.Join(web.Hosts(), ",") != "joserod.space,www.joserod.space" {
+	if strings.Join(web.Hosts(), ",") != "example.com,www.example.com" {
 		t.Fatalf("hosts = %v", web.Hosts())
 	}
 	if db.VolumeFSGroup() != nil {
@@ -193,7 +193,7 @@ func TestStockpulseShape(t *testing.T) {
 services:
   - name: stockpulse-ui
     port: 80
-    domain: stockpulse.joserod.space
+    domain: stockpulse.example.com
     aliases: [stockfinancia.com, www.stockfinancia.com]
     tlsSecret: stockpulse-tls
     streaming: true

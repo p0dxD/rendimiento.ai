@@ -372,7 +372,7 @@ var page = template.Must(template.New("email").Parse(`<!doctype html>
 // Resend sends email through Resend's HTTP API (https://resend.com).
 type Resend struct {
 	APIKey string
-	From   string // e.g. "rendimiento <alerts@joserod.space>", a verified sender
+	From   string // e.g. "rendimiento <alerts@example.com>", a verified sender
 	// URL overrides the API endpoint (tests).
 	URL  string
 	HTTP *http.Client

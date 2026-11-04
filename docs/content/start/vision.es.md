@@ -43,7 +43,7 @@ rendimiento se construyó junto al Jenkins y al ArgoCD que ya existían, y cada 
 
 | Cuándo (2026) | Qué |
 |---|---|
-| 23 y 24 de septiembre | Primera versión: configuración de la aplicación de GitHub, detección, integración continua en BuildKit, el controlador de aplicaciones, DNS y TLS. Desplegada en `rendimiento.joserod.space`. |
+| 23 y 24 de septiembre | Primera versión: configuración de la aplicación de GitHub, detección, integración continua en BuildKit, el controlador de aplicaciones, DNS y TLS. Desplegada en `rendimiento.example.com`. |
 | 24 al 26 de septiembre | Se migraron **secplus**, **simplerfc** (con su volumen de SQLite movido), **podoi** (con su Postgres), **stockpulse** (web, API, Postgres, tarea de extracción de datos) y **wellness** (interfaz, API, Postgres, funciones sin servidor). |
 | 27 de septiembre | Se migró **jobsentry** (gate, ui, intel y whois, en un espacio de nombres compartido con ArgoCD), y luego **linguistic-ai + ollama** en el nodo con GPU. Se agregaron las construcciones con Railpack, el catálogo de Servicios y las categorías. Se apagó **Jenkins**. **Renovate** se convirtió en un complemento autenticado como la aplicación de GitHub. |
 | 28 de septiembre | El **motor de complementos**; se adoptaron **umami**, **hajimari**, **longhorn-backups** y **Longhorn** desde ArgoCD sin un solo cambio; se apagó **ArgoCD**. Se agregaron `needs:`, los ganchos de Helm, el grupo de BuildKit, las pruebas remotas y este libro. |

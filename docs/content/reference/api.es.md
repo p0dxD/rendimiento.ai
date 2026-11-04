@@ -146,6 +146,6 @@ Todas las rutas se registran en `Server.Handler` (`internal/api/server.go`). La 
 
 ```bash
 # con una galleta de sesión copiada del navegador
-curl -s -b "session=…" https://rendimiento.joserod.space/api/apps | jq '.[].name'
-curl -s -b "session=…" -X POST https://rendimiento.joserod.space/api/apps/jobsentry/runs
+curl -s -b "session=…" https://rendimiento.example.com/api/apps | jq '.[].name'
+curl -s -b "session=…" -X POST https://rendimiento.example.com/api/apps/jobsentry/runs
 ```

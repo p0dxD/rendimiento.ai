@@ -101,7 +101,7 @@ The platform-wide window is `VERIFY_WINDOW` (default `5m`, `0` turns verificatio
 
 ## Public stats
 
-With `PUBLIC_STATS=true`, rendimiento publishes **aggregate numbers** at `GET /api/public/stats` for a public page. [joserod.space](https://joserod.space/#live) uses it for its *Live from the Home Lab* section.
+With `PUBLIC_STATS=true`, rendimiento publishes **aggregate numbers** at `GET /api/public/stats` for a public page. A portfolio can show them, for example in a *Live from the Home Lab* section.
 
 With `STATS_LISTEN` set (`:8081` here), the stats are served **only on that internal port**, which the Service exposes as `stats` and the public Ingress doesn't route. The page fetches them server-side over the cluster network (`http://rendimiento.rendimiento-system.svc.cluster.local:8081/api/public/stats`), so they're reachable from inside the cluster but **not from the internet**.
 

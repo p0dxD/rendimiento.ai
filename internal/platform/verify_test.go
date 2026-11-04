@@ -85,7 +85,7 @@ func TestReleaseVerification(t *testing.T) {
 			return store.Probe{AppID: tg.AppID, Service: tg.Service, Kind: tg.Kind, OK: !broken.Load(), Error: "HTTP 502", At: time.Now()}
 		},
 	}
-	yaml := "services:\n  - name: web\n    domain: version.joserod.space\n    health: { path: /health }\n"
+	yaml := "services:\n  - name: web\n    domain: version.example.com\n    health: { path: /health }\n"
 	sha := func(c byte) string { return strings.Repeat(string(c), 40) }
 	tree := fstest.MapFS{"rendimiento.yaml": {Data: []byte(yaml)}}
 	for _, c := range "ab" {

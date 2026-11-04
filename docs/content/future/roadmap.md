@@ -7,7 +7,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 | # | Item | Why | Where |
 |---|---|---|---|
 | 1 | **Platform metrics in Grafana**: scrape `METRICS_ADDR` (uptime metrics are already exported there), add build metrics, and a dashboard | see builds slowing or queues growing before users do | a `VMServiceScrape`, a metrics port on the Service, `pipeline`, `platform` |
-| 2 | **Preview environments** per pull request (`pr-42.app.joserod.space`) | try changes before merging | `platform` (PR webhooks), `render` (name suffix), cleanup on close |
+| 2 | **Preview environments** per pull request (`pr-42.app.example.com`) | try changes before merging | `platform` (PR webhooks), `render` (name suffix), cleanup on close |
 
 ## Medium term
 

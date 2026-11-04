@@ -33,13 +33,13 @@ func TestSyncFollowsPublicIP(t *testing.T) {
 	ctx := context.Background()
 
 	// New apps point at the detected IP.
-	if err := cf.Ensure(ctx, "hello.joserod.space", "hello"); err != nil {
+	if err := cf.Ensure(ctx, "hello.example.com", "hello"); err != nil {
 		t.Fatal(err)
 	}
 	// A hand-made record opted in via its comment, one that is not, and a CNAME.
-	f.records["tagged"] = record{ID: "tagged", Type: "A", Name: "secplus.joserod.space", Content: ip, Comment: "site rendimiento-ddns"}
-	f.records["untagged"] = record{ID: "untagged", Type: "A", Name: "nas.joserod.space", Content: ip, Comment: "my nas"}
-	f.records["cname"] = record{ID: "cname", Type: "CNAME", Name: "www.joserod.space", Content: "joserod.space", Comment: "rendimiento-ddns"}
+	f.records["tagged"] = record{ID: "tagged", Type: "A", Name: "secplus.example.com", Content: ip, Comment: "site rendimiento-ddns"}
+	f.records["untagged"] = record{ID: "untagged", Type: "A", Name: "nas.example.com", Content: ip, Comment: "my nas"}
+	f.records["cname"] = record{ID: "cname", Type: "CNAME", Name: "www.example.com", Content: "example.com", Comment: "rendimiento-ddns"}
 
 	// Same IP: nothing to do.
 	res, err := cf.Sync(ctx)
@@ -54,10 +54,10 @@ func TestSyncFollowsPublicIP(t *testing.T) {
 		t.Fatalf("after change: %+v %v", res, err)
 	}
 	sort.Strings(res.Updated)
-	if strings.Join(res.Updated, ",") != "hello.joserod.space,secplus.joserod.space" {
+	if strings.Join(res.Updated, ",") != "hello.example.com,secplus.example.com" {
 		t.Fatalf("updated = %v", res.Updated)
 	}
-	for id, want := range map[string]string{"tagged": "203.0.113.9", "untagged": "203.0.113.7", "cname": "joserod.space"} {
+	for id, want := range map[string]string{"tagged": "203.0.113.9", "untagged": "203.0.113.7", "cname": "example.com"} {
 		if got := f.records[id].Content; got != want {
 			t.Errorf("%s content = %s, want %s", id, got, want)
 		}
@@ -88,7 +88,7 @@ func TestSyncFollowsPublicIP(t *testing.T) {
 
 func TestFixedTargetSyncIsNoop(t *testing.T) {
 	cf, f := setup(t)
-	f.records["x"] = record{ID: "x", Type: "A", Name: "a.joserod.space", Content: "1.2.3.4", Comment: "managed-by=rendimiento app=a"}
+	f.records["x"] = record{ID: "x", Type: "A", Name: "a.example.com", Content: "1.2.3.4", Comment: "managed-by=rendimiento app=a"}
 	res, err := cf.Sync(context.Background())
 	if err != nil || res.IP != "203.0.113.7" || f.records["x"].Content != "1.2.3.4" {
 		t.Fatalf("fixed mode touched records: %+v %v %+v", res, err, f.records["x"])

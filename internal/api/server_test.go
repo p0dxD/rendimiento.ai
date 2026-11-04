@@ -355,9 +355,9 @@ func TestPublicStats(t *testing.T) {
 	if resp, _ := e.do(t, "GET", "/api/public/stats", "", nil, nil); resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("off: %d", resp.StatusCode)
 	}
-	e.s.PublicStats, e.s.PublicOrigins, e.s.PublicTimeZone = true, []string{"https://joserod.space"}, "America/New_York"
-	resp, body := e.do(t, "GET", "/api/public/stats", "", nil, map[string]string{"Origin": "https://joserod.space"})
-	if resp.StatusCode != 200 || resp.Header.Get("Access-Control-Allow-Origin") != "https://joserod.space" {
+	e.s.PublicStats, e.s.PublicOrigins, e.s.PublicTimeZone = true, []string{"https://example.com"}, "America/New_York"
+	resp, body := e.do(t, "GET", "/api/public/stats", "", nil, map[string]string{"Origin": "https://example.com"})
+	if resp.StatusCode != 200 || resp.Header.Get("Access-Control-Allow-Origin") != "https://example.com" {
 		t.Fatalf("on: %d %q", resp.StatusCode, resp.Header.Get("Access-Control-Allow-Origin"))
 	}
 	var st PublicStats

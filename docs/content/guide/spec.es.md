@@ -13,8 +13,8 @@ services:
   - name: web                                 # una etiqueta DNS: minúsculas, dígitos, guiones
     path: web                                 # carpeta que se construye (predeterminado ".")
     port: 3000                                # el puerto en el que escucha la aplicación (predeterminado 8080)
-    domain: shop.joserod.space                # dirección HTTPS pública (DNS + certificado)
-    aliases: [www.shop.joserod.space]         # más hosts, el mismo certificado
+    domain: shop.example.com                # dirección HTTPS pública (DNS + certificado)
+    aliases: [www.shop.example.com]         # más hosts, el mismo certificado
     size: medium                              # small | medium | large
     replicas: 2                               # más de 1 = despliegues sin interrupciones
     health: { path: /api/health }             # disponibilidad + vida
@@ -26,7 +26,7 @@ services:
   - name: api
     path: api
     port: 8000
-    routes: [shop.joserod.space/api]          # una ruta en el host de web
+    routes: [shop.example.com/api]          # una ruta en el host de web
     needs: [postgres]                         # se inyectan DATABASE_URL + PG*
     secretEnv: { STRIPE_KEY: shop-api/stripe } # una variable tomada de la clave de un secreto
     resources: { memory: 512Mi, memoryLimit: 1Gi }
@@ -150,7 +150,7 @@ Un servicio con volumen usa la estrategia **Recreate** (un volumen se conecta a 
 |---|---|---|
 | `domain` | nombre de host | Dirección HTTPS pública: una entrada, un certificado y un registro DNS. |
 | `aliases` | nombres de host | Más hosts con el mismo certificado (requiere `domain`). |
-| `routes` | lista de `host/ruta` | Mandar a este servicio una ruta en un host que pertenece a otro servicio de esta aplicación, por ejemplo `shop.joserod.space/api`. |
+| `routes` | lista de `host/ruta` | Mandar a este servicio una ruta en un host que pertenece a otro servicio de esta aplicación, por ejemplo `shop.example.com/api`. |
 | `tlsSecret` | nombre | Nombre del secreto del certificado (predeterminado `<nombre>-tls`); conserve uno existente al migrar. |
 | `ingress.name` | nombre | Conservar el nombre de un Ingress existente al migrar. |
 | `ingress.annotations` | mapa | Ajustes adicionales `nginx.ingress.kubernetes.io/*` (límites de peticiones, tamaño del cuerpo, CORS…). Se rechazan los fragmentos de código. |

@@ -21,7 +21,7 @@ import (
 // Input is what generation works from: the repo, its files and what detection found.
 type Input struct {
 	RepoName string // e.g. "secplus"
-	Zone     string // DNS zone for default domains, e.g. "joserod.space"
+	Zone     string // DNS zone for default domains, e.g. "example.com"
 	FS       fs.FS
 	Results  []detect.Result
 }

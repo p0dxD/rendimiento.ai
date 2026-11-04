@@ -48,7 +48,7 @@ También hay una versión en texto simple para los programas de correo que no mu
 
 ## Configuración {#setting-it-up}
 
-El correo se envía a través de [Resend](https://resend.com), desde un remitente en un dominio verificado ahí (aquí `alerts@joserod.space`, compartido con los correos de actualización del clúster y de StockFinancia).
+El correo se envía a través de [Resend](https://resend.com), desde un remitente en un dominio verificado ahí (por ejemplo, `alerts@example.com`).
 
 ```bash
 # la clave de la API, en su propio secreto (lo lee el envFrom de la plataforma)
@@ -59,7 +59,7 @@ kubectl -n rendimiento-system create secret generic rendimiento-notify --from-li
 |---|---|---|
 | `NOTIFY_EMAIL_TO` | ConfigMap `rendimiento` | Destinatarios, separados por comas. Vacío desactiva el correo. |
 | `NOTIFY_LANG` | ConfigMap `rendimiento` | `en` (predeterminado) o `es`: el [idioma](languages.md) de los correos. |
-| `NOTIFY_EMAIL_FROM` | ConfigMap | Remitente (de forma predeterminada `rendimiento <alerts@joserod.space>`); debe estar en un dominio verificado. |
+| `NOTIFY_EMAIL_FROM` | ConfigMap | Remitente (de forma predeterminada `rendimiento <alerts@example.com>`); debe estar en un dominio verificado. |
 | `RESEND_API_KEY` | Secreto `rendimiento-notify` | La clave de la API de Resend. |
 
 Reinicie la plataforma después de cambiarlos. La comprobación *Notificaciones por correo* de la página **Entorno** muestra si el correo está configurado. Su botón **Enviar un correo de prueba** envía un ejemplo al momento y muestra cualquier error del proveedor.
