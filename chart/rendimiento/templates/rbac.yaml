@@ -1,0 +1,152 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rendimiento
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+---
+# Cluster-wide because each app gets its own namespace. The controller
+# refuses namespaces and hostnames it does not own.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rendimiento
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [rendimiento.ai]
+    resources: [apps, apps/status, apps/finalizers, addons, addons/status, addons/finalizers]
+    verbs: ["*"]
+  {{- if .Values.addons.enabled }}
+  # Add-ons are applied as the rendimiento-addons identity (below); the
+  # platform itself may only act as it, not hold its rights.
+  - apiGroups: [""]
+    resources: [serviceaccounts]
+    resourceNames: [rendimiento-addons]
+    verbs: [impersonate]
+  {{- end }}
+  - apiGroups: [""]
+    resources: [namespaces, services, persistentvolumeclaims, secrets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [batch]
+    resources: [cronjobs]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # Deploy tasks run as Jobs in the app's namespace; their logs are kept.
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch, create, delete]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+  - apiGroups: [cert-manager.io]
+    resources: [certificates]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+  # Read-only, for the Environment page.
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [get, list]
+  - apiGroups: [metrics.k8s.io]
+    resources: [nodes]
+    verbs: [get, list]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingressclasses, networkpolicies]
+    verbs: [get, list]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses]
+    verbs: [get, list]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    verbs: [get, list]
+  - apiGroups: [cert-manager.io]
+    resources: [clusterissuers]
+    verbs: [get, list]
+  - apiGroups: [longhorn.io]
+    resources: [volumes, recurringjobs, backuptargets]
+    verbs: [get, list]
+  # Read-only, for the services catalog and the registry cleanup.
+  - apiGroups: [apps]
+    resources: [statefulsets, daemonsets, replicasets]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rendimiento
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rendimiento
+subjects:
+  - kind: ServiceAccount
+    name: rendimiento
+    namespace: {{ .Release.Namespace }}
+---
+# Leader election.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rendimiento-leader
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, watch, create, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rendimiento-leader
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rendimiento-leader
+subjects:
+  - kind: ServiceAccount
+    name: rendimiento
+    namespace: {{ .Release.Namespace }}
+{{- if .Values.addons.enabled }}
+---
+# Add-ons install cluster software (Helm charts with CRDs, ClusterRoles,
+# DaemonSets), which needs cluster-admin. No pod runs as this account: the
+# platform impersonates it only while applying add-ons, so the audit log
+# shows exactly what add-ons changed.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rendimiento-addons
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rendimiento-addons
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: rendimiento-addons
+    namespace: {{ .Release.Namespace }}
+{{- end }}

@@ -11,6 +11,7 @@ DEPLOY_DIR ?= deploy
 generate: ## deepcopy + CRD from api/v1alpha1
 	controller-gen object paths=./api/... paths=./internal/spec/...
 	controller-gen crd paths=./api/... output:crd:dir=deploy/crds
+	cp deploy/crds/*.yaml chart/rendimiento/crds/
 
 ui:
 	cd web && npm ci && npm run build

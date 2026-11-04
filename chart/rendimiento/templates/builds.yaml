@@ -1,0 +1,85 @@
+# CI steps run code from the repositories being built (tests, Dockerfile RUN
+# lines), in their own namespace.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.buildNamespace }}
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+---
+# CI pods: create, watch, read logs, clean up.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rendimiento-builds
+  namespace: {{ .Values.buildNamespace }}
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [pods, secrets]
+    verbs: [get, list, watch, create, delete]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rendimiento-builds
+  namespace: {{ .Values.buildNamespace }}
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rendimiento-builds
+subjects:
+  - kind: ServiceAccount
+    name: rendimiento
+    namespace: {{ .Release.Namespace }}
+---
+# Keep build pods away from everything else: they may reach DNS, BuildKit
+# and the public internet (git, package registries), but not other apps,
+# databases, the Kubernetes API or the local network.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-builds
+  namespace: {{ .Values.buildNamespace }}
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ if .Values.buildkit.bundled }}{{ .Release.Namespace }}{{ else }}{{ .Values.buildkit.namespace }}{{ end }} }
+          podSelector:
+            matchLabels:
+              {{- if .Values.buildkit.bundled }}
+              app: rendimiento-buildkitd
+              {{- else }}
+              {{- toYaml .Values.buildkit.podLabels | nindent 14 }}
+              {{- end }}
+      ports:
+        - { protocol: TCP, port: 1234 }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 100.64.0.0/10

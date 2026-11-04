@@ -1,0 +1,88 @@
+# rendimiento on your own cluster. Install it once per cluster: some objects
+# (the CRDs, the ClusterRoles) are cluster-wide and keep fixed names.
+#
+#   helm install rendimiento ./chart/rendimiento -n rendimiento-system --create-namespace \
+#     --set baseURL=https://rendimiento.example.com --set firstAdmins=your-github-login \
+#     --set registry.host=registry.example.com
+#
+# Then open baseURL and follow the setup page (it makes the GitHub App).
+
+image:
+  repository: ghcr.io/p0dxd/rendimiento
+  tag: ""            # empty: the chart's appVersion
+  pullPolicy: IfNotPresent
+
+# The address people and GitHub reach rendimiento at (the UI, webhooks).
+baseURL: https://rendimiento.example.com
+# GitHub logins of the first administrators, comma-separated; afterwards
+# people are managed on the Members page.
+firstAdmins: ""
+githubAppName: rendimiento
+
+# Where builds push app images, and where your nodes pull them from: both
+# must reach it at this same name. Nodes pull without credentials, so use
+# a registry they trust (in k3s, /etc/rancher/k3s/registries.yaml).
+registry:
+  host: registry.example.lan:5000
+  insecure: true     # plain HTTP or a self-signed certificate
+
+# BuildKit builds the images. bundled runs one daemon here (rootless);
+# otherwise give the address of yours.
+buildkit:
+  bundled: true
+  image: moby/buildkit:v0.18.2-rootless
+  address: ""        # e.g. tcp://buildkitd.devops-tools.svc.cluster.local:1234
+  # Where build pods may reach your own BuildKit (the NetworkPolicy).
+  namespace: devops-tools
+  podLabels: { app: buildkitd }
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { memory: 4Gi }
+
+# CI steps run here, isolated by a NetworkPolicy.
+buildNamespace: rendimiento-builds
+
+# Postgres keeps everything. bundled runs one here; otherwise give a URL
+# (postgres://user:password@host:5432/db) in an existing Secret's key.
+postgres:
+  bundled: true
+  image: postgres:17-alpine
+  storage: 5Gi
+  existingSecret: ""   # with bundled: false, a Secret with key "url"
+
+# Storage class for Postgres, app volumes and test caches ("": the default).
+storageClass: ""
+
+ingress:
+  enabled: true
+  className: nginx
+  # A cert-manager ClusterIssuer for the certificates of rendimiento and
+  # every app ("": no automatic certificates).
+  clusterIssuer: ""
+  annotations: {}
+
+# Replicas of each service; the API serves the UI and webhooks.
+replicas:
+  api: 2
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { memory: 512Mi }
+
+# Add-ons install cluster software as a cluster-admin identity that the
+# platform only impersonates while applying them. false: no add-ons.
+addons:
+  enabled: true
+
+# More settings for the ConfigMap, by name (see the book's Configuration
+# reference): DNS_ZONE, NOTIFY_EMAIL_TO, AI_PLATFORM_CAP, ...
+config: {}
+
+# Secrets with more settings (DNS, email, AI, log archive), by name; each
+# is optional.
+extraSecrets:
+  - rendimiento-dns
+  - rendimiento-notify
+  - rendimiento-logs
+  - rendimiento-umami
+  - rendimiento-ia

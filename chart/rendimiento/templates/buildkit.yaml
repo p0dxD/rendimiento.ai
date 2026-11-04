@@ -1,0 +1,72 @@
+{{- if .Values.buildkit.bundled }}
+# One BuildKit daemon, rootless: it builds every app's images and pushes
+# them to registry.host. Only build pods may reach it (see builds.yaml).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rendimiento-buildkitd
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: rendimiento-buildkitd }
+  template:
+    metadata:
+      labels: { app: rendimiento-buildkitd }
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/buildkitd: unconfined
+    spec:
+      containers:
+        - name: buildkitd
+          image: {{ .Values.buildkit.image }}
+          args:
+            - --addr=unix:///run/user/1000/buildkit/buildkitd.sock
+            - --addr=tcp://0.0.0.0:1234
+            - --oci-worker-no-process-sandbox
+          ports: [{ name: buildkit, containerPort: 1234 }]
+          readinessProbe:
+            exec: { command: [buildctl, debug, workers] }
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.buildkit.resources | nindent 12 }}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile: { type: Unconfined }
+          volumeMounts:
+            - { name: cache, mountPath: /home/user/.local/share/buildkit }
+      volumes:
+        - name: cache
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rendimiento-buildkitd
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+spec:
+  selector: { app: rendimiento-buildkitd }
+  ports: [{ name: buildkit, port: 1234, targetPort: buildkit }]
+---
+# Only build pods connect to BuildKit.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rendimiento-buildkitd
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { app: rendimiento-buildkitd }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Values.buildNamespace }} }
+      ports:
+        - { protocol: TCP, port: 1234 }
+{{- end }}

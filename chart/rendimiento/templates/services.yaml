@@ -1,0 +1,142 @@
+{{- $root := . }}
+{{- range $s := list
+  (dict "name" "rendimiento" "role" "api" "replicas" .Values.replicas.api "port" "http")
+  (dict "name" "rendimiento-control" "role" "control" "replicas" 1 "port" "http")
+  (dict "name" "rendimiento-worker" "role" "worker" "replicas" 1 "port" "http")
+  (dict "name" "rendimiento-agents" "role" "agents" "replicas" 1 "port" "http")
+  (dict "name" "rendimiento-traces" "role" "traces" "replicas" 1 "port" "otlp") }}
+---
+# The platform runs as five services from one image (ROLE). One failing
+# does not take the others down; they talk through Postgres. Updates have
+# no downtime: an old pod keeps working until its new one is ready.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $s.name }}
+  labels:
+    {{- include "rendimiento.labels" $root | nindent 4 }}
+spec:
+  replicas: {{ $s.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: {{ $s.name }} }
+  template:
+    metadata:
+      labels: { app: {{ $s.name }} }
+      annotations:
+        checksum/config: {{ include (print $root.Template.BasePath "/config.yaml") $root | sha256sum }}
+    spec:
+      serviceAccountName: rendimiento
+      containers:
+        - name: rendimiento
+          image: {{ include "rendimiento.image" $root }}
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          envFrom:
+            - configMapRef: { name: rendimiento }
+            {{- range $root.Values.extraSecrets }}
+            - secretRef: { name: {{ . }}, optional: true }
+            {{- end }}
+          env:
+            - { name: ROLE, value: {{ $s.role }} }
+            {{- if $root.Values.postgres.bundled }}
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: rendimiento-db, key: password } }
+            - name: DATABASE_URL
+              value: postgres://rendimiento:$(DB_PASSWORD)@rendimiento-db:5432/rendimiento?sslmode=disable
+            {{- else }}
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: {{ required "postgres.existingSecret is required when postgres.bundled is false" $root.Values.postgres.existingSecret }}, key: url } }
+            {{- end }}
+            - name: SETUP_TOKEN
+              valueFrom: { secretKeyRef: { name: rendimiento-setup, key: token } }
+          ports:
+            {{- if eq $s.role "traces" }}
+            - { name: otlp, containerPort: 4318 }
+            {{- else }}
+            - { name: http, containerPort: 8080 }
+            - { name: metrics, containerPort: 9090 }
+            {{- if eq $s.role "api" }}
+            - { name: stats, containerPort: 8081 }
+            {{- end }}
+            {{- end }}
+          readinessProbe:
+            httpGet: { path: /healthz, port: {{ $s.port }} }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: {{ $s.port }} }
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            {{- toYaml $root.Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            capabilities: { drop: [ALL] }
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rendimiento
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+spec:
+  selector: { app: rendimiento }
+  ports:
+    - { name: http, port: 80, targetPort: http }
+    # In-cluster only: the public stats (the Ingress routes only "http").
+    - { name: stats, port: 8081, targetPort: stats }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rendimiento-traces
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+spec:
+  # In-cluster only: where an OpenTelemetry Collector exports traces.
+  selector: { app: rendimiento-traces }
+  ports:
+    - { name: otlp, port: 4318, targetPort: otlp }
+{{- if .Values.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rendimiento
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.clusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ . }}
+    {{- end }}
+    {{- if eq .Values.ingress.className "nginx" }}
+    # Live logs use server-sent events.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: 25m
+    {{- end }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.clusterIssuer }}
+  tls:
+    - hosts: [{{ include "rendimiento.host" . }}]
+      secretName: rendimiento-tls
+  {{- end }}
+  rules:
+    - host: {{ include "rendimiento.host" . }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: rendimiento, port: { name: http } }
+{{- end }}

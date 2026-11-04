@@ -1,0 +1,11 @@
+apiVersion: v2
+name: rendimiento
+description: Deploy any app from its repository; AI agents explain and fix what breaks.
+type: application
+# The chart's own version; appVersion is the image tag used by default.
+version: 0.1.0
+appVersion: main
+home: https://github.com/p0dxD/rendimiento.ai
+sources:
+  - https://github.com/p0dxD/rendimiento.ai
+keywords: [ci, cd, paas, deploy, gitops, ai]
