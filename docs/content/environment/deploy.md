@@ -170,6 +170,31 @@ On restart the platform:
 !!! warning "`:latest` has no history"
     Rolling back a hand-built platform means rebuilding the previous commit (`git checkout <good commit> && make image`). The images rendimiento builds itself are kept by release, so [updating from the Environment page](#updating-from-the-environment-page) has a history to go back to.
 
+### The public image {#the-public-image}
+
+Every change that reaches `main`, and every `v1.2.3` tag, is also published for **arm64 and amd64** at `ghcr.io/p0dxd/rendimiento`, by a GitHub Actions workflow (`.github/workflows/imagen.yml`) that only builds and publishes: the tests ran in rendimiento before the merge. Its tags are `:main` and `:sha-<commit>` for `main`, and `:1.2.3`, `:1.2` and `:latest` for a release. To install on another cluster, point the Deployments' `image:` at one of them instead of building your own. The Dockerfile cross-compiles, so the image for the other architecture needs no emulation.
+
+### Installing with Helm {#installing-with-helm}
+
+`chart/rendimiento` installs the platform on another cluster from the public image, without an overlay of your own:
+
+```bash
+helm install rendimiento ./chart/rendimiento -n rendimiento-system --create-namespace \
+  --set baseURL=https://rendimiento.example.com \
+  --set firstAdmins=your-github-login \
+  --set registry.host=registry.example.com
+```
+
+It brings the five services, Postgres, a rootless BuildKit daemon, the build namespace with its NetworkPolicy, the RBAC and the CRDs, and it makes the database password and the setup token (kept across upgrades). Then open `baseURL`: the setup page makes the GitHub App, and `helm` prints how to read the setup token.
+
+What the cluster still needs:
+
+- **An image registry your nodes trust.** Builds push app images to `registry.host`, and the nodes pull them from the same name without credentials (a public registry, or one the nodes are configured for, as in k3s's `registries.yaml`).
+- **An ingress controller** (`ingress.className`, `nginx` by default), and cert-manager with a ClusterIssuer if you want certificates (`ingress.clusterIssuer`).
+- **A default StorageClass**, or `storageClass`.
+
+`postgres.bundled=false` with `postgres.existingSecret` (a key `url`) uses your own database, and `buildkit.bundled=false` with `buildkit.address` your own BuildKit. `addons.enabled=false` leaves out the cluster-admin identity add-ons need. Every other setting goes in `config` (see [Configuration](../reference/config.md)), and the optional secrets (DNS, email, AI, log archive) are read by name as in `deploy/`. The chart installs one platform per cluster: its cluster-wide objects keep fixed names.
+
 ## rendimiento builds itself {#rendimiento-builds-itself}
 
 rendimiento's repository is onboarded like any app. Its `rendimiento.yaml` has the book (`docs`, a service) and the platform's own image (`builds: platform`), so every push runs:

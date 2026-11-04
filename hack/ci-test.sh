@@ -41,8 +41,9 @@ fi
 section generate
 controller-gen object paths=./api/... paths=./internal/spec/...
 controller-gen crd paths=./api/... output:crd:dir=deploy/crds
-if [ -n "${CHECK_GENERATED:-}" ] && ! git diff --quiet -- api internal/spec deploy/crds; then
-  git diff --stat -- api internal/spec deploy/crds
+cp deploy/crds/*.yaml chart/rendimiento/crds/   # the Helm chart ships the same CRDs
+if [ -n "${CHECK_GENERATED:-}" ] && ! git diff --quiet -- api internal/spec deploy/crds chart/rendimiento/crds; then
+  git diff --stat -- api internal/spec deploy/crds chart/rendimiento/crds
   echo "generated files are out of date: run make generate (or make test-remote) and commit them"
   exit 1
 fi

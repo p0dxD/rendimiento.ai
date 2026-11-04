@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rendimiento
+  labels:
+    {{- include "rendimiento.labels" . | nindent 4 }}
+data:
+  BASE_URL: {{ .Values.baseURL | quote }}
+  ALLOWED_USERS: {{ required "firstAdmins is required: your GitHub login" .Values.firstAdmins | quote }}
+  GITHUB_APP_NAME: {{ .Values.githubAppName | quote }}
+  NAMESPACE: {{ .Release.Namespace | quote }}
+  BUILD_NAMESPACE: {{ .Values.buildNamespace | quote }}
+  REGISTRY: {{ required "registry.host is required" .Values.registry.host | quote }}
+  REGISTRY_INSECURE: {{ .Values.registry.insecure | quote }}
+  BUILDKIT_ADDR: {{ include "rendimiento.buildkit" . | quote }}
+  LEADER_ELECTION: "true"
+  SERVICES: rendimiento,rendimiento-control,rendimiento-worker,rendimiento-traces,rendimiento-agents
+  {{- with .Values.storageClass }}
+  STORAGE_CLASS: {{ . | quote }}
+  TEST_CACHE_STORAGE_CLASS: {{ . | quote }}
+  {{- end }}
+  {{- if .Values.ingress.enabled }}
+  INGRESS_CLASS: {{ .Values.ingress.className | quote }}
+  {{- end }}
+  {{- with .Values.ingress.clusterIssuer }}
+  CLUSTER_ISSUER: {{ . | quote }}
+  {{- end }}
+  {{- range $k, $v := .Values.config }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}

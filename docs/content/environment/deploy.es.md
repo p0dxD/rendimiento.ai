@@ -170,6 +170,31 @@ Al reiniciar, la plataforma:
 !!! warning "`:latest` no tiene historial"
     Revertir una plataforma construida a mano significa volver a construir la confirmación anterior (`git checkout <confirmación buena> && make image`). Las imágenes que rendimiento construye de sí mismo se guardan por versión, así que [actualizar desde la página Entorno](#updating-from-the-environment-page) tiene un historial al cual regresar.
 
+### La imagen pública {#the-public-image}
+
+Cada cambio que llega a `main`, y cada etiqueta `v1.2.3`, también se publica para **arm64 y amd64** en `ghcr.io/p0dxd/rendimiento`, con un flujo de GitHub Actions (`.github/workflows/imagen.yml`) que solo construye y publica: las pruebas ya corrieron en rendimiento antes de juntar. Sus etiquetas son `:main` y `:sha-<commit>` para `main`, y `:1.2.3`, `:1.2` y `:latest` para una versión. Para instalarlo en otro clúster, apunte el `image:` de los Deployments a una de ellas en vez de construir la suya. El Dockerfile compila de forma cruzada, así que la imagen de la otra arquitectura no necesita emulación.
+
+### Instalar con Helm {#installing-with-helm}
+
+`chart/rendimiento` instala la plataforma en otro clúster con la imagen pública, sin una configuración privada propia:
+
+```bash
+helm install rendimiento ./chart/rendimiento -n rendimiento-system --create-namespace \
+  --set baseURL=https://rendimiento.example.com \
+  --set firstAdmins=su-usuario-de-github \
+  --set registry.host=registry.example.com
+```
+
+Trae los cinco servicios, Postgres, un BuildKit sin privilegios de root, el espacio de nombres de las construcciones con su NetworkPolicy, los permisos (RBAC) y los CRD, y crea la contraseña de la base de datos y la ficha de configuración inicial (se conservan entre actualizaciones). Luego abra `baseURL`: la página de configuración crea la aplicación de GitHub, y `helm` muestra cómo leer la ficha.
+
+Lo que el clúster todavía necesita:
+
+- **Un registro de imágenes en el que confíen sus nodos.** Las construcciones suben las imágenes de las aplicaciones a `registry.host`, y los nodos las descargan con ese mismo nombre y sin credenciales (un registro público, o uno para el que estén configurados, como el `registries.yaml` de k3s).
+- **Un controlador de ingress** (`ingress.className`, `nginx` por omisión), y cert-manager con un ClusterIssuer si quiere certificados (`ingress.clusterIssuer`).
+- **Una StorageClass por omisión**, o `storageClass`.
+
+`postgres.bundled=false` con `postgres.existingSecret` (una llave `url`) usa su propia base de datos, y `buildkit.bundled=false` con `buildkit.address`, su propio BuildKit. `addons.enabled=false` deja fuera la identidad de administrador del clúster que necesitan los complementos. Cualquier otro ajuste va en `config` (vea [Configuración](../reference/config.md)), y los secretos opcionales (DNS, correo, IA, archivo de registros) se leen por nombre, como en `deploy/`. El chart instala una plataforma por clúster: sus objetos de todo el clúster tienen nombres fijos.
+
 ## rendimiento se construye a sí mismo {#rendimiento-builds-itself}
 
 El repositorio de rendimiento está incorporado como cualquier aplicación. Su `rendimiento.yaml` tiene el libro (`docs`, un servicio) y la imagen de la plataforma (`builds: platform`), así que cada envío corre:
