@@ -55,6 +55,7 @@ import (
 	"github.com/p0dxD/rendimiento.ai/internal/render"
 	"github.com/p0dxD/rendimiento.ai/internal/renovate"
 	"github.com/p0dxD/rendimiento.ai/internal/ruta"
+	"github.com/p0dxD/rendimiento.ai/internal/secretos"
 	"github.com/p0dxD/rendimiento.ai/internal/selfupdate"
 	"github.com/p0dxD/rendimiento.ai/internal/store"
 	"github.com/p0dxD/rendimiento.ai/internal/traces"
@@ -268,7 +269,25 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	// GITHUB_ACCOUNTS: the only accounts whose installations of the App
 	// count (empty: all); a public App can be installed by anyone.
 	holder := &gh.Holder{Accounts: splitList(os.Getenv("GITHUB_ACCOUNTS"))}
-	creds := &api.SecretCredentials{Client: kube, Namespace: ns, Name: env("GITHUB_SECRET", "rendimiento-github")}
+	// The platform's own secrets (the GitHub App, organizations' AI keys)
+	// are Kubernetes Secrets, or, with SECRETS_KEY_FILE, sealed in Postgres
+	// by the key in that file (internal/secretos).
+	var creds api.CredentialStore = &api.SecretCredentials{Client: kube, Namespace: ns, Name: env("GITHUB_SECRET", "rendimiento-github")}
+	var aiKeys interface {
+		ia.Keys
+		api.IAKeys
+	} = ia.SecretKeys{Kube: kube, Namespace: ns}
+	if path := os.Getenv("SECRETS_KEY_FILE"); path != "" {
+		llave, err := secretos.LeerLlave(path)
+		if err != nil {
+			return fmt.Errorf("SECRETS_KEY_FILE: %w", err)
+		}
+		caja, err := secretos.Nueva(st, llave)
+		if err != nil {
+			return fmt.Errorf("SECRETS_KEY_FILE: %w", err)
+		}
+		creds, aiKeys = secretos.Credenciales{Caja: caja}, secretos.LlavesIA{Caja: caja}
+	}
 	if c, err := creds.Load(ctx); err != nil {
 		return fmt.Errorf("load GitHub credentials: %w", err)
 	} else if c != nil {
@@ -420,7 +439,6 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	if err != nil || aiCap < 0 {
 		return fmt.Errorf("AI_PLATFORM_CAP must be dollars a month, such as 5, got %q", os.Getenv("AI_PLATFORM_CAP"))
 	}
-	aiKeys := ia.SecretKeys{Kube: kube, Namespace: ns}
 	srv.IA = &ia.Gateway{Store: st, Keys: aiKeys,
 		LocalURL: os.Getenv("AI_LOCAL_URL"), LocalModel: env("AI_LOCAL_MODEL", ia.DefaultLocalModel),
 		PlatformKey: os.Getenv("AI_PLATFORM_KEY"), PlatformModel: env("AI_PLATFORM_MODEL", ia.DefaultAnthropicModel),
