@@ -8,9 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
+	"github.com/p0dxD/rendimiento.ai/internal/destino"
 	"github.com/p0dxD/rendimiento.ai/internal/events"
 	"github.com/p0dxD/rendimiento.ai/internal/notify"
 	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
@@ -35,21 +33,21 @@ type VerifySettings struct {
 	RolloutTimeout time.Duration
 	// Check runs one check (uptime.Checker.Check in production).
 	Check func(ctx context.Context, t uptime.Target) store.Probe
-	// Rollout reports a release's rollout; nil reads the App object.
+	// Rollout reports a release's rollout; nil asks the destination.
 	Rollout func(ctx context.Context, app string, release int64) (RolloutState, string, error)
 	// RunTask runs one post-deploy task; nil runs it as a Job.
 	RunTask func(ctx context.Context, app *store.App, rel *store.Release, t spec.Task) store.ReleaseTask
 }
 
 // RolloutState is where a release's rollout stands.
-type RolloutState int
+type RolloutState = destino.Estado
 
 // Rollout states.
 const (
-	RolloutPending RolloutState = iota
-	RolloutHealthy
-	RolloutFailed
-	RolloutSuperseded // a newer release replaced it
+	RolloutPending    = destino.Pendiente
+	RolloutHealthy    = destino.Sana
+	RolloutFailed     = destino.Fallida
+	RolloutSuperseded = destino.Reemplazada // a newer release replaced it
 )
 
 // errSuperseded stops a verification when a newer release replaces it.
@@ -363,7 +361,7 @@ func (p *Platform) waitRollout(ctx context.Context, app string, number int64) (b
 	}
 	state := p.Verify.Rollout
 	if state == nil {
-		state = p.rolloutState
+		state = p.target().Estado
 	}
 	deadline := time.Now().Add(timeout)
 	for {
@@ -387,35 +385,6 @@ func (p *Platform) waitRollout(ctx context.Context, app string, number int64) (b
 		case <-time.After(5 * time.Second):
 		}
 	}
-}
-
-// rolloutState reads the App object: healthy once the controller reports
-// the release Healthy, failed when it reports it Degraded or in Error.
-func (p *Platform) rolloutState(ctx context.Context, app string, number int64) (RolloutState, string, error) {
-	var cr v1alpha1.App
-	if err := p.Kube.Get(ctx, client.ObjectKey{Name: app}, &cr); err != nil {
-		return RolloutPending, "", err
-	}
-	if cr.Spec.Release != number {
-		return RolloutSuperseded, "", nil
-	}
-	if cr.Status.Release != number || cr.Status.ObservedGeneration < cr.Generation {
-		return RolloutPending, "the controller has not applied it yet", nil
-	}
-	switch cr.Status.Phase {
-	case v1alpha1.PhaseHealthy:
-		return RolloutHealthy, "", nil
-	case v1alpha1.PhaseDegraded, v1alpha1.PhaseError:
-		msg := cr.Status.Message
-		for _, s := range cr.Status.Services {
-			if s.Message != "" {
-				msg = s.Name + ": " + s.Message
-				break
-			}
-		}
-		return RolloutFailed, msg, nil
-	}
-	return RolloutPending, string(cr.Status.Phase), nil
 }
 
 // windowStats accumulates one check's results during a verification window.
