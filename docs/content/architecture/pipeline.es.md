@@ -74,6 +74,10 @@ Los guiones, tal como se ejecutan:
 - **Reintentos de errores pasajeros de la API** (`transientRetry`): crear el secreto o el pod se reintenta ante "database is locked", errores 5xx y tiempos agotados, que ocurren cuando el plano de control está ocupado.
 - **Sufijos aleatorios en los nombres de los pods**, así una ejecución reintentada nunca choca con los pods que dejó su antecesora interrumpida.
 
+## Correr un paso sin clúster: `LocalExecutor` {#running-a-step-without-a-cluster}
+
+`LocalExecutor` corre los mismos pasos en una sola máquina, para rendimiento sin Kubernetes. Cada parte del pod se vuelve un contenedor del motor de la máquina, a través de `internal/motor`: `nerdctl` (containerd, el recomendado) o `docker`, que aceptan casi los mismos comandos. La copia del código y el paso comparten un volumen con nombre; el Postgres de una prueba corre a un lado y la prueba comparte su red (`--network container:`), así que `DATABASE_URL` es el mismo `127.0.0.1` que en el pod; la caché de una prueba es un volumen con nombre por aplicación y paso; una construcción corre `buildctl` en la red de la máquina contra un BuildKit y un registro locales, y el ejecutor lee el resumen de la imagen en la última línea de su registro. Los límites de CPU y memoria se vuelven `--cpus` y `--memory`. Lo que le falta es la NetworkPolicy del espacio de nombres de las construcciones: un paso puede llegar a la red local. Las tareas con secretos todavía no corren ahí.
+
 ## Detección de cambios: construir solo lo que cambió {#change-detection-building-only-what-changed}
 
 En un envío a la rama principal, `Platform.changes` compara la confirmación nueva con la confirmación de la última versión (la API de comparación de GitHub). Con esa lista de archivos, `reusable` conserva la imagen de cada servicio cuya carpeta (y rutas de `watch:`) no cambió; sus pasos muestran **reutilizada**. `skippedTasks` omite tareas de la misma manera, y además omite las tareas `when: deploy` en otras ramas. Cualquier duda significa una construcción completa:
