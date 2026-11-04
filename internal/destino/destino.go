@@ -6,6 +6,7 @@ package destino
 
 import (
 	"context"
+	"errors"
 
 	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
 	"github.com/p0dxD/rendimiento.ai/internal/spec"
@@ -52,7 +53,19 @@ type Destino interface {
 	// Desconectar stops managing the app and leaves it running as it is; an
 	// app that is not there is already disconnected.
 	Desconectar(ctx context.Context, app string) error
+
+	// LlavesSecreto lists the keys one of the app's secrets holds, never
+	// their values (none when it is not set yet). ErrSinLugar: the app has
+	// no place to keep secrets yet.
+	LlavesSecreto(ctx context.Context, app, nombre string) ([]string, error)
+	// GuardarSecreto adds or replaces the keys given and keeps the others; a
+	// nil value removes its key. The values stay in the destination only.
+	GuardarSecreto(ctx context.Context, app, nombre string, valores map[string]*string) error
 }
+
+// ErrSinLugar: the app has no place to keep secrets yet (in Kubernetes,
+// its namespace, made by the first deploy).
+var ErrSinLugar = errors.New("the app's namespace does not exist yet; set secrets after the first deploy starts")
 
 // Situacion is an app as it runs now: the status its page shows, and
 // whether it is suspended.

@@ -2,6 +2,8 @@ package destino
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -126,5 +128,35 @@ func TestKubernetesPaginas(t *testing.T) {
 	}
 	if err := d.Desconectar(ctx, "nadie"); err != nil {
 		t.Fatalf("disconnecting an app that is not there: %v", err)
+	}
+}
+
+// An app's secrets live in its namespace: none before it exists, keys
+// listed without values, and a nil value removes its key.
+func TestKubernetesSecretos(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	kube := fake.NewClientBuilder().WithScheme(scheme).Build()
+	d := Kubernetes{Kube: kube}
+	v := func(s string) *string { return &s }
+
+	if _, err := d.LlavesSecreto(ctx, "tienda", "llaves"); !errors.Is(err, ErrSinLugar) {
+		t.Fatalf("before the namespace: %v", err)
+	}
+	if err := kube.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "tienda", Labels: map[string]string{render.LabelApp: "tienda"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if keys, err := d.LlavesSecreto(ctx, "tienda", "llaves"); err != nil || len(keys) != 0 {
+		t.Fatalf("not set yet: %v %v", keys, err)
+	}
+	if err := d.GuardarSecreto(ctx, "tienda", "llaves", map[string]*string{"B": v("2"), "A": v("1")}); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.GuardarSecreto(ctx, "tienda", "llaves", map[string]*string{"A": nil, "C": v("3")}); err != nil {
+		t.Fatal(err)
+	}
+	if keys, err := d.LlavesSecreto(ctx, "tienda", "llaves"); err != nil || strings.Join(keys, ",") != "B,C" {
+		t.Fatalf("keys: %v %v", keys, err)
 	}
 }
