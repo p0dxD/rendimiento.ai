@@ -48,7 +48,7 @@ There's also a plain-text version for mail clients that don't show HTML. The lay
 
 ## Setting it up
 
-Email is sent through [Resend](https://resend.com), from a sender on a domain verified there (here `alerts@joserod.space`, shared with the cluster-update and StockFinancia emails).
+Email is sent through [Resend](https://resend.com), from a sender on a domain verified there (for example `alerts@example.com`).
 
 ```bash
 # the API key, in its own secret (read by the platform's envFrom)
@@ -59,7 +59,7 @@ kubectl -n rendimiento-system create secret generic rendimiento-notify --from-li
 |---|---|---|
 | `NOTIFY_EMAIL_TO` | ConfigMap `rendimiento` | Recipients, comma-separated. Empty turns email off. |
 | `NOTIFY_LANG` | ConfigMap `rendimiento` | `en` (default) or `es`: the [language](languages.md) of the emails. |
-| `NOTIFY_EMAIL_FROM` | ConfigMap | Sender (default `rendimiento <alerts@joserod.space>`); must be on a verified domain. |
+| `NOTIFY_EMAIL_FROM` | ConfigMap | Sender (default `rendimiento <alerts@example.com>`); must be on a verified domain. |
 | `RESEND_API_KEY` | Secret `rendimiento-notify` | The Resend API key. |
 
 Restart the platform after changing them. The **Environment** page's *Email notifications* check shows whether email is set up. Its **Send test email** button sends a sample right away and shows any error from the provider.

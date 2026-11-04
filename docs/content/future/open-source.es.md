@@ -4,7 +4,7 @@ El repositorio [p0dxD/rendimiento.ai](https://github.com/p0dxD/rendimiento.ai) y
 
 ## Que se pueda instalar en cualquier lado {#make-it-installable-anywhere}
 
-Hoy varios ajustes suponen este clúster (`registry.example.lan:5000`, `joserod.space`, `letsencrypt-prod`, el espacio de nombres `devops-tools`). Cada uno ya es una variable de entorno (vea [Ajustes](../reference/config.md)). Lo que falta:
+Hoy varios ajustes suponen este clúster (`registry.example.lan:5000`, el dominio del operador, `letsencrypt-prod`, el espacio de nombres `devops-tools`). Cada uno ya es una variable de entorno (vea [Ajustes](../reference/config.md)). Lo que falta:
 
 - **Un paquete de Helm** (`charts/rendimiento`) que genere `deploy/` con valores para esos ajustes, Postgres (incluido o externo) y el grupo de BuildKit. Así la gente puede correr `helm install rendimiento oci://ghcr.io/…`.
 - **Una primera experiencia que funcione en todas partes.** La página Entorno ya revisa la entrada, cert-manager, el almacenamiento, un registro y BuildKit, y dice cómo arreglar lo que falta. Falta agregar **instalaciones con un clic** de las piezas que faltan a través del catálogo de complementos (un registro, BuildKit, cert-manager).

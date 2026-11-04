@@ -186,7 +186,7 @@ func setup(t *testing.T) (*Platform, *fakeGitHub, *fakeExec, client.Client) {
 	}}
 	p := &Platform{
 		Store: st, Kube: kube, GitHub: gh, Generator: generate.Templates{}, Hub: events.NewHub(),
-		Config: Config{Registry: "registry.example.lan:5000", BaseURL: "https://rendimiento.joserod.space", Zone: "joserod.space"},
+		Config: Config{Registry: "registry.example.lan:5000", BaseURL: "https://rendimiento.example.com", Zone: "example.com"},
 		Log:    slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	exec := &fakeExec{p: p}
@@ -275,7 +275,7 @@ func TestOnboardPushDeployRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if prop.Existing || prop.Spec.Services[0].Domain != "hello.joserod.space" || prop.Files["Dockerfile"] == "" {
+	if prop.Existing || prop.Spec.Services[0].Domain != "hello.example.com" || prop.Files["Dockerfile"] == "" {
 		t.Fatalf("proposal = %+v", prop)
 	}
 
@@ -284,7 +284,7 @@ func TestOnboardPushDeployRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.PR == nil || !strings.Contains(fake.prs[0]["rendimiento.yaml"], "hello.joserod.space") {
+	if res.PR == nil || !strings.Contains(fake.prs[0]["rendimiento.yaml"], "hello.example.com") {
 		t.Fatalf("PR files = %v", fake.prs)
 	}
 	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "x/y", DefaultBranch: "main", Name: "hello", Spec: prop.Spec}, false); err == nil {
@@ -339,7 +339,7 @@ func TestOnboardPushDeployRollback(t *testing.T) {
 	waitRun(t, p, runs[0].ID)
 	exec.failSHA = sha3
 	// Add a test step so the failure is in "test".
-	fake.files[sha3] = fstest.MapFS{"rendimiento.yaml": {Data: []byte("services:\n  - name: hello\n    domain: hello.joserod.space\n    test: {image: golang:1.23, command: go test ./...}\n")}}
+	fake.files[sha3] = fstest.MapFS{"rendimiento.yaml": {Data: []byte("services:\n  - name: hello\n    domain: hello.example.com\n    test: {image: golang:1.23, command: go test ./...}\n")}}
 	runs, _ = p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/hello", Branch: "main", SHA: sha3})
 	r := waitRun(t, p, runs[0].ID)
 	// The build runs beside the test; the run (named after the test) fails
@@ -636,7 +636,7 @@ func TestDisconnectAndSuggestedName(t *testing.T) {
 	p, fake, _, kube := setup(t)
 	ctx := context.Background()
 	sha := strings.Repeat("a", 40)
-	yaml := "services:\n  - name: web\n    domain: shop.joserod.space\n"
+	yaml := "services:\n  - name: web\n    domain: shop.example.com\n"
 	fake.files["main"] = fstest.MapFS{"rendimiento.yaml": {Data: []byte(yaml)}}
 	fake.files[sha] = fake.files["main"]
 	sp, _ := spec.Parse([]byte(yaml))

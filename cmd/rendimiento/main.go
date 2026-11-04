@@ -494,7 +494,7 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 		prober.NotifyAfter = outageAfter
 	}
 	if key := os.Getenv("RESEND_API_KEY"); key != "" {
-		notifier.Sender = &notify.Resend{APIKey: key, From: env("NOTIFY_EMAIL_FROM", "rendimiento <alerts@joserod.space>")}
+		notifier.Sender = &notify.Resend{APIKey: key, From: env("NOTIFY_EMAIL_FROM", "rendimiento <alerts@example.com>")}
 	}
 	notifier.OnSent = func() {
 		// A sent email shows earlier send failures are over.

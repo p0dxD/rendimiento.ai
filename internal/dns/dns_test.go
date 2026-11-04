@@ -28,7 +28,7 @@ func (f *fakeCF) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/user/tokens/verify":
 		reply(map[string]string{"status": "active"})
 	case r.URL.Path == "/zones":
-		reply([]map[string]string{{"id": "z1", "name": "joserod.space"}})
+		reply([]map[string]string{{"id": "z1", "name": "example.com"}})
 	case r.Method == http.MethodGet && r.URL.Path == "/zones/z1/dns_records":
 		var out []record
 		q := r.URL.Query()
@@ -69,7 +69,7 @@ func setup(t *testing.T) (*Cloudflare, *fakeCF) {
 func TestEnsureCreateUpdateRemove(t *testing.T) {
 	cf, f := setup(t)
 	ctx := context.Background()
-	if err := cf.Ensure(ctx, "hello.joserod.space", "hello"); err != nil {
+	if err := cf.Ensure(ctx, "hello.example.com", "hello"); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.records) != 1 {
@@ -81,7 +81,7 @@ func TestEnsureCreateUpdateRemove(t *testing.T) {
 		}
 	}
 	cf.Target = "home.example.net"
-	if err := cf.Ensure(ctx, "hello.joserod.space", "hello"); err != nil {
+	if err := cf.Ensure(ctx, "hello.example.com", "hello"); err != nil {
 		t.Fatal(err)
 	}
 	for _, r := range f.records {
@@ -89,10 +89,10 @@ func TestEnsureCreateUpdateRemove(t *testing.T) {
 			t.Fatalf("not updated: %+v", r)
 		}
 	}
-	if err := cf.Remove(ctx, "hello.joserod.space", "other-app"); err != nil || len(f.records) != 1 {
+	if err := cf.Remove(ctx, "hello.example.com", "other-app"); err != nil || len(f.records) != 1 {
 		t.Fatalf("removed another app's record: %v %v", err, f.records)
 	}
-	if err := cf.Remove(ctx, "hello.joserod.space", "hello"); err != nil || len(f.records) != 0 {
+	if err := cf.Remove(ctx, "hello.example.com", "hello"); err != nil || len(f.records) != 0 {
 		t.Fatalf("not removed: %v %v", err, f.records)
 	}
 }
@@ -100,15 +100,15 @@ func TestEnsureCreateUpdateRemove(t *testing.T) {
 func TestNeverTouchesForeignRecords(t *testing.T) {
 	cf, f := setup(t)
 	ctx := context.Background()
-	f.records["x"] = record{ID: "x", Type: "A", Name: "secplus.joserod.space", Content: "198.51.100.1"}
-	if err := cf.Ensure(ctx, "secplus.joserod.space", "secplus"); !errors.Is(err, ErrConflict) {
+	f.records["x"] = record{ID: "x", Type: "A", Name: "secplus.example.com", Content: "198.51.100.1"}
+	if err := cf.Ensure(ctx, "secplus.example.com", "secplus"); !errors.Is(err, ErrConflict) {
 		t.Fatalf("want conflict, got %v", err)
 	}
-	f.records["x"] = record{ID: "x", Type: "A", Name: "secplus.joserod.space", Content: "203.0.113.7"}
-	if err := cf.Ensure(ctx, "secplus.joserod.space", "secplus"); err != nil {
+	f.records["x"] = record{ID: "x", Type: "A", Name: "secplus.example.com", Content: "203.0.113.7"}
+	if err := cf.Ensure(ctx, "secplus.example.com", "secplus"); err != nil {
 		t.Fatalf("matching hand-made record should be accepted: %v", err)
 	}
-	if err := cf.Remove(ctx, "secplus.joserod.space", "secplus"); err != nil || len(f.records) != 1 {
+	if err := cf.Remove(ctx, "secplus.example.com", "secplus"); err != nil || len(f.records) != 1 {
 		t.Fatal("must not delete hand-made record")
 	}
 	if err := cf.Ensure(ctx, "x.other.com", "x"); err == nil {

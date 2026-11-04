@@ -43,7 +43,7 @@ rendimiento was built alongside the existing Jenkins and ArgoCD, and every app w
 
 | When (2026) | What |
 |---|---|
-| Sep 23–24 | First version: GitHub App setup, detection, CI on BuildKit, the App controller, DNS and TLS. Deployed at `rendimiento.joserod.space`. |
+| Sep 23–24 | First version: GitHub App setup, detection, CI on BuildKit, the App controller, DNS and TLS. Deployed at `rendimiento.example.com`. |
 | Sep 24–26 | Migrated **secplus**, **simplerfc** (SQLite volume moved), **podoi** (with its Postgres), **stockpulse** (web, API, Postgres, scraper job), **wellness** (UI, API, Postgres, serverless functions). |
 | Sep 27 | Migrated **jobsentry** (gate, ui, intel, whois in a namespace shared with ArgoCD), then **linguistic-ai + ollama** on the GPU node. Added Railpack builds, the Services catalog, categories. **Jenkins** switched off. **Renovate** became an add-on authenticated as the GitHub App. |
 | Sep 28 | The **add-on engine**; took over **umami**, **hajimari**, **longhorn-backups** and **Longhorn** from ArgoCD with zero changes; **ArgoCD** switched off. Added `needs:`, Helm hooks, the BuildKit pool, remote tests and this book. |

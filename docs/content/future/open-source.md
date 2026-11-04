@@ -4,7 +4,7 @@ The repository [p0dxD/rendimiento.ai](https://github.com/p0dxD/rendimiento.ai) i
 
 ## Make it installable anywhere
 
-Today several settings assume this cluster (`registry.example.lan:5000`, `joserod.space`, `letsencrypt-prod`, the `devops-tools` namespace). Every one of them is already an environment variable (see [Settings](../reference/config.md)). What's missing:
+Today several settings assume this cluster (`registry.example.lan:5000`, the operator's domain, `letsencrypt-prod`, the `devops-tools` namespace). Every one of them is already an environment variable (see [Settings](../reference/config.md)). What's missing:
 
 - **A Helm chart** (`charts/rendimiento`) that renders `deploy/` with values for those settings, Postgres (bundled or external) and the BuildKit pool. It lets people run `helm install rendimiento oci://ghcr.io/…`.
 - **A first-run experience that works everywhere.** The Environment page already checks for ingress, cert-manager, storage, a registry and BuildKit, and says how to fix what's missing. Add **one-click installs** of missing pieces through the add-on catalog (a registry, BuildKit, cert-manager).

@@ -94,7 +94,7 @@ type Server struct {
 	AgentLang   string
 	routes      []route // authenticated routes and their roles (see Handler)
 	SetupToken  string  // guards the one-time GitHub App setup
-	AppName     string  // name for the GitHub App, e.g. "rendimiento-joserod"
+	AppName     string  // name for the GitHub App, e.g. "rendimiento-example"
 	GitHubAPI   string  // overridden in tests
 	UI          fs.FS   // built web UI; nil serves a placeholder
 	Environment *environment.Checker

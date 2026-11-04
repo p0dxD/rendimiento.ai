@@ -15,7 +15,7 @@ func gen(t *testing.T, repo string, fsys fstest.MapFS) *Plan {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := Templates{}.Generate(context.Background(), Input{RepoName: repo, Zone: "joserod.space", FS: fsys, Results: rs})
+	p, err := Templates{}.Generate(context.Background(), Input{RepoName: repo, Zone: "example.com", FS: fsys, Results: rs})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +27,7 @@ func f(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
 func TestGoRepoGetsDockerfile(t *testing.T) {
 	p := gen(t, "Hello_World", fstest.MapFS{"go.mod": f("module x\ngo 1.23\n")})
 	svc := p.Spec.Services[0]
-	if svc.Name != "hello-world" || svc.Domain != "hello-world.joserod.space" || svc.Port != 8080 {
+	if svc.Name != "hello-world" || svc.Domain != "hello-world.example.com" || svc.Port != 8080 {
 		t.Fatalf("unexpected service %+v", svc)
 	}
 	df := p.Files["Dockerfile"]
@@ -61,7 +61,7 @@ func TestMonorepoDomainsAndPython(t *testing.T) {
 	for _, s := range p.Spec.Services {
 		got[s.Name] = s.Domain
 	}
-	if got["ui"] != "stockpulse.joserod.space" || got["api"] != "api-stockpulse.joserod.space" {
+	if got["ui"] != "stockpulse.example.com" || got["api"] != "api-stockpulse.example.com" {
 		t.Fatalf("domains = %v", got)
 	}
 	if df := p.Files["api/Dockerfile"]; !strings.Contains(df, `"uvicorn", "app.main:app"`) || !strings.Contains(df, "requirements.txt uvicorn") {

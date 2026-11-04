@@ -22,7 +22,7 @@ services:
     port: 3000
     replicas: 2
     size: medium
-    domain: secplus.joserod.space
+    domain: secplus.example.com
     health: { path: /api/health }
     env: { NODE_ENV: production }
     secrets: [secplus-practice]
@@ -111,8 +111,8 @@ services:
   - name: podoi-website
     port: 3000
     replicas: 2
-    domain: joserod.space
-    aliases: [www.joserod.space]
+    domain: example.com
+    aliases: [www.example.com]
     tlsSecret: podoi-website-tls
   - name: blog-postgres
     image: postgres:15-alpine
@@ -129,7 +129,7 @@ services:
 		t.Fatal(err)
 	}
 	ing := objs.Ingresses[0]
-	if len(ing.Spec.Rules) != 2 || ing.Spec.Rules[1].Host != "www.joserod.space" || len(ing.Spec.TLS[0].Hosts) != 2 {
+	if len(ing.Spec.Rules) != 2 || ing.Spec.Rules[1].Host != "www.example.com" || len(ing.Spec.TLS[0].Hosts) != 2 {
 		t.Fatalf("ingress = %+v", ing.Spec)
 	}
 	db := objs.Deployments[1]
@@ -205,7 +205,7 @@ func TestRenderStockpulse(t *testing.T) {
 services:
   - name: stockpulse-ui
     port: 80
-    domain: stockpulse.joserod.space
+    domain: stockpulse.example.com
     aliases: [stockfinancia.com, www.stockfinancia.com]
     tlsSecret: stockpulse-tls
     streaming: true

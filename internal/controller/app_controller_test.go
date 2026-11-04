@@ -119,7 +119,7 @@ func TestAppLifecycle(t *testing.T) {
 		Spec: v1alpha1.AppSpec{
 			Repo: "p0dxD/hello",
 			Services: []spec.Service{
-				{Name: "web", Path: ".", Port: 8080, Size: spec.SizeSmall, Replicas: 2, Domain: "hello.joserod.space", Build: spec.Build{Dockerfile: "Dockerfile"}},
+				{Name: "web", Path: ".", Port: 8080, Size: spec.SizeSmall, Replicas: 2, Domain: "hello.example.com", Build: spec.Build{Dockerfile: "Dockerfile"}},
 				{Name: "worker", Path: "worker", Port: 8080, Size: spec.SizeSmall, Replicas: 1, Build: spec.Build{Dockerfile: "Dockerfile"}},
 			},
 		},
@@ -147,7 +147,7 @@ func TestAppLifecycle(t *testing.T) {
 	if ing.Annotations["cert-manager.io/cluster-issuer"] != "letsencrypt-prod" || len(ing.OwnerReferences) != 1 {
 		t.Fatalf("ingress not rendered as expected: %+v", ing.ObjectMeta)
 	}
-	eventually(t, "DNS record", func() bool { return dns.has("hello.joserod.space") })
+	eventually(t, "DNS record", func() bool { return dns.has("hello.example.com") })
 	eventually(t, "Progressing with release 1", func() bool {
 		s := get().Status
 		return s.Phase == v1alpha1.PhaseProgressing && s.Release == 1 && len(s.Services) == 2
@@ -187,7 +187,7 @@ func TestAppLifecycle(t *testing.T) {
 	eventually(t, "app deleted", func() bool {
 		return apierrors.IsNotFound(c.Get(ctx, client.ObjectKey{Name: "hello"}, &v1alpha1.App{}))
 	})
-	if dns.has("hello.joserod.space") {
+	if dns.has("hello.example.com") {
 		t.Fatal("DNS record not removed")
 	}
 }
@@ -202,13 +202,13 @@ func TestRefusesForeignNamespaceAndHost(t *testing.T) {
 	pt := networkingv1.PathTypePrefix
 	if err := c.Create(ctx, &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{Name: "secplus", Namespace: "secplus"},
-		Spec: networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "secplus.joserod.space",
+		Spec: networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "secplus.example.com",
 			IngressRuleValue: networkingv1.IngressRuleValue{HTTP: &networkingv1.HTTPIngressRuleValue{Paths: []networkingv1.HTTPIngressPath{{
 				Path: "/", PathType: &pt, Backend: networkingv1.IngressBackend{Service: &networkingv1.IngressServiceBackend{Name: "x", Port: networkingv1.ServiceBackendPort{Number: 80}}}}}}}}}},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	svc := spec.Service{Name: "web", Path: ".", Port: 3000, Size: spec.SizeSmall, Replicas: 1, Domain: "secplus.joserod.space", Build: spec.Build{Dockerfile: "Dockerfile"}}
+	svc := spec.Service{Name: "web", Path: ".", Port: 3000, Size: spec.SizeSmall, Replicas: 1, Domain: "secplus.example.com", Build: spec.Build{Dockerfile: "Dockerfile"}}
 	images := map[string]string{"web": "registry.local/x@sha256:1"}
 	for name, want := range map[string]string{"secplus": "namespace \"secplus\" already exists", "secplus-v2": "already served by ingress secplus/secplus"} {
 		if err := c.Create(ctx, &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: name}, Spec: v1alpha1.AppSpec{Services: []spec.Service{svc}, Images: images}}); err != nil {
@@ -246,8 +246,8 @@ func TestAdoptExistingDeployment(t *testing.T) {
 			Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "cache"}}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "c", Image: "redis"}}}}}},
 		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Namespace: "antiguo", Name: "antiguo"}, Spec: corev1.ServiceSpec{Selector: lbl, Ports: []corev1.ServicePort{{Port: 80}}}},
 		&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Namespace: "antiguo", Name: "antiguo"}, Spec: networkingv1.IngressSpec{
-			TLS: []networkingv1.IngressTLS{{Hosts: []string{"antiguo.joserod.space"}, SecretName: "antiguo-tls"}},
-			Rules: []networkingv1.IngressRule{{Host: "antiguo.joserod.space", IngressRuleValue: networkingv1.IngressRuleValue{HTTP: &networkingv1.HTTPIngressRuleValue{
+			TLS: []networkingv1.IngressTLS{{Hosts: []string{"antiguo.example.com"}, SecretName: "antiguo-tls"}},
+			Rules: []networkingv1.IngressRule{{Host: "antiguo.example.com", IngressRuleValue: networkingv1.IngressRuleValue{HTTP: &networkingv1.HTTPIngressRuleValue{
 				Paths: []networkingv1.HTTPIngressPath{{Path: "/", PathType: &pt, Backend: networkingv1.IngressBackend{Service: &networkingv1.IngressServiceBackend{
 					Name: "antiguo", Port: networkingv1.ServiceBackendPort{Number: 80}}}}}}}}}}},
 	} {
@@ -257,7 +257,7 @@ func TestAdoptExistingDeployment(t *testing.T) {
 	}
 
 	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "antiguo"}, Spec: v1alpha1.AppSpec{
-		Services: []spec.Service{{Name: "web", Path: ".", Port: 3000, Size: spec.SizeSmall, Replicas: 1, Domain: "antiguo.joserod.space",
+		Services: []spec.Service{{Name: "web", Path: ".", Port: 3000, Size: spec.SizeSmall, Replicas: 1, Domain: "antiguo.example.com",
 			TLSSecret: "antiguo-tls", Build: spec.Build{Dockerfile: "Dockerfile"}}},
 		Images: map[string]string{"web": "registry.local/antiguo-web@sha256:1"},
 	}}
@@ -298,7 +298,7 @@ func TestAdoptExistingDeployment(t *testing.T) {
 	eventually(t, "traffic switched to the new ingress", func() bool {
 		return c.Get(ctx, key("web"), &ing) == nil && apierrors.IsNotFound(c.Get(ctx, key("antiguo"), &networkingv1.Ingress{}))
 	})
-	if ing.Spec.TLS[0].SecretName != "antiguo-tls" || ing.Spec.Rules[0].Host != "antiguo.joserod.space" {
+	if ing.Spec.TLS[0].SecretName != "antiguo-tls" || ing.Spec.Rules[0].Host != "antiguo.example.com" {
 		t.Fatalf("new ingress = %+v", ing.Spec)
 	}
 	eventually(t, "antiguo workload removed", func() bool {
@@ -343,11 +343,11 @@ func TestAdoptStillBlocksOtherNamespaces(t *testing.T) {
 	pt := networkingv1.PathTypePrefix
 	_ = c.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "elsewhere"}})
 	_ = c.Create(ctx, &networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Namespace: "elsewhere", Name: "x"}, Spec: networkingv1.IngressSpec{
-		Rules: []networkingv1.IngressRule{{Host: "taken.joserod.space", IngressRuleValue: networkingv1.IngressRuleValue{HTTP: &networkingv1.HTTPIngressRuleValue{
+		Rules: []networkingv1.IngressRule{{Host: "taken.example.com", IngressRuleValue: networkingv1.IngressRuleValue{HTTP: &networkingv1.HTTPIngressRuleValue{
 			Paths: []networkingv1.HTTPIngressPath{{Path: "/", PathType: &pt, Backend: networkingv1.IngressBackend{Service: &networkingv1.IngressServiceBackend{
 				Name: "x", Port: networkingv1.ServiceBackendPort{Number: 80}}}}}}}}}}})
 	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "grabby"}, Spec: v1alpha1.AppSpec{Adopt: true,
-		Services: []spec.Service{{Name: "web", Path: ".", Port: 80, Size: spec.SizeSmall, Replicas: 1, Domain: "taken.joserod.space", Build: spec.Build{Dockerfile: "Dockerfile"}}},
+		Services: []spec.Service{{Name: "web", Path: ".", Port: 80, Size: spec.SizeSmall, Replicas: 1, Domain: "taken.example.com", Build: spec.Build{Dockerfile: "Dockerfile"}}},
 		Images:   map[string]string{"web": "x@sha256:1"}}}
 	if err := c.Create(ctx, app); err != nil {
 		t.Fatal(err)
@@ -381,8 +381,8 @@ func TestAdoptInPlace(t *testing.T) {
 		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Namespace: "rfc", Name: "rfc", Annotations: argo}, Spec: corev1.ServiceSpec{Selector: lbl,
 			Ports: []corev1.ServicePort{{Port: 80, TargetPort: intstr.FromInt(3000)}}}},
 		&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Namespace: "rfc", Name: "rfc", Annotations: argo}, Spec: networkingv1.IngressSpec{
-			TLS: []networkingv1.IngressTLS{{Hosts: []string{"rfc.joserod.space"}, SecretName: "rfc-tls"}},
-			Rules: []networkingv1.IngressRule{{Host: "rfc.joserod.space", IngressRuleValue: networkingv1.IngressRuleValue{HTTP: &networkingv1.HTTPIngressRuleValue{
+			TLS: []networkingv1.IngressTLS{{Hosts: []string{"rfc.example.com"}, SecretName: "rfc-tls"}},
+			Rules: []networkingv1.IngressRule{{Host: "rfc.example.com", IngressRuleValue: networkingv1.IngressRuleValue{HTTP: &networkingv1.HTTPIngressRuleValue{
 				Paths: []networkingv1.HTTPIngressPath{{Path: "/", PathType: &pt, Backend: networkingv1.IngressBackend{Service: &networkingv1.IngressServiceBackend{
 					Name: "rfc", Port: networkingv1.ServiceBackendPort{Number: 80}}}}}}}}}}},
 	} {
@@ -397,7 +397,7 @@ func TestAdoptInPlace(t *testing.T) {
 	_ = c.Get(ctx, key, &oldIng)
 
 	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "rfc"}, Spec: v1alpha1.AppSpec{Adopt: true,
-		Services: []spec.Service{{Name: "rfc", Path: ".", Port: 3000, Size: spec.SizeLarge, Replicas: 1, Domain: "rfc.joserod.space",
+		Services: []spec.Service{{Name: "rfc", Path: ".", Port: 3000, Size: spec.SizeLarge, Replicas: 1, Domain: "rfc.example.com",
 			Env: map[string]string{"DB_PATH": "/data/rfc.db"}, Volume: &spec.Volume{ExistingClaim: "rfc-data-pvc", Mount: "/data"},
 			Build: spec.Build{Dockerfile: "Dockerfile"}}},
 		Images: map[string]string{"rfc": "registry.local/rfc-rfc@sha256:1"},
@@ -532,14 +532,14 @@ func TestAdoptRenamedIngressWithAliases(t *testing.T) {
 		Path: "/", PathType: &pt, Backend: networkingv1.IngressBackend{Service: &networkingv1.IngressServiceBackend{Name: "ui", Port: networkingv1.ServiceBackendPort{Number: 80}}}}}}}
 	_ = c.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "sp"}})
 	legacy := &networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Namespace: "sp", Name: "sp-ingress"}, Spec: networkingv1.IngressSpec{
-		TLS:   []networkingv1.IngressTLS{{Hosts: []string{"sp.joserod.space"}, SecretName: "sp-tls"}, {Hosts: []string{"sf.com", "www.sf.com"}, SecretName: "sf-tls"}},
-		Rules: []networkingv1.IngressRule{{Host: "sp.joserod.space", IngressRuleValue: backend}, {Host: "sf.com", IngressRuleValue: backend}, {Host: "www.sf.com", IngressRuleValue: backend}}}}
+		TLS:   []networkingv1.IngressTLS{{Hosts: []string{"sp.example.com"}, SecretName: "sp-tls"}, {Hosts: []string{"sf.com", "www.sf.com"}, SecretName: "sf-tls"}},
+		Rules: []networkingv1.IngressRule{{Host: "sp.example.com", IngressRuleValue: backend}, {Host: "sf.com", IngressRuleValue: backend}, {Host: "www.sf.com", IngressRuleValue: backend}}}}
 	if err := c.Create(ctx, legacy); err != nil {
 		t.Fatal(err)
 	}
 	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "sp"}, Spec: v1alpha1.AppSpec{Adopt: true,
 		Services: []spec.Service{{Name: "ui", Path: ".", Port: 80, Size: spec.SizeSmall, Replicas: 1, Build: spec.Build{Dockerfile: "Dockerfile"},
-			Domain: "sp.joserod.space", Aliases: []string{"sf.com", "www.sf.com"}, TLSSecret: "sp-tls",
+			Domain: "sp.example.com", Aliases: []string{"sf.com", "www.sf.com"}, TLSSecret: "sp-tls",
 			Ingress: &spec.IngressOptions{Name: "sp-ingress", TLSSecrets: map[string]string{"sf.com": "sf-tls", "www.sf.com": "sf-tls"},
 				Annotations: map[string]string{"nginx.ingress.kubernetes.io/limit-rps": "5"}}}},
 		Images: map[string]string{"ui": "registry.local/sp-ui@sha256:1"}}}
@@ -557,7 +557,7 @@ func TestAdoptRenamedIngressWithAliases(t *testing.T) {
 	if err := c.Get(ctx, client.ObjectKey{Namespace: "sp", Name: "ui"}, &networkingv1.Ingress{}); !apierrors.IsNotFound(err) {
 		t.Fatal("no second ingress named after the service may be created")
 	}
-	eventually(t, "DNS for every host", func() bool { return dns.has("sp.joserod.space") && dns.has("sf.com") && dns.has("www.sf.com") })
+	eventually(t, "DNS for every host", func() bool { return dns.has("sp.example.com") && dns.has("sf.com") && dns.has("www.sf.com") })
 
 	// An alias already served by another app blocks, like a main domain would.
 	_ = c.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "other"}})
@@ -660,12 +660,12 @@ func TestDisconnectKeepsDNS(t *testing.T) {
 	c, dns := setup(t)
 	ctx := context.Background()
 	app := &v1alpha1.App{ObjectMeta: metav1.ObjectMeta{Name: "keep"}, Spec: v1alpha1.AppSpec{
-		Services: []spec.Service{{Name: "web", Path: ".", Port: 80, Size: spec.SizeSmall, Replicas: 1, Build: spec.Build{Dockerfile: "Dockerfile"}, Domain: "keep.joserod.space"}},
+		Services: []spec.Service{{Name: "web", Path: ".", Port: 80, Size: spec.SizeSmall, Replicas: 1, Build: spec.Build{Dockerfile: "Dockerfile"}, Domain: "keep.example.com"}},
 		Images:   map[string]string{"web": "x@sha256:1"}}}
 	if err := c.Create(ctx, app); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "DNS record", func() bool { return dns.has("keep.joserod.space") })
+	eventually(t, "DNS record", func() bool { return dns.has("keep.example.com") })
 	updateApp(t, c, "keep", func(a *v1alpha1.App) {
 		a.Annotations = map[string]string{AnnotationDisconnect: "true"}
 		a.Spec.Suspend = true
@@ -676,7 +676,7 @@ func TestDisconnectKeepsDNS(t *testing.T) {
 	eventually(t, "app gone", func() bool {
 		return apierrors.IsNotFound(c.Get(ctx, client.ObjectKey{Name: "keep"}, &v1alpha1.App{}))
 	})
-	if !dns.has("keep.joserod.space") {
+	if !dns.has("keep.example.com") {
 		t.Fatal("disconnect must keep the DNS record")
 	}
 }

@@ -42,7 +42,7 @@ flowchart TB
         wrk[Deployment rendimiento-worker<br/>ROLE=worker, CI]
         trc[Deployment rendimiento-traces<br/>ROLE=traces, :4318]
         svc[Service rendimiento :80]
-        ing[Ingress rendimiento.joserod.space<br/>TLS con cert-manager]
+        ing[Ingress rendimiento.example.com<br/>TLS con cert-manager]
         db[(StatefulSet rendimiento-db<br/>Postgres 17, 5Gi en Longhorn)]
         cm[ConfigMap rendimiento<br/>ajustes]
         sa[ServiceAccount rendimiento]

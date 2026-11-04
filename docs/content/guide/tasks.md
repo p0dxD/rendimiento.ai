@@ -16,7 +16,7 @@ tasks:
 
   - name: smoke
     image: curlimages/curl:8.10.1
-    command: curl -fsS https://api.shop.joserod.space/health
+    command: curl -fsS https://api.shop.example.com/health
     after: [api]                          # wait for the api's build (or another task)
     when: always                          # also on branches and pull requests
     optional: true                        # a failure doesn't fail the run
@@ -170,7 +170,7 @@ When verification is off (`VERIFY_WINDOW=0` or `verify.disabled`), post-deploy t
 tasks:
   - name: smoke
     image: curlimages/curl:8.10.1
-    command: curl -fsS --retry 5 --retry-delay 3 https://shop.joserod.space/api/health
+    command: curl -fsS --retry 5 --retry-delay 3 https://shop.example.com/api/health
     after: [api]
     optional: true
 ```
