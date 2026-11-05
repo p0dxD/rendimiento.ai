@@ -70,9 +70,12 @@ type Contenedor struct {
 	// Privilegiado gives it the machine's privileges (a BuildKit daemon
 	// under Docker).
 	Privilegiado bool
+	// Alias is another name the other containers of its network reach it
+	// by, as a service's own name in the cluster.
+	Alias string
 }
 
-func (c Contenedor) args(detached bool) []string {
+func (c Contenedor) args(bin string, detached bool) []string {
 	// --quiet: the image's download is not part of the step's log.
 	args := []string{"run", "--quiet", "--name", c.Nombre}
 	if detached {
@@ -94,6 +97,14 @@ func (c Contenedor) args(detached bool) []string {
 	}
 	if c.Red != "" {
 		args = append(args, "--network", c.Red)
+	}
+	if c.Alias != "" {
+		// nerdctl has no network aliases, but it puts a container's
+		// hostname in the hosts of the others on its network.
+		if bin == "docker" {
+			args = append(args, "--network-alias", c.Alias)
+		}
+		args = append(args, "--hostname", c.Alias)
 	}
 	if c.CPUs != "" {
 		args = append(args, "--cpus", c.CPUs)
@@ -152,7 +163,7 @@ func (m *Motor) Correr(ctx context.Context, c Contenedor, w io.Writer) error {
 		}
 	}()
 	out := &sinAviso{w: w}
-	err := m.run(ctx, c.args(false), out)
+	err := m.run(ctx, c.args(m.Bin, false), out)
 	if len(out.part) > 0 { // a last line without its newline
 		_, _ = w.Write(out.part)
 	}
@@ -187,7 +198,7 @@ func (s *sinAviso) Write(p []byte) (int, error) {
 // Iniciar starts the container in the background (Quitar removes it).
 func (m *Motor) Iniciar(ctx context.Context, c Contenedor) error {
 	var out bytes.Buffer
-	if err := m.run(ctx, c.args(true), &out); err != nil {
+	if err := m.run(ctx, c.args(m.Bin, true), &out); err != nil {
 		return fmt.Errorf("%s run %s: %v: %s", m.Bin, c.Nombre, err, strings.TrimSpace(out.String()))
 	}
 	return nil

@@ -53,7 +53,7 @@ func (e *engine) exec(_ context.Context, _ string, args []string, out io.Writer)
 			case "-e":
 				k, v, _ := strings.Cut(args[i+1], "=")
 				c.env[k], i = v, i+1
-			case "-v", "-p", "--network", "--cpus", "--memory", "--restart", "--entrypoint", "-w":
+			case "-v", "-p", "--network", "--cpus", "--memory", "--restart", "--entrypoint", "-w", "--hostname", "--network-alias":
 				i++
 			case "-d", "--rm", "--quiet", "--privileged":
 			default:
@@ -204,7 +204,7 @@ func TestLocal(t *testing.T) {
 		t.Fatalf("after a failed release: %v, route %q", e.containers, l.Ruta("tienda.localhost"))
 	}
 
-	// One service calls another of the same release by its container's name.
+	// One service calls another by its name, as in the cluster.
 	two := spec.Spec{Services: []spec.Service{
 		{Name: "web", Port: 3000, Needs: []spec.Need{{Kind: spec.NeedService, Service: "api"}}},
 		{Name: "api", Port: 8000},
@@ -215,7 +215,7 @@ func TestLocal(t *testing.T) {
 	mu.Unlock()
 	_ = l.Aplicar(ctx, "tienda", &store.Release{Number: 4, Spec: two, Images: map[string]string{"web": "w@sha256:4", "api": "a@sha256:4"}})
 	waitEstado(t, l, "tienda", 4, Sana)
-	if got := e.containers["tienda-web-r4"].env["API_URL"]; got != "http://tienda-api-r4:8000" {
+	if got := e.containers["tienda-web-r4"].env["API_URL"]; got != "http://api:8000" {
 		t.Fatalf("API_URL: %q", got)
 	}
 	cross := spec.Spec{Services: []spec.Service{{Name: "web", Port: 3000, Needs: []spec.Need{{Kind: spec.NeedService, Service: "otra/api"}}}}}

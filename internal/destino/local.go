@@ -129,11 +129,11 @@ func (l *Local) desplegar(ctx context.Context, app string, rel *store.Release) {
 	if esperar <= 0 {
 		esperar = 3 * time.Minute
 	}
-	// The services of one release call each other by their containers'
-	// names, which are known before any starts.
+	// The services of an app reach each other by their names, as in the
+	// cluster (each container's alias on the app's network).
 	for _, svc := range rel.Spec.Services {
 		if svc.Port > 0 {
-			needs["service:"+svc.Name] = direccion(contenedor(app, svc.Name, rel.Number), svc.Port)
+			needs["service:"+svc.Name] = direccion(svc.Name, svc.Port)
 		}
 	}
 	for i, svc := range rel.Spec.Services {
@@ -149,7 +149,7 @@ func (l *Local) desplegar(ctx context.Context, app string, rel *store.Release) {
 			l.quitar(ctx, nuevos)
 			return
 		}
-		c := motor.Contenedor{Nombre: name, Imagen: image, Env: env, Red: red(app), Siempre: true,
+		c := motor.Contenedor{Nombre: name, Imagen: image, Env: env, Red: red(app), Siempre: true, Alias: svc.Name,
 			Etiquetas: map[string]string{etApp: app, etServicio: svc.Name, etVersion: strconv.FormatInt(rel.Number, 10), etParte: "service"}}
 		if len(svc.Command) > 0 {
 			c.Comando = append(append([]string{}, svc.Command...), svc.Args...)
@@ -209,9 +209,19 @@ func (l *Local) desplegar(ctx context.Context, app string, rel *store.Release) {
 		l.rutas[h] = addr
 	}
 	l.mu.Unlock()
+	quitados := 0
 	for _, v := range viejos {
 		if info, err := l.Motor.Inspeccionar(ctx, v); err == nil && info.Etiquetas[etParte] == "service" && info.Etiquetas[etVersion] != strconv.FormatInt(rel.Number, 10) {
 			_ = l.Motor.Quitar(ctx, v)
+			quitados++
+		}
+	}
+	// While both releases ran, a service's name could reach the old one,
+	// and a server such as nginx keeps the address it found at start: the
+	// new ones start again once, now that only they answer to the names.
+	if quitados > 0 && len(rel.Spec.Services) > 1 {
+		for _, c := range nuevos {
+			_ = l.Motor.Reiniciar(ctx, c)
 		}
 	}
 	l.poner(app, estadoLocal{version: rel.Number, estado: Sana})
@@ -325,7 +335,7 @@ func (l *Local) necesidades(ctx context.Context, app string, sp spec.Spec) (map[
 		}
 		db := strings.ReplaceAll(app, "-", "_")
 		name := app + "-postgres"
-		if err := l.Motor.Asegurar(ctx, motor.Contenedor{Nombre: name, Imagen: "postgres:17-alpine", Red: red(app), Siempre: true,
+		if err := l.Motor.Asegurar(ctx, motor.Contenedor{Nombre: name, Imagen: "postgres:17-alpine", Red: red(app), Siempre: true, Alias: spec.NeedPostgres,
 			Env:       map[string]string{"POSTGRES_USER": "app", "POSTGRES_PASSWORD": pw, "POSTGRES_DB": db},
 			Montajes:  []motor.Montaje{{Volumen: app + "-postgres-data", Ruta: "/var/lib/postgresql/data"}},
 			Etiquetas: map[string]string{etApp: app, etParte: "postgres"}}); err != nil {
@@ -339,7 +349,7 @@ func (l *Local) necesidades(ctx context.Context, app string, sp spec.Spec) (map[
 			return nil, err
 		}
 		name := app + "-redis"
-		if err := l.Motor.Asegurar(ctx, motor.Contenedor{Nombre: name, Imagen: "redis:7-alpine", Red: red(app), Siempre: true,
+		if err := l.Motor.Asegurar(ctx, motor.Contenedor{Nombre: name, Imagen: "redis:7-alpine", Red: red(app), Siempre: true, Alias: spec.NeedRedis,
 			Comando:   []string{"redis-server", "--requirepass", pw, "--appendonly", "yes"},
 			Montajes:  []motor.Montaje{{Volumen: app + "-redis-data", Ruta: "/data"}},
 			Etiquetas: map[string]string{etApp: app, etParte: "redis"}}); err != nil {

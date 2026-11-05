@@ -58,3 +58,15 @@ func TestAsegurar(t *testing.T) {
 		t.Fatalf("already there: %v", calls)
 	}
 }
+
+// A container's alias: its hostname, which nerdctl puts in the hosts of its
+// network; Docker also gets it as a network alias.
+func TestAlias(t *testing.T) {
+	c := Contenedor{Nombre: "tienda-api-r2", Imagen: "api", Red: "rendimiento-tienda", Alias: "api"}
+	if got := strings.Join(c.args("nerdctl", true), " "); !strings.Contains(got, "--network rendimiento-tienda --hostname api") || strings.Contains(got, "--network-alias") {
+		t.Errorf("nerdctl: %s", got)
+	}
+	if got := strings.Join(c.args("docker", true), " "); !strings.Contains(got, "--network-alias api --hostname api") {
+		t.Errorf("docker: %s", got)
+	}
+}
