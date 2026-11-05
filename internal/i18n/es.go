@@ -58,6 +58,8 @@ var catalog = map[string]string{
 	"an organization needs at least one administrator": "una organización necesita al menos un administrador",
 	"no such member": "no existe ese miembro",
 	"no such demo link": "no existe esa liga de demostración",
+	"this computer has no cluster: this page is for rendimiento on Kubernetes": "esta computadora no tiene clúster: esta página es para rendimiento en Kubernetes",
+	"this computer cannot deploy yet: its apps are built and tested, but not run": "esta computadora todavía no puede desplegar: sus aplicaciones se construyen y se prueban, pero no se corren",
 	"the app's namespace does not exist yet; set secrets after the first deploy starts": "el espacio de nombres de la aplicación todavía no existe; ponga los secretos cuando empiece el primer despliegue",
 	"bad demo link id": "identificador de liga de demostración no válido",
 	"this demo link does not work: it expired or was turned off": "esta liga de demostración no funciona: venció o la apagaron",

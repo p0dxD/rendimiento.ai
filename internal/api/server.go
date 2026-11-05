@@ -167,6 +167,11 @@ func (s *Server) Handler() http.Handler {
 	// people of other organizations never see the cluster's insides.
 	plat := func(role, pattern string, h func(http.ResponseWriter, *http.Request, string)) {
 		s.routes = append(s.routes, route{pattern: pattern, role: role, platform: true})
+		if s.Kube == nil && clusterOnly(pattern) {
+			h = func(w http.ResponseWriter, _ *http.Request, _ string) {
+				httpError(w, http.StatusServiceUnavailable, "this computer has no cluster: this page is for rendimiento on Kubernetes")
+			}
+		}
 		mux.Handle(pattern, s.requireRole(true, role, h))
 	}
 	auth(store.MemberGuest, "GET /api/me", s.me)
@@ -281,6 +286,17 @@ func (s *Server) Handler() http.Handler {
 	outer.Handle("/mcp", s.MCP)
 	outer.Handle("/", localized(mux))
 	return s.redirectHosts(s.guard(outer))
+}
+
+// clusterOnly is a platform route about the cluster itself (its environment,
+// services, add-ons, namespaces): without a cluster it answers 503.
+func clusterOnly(pattern string) bool {
+	for _, p := range []string{"/api/environment", "/api/services", "/api/addon", "/api/installed", "/api/namespaces/", "/api/addons"} {
+		if strings.Contains(pattern, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // machinePaths keep answering on a redirected host: what GitHub, agents

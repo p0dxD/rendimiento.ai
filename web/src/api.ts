@@ -274,6 +274,7 @@ export interface Me {
   org: Org;
   operator: boolean;
   demo?: boolean; // signed in by a demo link: read-only
+  cluster: boolean; // false on a computer without Kubernetes: no Environment, Services or Add-ons
 }
 
 // A demo link (internal/store.DemoLink): a secret address that opens a

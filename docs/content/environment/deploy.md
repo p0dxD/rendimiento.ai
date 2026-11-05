@@ -195,6 +195,20 @@ What the cluster still needs:
 
 `postgres.bundled=false` with `postgres.existingSecret` (a key `url`) uses your own database, and `buildkit.bundled=false` with `buildkit.address` your own BuildKit. `addons.enabled=false` leaves out the cluster-admin identity add-ons need. Every other setting goes in `config` (see [Configuration](../reference/config.md)), and the optional secrets (DNS, email, AI, log archive) are read by name as in `deploy/`. The chart installs one platform per cluster: its cluster-wide objects keep fixed names.
 
+## On one computer, without Kubernetes (preview) {#on-one-computer}
+
+`MODE=local` runs rendimiento on a computer with containerd (nerdctl, recommended) or Docker, in one process: the UI and the API on `127.0.0.1:8080`, CI, and the agents.
+
+```bash
+MODE=local ALLOWED_USERS=your-github-login ./rendimiento
+```
+
+On its first start it makes, in `DATA_DIR` (by default `~/.config/rendimiento`, readable only by you), the key that seals its secrets in Postgres, the database's password and the setup token. It starts and keeps two containers of its own: `rendimiento-postgres` (on `127.0.0.1:55433`) and `rendimiento-registro` (an image registry on `localhost:5000`, or the one already answering there). Builds use BuildKit: the one containerd's tools set up (`containerd-rootless-setuptool.sh install-buildkit`), or, under Docker, a container of its own.
+
+GitHub cannot send webhooks to `localhost`, so the GitHub App made by the setup page has none: every `POLL_INTERVAL` (1 minute) rendimiento asks GitHub for each app's branches and runs a branch whose head moved, as a push would.
+
+For now apps are built and tested, not run: a release says the computer cannot deploy yet. The local destination (the apps on the computer, with certificates and a tunnel) comes next, then an installer and a native app.
+
 ## rendimiento builds itself {#rendimiento-builds-itself}
 
 rendimiento's repository is onboarded like any app. Its `rendimiento.yaml` has the book (`docs`, a service) and the platform's own image (`builds: platform`), so every push runs:

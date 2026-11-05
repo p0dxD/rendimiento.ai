@@ -42,8 +42,25 @@ type LocalExecutor struct {
 // digestLine starts the line a build prints with its image's digest.
 const digestLine = "image digest: "
 
+// defaults fills in the images and frontend the cluster's executor uses.
+func (l *LocalExecutor) defaults() {
+	if l.BuildImage == "" {
+		l.BuildImage = "moby/buildkit:v0.18.2"
+	}
+	if l.GitImage == "" {
+		l.GitImage = "alpine/git:2.47.2"
+	}
+	if l.RailpackFrontend == "" {
+		l.RailpackFrontend = "ghcr.io/railwayapp/railpack-frontend:v0.40.0"
+	}
+	if l.PostgresImage == "" {
+		l.PostgresImage = "postgres:17-alpine"
+	}
+}
+
 // Execute runs one step and removes its containers and workspace.
 func (l *LocalExecutor) Execute(ctx context.Context, runID string, src Source, step Step, w io.Writer) StepResult {
+	l.defaults()
 	res := StepResult{Started: time.Now()}
 	fail := func(format string, a ...any) StepResult {
 		res.Status, res.Message, res.Finished = StatusFailed, fmt.Sprintf(format, a...), time.Now()
@@ -187,6 +204,18 @@ func (l *LocalExecutor) Execute(ctx context.Context, runID string, src Source, s
 	}
 	res.Status, res.Finished = StatusSucceeded, time.Now()
 	return res
+}
+
+// DeleteCaches removes the cache volumes of an app's tests.
+func (l *LocalExecutor) DeleteCaches(ctx context.Context, app string) error {
+	vols, err := l.Motor.Volumenes(ctx, CacheAppLabel+"="+app)
+	if err != nil {
+		return err
+	}
+	for _, v := range vols {
+		_ = l.Motor.QuitarVolumen(ctx, v)
+	}
+	return nil
 }
 
 // ended turns a container's failure into the step's: cancelled, timed out,

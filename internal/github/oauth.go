@@ -17,6 +17,28 @@ func errorsAs(err error, target any) bool { return err != nil && errors.As(err, 
 // Manifest describes the app GitHub should create. Posting it from a browser
 // form to https://github.com/settings/apps/new returns a code to our redirect URL.
 func Manifest(name, baseURL string) map[string]any {
+	m := manifest(name, baseURL)
+	// GitHub cannot deliver webhooks to this computer: the App gets none,
+	// and the platform asks GitHub for new commits instead (platform.Vigia).
+	if Local(baseURL) {
+		delete(m, "hook_attributes")
+		m["default_events"] = []string{}
+	}
+	return m
+}
+
+// Local reports whether the platform's address is this computer
+// (localhost, 127.0.0.1), which GitHub cannot reach.
+func Local(baseURL string) bool {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+	h := u.Hostname()
+	return h == "localhost" || h == "127.0.0.1" || h == "::1" || strings.HasSuffix(h, ".localhost")
+}
+
+func manifest(name, baseURL string) map[string]any {
 	return map[string]any{
 		"name":         name,
 		"url":          baseURL,

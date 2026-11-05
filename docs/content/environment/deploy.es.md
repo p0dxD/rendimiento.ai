@@ -195,6 +195,20 @@ Lo que el clúster todavía necesita:
 
 `postgres.bundled=false` con `postgres.existingSecret` (una llave `url`) usa su propia base de datos, y `buildkit.bundled=false` con `buildkit.address`, su propio BuildKit. `addons.enabled=false` deja fuera la identidad de administrador del clúster que necesitan los complementos. Cualquier otro ajuste va en `config` (vea [Configuración](../reference/config.md)), y los secretos opcionales (DNS, correo, IA, archivo de registros) se leen por nombre, como en `deploy/`. El chart instala una plataforma por clúster: sus objetos de todo el clúster tienen nombres fijos.
 
+## En una computadora, sin Kubernetes (versión previa) {#on-one-computer}
+
+`MODE=local` corre rendimiento en una computadora con containerd (nerdctl, el recomendado) o Docker, en un solo proceso: la interfaz y la API en `127.0.0.1:8080`, la integración continua y los agentes.
+
+```bash
+MODE=local ALLOWED_USERS=su-usuario-de-github ./rendimiento
+```
+
+La primera vez crea, en `DATA_DIR` (por omisión `~/.config/rendimiento`, que solo usted puede leer), la llave que sella sus secretos en Postgres, la contraseña de la base de datos y la ficha de configuración inicial. Arranca y mantiene dos contenedores propios: `rendimiento-postgres` (en `127.0.0.1:55433`) y `rendimiento-registro` (un registro de imágenes en `localhost:5000`, o el que ya responda ahí). Las construcciones usan BuildKit: el que instalan las herramientas de containerd (`containerd-rootless-setuptool.sh install-buildkit`) o, con Docker, un contenedor propio.
+
+GitHub no puede mandar avisos web a `localhost`, así que la aplicación de GitHub que crea la página de configuración no tiene ninguno: cada `POLL_INTERVAL` (1 minuto) rendimiento le pregunta a GitHub por las ramas de cada aplicación y corre la rama cuya punta cambió, como lo haría un push.
+
+Por ahora las aplicaciones se construyen y se prueban, pero no se corren: una versión dice que la computadora todavía no puede desplegar. Lo que sigue es el destino local (las aplicaciones en la computadora, con certificados y un túnel), y luego un instalador y una aplicación nativa.
+
 ## rendimiento se construye a sí mismo {#rendimiento-builds-itself}
 
 El repositorio de rendimiento está incorporado como cualquier aplicación. Su `rendimiento.yaml` tiene el libro (`docs`, un servicio) y la imagen de la plataforma (`builds: platform`), así que cada envío corre:

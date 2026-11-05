@@ -21,12 +21,13 @@ type Me struct {
 	Role     string    `json:"role"`
 	Org      store.Org `json:"org"`
 	Operator bool      `json:"operator"`
+	Cluster  bool      `json:"cluster"` // false on a computer without Kubernetes: no Environment, Services or Add-ons
 	Demo     bool      `json:"demo,omitempty"` // signed in by a demo link: read-only
 }
 
 // me is the signed-in person, for the top bar.
 func (s *Server) me(w http.ResponseWriter, r *http.Request, login string) {
-	out := Me{Login: login, Role: roleOf(r), Demo: store.IsDemoLogin(login)}
+	out := Me{Login: login, Role: roleOf(r), Demo: store.IsDemoLogin(login), Cluster: s.Kube != nil}
 	o, err := s.Store.GetOrg(r.Context(), orgOf(r))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())

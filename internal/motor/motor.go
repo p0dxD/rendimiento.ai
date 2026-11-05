@@ -60,6 +60,14 @@ type Contenedor struct {
 	// CPUs ("1.5") and Memoria ("512m") limit it ("": no limit).
 	CPUs, Memoria string
 	Etiquetas     map[string]string
+	// Puertos publishes ports, as "127.0.0.1:5000:5000".
+	Puertos []string
+	// Siempre restarts it when it stops and when the machine starts (a
+	// service of the platform's own, such as its database).
+	Siempre bool
+	// Privilegiado gives it the machine's privileges (a BuildKit daemon
+	// under Docker).
+	Privilegiado bool
 }
 
 func (c Contenedor) args(detached bool) []string {
@@ -90,6 +98,15 @@ func (c Contenedor) args(detached bool) []string {
 	}
 	if c.Memoria != "" {
 		args = append(args, "--memory", c.Memoria)
+	}
+	for _, p := range c.Puertos {
+		args = append(args, "-p", p)
+	}
+	if c.Siempre {
+		args = append(args, "--restart", "always")
+	}
+	if c.Privilegiado {
+		args = append(args, "--privileged")
 	}
 	// Comando replaces the image's entrypoint, as a pod's command does.
 	if len(c.Comando) > 0 {
@@ -174,6 +191,15 @@ func (m *Motor) Iniciar(ctx context.Context, c Contenedor) error {
 	return nil
 }
 
+// Asegurar starts the container unless one by that name is already there
+// (running, or stopped and started again).
+func (m *Motor) Asegurar(ctx context.Context, c Contenedor) error {
+	if m.run(ctx, []string{"inspect", "--type", "container", c.Nombre}, io.Discard) == nil {
+		return m.run(ctx, []string{"start", c.Nombre}, io.Discard)
+	}
+	return m.Iniciar(ctx, c)
+}
+
 // Ejecutar runs a command in a running container, and fails when it does.
 func (m *Motor) Ejecutar(ctx context.Context, nombre string, comando ...string) error {
 	return m.run(ctx, append([]string{"exec", nombre}, comando...), io.Discard)
@@ -197,6 +223,15 @@ func (m *Motor) CrearVolumen(ctx context.Context, nombre string, etiquetas map[s
 		return fmt.Errorf("%s volume create %s: %v: %s", m.Bin, nombre, err, strings.TrimSpace(out.String()))
 	}
 	return nil
+}
+
+// Volumenes lists the named volumes with this label (key=value).
+func (m *Motor) Volumenes(ctx context.Context, etiqueta string) ([]string, error) {
+	var out bytes.Buffer
+	if err := m.run(ctx, []string{"volume", "ls", "-q", "--filter", "label=" + etiqueta}, &out); err != nil {
+		return nil, fmt.Errorf("%s volume ls: %v: %s", m.Bin, err, strings.TrimSpace(out.String()))
+	}
+	return strings.Fields(out.String()), nil
 }
 
 // QuitarVolumen removes a named volume; one that is not there is gone already.
