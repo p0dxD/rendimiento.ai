@@ -2,7 +2,7 @@
 
 Con `observe: true`, el [universo](universe.md#latency-on-every-line) ya mide cada llamada HTTP, consulta a la base de datos y mensaje de un servicio en Java, Node o Python, sin cambiar el código. Las bibliotecas **observa** agregan lo que solo el código sabe: los momentos del negocio («cobrar», «generar el reporte»), eventos dentro de ellos y banderas de funciones. Son capas delgadas sobre [OpenTelemetry](https://opentelemetry.io), así que todo lo que registran se une a las mismas trazas.
 
-Las bibliotecas viven en este repositorio, en `sdk/`, y todavía no se publican en npm, PyPI ni Maven Central; se instalan desde git.
+Cada biblioteca tiene su propio repositorio en la organización [rendimiento-ai](https://github.com/rendimiento-ai) ([observa-node](https://github.com/rendimiento-ai/observa-node), [observa-python](https://github.com/rendimiento-ai/observa-python), [observa-java](https://github.com/rendimiento-ai/observa-java)), que rendimiento prueba en cada push. Todavía no se publican en npm, PyPI ni Maven Central; se instalan desde git.
 
 ## Lo que ofrece cada una {#what-each-one-offers}
 
@@ -29,11 +29,10 @@ El colector convierte cada tramo en números (su `spanmetrics`), y el [universo]
 
 ## Node {#node}
 
-npm no puede instalar una carpeta de un repositorio de git, así que mientras no se publique, instálela desde una copia:
+Mientras no se publique, instálela desde su repositorio:
 
 ```bash
-git clone https://github.com/rendimiento-ai/rendimiento
-npm install ./rendimiento.ai/sdk/node   # o copie sdk/node a su repositorio e instale esa carpeta
+npm install github:rendimiento-ai/observa-node
 ```
 
 ```js
@@ -53,7 +52,7 @@ app.post("/pedidos/:id/cobrar", (req, res) =>
 ## Python {#python}
 
 ```bash
-pip install "rendimiento-observa @ git+https://github.com/rendimiento-ai/rendimiento#subdirectory=sdk/python"
+pip install "rendimiento-observa @ git+https://github.com/rendimiento-ai/observa-python"
 # sin el agente: agregue [sdk] para el SDK de OpenTelemetry y el exportador OTLP
 ```
 
@@ -71,7 +70,7 @@ El agente instrumenta `requests` y `httpx`; para otro cliente, pase `cabeceras()
 
 ## Java {#java}
 
-Constrúyala e instálela localmente (`mvn -f sdk/java install`) y dependa de `ai.rendimiento:observa:0.1.0`:
+Constrúyala e instálela localmente (`git clone https://github.com/rendimiento-ai/observa-java && mvn -f observa-java install`) y dependa de `ai.rendimiento:observa:0.1.0`:
 
 ```java
 import ai.rendimiento.observa.Observa;
