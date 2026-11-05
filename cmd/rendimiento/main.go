@@ -93,6 +93,10 @@ func main() {
 func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	// MODE=local: one computer without Kubernetes (see local.go).
+	if env("MODE", "cluster") == "local" {
+		return runLocal(ctx, log, problemLog, plain)
+	}
 
 	// ROLE is the part of the platform this process runs: api (the UI, the
 	// API, webhooks, MCP), control (the controllers and the background loops,

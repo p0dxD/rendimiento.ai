@@ -29,7 +29,7 @@ import "./styles.css";
  * The app's frame: setup until the GitHub App exists, the welcome page until you sign in, then the menu and pages.
  */
 function Shell() {
-  const [state, setState] = useState<{ login?: string; role?: MemberRole; org?: Org; operator?: boolean; demo?: boolean; configured?: boolean; book?: BookLinks; activity?: boolean; loading: boolean }>({ loading: true });
+  const [state, setState] = useState<{ login?: string; role?: MemberRole; org?: Org; operator?: boolean; demo?: boolean; cluster?: boolean; configured?: boolean; book?: BookLinks; activity?: boolean; loading: boolean }>({ loading: true });
 
   useEffect(() => {
     (async () => {
@@ -39,7 +39,7 @@ function Shell() {
         const me = await api.me();
         session.operator = me.operator;
         session.role = me.role;
-        setState({ login: me.login, role: me.role, org: me.org, operator: me.operator, demo: me.demo, configured: true, loading: false });
+        setState({ login: me.login, role: me.role, org: me.org, operator: me.operator, demo: me.demo, cluster: me.cluster, configured: true, loading: false });
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) setState({ configured: true, book: setup.book, activity: setup.activity, loading: false });
         else throw e;
@@ -68,9 +68,9 @@ function Shell() {
         <NavLink to="/" end className="nav-link">{t("Apps")}</NavLink>
         {state.operator && <NavLink to="/mercado" className="nav-link">{t("Mercado")}</NavLink>}
         <NavLink to="/universe" className="nav-link">{t("Universe")}</NavLink>
-        {state.operator && <NavLink to="/services" className="nav-link">{t("Services")}</NavLink>}
-        {state.operator && <NavLink to="/addons" className="nav-link">{t("Add-ons")}</NavLink>}
-        {state.operator && <EnvironmentNavLink />}
+        {state.operator && state.cluster && <NavLink to="/services" className="nav-link">{t("Services")}</NavLink>}
+        {state.operator && state.cluster && <NavLink to="/addons" className="nav-link">{t("Add-ons")}</NavLink>}
+        {state.operator && state.cluster && <EnvironmentNavLink />}
         <NavLink to="/ruta" className="nav-link">{t("Ruta")}</NavLink>
         <NavLink to="/ia" className="nav-link">{t("AI")}</NavLink>
         {state.operator && <ProblemsNavLink />}

@@ -119,6 +119,15 @@ func (h *Holder) BranchSHA(ctx context.Context, installation int64, repo, branch
 	return c.BranchSHA(ctx, repo, branch)
 }
 
+// Branches lists a repo's branches with their head commits.
+func (h *Holder) Branches(ctx context.Context, installation int64, repo string) ([]Branch, error) {
+	c, err := h.client(installation)
+	if err != nil {
+		return nil, err
+	}
+	return c.Branches(ctx, repo)
+}
+
 // RecentPullRequests lists a repo's most recently updated pull requests.
 func (h *Holder) RecentPullRequests(ctx context.Context, installation int64, repo string) ([]PullInfo, error) {
 	c, err := h.client(installation)

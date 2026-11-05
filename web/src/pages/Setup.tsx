@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api } from "../api";
 import { t } from "../i18n";
 
 const pasos = [
@@ -13,6 +14,9 @@ const pasos = [
  */
 export function Setup() {
   const [token, setToken] = useState(new URLSearchParams(location.search).get("token") ?? "");
+  // The server says how to read its token: from a Secret in a cluster, from a file on a computer.
+  const [command, setCommand] = useState("");
+  useEffect(() => { api.setupStatus().then((s) => setCommand(s.tokenCommand ?? ""), () => {}); }, []);
   const actual = token ? 1 : 0;
   return (
     <main className="setup">
@@ -31,7 +35,7 @@ export function Setup() {
           <div>
             <h3 className="ld-h3">{t("1. The setup token")}</h3>
             <p style={{ margin: "0 0 8px" }}>{t("Paste the setup token. Get it with:")}</p>
-            <pre className="file">kubectl get secret rendimiento-setup -n rendimiento-system -o jsonpath='{"{.data.token}"}' | base64 -d</pre>
+            <pre className="file">{command || "…"}</pre>
             <label className="field" style={{ marginTop: 10 }}>
               <span>{t("Setup token")}</span>
               <input value={token} onChange={(e) => setToken(e.target.value)} placeholder={t("paste token")} autoComplete="off" />

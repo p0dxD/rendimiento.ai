@@ -152,7 +152,7 @@ func (p *Platform) namespaceServing(ctx context.Context, sp spec.Spec) (string, 
 			hosts[h] = true
 		}
 	}
-	if len(hosts) == 0 {
+	if len(hosts) == 0 || p.Kube == nil { // without a cluster, nothing runs to adopt
 		return "", nil
 	}
 	var ings networkingv1.IngressList
@@ -191,6 +191,9 @@ func (p *Platform) InspectNamespace(ctx context.Context, ns string) (*Migration,
 
 // inspectNamespace reports what already runs in ns, or nil if it does not exist.
 func (p *Platform) inspectNamespace(ctx context.Context, ns string) (*Migration, error) {
+	if p.Kube == nil {
+		return nil, nil
+	}
 	var n corev1.Namespace
 	if err := p.Kube.Get(ctx, client.ObjectKey{Name: ns}, &n); apierrors.IsNotFound(err) {
 		return nil, nil
@@ -1051,6 +1054,9 @@ func (p *Platform) pointApp(ctx context.Context, name string, rel *store.Release
 func (p *Platform) Target() destino.Destino {
 	if p.Destino != nil {
 		return p.Destino
+	}
+	if p.Kube == nil {
+		return destino.Ninguno{}
 	}
 	return destino.Kubernetes{Kube: p.Kube, Clientset: p.Clientset}
 }

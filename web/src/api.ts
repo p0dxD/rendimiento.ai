@@ -274,6 +274,7 @@ export interface Me {
   org: Org;
   operator: boolean;
   demo?: boolean; // signed in by a demo link: read-only
+  cluster: boolean; // false on a computer without Kubernetes: no Environment, Services or Add-ons
 }
 
 // A demo link (internal/store.DemoLink): a secret address that opens a
@@ -746,7 +747,7 @@ export const api = {
   createDemoLink: (note: string, days: number) => request<DemoLink>("POST", "/api/demo-links", { note, days }),
   deleteDemoLink: (id: number) => request<void>("DELETE", `/api/demo-links/${id}`),
   logout: () => request<void>("POST", "/api/auth/logout"),
-  setupStatus: () => request<{ configured: boolean; appSlug?: string; installURL?: string; book?: { en?: string; es?: string }; activity?: boolean }>("GET", "/api/setup/status"),
+  setupStatus: () => request<{ configured: boolean; appSlug?: string; installURL?: string; book?: { en?: string; es?: string }; activity?: boolean; tokenCommand?: string }>("GET", "/api/setup/status"),
   publicActivity: () => request<PublicActivity>("GET", "/api/public/activity"),
   installations: () => request<{ installations: Installation[]; installURL: string }>("GET", "/api/installations"),
   repos: (installation: number) => request<Repo[]>("GET", `/api/installations/${installation}/repos`),

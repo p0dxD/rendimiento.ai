@@ -90,14 +90,17 @@ type Server struct {
 	IAKeys IAKeys
 	// Translator puts diagnoses in the reader's language (nil: shown as
 	// written), and AgentLang is the language agents write in.
-	Translator  *agentes.Translator
-	AgentLang   string
-	routes      []route // authenticated routes and their roles (see Handler)
-	SetupToken  string  // guards the one-time GitHub App setup
-	AppName     string  // name for the GitHub App, e.g. "rendimiento-example"
-	GitHubAPI   string  // overridden in tests
-	UI          fs.FS   // built web UI; nil serves a placeholder
-	Environment *environment.Checker
+	Translator *agentes.Translator
+	AgentLang  string
+	routes     []route // authenticated routes and their roles (see Handler)
+	SetupToken string  // guards the one-time GitHub App setup
+	AppName    string  // name for the GitHub App, e.g. "rendimiento-example"
+	// SetupTokenCommand says on the setup page how to read SetupToken
+	// ("": from its Kubernetes Secret).
+	SetupTokenCommand string
+	GitHubAPI         string // overridden in tests
+	UI                fs.FS  // built web UI; nil serves a placeholder
+	Environment       *environment.Checker
 	// Capacity is the capacity set on the Environment page, as this process follows it.
 	Capacity *platform.CapacityHolder
 	Catalog  *catalog.Builder
@@ -167,6 +170,11 @@ func (s *Server) Handler() http.Handler {
 	// people of other organizations never see the cluster's insides.
 	plat := func(role, pattern string, h func(http.ResponseWriter, *http.Request, string)) {
 		s.routes = append(s.routes, route{pattern: pattern, role: role, platform: true})
+		if s.Kube == nil && clusterOnly(pattern) {
+			h = func(w http.ResponseWriter, _ *http.Request, _ string) {
+				httpError(w, http.StatusServiceUnavailable, "this computer has no cluster: this page is for rendimiento on Kubernetes")
+			}
+		}
 		mux.Handle(pattern, s.requireRole(true, role, h))
 	}
 	auth(store.MemberGuest, "GET /api/me", s.me)
@@ -281,6 +289,17 @@ func (s *Server) Handler() http.Handler {
 	outer.Handle("/mcp", s.MCP)
 	outer.Handle("/", localized(mux))
 	return s.redirectHosts(s.guard(outer))
+}
+
+// clusterOnly is a platform route about the cluster itself (its environment,
+// services, add-ons, namespaces): without a cluster it answers 503.
+func clusterOnly(pattern string) bool {
+	for _, p := range []string{"/api/environment", "/api/services", "/api/addon", "/api/installed", "/api/namespaces/", "/api/addons"} {
+		if strings.Contains(pattern, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // machinePaths keep answering on a redirected host: what GitHub, agents
@@ -542,6 +561,13 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 func (s *Server) setupStatus(w http.ResponseWriter, _ *http.Request) {
 	app, err := s.GitHub.Get()
 	out := map[string]any{"configured": err == nil, "activity": s.PublicActivity}
+	if err != nil {
+		// How to read the setup token where this platform runs.
+		out["tokenCommand"] = s.SetupTokenCommand
+		if s.SetupTokenCommand == "" {
+			out["tokenCommand"] = "kubectl get secret rendimiento-setup -n rendimiento-system -o jsonpath='{.data.token}' | base64 -d"
+		}
+	}
 	if s.BookURL != "" || s.BookURLEs != "" {
 		out["book"] = map[string]string{"en": s.BookURL, "es": s.BookURLEs}
 	}

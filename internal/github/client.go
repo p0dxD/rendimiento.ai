@@ -413,6 +413,21 @@ func (c *Client) BranchSHA(ctx context.Context, repo, branch string) (string, er
 	return out.SHA, nil
 }
 
+// Branch is a branch and the commit it points at.
+type Branch struct {
+	Name   string `json:"name"`
+	Commit struct {
+		SHA string `json:"sha"`
+	} `json:"commit"`
+}
+
+// Branches lists a repo's branches (the first 100).
+func (c *Client) Branches(ctx context.Context, repo string) ([]Branch, error) {
+	var out []Branch
+	err := c.do(ctx, http.MethodGet, "/repos/"+repo+"/branches?per_page=100", nil, &out)
+	return out, err
+}
+
 // PullInfo is what the Caminos tab needs of a pull request.
 type PullInfo struct {
 	Number int    `json:"number"`

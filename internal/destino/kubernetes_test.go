@@ -160,3 +160,6 @@ func TestKubernetesSecretos(t *testing.T) {
 		t.Fatalf("keys: %v %v", keys, err)
 	}
 }
+
+// Ninguno is a Destino that keeps apps and builds them, but never deploys.
+var _ Destino = Ninguno{}
