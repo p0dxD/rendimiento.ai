@@ -196,6 +196,26 @@ func TestLocal(t *testing.T) {
 		t.Fatalf("after a failed release: %v, route %q", e.containers, l.Ruta("tienda.localhost"))
 	}
 
+	// One service calls another of the same release by its container's name.
+	two := spec.Spec{Services: []spec.Service{
+		{Name: "web", Port: 3000, Needs: []spec.Need{{Kind: spec.NeedService, Service: "api"}}},
+		{Name: "api", Port: 8000},
+	}}
+	two.Default()
+	mu.Lock()
+	answers = true
+	mu.Unlock()
+	_ = l.Aplicar(ctx, "tienda", &store.Release{Number: 4, Spec: two, Images: map[string]string{"web": "w@sha256:4", "api": "a@sha256:4"}})
+	waitEstado(t, l, "tienda", 4, Sana)
+	if got := e.containers["tienda-web-r4"].env["API_URL"]; got != "http://tienda-api-r4:8000" {
+		t.Fatalf("API_URL: %q", got)
+	}
+	cross := spec.Spec{Services: []spec.Service{{Name: "web", Port: 3000, Needs: []spec.Need{{Kind: spec.NeedService, Service: "otra/api"}}}}}
+	cross.Default()
+	if err := l.Aplicar(ctx, "tienda", &store.Release{Number: 5, Spec: cross, Images: map[string]string{"web": "w@sha256:5"}}); err == nil || !strings.Contains(err.Error(), "own app") {
+		t.Fatalf("another app's service: %v", err)
+	}
+
 	// The proxy sends requests to the running release.
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "hola de "+r.Host) }))
 	defer backend.Close()

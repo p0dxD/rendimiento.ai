@@ -840,7 +840,9 @@ func (p *Platform) execute(ctx context.Context, run *store.Run) {
 			status, msg = store.RunFailed, first
 		}
 	}
-	if status == store.RunSucceeded && run.Deploy {
+	if status == store.RunSucceeded && run.Deploy && len(sp.Services) == 0 && len(sp.Builds) == 0 {
+		msg = M("tested; there is nothing to deploy") // a library: its tasks are its checks
+	} else if status == store.RunSucceeded && run.Deploy {
 		rel, err := p.release(ctx, app, run, sp, toRun, results, reuse)
 		var blocked errPreDeploy
 		switch {

@@ -66,6 +66,7 @@ Una tarea en la raíz del repositorio (`path: .`, el valor predeterminado) cuent
 - Una tarea **obligatoria** que falla hace fallar la ejecución, y **no se publica nada**. Es lo que usted quiere en comprobaciones como un ensayo de una migración, o una prueba rápida de algo de lo que depende la versión.
 - Una tarea **opcional** (`optional: true`) aparece como fallida en la página de la ejecución, pero la ejecución sale bien de todos modos y se publica.
 - Las tareas nunca producen imágenes, así que no cambian lo que contiene una versión.
+- Una **biblioteca** no tiene servicio que desplegar: su `rendimiento.yaml` puede tener solo `tasks:` (sus pruebas, con `when: always`). Una ejecución en su rama principal sale bien con *probada; no hay nada que desplegar*, y no crea versión.
 
 ## Secretos {#secrets}
 

@@ -66,6 +66,7 @@ A task at the repository root (`path: .`, the default) counts every change, so i
 - A **required** task that fails fails the run, and **nothing is released**. That's what you want for checks such as a migration dry run, or a smoke test of something the release depends on.
 - An **optional** task (`optional: true`) shows as failed on the run page, but the run still succeeds and releases.
 - Tasks never produce images, so they don't change what a release contains.
+- A **library** has no service to deploy: its `rendimiento.yaml` can have only `tasks:` (its tests, with `when: always`). A run on its default branch then succeeds with *tested; there is nothing to deploy*, and makes no release.
 
 ## Secrets
 
