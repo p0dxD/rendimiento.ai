@@ -843,8 +843,9 @@ func (s *Spec) Default() {
 
 // Validate reports every problem in the spec at once, each with its path (services[1].port …).
 func (s *Spec) Validate() error {
-	if len(s.Services) == 0 {
-		return errors.New("at least one service is required")
+	// A library has no service: its tasks are what it checks on each push.
+	if len(s.Services) == 0 && len(s.Builds) == 0 && len(s.Tasks) == 0 {
+		return errors.New("at least one service, build or task is required")
 	}
 	var errs []error
 	seen := map[string]bool{}

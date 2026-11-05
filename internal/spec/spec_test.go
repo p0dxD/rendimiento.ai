@@ -477,3 +477,15 @@ tasks:
 		}
 	}
 }
+
+// A library has no service: a task alone is a valid rendimiento.yaml.
+func TestTasksOnly(t *testing.T) {
+	s, err := Parse([]byte("tasks:\n  - name: test\n    image: node:20\n    command: npm test\n    when: always\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Default()
+	if err := s.Validate(); err != nil {
+		t.Fatalf("a task-only spec: %v", err)
+	}
+}
