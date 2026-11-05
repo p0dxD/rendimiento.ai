@@ -17,6 +17,7 @@ import (
 
 	"github.com/rendimiento-ai/rendimiento/internal/agentes"
 	"github.com/rendimiento-ai/rendimiento/internal/api"
+	"github.com/rendimiento-ai/rendimiento/internal/destino"
 	"github.com/rendimiento-ai/rendimiento/internal/dns"
 	"github.com/rendimiento-ai/rendimiento/internal/events"
 	"github.com/rendimiento-ai/rendimiento/internal/generate"
@@ -31,6 +32,7 @@ import (
 	"github.com/rendimiento-ai/rendimiento/internal/ruta"
 	"github.com/rendimiento-ai/rendimiento/internal/secretos"
 	"github.com/rendimiento-ai/rendimiento/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/uptime"
 	"github.com/rendimiento-ai/rendimiento/web"
 )
 
@@ -39,7 +41,8 @@ import (
 // container engine (containerd, or Docker), and runs the agents. Its own
 // Postgres and image registry are containers it starts and keeps; its
 // secrets are sealed in Postgres by a key in DATA_DIR. Apps are built and
-// tested here; deploying them comes with the local destination.
+// tested here, and run here by the local destination, reached through its
+// proxy at <app>.localhost.
 func runLocal(ctx context.Context, log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) error {
 	m, err := motor.Buscar()
 	if err != nil {
@@ -166,6 +169,18 @@ func runLocal(ctx context.Context, log *slog.Logger, problemLog *problems.Record
 	p.Workers, _ = strconv.Atoi(env("PARALLEL_RUNS", "2"))
 	p.PerApp, _ = strconv.Atoi(env("RUNS_PER_APP", "1"))
 	p.Caches = executor
+	// Releases run here, as containers, reached through the proxy at
+	// <app>.localhost. Verification waits for each one to answer (and rolls
+	// back one that does not); its window has no public checks to run here.
+	loc := &destino.Local{Motor: m, Caja: caja}
+	p.Destino = loc
+	p.Verify = platform.VerifySettings{Window: time.Minute, Every: 20 * time.Second,
+		Check: func(_ context.Context, t uptime.Target) store.Probe {
+			return store.Probe{Service: t.Service, Kind: t.Kind, At: time.Now(), OK: true}
+		}}
+	if apps, err := st.ListApps(ctx); err == nil {
+		loc.Recargar(ctx, apps)
+	}
 
 	srv := &api.Server{
 		Platform: p, Store: st, GitHub: holder, Credentials: creds, DNS: dns.Noop{}, Log: log,
@@ -232,6 +247,14 @@ func runLocal(ctx context.Context, log *slog.Logger, problemLog *problems.Record
 		p.Work(ctx)
 	}()
 
+	proxySrv := &http.Server{Addr: env("PROXY_LISTEN", "127.0.0.1:8000"), Handler: loc.Proxy(), ReadHeaderTimeout: 10 * time.Second}
+	go func() {
+		log.Info("apps at http://<app>.localhost"+strings.TrimPrefix(proxySrv.Addr, "127.0.0.1"), "addr", proxySrv.Addr)
+		if err := proxySrv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			errc <- err
+		}
+	}()
+	p.ResumeVerifications(ctx)
 	httpSrv := &http.Server{Addr: env("LISTEN", "127.0.0.1:8080"), Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
 	go func() {
 		log.Info("listening", "addr", httpSrv.Addr, "baseURL", baseURL)
@@ -248,6 +271,7 @@ func runLocal(ctx context.Context, log *slog.Logger, problemLog *problems.Record
 	defer cancel()
 	// Open pages (live logs) keep their connections: after the wait they are
 	// closed, which is a normal stop.
+	_ = proxySrv.Shutdown(shutdown)
 	if err := httpSrv.Shutdown(shutdown); err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}

@@ -207,7 +207,7 @@ On its first start it makes, in `DATA_DIR` (by default `~/.config/rendimiento`, 
 
 GitHub cannot send webhooks to `localhost`, so the GitHub App made by the setup page has none: every `POLL_INTERVAL` (1 minute) rendimiento asks GitHub for each app's branches and runs a branch whose head moved, as a push would.
 
-For now apps are built and tested, not run: a release says the computer cannot deploy yet. The local destination (the apps on the computer, with certificates and a tunnel) comes next, then an installer and a native app.
+Releases run on the computer, through the **local destination**: each service of a release is a container on the app's own network, published on `127.0.0.1` and reached through rendimiento's proxy at **`http://<app>.localhost:8000`** (the app's first service) or `http://<service>.<app>.localhost:8000` (`PROXY_LISTEN` moves it). A new release starts beside the running one; once it answers (its `health` path, or its port), the proxy goes to it and the old containers are removed, and one that never answers is removed and leaves the running one in place, as release verification then reports. An app that needs Postgres or Redis gets a container of each, with a password made once and sealed; its secrets (Settings → Secrets) are sealed too. The containers restart with the computer. Not there yet: one service calling another, certificates for an app's own domain, and the tunnel that puts it on the internet; then an installer and a native app.
 
 ## rendimiento builds itself {#rendimiento-builds-itself}
 
