@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -248,6 +249,9 @@ func runLocal(ctx context.Context, log *slog.Logger, problemLog *problems.Record
 	}()
 
 	proxySrv := &http.Server{Addr: env("PROXY_LISTEN", "127.0.0.1:8000"), Handler: loc.Proxy(), ReadHeaderTimeout: 10 * time.Second}
+	if _, port, err := net.SplitHostPort(proxySrv.Addr); err == nil {
+		loc.Puerto = port
+	}
 	go func() {
 		log.Info("apps at http://<app>.localhost"+strings.TrimPrefix(proxySrv.Addr, "127.0.0.1"), "addr", proxySrv.Addr)
 		if err := proxySrv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {

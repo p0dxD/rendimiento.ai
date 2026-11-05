@@ -58,7 +58,8 @@ function Summary({ v }: { v: IAView }) {
   const why = blocked(v, s.provider);
   const escalate = s.autoDiagnose ? s.escalateTo : "";
   const escWhy = escalate ? blocked(v, escalate) : "";
-  const answers: AIProvider = why ? "local" : s.provider;
+  // Without its choice the gateway falls back to the local model; without that either, nothing answers.
+  const answers: AIProvider | "" = !why ? s.provider : v.localModel ? "local" : "";
   const platformLimit = Math.min(s.capMicros, s.allowanceMicros);
   const spent = v.spentOwnMicros + v.spentPlatformMicros;
   // One notice for what is missing, said once even when both choices miss the same thing.
@@ -67,7 +68,10 @@ function Summary({ v }: { v: IAView }) {
     <div className="card ia-summary">
       {missing.length > 0 && (
         <div className="ia-alert small">
-          <strong>{t("Something is missing:")}</strong> {t("{why}, so the local model answers for now.", { why: missing.join("; ") })}{" "}
+          <strong>{t("Something is missing:")}</strong>{" "}
+          {v.localModel
+            ? t("{why}, so the local model answers for now.", { why: missing.join("; ") })
+            : t("{why}, and there is no local model to fall back on, so nothing answers: failed runs are not explained and agents cannot work. Add your own key below, or a local model (AI_LOCAL_URL).", { why: missing.join("; ") })}{" "}
           {missing.some((m) => m === blocked(v, "platform")) && (session.operator
             ? t("Give your organization an allowance below, under the platform's AI.")
             : t("Ask the platform's operators for an allowance."))}
@@ -75,8 +79,10 @@ function Summary({ v }: { v: IAView }) {
       )}
       <div className="ia-fact">
         <span className="small muted">{t("Answers now")}</span>
-        <strong>{t(providerName[answers])}</strong>
-        <span className="small muted">{modelOf(v, answers)} · {t(answers === "local" ? "free" : answers === "own" ? "paid by you" : "paid by the platform")}</span>
+        <strong>{answers ? t(providerName[answers]) : t("Nobody")}</strong>
+        <span className="small muted">{answers
+          ? `${modelOf(v, answers)} · ${t(answers === "local" ? "free" : answers === "own" ? "paid by you" : "paid by the platform")}`
+          : t("no model is available")}</span>
       </div>
       <div className="ia-fact">
         <span className="small muted">{t("Failed runs")}</span>
