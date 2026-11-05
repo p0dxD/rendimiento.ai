@@ -1,0 +1,14 @@
+# A service with a scheduled job and deploy tasks.
+services:
+  - name: api
+    port: 8000
+jobs:
+  - name: limpieza
+    schedule: "0 3 * * *"
+    service: api
+    command: [sh, -c, "echo limpio"]
+tasks:
+  - name: migrar
+    stage: pre-deploy
+    service: api
+    command: ./migrate

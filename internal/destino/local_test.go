@@ -14,6 +14,7 @@ import (
 
 	"github.com/rendimiento-ai/rendimiento/internal/motor"
 	"github.com/rendimiento-ai/rendimiento/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/spec/ejemplos"
 	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
@@ -239,5 +240,30 @@ func TestLocal(t *testing.T) {
 	}
 	if len(e.containers) != 0 || l.Ruta("tienda.localhost") != "" {
 		t.Fatalf("after Quitar: %v", e.containers)
+	}
+}
+
+// Every example that runs something rolls out on the local destination.
+func TestLocalEjemplos(t *testing.T) {
+	todos, err := ejemplos.Todos()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ej := range todos {
+		if !ej.Spec.Runs() {
+			continue
+		}
+		e := &engine{containers: map[string]*fakeContainer{}}
+		l := &Local{Motor: &motor.Motor{Bin: "nerdctl", Exec: e.exec}, Caja: memCaja{}, Esperar: 300 * time.Millisecond,
+			Responde: func(context.Context, string, *spec.Health) bool { return true }}
+		images := map[string]string{}
+		for _, s := range ej.Spec.Services {
+			images[s.Name] = s.Name + "@sha256:1"
+		}
+		if err := l.Aplicar(context.Background(), "ej-"+ej.Nombre, &store.Release{Number: 1, Spec: *ej.Spec, Images: images}); err != nil {
+			t.Errorf("%s: %v", ej.Nombre, err)
+			continue
+		}
+		waitEstado(t, l, "ej-"+ej.Nombre, 1, Sana)
 	}
 }

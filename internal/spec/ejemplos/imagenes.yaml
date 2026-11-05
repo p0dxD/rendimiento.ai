@@ -1,0 +1,5 @@
+# Only images, built, tested and kept with each release; nothing runs.
+builds:
+  - name: herramienta
+    path: .
+    test: { image: "golang:1.27", command: "go test ./..." }

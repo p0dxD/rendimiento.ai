@@ -850,6 +850,9 @@ func (p *Platform) execute(ctx context.Context, run *store.Run) {
 			status, msg = store.RunFailed, M("release #%d not deployed: %s", rel.Number, blocked.reason)
 		case err != nil:
 			status, msg = store.RunFailed, M("release failed: %s", err.Error())
+		case !rel.Spec.Runs():
+			msg = M("released #%d", rel.Number)
+			p.setVerification(app, rel, store.VerifySkipped, "nothing of this release runs: it keeps its images")
 		default:
 			msg = M("released #%d", rel.Number)
 			p.startVerification(ctx, app, rel)
@@ -1043,9 +1046,13 @@ func (p *Platform) rollbackTo(ctx context.Context, app *store.App, old *store.Re
 	return rel, nil
 }
 
-// pointApp makes the release the one its destination runs.
+// pointApp makes the release the one its destination runs; a release with
+// nothing to run (only builds) is only recorded.
 func (p *Platform) pointApp(ctx context.Context, name string, rel *store.Release) error {
-	err := p.Target().Aplicar(ctx, name, rel)
+	var err error
+	if rel.Spec.Runs() {
+		err = p.Target().Aplicar(ctx, name, rel)
+	}
 	if err == nil {
 		p.Hub.Publish(appTopic(name), events.Event{Type: "release", Data: rel})
 	}

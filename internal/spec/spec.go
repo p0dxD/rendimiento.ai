@@ -268,6 +268,11 @@ func (n Need) EnvName() string {
 
 var nonEnvChars = regexp.MustCompile(`[^A-Z0-9]+`)
 
+// Runs reports whether anything of the app runs where it is deployed (a
+// service or a job). A library (only tasks) or an app of only builds has
+// nothing to run: it is tested and released, and nothing is deployed.
+func (s Spec) Runs() bool { return len(s.Services) > 0 || len(s.Jobs) > 0 }
+
 // Needs reports whether any service of the app needs kind.
 func (s *Spec) Needs(kind string) bool {
 	for _, svc := range s.Services {

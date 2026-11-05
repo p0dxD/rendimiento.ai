@@ -1,0 +1,6 @@
+# A library: only its tests, nothing to deploy.
+tasks:
+  - name: test
+    image: node:20-bookworm
+    when: always
+    command: npm ci && npm test
