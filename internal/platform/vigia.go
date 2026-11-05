@@ -11,14 +11,16 @@ import (
 // (rendimiento on a computer, without a tunnel): every Every it lists each
 // app's branches, and a branch whose head moved is handled as a push. The
 // first look only notes where each branch is, so starting does not run
-// every branch again; a default branch whose head has no run yet does run.
+// every branch again, and neither does onboarding an app; a default
+// branch whose head has no run yet does run.
 type Vigia struct {
 	P     *Platform
 	Every time.Duration // default 1m
 	// Branches lists a repo's branches (the GitHub App's, faked in tests).
 	Branches func(ctx context.Context, installation int64, repo string) ([]gh.Branch, error)
 
-	seen map[string]string // "repo branch" → head
+	seen  map[string]string // "repo branch" → head
+	repos map[string]bool   // repos looked at before
 }
 
 // Run looks until ctx ends.
@@ -39,9 +41,8 @@ func (v *Vigia) Run(ctx context.Context) {
 
 // Mirar looks once at every app's branches.
 func (v *Vigia) Mirar(ctx context.Context) {
-	first := v.seen == nil
-	if first {
-		v.seen = map[string]string{}
+	if v.seen == nil {
+		v.seen, v.repos = map[string]string{}, map[string]bool{}
 	}
 	apps, err := v.P.Store.ListApps(ctx)
 	if err != nil {
@@ -59,6 +60,10 @@ func (v *Vigia) Mirar(ctx context.Context) {
 			v.P.Log.Warn("watching GitHub: could not list the branches", "repo", app.Repo, "err", err)
 			continue
 		}
+		// The first look at a repo (at startup, or once its app is
+		// onboarded) only notes where its branches are.
+		first := !v.repos[app.Repo]
+		v.repos[app.Repo] = true
 		for _, b := range branches {
 			ran := func() bool { return v.ran(ctx, app.ID, b.Commit.SHA) }
 			if !v.nuevo(first, app.Repo+" "+b.Name, b.Commit.SHA, b.Name == app.DefaultBranch, ran) {

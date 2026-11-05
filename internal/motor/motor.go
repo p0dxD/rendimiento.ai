@@ -13,6 +13,7 @@ import (
 	"io"
 	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -296,6 +297,15 @@ func (m *Motor) Inspeccionar(ctx context.Context, nombre string) (Info, error) {
 		return Info{}, fmt.Errorf("%s inspect %s: %v", m.Bin, nombre, err)
 	}
 	return Info{Nombre: nombre, Corriendo: raw.State.Running, Imagen: raw.Config.Image, Etiquetas: raw.Config.Labels, Estado: raw.State.Status}, nil
+}
+
+// Registros is the last lines a container wrote ("" when it cannot be read).
+func (m *Motor) Registros(ctx context.Context, nombre string, lineas int) string {
+	var out bytes.Buffer
+	if err := m.run(ctx, []string{"logs", "--tail", strconv.Itoa(lineas), nombre}, &out); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out.String())
 }
 
 // Reiniciar restarts a container.

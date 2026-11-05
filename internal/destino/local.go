@@ -232,11 +232,26 @@ func (l *Local) esperar(ctx context.Context, name string, svc spec.Service, ruta
 	if p := info.Etiquetas[etPuerto]; p != "" {
 		addr = "127.0.0.1:" + p
 	}
+	parado := 0 // checks in a row it was not running
 	for {
 		info, err := l.Motor.Inspeccionar(ctx, name)
+		if err == nil && !info.Corriendo && info.Estado != "created" {
+			parado++
+		} else {
+			parado = 0
+		}
 		switch {
-		case err == nil && !info.Corriendo && info.Estado != "created" && info.Estado != "restarting":
-			return fmt.Errorf("it stopped (%s)", info.Estado)
+		case parado >= 3:
+			// It keeps stopping (its restart policy brings it back): say
+			// why, from what it wrote, before it is removed.
+			why := info.Estado
+			if why == "" {
+				why = "exited"
+			}
+			if tail := l.Motor.Registros(ctx, name, 15); tail != "" {
+				return fmt.Errorf("it stopped (%s); its last lines:\n%s", why, tail)
+			}
+			return fmt.Errorf("it stopped (%s) and wrote nothing", why)
 		case err == nil && addr == "" && info.Corriendo && time.Until(deadline) < d-10*time.Second:
 			return nil // no port: running for 10 seconds is enough
 		case err == nil && addr != "" && l.responde(ctx, addr, svc.Health):

@@ -24,6 +24,8 @@ type engine struct {
 	mu         sync.Mutex
 	containers map[string]*fakeContainer
 	calls      []string
+	// crash makes the service containers it starts stop at once, writing it.
+	crash string
 }
 
 type fakeContainer struct {
@@ -60,7 +62,12 @@ func (e *engine) exec(_ context.Context, _ string, args []string, out io.Writer)
 				}
 			}
 		}
+		if e.crash != "" && c.labels[etParte] == "service" {
+			c.running = false
+		}
 		e.containers[name] = c
+	case "logs":
+		fmt.Fprintln(out, e.crash)
 	case "rm":
 		delete(e.containers, args[len(args)-1])
 	case "ps":
@@ -265,5 +272,20 @@ func TestLocalEjemplos(t *testing.T) {
 			continue
 		}
 		waitEstado(t, l, "ej-"+ej.Nombre, 1, Sana)
+	}
+}
+
+// A service that keeps stopping fails its release with what it wrote, read
+// before its container is removed.
+func TestLocalSeDetiene(t *testing.T) {
+	e := &engine{containers: map[string]*fakeContainer{}, crash: "Error: listen EACCES: permission denied 0.0.0.0:80"}
+	l := &Local{Motor: &motor.Motor{Bin: "nerdctl", Exec: e.exec}, Caja: memCaja{}, Esperar: time.Second,
+		Responde: func(context.Context, string, *spec.Health) bool { return false }}
+	sp := spec.Spec{Services: []spec.Service{{Name: "ui", Port: 80}}}
+	sp.Default()
+	_ = l.Aplicar(context.Background(), "portal", &store.Release{Number: 1, Spec: sp, Images: map[string]string{"ui": "ui@sha256:1"}})
+	msg := waitEstado(t, l, "portal", 1, Fallida)
+	if !strings.Contains(msg, "it stopped") || !strings.Contains(msg, "EACCES") {
+		t.Fatalf("message: %q", msg)
 	}
 }
