@@ -197,7 +197,13 @@ Lo que el clúster todavía necesita:
 
 ## En una computadora, sin Kubernetes (versión previa) {#on-one-computer}
 
-`MODE=local` corre rendimiento en una computadora con containerd (nerdctl, el recomendado) o Docker, en un solo proceso: la interfaz y la API en `127.0.0.1:8080`, la integración continua y los agentes.
+`MODE=local` corre rendimiento en una computadora con containerd (nerdctl, el recomendado) o Docker, en un solo proceso: la interfaz y la API en `127.0.0.1:8080`, la integración continua y los agentes. En Linux, el instalador lo deja todo listo:
+
+```bash
+curl -fsSL https://rendimiento.ai/instalar | sh
+```
+
+Usa el motor que tiene la computadora (containerd, o Docker cuando su usuario puede usarlo), o instala containerd para su usuario, sin root (pregunta antes, y usa `sudo` una sola vez: `/usr/local`, `uidmap`, un perfil de AppArmor para `rootlesskit` en Ubuntu reciente, y el *linger* para que sus servicios corran aunque usted no haya entrado). Descarga el programa de la última versión (publicado para amd64 y arm64 con sus `SHA256SUMS`, que revisa) a `~/.local/bin`, pregunta su usuario de GitHub y lo deja como servicio de su usuario (`systemctl --user status rendimiento`) que arranca con la computadora. `RENDIMIENTO_GITHUB`, `RENDIMIENTO_VERSION` y `RENDIMIENTO_SI=1` contestan sus preguntas por adelantado. A mano, es:
 
 ```bash
 MODE=local ALLOWED_USERS=su-usuario-de-github ./rendimiento
@@ -207,7 +213,7 @@ La primera vez crea, en `DATA_DIR` (por omisión `~/.config/rendimiento`, que so
 
 GitHub no puede mandar avisos web a `localhost`, así que la aplicación de GitHub que crea la página de configuración no tiene ninguno: cada `POLL_INTERVAL` (1 minuto) rendimiento le pregunta a GitHub por las ramas de cada aplicación y corre la rama cuya punta cambió, como lo haría un push.
 
-Las versiones corren en la computadora con el **destino local**: cada servicio de una versión es un contenedor en la red propia de la aplicación, publicado en `127.0.0.1` y al que se llega por el proxy de rendimiento en **`http://<app>.localhost:8000`** (el primer servicio de la aplicación) o `http://<servicio>.<app>.localhost:8000` (`PROXY_LISTEN` lo cambia). Una versión nueva arranca junto a la que corre; cuando responde (su ruta `health`, o su puerto), el proxy pasa a ella y se quitan los contenedores viejos; una que nunca responde se quita y deja la que corría, como lo informa luego la verificación de la versión. Una aplicación que necesita Postgres o Redis recibe un contenedor de cada uno, con una contraseña creada una vez y sellada; sus secretos (Ajustes → Secretos) también se sellan. Los contenedores arrancan de nuevo con la computadora. Un servicio llega a otro servicio de su aplicación por la dirección que le da su necesidad (`API_URL`, como en el clúster); los servicios de otra aplicación no se alcanzan ahí. Todavía falta: los certificados del dominio propio de una aplicación y el túnel que la pone en internet; luego un instalador y una aplicación nativa.
+Las versiones corren en la computadora con el **destino local**: cada servicio de una versión es un contenedor en la red propia de la aplicación, publicado en `127.0.0.1` y al que se llega por el proxy de rendimiento en **`http://<app>.localhost:8000`** (el primer servicio de la aplicación) o `http://<servicio>.<app>.localhost:8000` (`PROXY_LISTEN` lo cambia). Una versión nueva arranca junto a la que corre; cuando responde (su ruta `health`, o su puerto), el proxy pasa a ella y se quitan los contenedores viejos; una que nunca responde se quita y deja la que corría, como lo informa luego la verificación de la versión. Una aplicación que necesita Postgres o Redis recibe un contenedor de cada uno, con una contraseña creada una vez y sellada; sus secretos (Ajustes → Secretos) también se sellan. Los contenedores arrancan de nuevo con la computadora. Un servicio llega a otro servicio de su aplicación por la dirección que le da su necesidad (`API_URL`, como en el clúster); los servicios de otra aplicación no se alcanzan ahí. Todavía falta: los certificados del dominio propio de una aplicación y el túnel que la pone en internet; luego una aplicación nativa.
 
 ## rendimiento se construye a sí mismo {#rendimiento-builds-itself}
 

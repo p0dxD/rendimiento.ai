@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rendimiento-ai/rendimiento/api/v1alpha1"
+	"github.com/rendimiento-ai/rendimiento/instalar"
 	"github.com/rendimiento-ai/rendimiento/internal/addon"
 	"github.com/rendimiento-ai/rendimiento/internal/agentes"
 	"github.com/rendimiento-ai/rendimiento/internal/analytics"
@@ -151,6 +152,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/auth/callback", s.callback)
 	mux.HandleFunc("POST /api/auth/logout", s.logout)
 	mux.HandleFunc("GET /demo/{code}", s.openDemo)
+	mux.HandleFunc("GET /instalar", func(w http.ResponseWriter, _ *http.Request) {
+		// curl -fsSL https://rendimiento.ai/instalar | sh
+		w.Header().Set("Content-Type", "text/x-shellscript; charset=utf-8")
+		_, _ = w.Write(instalar.Script)
+	})
 	mux.HandleFunc("GET /api/setup/status", s.setupStatus)
 	mux.HandleFunc("GET /api/setup/github", s.setupStart)
 	mux.HandleFunc("GET /api/setup/github/callback", s.setupCallback)
@@ -305,7 +311,7 @@ func clusterOnly(pattern string) bool {
 // machinePaths keep answering on a redirected host: what GitHub, agents
 // and websites call there is moved one by one, and machines do not all
 // follow redirects.
-var machinePaths = []string{"/api/webhooks/", "/mcp", "/api/public/", "/healthz"}
+var machinePaths = []string{"/api/webhooks/", "/mcp", "/api/public/", "/healthz", "/instalar"}
 
 // redirectHosts sends people who visit one of RedirectHosts (an old
 // address) to BaseURL, same path and query (308). Machine paths answer
