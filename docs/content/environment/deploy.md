@@ -197,7 +197,13 @@ What the cluster still needs:
 
 ## On one computer, without Kubernetes (preview) {#on-one-computer}
 
-`MODE=local` runs rendimiento on a computer with containerd (nerdctl, recommended) or Docker, in one process: the UI and the API on `127.0.0.1:8080`, CI, and the agents.
+`MODE=local` runs rendimiento on a computer with containerd (nerdctl, recommended) or Docker, in one process: the UI and the API on `127.0.0.1:8080`, CI, and the agents. On Linux, the installer sets it all up:
+
+```bash
+curl -fsSL https://rendimiento.ai/instalar | sh
+```
+
+It uses the engine the computer has (containerd, or Docker when your user can use it), or installs containerd for your user, without root (it asks before, and uses `sudo` once: `/usr/local`, `uidmap`, an AppArmor profile for `rootlesskit` on recent Ubuntu, and lingering so your services run while you are signed out). It downloads the program of the latest release (published for amd64 and arm64 with its `SHA256SUMS`, which it checks) to `~/.local/bin`, asks for your GitHub login, and leaves it as a service of your user (`systemctl --user status rendimiento`) that starts with the computer. `RENDIMIENTO_GITHUB`, `RENDIMIENTO_VERSION` and `RENDIMIENTO_SI=1` answer its questions ahead. By hand, it is:
 
 ```bash
 MODE=local ALLOWED_USERS=your-github-login ./rendimiento
@@ -207,7 +213,7 @@ On its first start it makes, in `DATA_DIR` (by default `~/.config/rendimiento`, 
 
 GitHub cannot send webhooks to `localhost`, so the GitHub App made by the setup page has none: every `POLL_INTERVAL` (1 minute) rendimiento asks GitHub for each app's branches and runs a branch whose head moved, as a push would.
 
-Releases run on the computer, through the **local destination**: each service of a release is a container on the app's own network, published on `127.0.0.1` and reached through rendimiento's proxy at **`http://<app>.localhost:8000`** (the app's first service) or `http://<service>.<app>.localhost:8000` (`PROXY_LISTEN` moves it). A new release starts beside the running one; once it answers (its `health` path, or its port), the proxy goes to it and the old containers are removed, and one that never answers is removed and leaves the running one in place, as release verification then reports. An app that needs Postgres or Redis gets a container of each, with a password made once and sealed; its secrets (Settings → Secrets) are sealed too. The containers restart with the computer. A service reaches another service of its app by the address its need gives it (`API_URL`, as in the cluster); another app's services are not reachable there. Not there yet: certificates for an app's own domain, and the tunnel that puts it on the internet; then an installer and a native app.
+Releases run on the computer, through the **local destination**: each service of a release is a container on the app's own network, published on `127.0.0.1` and reached through rendimiento's proxy at **`http://<app>.localhost:8000`** (the app's first service) or `http://<service>.<app>.localhost:8000` (`PROXY_LISTEN` moves it). A new release starts beside the running one; once it answers (its `health` path, or its port), the proxy goes to it and the old containers are removed, and one that never answers is removed and leaves the running one in place, as release verification then reports. An app that needs Postgres or Redis gets a container of each, with a password made once and sealed; its secrets (Settings → Secrets) are sealed too. The containers restart with the computer. A service reaches another service of its app by the address its need gives it (`API_URL`, as in the cluster); another app's services are not reachable there. Not there yet: certificates for an app's own domain, and the tunnel that puts it on the internet; then a native app.
 
 ## rendimiento builds itself {#rendimiento-builds-itself}
 

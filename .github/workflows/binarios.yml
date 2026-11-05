@@ -1,0 +1,42 @@
+# Publishes the rendimiento program for Linux (amd64 and arm64) with each
+# v* tag, as a GitHub release with its SHA256SUMS: what the installer
+# (curl -fsSL https://rendimiento.ai/instalar | sh) downloads. rendimiento
+# tested the change before it was merged; this only builds and publishes.
+name: binarios
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 20
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: The UI, embedded in the program
+        run: cd web && npm ci && npm run build
+      - name: The program, for each processor
+        run: |
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags="-s -w" -o dist/rendimiento-linux-$arch ./cmd/rendimiento
+          done
+          cd dist && sha256sum rendimiento-linux-* > SHA256SUMS
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist/rendimiento-linux-amd64
+            dist/rendimiento-linux-arm64
+            dist/SHA256SUMS
+          generate_release_notes: true
