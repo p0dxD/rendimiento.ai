@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/analytics"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/analytics"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // visitRanges are the Visits tab's rolling ranges and how their charts are

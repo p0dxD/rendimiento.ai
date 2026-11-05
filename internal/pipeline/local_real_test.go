@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/motor"
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/motor"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
 )
 
 // TestLocalReal runs real steps on this machine's engine, against public
@@ -50,7 +50,7 @@ func TestLocalReal(t *testing.T) {
 		Command: "exit 3"}); res.Status != StatusFailed || !strings.Contains(res.Message, "code 3") {
 		t.Errorf("a failing step: %s %s", res.Status, res.Message)
 	}
-	self := Source{Repo: "p0dxD/rendimiento.ai", Branch: "main"}
+	self := Source{Repo: "rendimiento-ai/rendimiento", Branch: "main"}
 	res := run("build", self, Step{ID: "platform:build", Kind: KindBuild, Path: ".", Target: "localhost:5000/rendimiento-prueba", Dockerfile: "Dockerfile"})
 	if res.Status != StatusSucceeded || !strings.HasPrefix(res.Digest, "sha256:") {
 		t.Errorf("build: %s %s", res.Message, res.Digest)

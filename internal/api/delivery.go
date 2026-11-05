@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // deliveryDays is the dashboard's period; the previous one, just as long,

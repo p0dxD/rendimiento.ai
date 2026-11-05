@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
+	"github.com/rendimiento-ai/rendimiento/api/v1alpha1"
 )
 
 // hookChart serves a chart whose install and upgrade run a pre hook Pod

@@ -7,8 +7,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/p0dxD/rendimiento.ai/internal/mercado"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/mercado"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // Mercado is what the mercado_* tools need (a *mercado.Mercado); without it

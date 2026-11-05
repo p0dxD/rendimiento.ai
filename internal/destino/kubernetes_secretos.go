@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/p0dxD/rendimiento.ai/internal/render"
+	"github.com/rendimiento-ai/rendimiento/internal/render"
 )
 
 // secreto is the Secret named in the app's namespace, once the namespace

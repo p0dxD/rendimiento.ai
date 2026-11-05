@@ -11,7 +11,7 @@ Este capítulo enseña el Go que necesita para leer y cambiar rendimiento, con s
 
 ## Módulos y paquetes {#modules-and-packages}
 
-Un **módulo** es un proyecto con versiones: `go.mod` en la raíz le da nombre (`github.com/p0dxD/rendimiento.ai`) y enumera sus dependencias con versiones exactas (`go.sum` guarda sus sumas de verificación). `go mod tidy` mantiene los dos en orden.
+Un **módulo** es un proyecto con versiones: `go.mod` en la raíz le da nombre (`github.com/rendimiento-ai/rendimiento`) y enumera sus dependencias con versiones exactas (`go.sum` guarda sus sumas de verificación). `go mod tidy` mantiene los dos en orden.
 
 Un **paquete** es una carpeta de archivos `.go` que comparten un nombre de `package`. Cada archivo empieza con él y con sus importaciones:
 
@@ -21,7 +21,7 @@ package controller
 import (
 	"context"                                   // biblioteca estándar
 	appsv1 "k8s.io/api/apps/v1"                 // una dependencia, con otro nombre
-	"github.com/p0dxD/rendimiento.ai/internal/render" // otro paquete nuestro
+	"github.com/rendimiento-ai/rendimiento/internal/render" // otro paquete nuestro
 )
 ```
 

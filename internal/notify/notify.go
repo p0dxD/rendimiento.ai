@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/i18n"
+	"github.com/rendimiento-ai/rendimiento/internal/i18n"
 )
 
 // Tone is a message's severity: it sets its color and label.
@@ -393,7 +393,7 @@ func (r *Resend) Send(ctx context.Context, to []string, subject, html, text stri
 	req.Header.Set("Content-Type", "application/json")
 	// Resend sits behind Cloudflare, whose bot rules block some default
 	// client user agents; name ourselves.
-	req.Header.Set("User-Agent", "rendimiento/1 (+https://github.com/p0dxD/rendimiento.ai)")
+	req.Header.Set("User-Agent", "rendimiento/1 (+https://github.com/rendimiento-ai/rendimiento)")
 	hc := r.HTTP
 	if hc == nil {
 		hc = &http.Client{Timeout: 20 * time.Second}

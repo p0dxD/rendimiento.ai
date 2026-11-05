@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/environment"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/environment"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // StatsHandler serves only GET /api/public/stats: for an internal-only

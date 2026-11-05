@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // Message is one turn of a conversation: role user or assistant.

@@ -32,7 +32,7 @@ The collector turns every span into numbers (its `spanmetrics`), and the [Univer
 npm cannot install a folder of a git repository, so until it is published, install it from a copy:
 
 ```bash
-git clone https://github.com/p0dxD/rendimiento.ai
+git clone https://github.com/rendimiento-ai/rendimiento
 npm install ./rendimiento.ai/sdk/node   # or copy sdk/node into your repo and install that folder
 ```
 
@@ -53,7 +53,7 @@ app.post("/pedidos/:id/cobrar", (req, res) =>
 ## Python
 
 ```bash
-pip install "rendimiento-observa @ git+https://github.com/p0dxD/rendimiento.ai#subdirectory=sdk/python"
+pip install "rendimiento-observa @ git+https://github.com/rendimiento-ai/rendimiento#subdirectory=sdk/python"
 # without the agent: add [sdk] for the OpenTelemetry SDK and the OTLP exporter
 ```
 

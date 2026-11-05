@@ -8,15 +8,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/destino"
-	"github.com/p0dxD/rendimiento.ai/internal/events"
-	"github.com/p0dxD/rendimiento.ai/internal/notify"
-	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
-	"github.com/p0dxD/rendimiento.ai/internal/uptime"
+	"github.com/rendimiento-ai/rendimiento/internal/destino"
+	"github.com/rendimiento-ai/rendimiento/internal/events"
+	"github.com/rendimiento-ai/rendimiento/internal/notify"
+	"github.com/rendimiento-ai/rendimiento/internal/pipeline"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/uptime"
 
-	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
+	. "github.com/rendimiento-ai/rendimiento/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // VerifySettings configure release verification: after a release is

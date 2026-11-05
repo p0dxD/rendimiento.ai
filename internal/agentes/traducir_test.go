@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/ia"
+	"github.com/rendimiento-ai/rendimiento/internal/ia"
 )
 
 type slowModel struct {

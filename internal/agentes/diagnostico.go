@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/i18n"
-	"github.com/p0dxD/rendimiento.ai/internal/ia"
-	"github.com/p0dxD/rendimiento.ai/internal/ruta"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/i18n"
+	"github.com/rendimiento-ai/rendimiento/internal/ia"
+	"github.com/rendimiento-ai/rendimiento/internal/ruta"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // Store is what the diagnostician reads and keeps (the platform's store).

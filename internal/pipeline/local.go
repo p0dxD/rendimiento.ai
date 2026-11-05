@@ -12,8 +12,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/p0dxD/rendimiento.ai/internal/motor"
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/motor"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
 )
 
 // LocalExecutor runs each step on this machine, as containers of its

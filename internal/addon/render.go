@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 	"sigs.k8s.io/yaml"
 
-	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
+	"github.com/rendimiento-ai/rendimiento/api/v1alpha1"
 )
 
 // GitFetcher reads a folder of a GitHub repository at a commit.

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/ruta"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/ruta"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 var rutaKinds = map[string]bool{store.KindDecision: true, store.KindManual: true, store.KindPendiente: true, store.KindNota: true, store.KindVivido: true}

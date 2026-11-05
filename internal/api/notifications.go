@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/p0dxD/rendimiento.ai/internal/notify"
+	"github.com/rendimiento-ai/rendimiento/internal/notify"
 
-	"github.com/p0dxD/rendimiento.ai/internal/i18n"
+	"github.com/rendimiento-ai/rendimiento/internal/i18n"
 )
 
 // testNotification sends a sample email now, so the setup can be checked

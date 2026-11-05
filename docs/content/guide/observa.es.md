@@ -32,7 +32,7 @@ El colector convierte cada tramo en números (su `spanmetrics`), y el [universo]
 npm no puede instalar una carpeta de un repositorio de git, así que mientras no se publique, instálela desde una copia:
 
 ```bash
-git clone https://github.com/p0dxD/rendimiento.ai
+git clone https://github.com/rendimiento-ai/rendimiento
 npm install ./rendimiento.ai/sdk/node   # o copie sdk/node a su repositorio e instale esa carpeta
 ```
 
@@ -53,7 +53,7 @@ app.post("/pedidos/:id/cobrar", (req, res) =>
 ## Python {#python}
 
 ```bash
-pip install "rendimiento-observa @ git+https://github.com/p0dxD/rendimiento.ai#subdirectory=sdk/python"
+pip install "rendimiento-observa @ git+https://github.com/rendimiento-ai/rendimiento#subdirectory=sdk/python"
 # sin el agente: agregue [sdk] para el SDK de OpenTelemetry y el exportador OTLP
 ```
 

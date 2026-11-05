@@ -3,7 +3,7 @@ package platform
 import (
 	"testing"
 
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // What the Environment page sets wins over the environment's values, up to

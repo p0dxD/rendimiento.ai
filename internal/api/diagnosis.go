@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/agentes"
-	"github.com/p0dxD/rendimiento.ai/internal/ruta"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/agentes"
+	"github.com/rendimiento-ai/rendimiento/internal/ruta"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // getDiagnosis is a failed run's diagnosis by the diagnostician agent:

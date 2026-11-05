@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	gh "github.com/rendimiento-ai/rendimiento/internal/github"
 )
 
 // SecretCredentials stores the GitHub App credentials in a Kubernetes Secret.

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
 )
 
 func TestPuestos(t *testing.T) {

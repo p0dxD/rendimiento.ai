@@ -16,7 +16,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // Almacen is where sealed secrets are kept (*store.Store).

@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
+	. "github.com/rendimiento-ai/rendimiento/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // Language is a detected language or runtime family.

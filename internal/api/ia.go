@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/agentes"
-	"github.com/p0dxD/rendimiento.ai/internal/ia"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/agentes"
+	"github.com/rendimiento-ai/rendimiento/internal/ia"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // IAKeys stores organizations' own AI keys (ia.SecretKeys).

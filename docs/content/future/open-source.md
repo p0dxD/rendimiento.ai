@@ -1,6 +1,6 @@
 # Open source
 
-The repository [p0dxD/rendimiento.ai](https://github.com/p0dxD/rendimiento.ai) is already public. Turning it into a project that other people install and contribute to is mostly *packaging and process*, not new features. This page is the checklist.
+The repository [rendimiento-ai/rendimiento](https://github.com/rendimiento-ai/rendimiento) is already public. Turning it into a project that other people install and contribute to is mostly *packaging and process*, not new features. This page is the checklist.
 
 ## Make it installable anywhere
 

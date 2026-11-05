@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/p0dxD/rendimiento.ai/internal/i18n"
+	"github.com/rendimiento-ai/rendimiento/internal/i18n"
 )
 
 // Keys whose values are sentences for people: translated with the catalog's

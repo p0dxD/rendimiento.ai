@@ -23,20 +23,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/p0dxD/rendimiento.ai/internal/destino"
-	"github.com/p0dxD/rendimiento.ai/internal/detect"
-	"github.com/p0dxD/rendimiento.ai/internal/events"
-	"github.com/p0dxD/rendimiento.ai/internal/generate"
-	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/rendimiento-ai/rendimiento/internal/destino"
+	"github.com/rendimiento-ai/rendimiento/internal/detect"
+	"github.com/rendimiento-ai/rendimiento/internal/events"
+	"github.com/rendimiento-ai/rendimiento/internal/generate"
+	gh "github.com/rendimiento-ai/rendimiento/internal/github"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/p0dxD/rendimiento.ai/internal/notify"
-	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
-	"github.com/p0dxD/rendimiento.ai/internal/render"
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/notify"
+	"github.com/rendimiento-ai/rendimiento/internal/pipeline"
+	"github.com/rendimiento-ai/rendimiento/internal/render"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 
-	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
+	. "github.com/rendimiento-ai/rendimiento/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // GitHub is the subset of the GitHub App the platform needs; faked in tests.

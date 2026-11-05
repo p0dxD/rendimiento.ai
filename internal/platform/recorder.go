@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/events"
-	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
+	"github.com/rendimiento-ai/rendimiento/internal/events"
+	"github.com/rendimiento-ai/rendimiento/internal/pipeline"
 )
 
 // StepUpdate implements pipeline.Recorder: persist, then notify the UI.

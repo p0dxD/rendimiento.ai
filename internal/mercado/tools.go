@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // PuestoBrief is a stall as the agents' MCP tools list it.

@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // Tool is a tool a model may call: its name, what it does, and its input's

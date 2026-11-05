@@ -17,8 +17,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/p0dxD/rendimiento.ai/internal/pipeline"
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/pipeline"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
 )
 
 //go:embed migrations/*.sql

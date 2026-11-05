@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/problems"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/problems"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // ProblemList is the Problems page: what went wrong in the platform in the

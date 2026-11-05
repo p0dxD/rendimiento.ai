@@ -6,7 +6,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/p0dxD/rendimiento.ai/internal/detect"
+	"github.com/rendimiento-ai/rendimiento/internal/detect"
 )
 
 func gen(t *testing.T, repo string, fsys fstest.MapFS) *Plan {

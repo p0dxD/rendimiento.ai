@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
 )
 
 func TestDeliveryAndPublicStats(t *testing.T) {

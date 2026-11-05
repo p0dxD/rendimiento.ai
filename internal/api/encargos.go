@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/p0dxD/rendimiento.ai/internal/ruta"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/ruta"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // NewEncargo asks agents for something: what, the detail, and the app or
