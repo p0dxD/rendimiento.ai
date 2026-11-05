@@ -60,7 +60,9 @@ func (Ninguno) Impacto(_ context.Context, app string) (*Impacto, error) {
 func (Ninguno) Desconectar(context.Context, string) error { return nil }
 
 // LlavesSecreto: an app's secrets need a destination.
-func (Ninguno) LlavesSecreto(context.Context, string, string) ([]string, error) { return nil, ErrNoDespliega }
+func (Ninguno) LlavesSecreto(context.Context, string, string) ([]string, error) {
+	return nil, ErrNoDespliega
+}
 
 // GuardarSecreto: an app's secrets need a destination.
 func (Ninguno) GuardarSecreto(context.Context, string, string, map[string]*string) error {

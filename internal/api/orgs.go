@@ -21,7 +21,7 @@ type Me struct {
 	Role     string    `json:"role"`
 	Org      store.Org `json:"org"`
 	Operator bool      `json:"operator"`
-	Cluster  bool      `json:"cluster"` // false on a computer without Kubernetes: no Environment, Services or Add-ons
+	Cluster  bool      `json:"cluster"`        // false on a computer without Kubernetes: no Environment, Services or Add-ons
 	Demo     bool      `json:"demo,omitempty"` // signed in by a demo link: read-only
 }
 
