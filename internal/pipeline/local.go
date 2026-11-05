@@ -24,7 +24,9 @@ import (
 // on the host's network.
 type LocalExecutor struct {
 	Motor *motor.Motor
-	// BuildkitAddr is the local BuildKit daemon (tcp://127.0.0.1:1234).
+	// BuildkitAddr is the local BuildKit daemon: its socket
+	// (unix:///run/user/1000/buildkit/buildkitd.sock, mounted into the
+	// build container) or tcp://127.0.0.1:1234 (on the host's network).
 	BuildkitAddr string
 	BuildImage   string // buildctl client image; match the daemon version
 	GitImage     string
@@ -156,7 +158,14 @@ func (l *LocalExecutor) Execute(ctx context.Context, runID string, src Source, s
 		}
 		main.Imagen, main.Red = l.BuildImage, "host"
 		main.Comando = append([]string{"sh", "-c", buildScript, "build"}, dockerArgs(step)...)
-		main.Env = map[string]string{"RAILPACK_FRONTEND": l.RailpackFrontend, "BUILDKIT_ADDR": l.BuildkitAddr, "CONTEXT": workdir,
+		addr := l.BuildkitAddr
+		if sock, ok := strings.CutPrefix(addr, "unix://"); ok {
+			// The daemon's socket goes into the container: with rootless
+			// containerd, the host's network is not this machine's.
+			main.Montajes = append(main.Montajes, motor.Montaje{Volumen: path.Dir(sock), Ruta: "/run/buildkit"})
+			addr, main.Red = "unix:///run/buildkit/"+path.Base(sock), ""
+		}
+		main.Env = map[string]string{"RAILPACK_FRONTEND": l.RailpackFrontend, "BUILDKIT_ADDR": addr, "CONTEXT": workdir,
 			"DOCKERFILE": step.Dockerfile, "IMAGE": step.Target, "TAG": tag, "GIT_SHA": src.SHA, "INSECURE": insecure}
 	default:
 		return fail("unknown step kind %q", step.Kind)

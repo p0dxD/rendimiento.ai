@@ -40,7 +40,8 @@ func Buscar() (*Motor, error) {
 // Recomendado reports whether this is the recommended engine (containerd).
 func (m *Motor) Recomendado() bool { return m.Bin == "nerdctl" }
 
-// Montaje is a named volume mounted in a container.
+// Montaje is a named volume, or a folder of this machine (an absolute
+// path), mounted in a container.
 type Montaje struct {
 	Volumen, Ruta string
 }
@@ -62,7 +63,8 @@ type Contenedor struct {
 }
 
 func (c Contenedor) args(detached bool) []string {
-	args := []string{"run", "--name", c.Nombre}
+	// --quiet: the image's download is not part of the step's log.
+	args := []string{"run", "--quiet", "--name", c.Nombre}
 	if detached {
 		args = append(args, "-d")
 	} else {
@@ -89,8 +91,15 @@ func (c Contenedor) args(detached bool) []string {
 	if c.Memoria != "" {
 		args = append(args, "--memory", c.Memoria)
 	}
+	// Comando replaces the image's entrypoint, as a pod's command does.
+	if len(c.Comando) > 0 {
+		args = append(args, "--entrypoint", c.Comando[0])
+	}
 	args = append(args, c.Imagen)
-	return append(args, c.Comando...)
+	if len(c.Comando) > 1 {
+		args = append(args, c.Comando[1:]...)
+	}
+	return args
 }
 
 func sortedKeys(m map[string]string) []string {
@@ -123,7 +132,37 @@ func (m *Motor) Correr(ctx context.Context, c Contenedor, w io.Writer) error {
 		case <-done:
 		}
 	}()
-	return m.run(ctx, c.args(false), w)
+	out := &sinAviso{w: w}
+	err := m.run(ctx, c.args(false), out)
+	if len(out.part) > 0 { // a last line without its newline
+		_, _ = w.Write(out.part)
+	}
+	return err
+}
+
+// sinAviso drops containerd's notice that a named volume already exists,
+// which it prints each time one is mounted.
+type sinAviso struct {
+	w    io.Writer
+	part []byte
+}
+
+func (s *sinAviso) Write(p []byte) (int, error) {
+	s.part = append(s.part, p...)
+	for {
+		i := bytes.IndexByte(s.part, '\n')
+		if i < 0 {
+			break
+		}
+		line := s.part[:i+1]
+		if !(bytes.Contains(line, []byte("level=warning")) && bytes.Contains(line, []byte("already exists and will be returned as-is"))) {
+			if _, err := s.w.Write(line); err != nil {
+				return 0, err
+			}
+		}
+		s.part = s.part[i+1:]
+	}
+	return len(p), nil
 }
 
 // Iniciar starts the container in the background (Quitar removes it).
@@ -140,9 +179,10 @@ func (m *Motor) Ejecutar(ctx context.Context, nombre string, comando ...string) 
 	return m.run(ctx, append([]string{"exec", nombre}, comando...), io.Discard)
 }
 
-// Quitar stops and removes a container; one that is not there is gone already.
+// Quitar stops and removes a container, with the anonymous volumes its
+// image made (Postgres's data); one that is not there is gone already.
 func (m *Motor) Quitar(ctx context.Context, nombre string) error {
-	_ = m.run(ctx, []string{"rm", "-f", nombre}, io.Discard)
+	_ = m.run(ctx, []string{"rm", "-f", "-v", nombre}, io.Discard)
 	return nil
 }
 

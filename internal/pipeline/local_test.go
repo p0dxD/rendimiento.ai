@@ -76,12 +76,12 @@ func TestLocalTest(t *testing.T) {
 	f.find(t, "pg_isready")
 	run := f.find(t, " node:20 ")
 	for _, want := range []string{"--network container:", "-w /workspace/src/web", "-v cache-tienda-web:/cache", "--cpus 0.5", "--memory 1024m",
-		"DATABASE_URL=postgres://postgres:test@127.0.0.1:5432/test", "-e CI=yes", "GOCACHE=/cache/go-build", "sh -c npm test"} {
+		"DATABASE_URL=postgres://postgres:test@127.0.0.1:5432/test", "-e CI=yes", "GOCACHE=/cache/go-build", "--entrypoint sh node:20 -c npm test"} {
 		if !strings.Contains(run, want) {
 			t.Errorf("test container lacks %q:\n%s", want, run)
 		}
 	}
-	f.find(t, "rm -f "+strings.Fields(pg)[3])
+	f.find(t, "rm -f -v "+strings.Fields(pg)[4])
 	f.find(t, "volume rm -f")
 }
 
