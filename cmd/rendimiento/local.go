@@ -169,7 +169,7 @@ func runLocal(ctx context.Context, log *slog.Logger, problemLog *problems.Record
 
 	srv := &api.Server{
 		Platform: p, Store: st, GitHub: holder, Credentials: creds, DNS: dns.Noop{}, Log: log,
-		BaseURL: baseURL, AllowedUsers: users, SetupToken: setupToken,
+		BaseURL: baseURL, AllowedUsers: users, SetupToken: setupToken, SetupTokenCommand: "cat " + filepath.Join(dir, "ficha-configuracion"),
 		AppName: env("GITHUB_APP_NAME", "rendimiento"), UI: web.Dist(),
 	}
 	aiCap, err := strconv.ParseFloat(env("AI_PLATFORM_CAP", "5"), 64)

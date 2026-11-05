@@ -90,14 +90,17 @@ type Server struct {
 	IAKeys IAKeys
 	// Translator puts diagnoses in the reader's language (nil: shown as
 	// written), and AgentLang is the language agents write in.
-	Translator  *agentes.Translator
-	AgentLang   string
-	routes      []route // authenticated routes and their roles (see Handler)
-	SetupToken  string  // guards the one-time GitHub App setup
-	AppName     string  // name for the GitHub App, e.g. "rendimiento-example"
-	GitHubAPI   string  // overridden in tests
-	UI          fs.FS   // built web UI; nil serves a placeholder
-	Environment *environment.Checker
+	Translator *agentes.Translator
+	AgentLang  string
+	routes     []route // authenticated routes and their roles (see Handler)
+	SetupToken string  // guards the one-time GitHub App setup
+	AppName    string  // name for the GitHub App, e.g. "rendimiento-example"
+	// SetupTokenCommand says on the setup page how to read SetupToken
+	// ("": from its Kubernetes Secret).
+	SetupTokenCommand string
+	GitHubAPI         string // overridden in tests
+	UI                fs.FS  // built web UI; nil serves a placeholder
+	Environment       *environment.Checker
 	// Capacity is the capacity set on the Environment page, as this process follows it.
 	Capacity *platform.CapacityHolder
 	Catalog  *catalog.Builder
@@ -558,6 +561,13 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 func (s *Server) setupStatus(w http.ResponseWriter, _ *http.Request) {
 	app, err := s.GitHub.Get()
 	out := map[string]any{"configured": err == nil, "activity": s.PublicActivity}
+	if err != nil {
+		// How to read the setup token where this platform runs.
+		out["tokenCommand"] = s.SetupTokenCommand
+		if s.SetupTokenCommand == "" {
+			out["tokenCommand"] = "kubectl get secret rendimiento-setup -n rendimiento-system -o jsonpath='{.data.token}' | base64 -d"
+		}
+	}
 	if s.BookURL != "" || s.BookURLEs != "" {
 		out["book"] = map[string]string{"en": s.BookURL, "es": s.BookURLEs}
 	}
