@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -45,6 +46,9 @@ import (
 // tested here, and run here by the local destination, reached through its
 // proxy at <app>.localhost.
 func runLocal(ctx context.Context, log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) error {
+	// The engines call iptables and friends, which live in the sbin folders
+	// that a service's PATH may leave out.
+	sbin(os.Getenv("PATH"))
 	m, err := motor.Buscar()
 	if err != nil {
 		return err
@@ -85,7 +89,20 @@ func runLocal(ctx context.Context, log *slog.Logger, problemLog *problems.Record
 		if err != nil {
 			return err
 		}
-		port := env("POSTGRES_PORT", "55433")
+		port := os.Getenv("POSTGRES_PORT")
+		if port == "" {
+			// 55433, or the port it got the first time because that was taken
+			// (a database from before this was kept is on 55433).
+			file := filepath.Join(dir, "puerto-postgres")
+			if _, err := m.Inspeccionar(ctx, "rendimiento-postgres"); err == nil {
+				if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
+					_ = os.WriteFile(file, []byte("55433\n"), 0o600)
+				}
+			}
+			if port, err = puertoGuardado(file, 55433); err != nil {
+				return err
+			}
+		}
 		if err := m.Asegurar(ctx, motor.Contenedor{Nombre: "rendimiento-postgres", Imagen: env("POSTGRES_IMAGE", "postgres:17-alpine"), Siempre: true,
 			Env:      map[string]string{"POSTGRES_USER": "rendimiento", "POSTGRES_PASSWORD": pw, "POSTGRES_DB": "rendimiento"},
 			Montajes: []motor.Montaje{{Volumen: "rendimiento-postgres", Ruta: "/var/lib/postgresql/data"}},
@@ -305,6 +322,35 @@ func localBuildkit(ctx context.Context, m *motor.Motor) (string, error) {
 		return "", fmt.Errorf("BuildKit: %w", err)
 	}
 	return "tcp://127.0.0.1:1234", nil
+}
+
+// sbin adds the sbin folders to PATH when it lacks them.
+func sbin(path string) {
+	parts := filepath.SplitList(path)
+	for _, d := range []string{"/usr/local/sbin", "/usr/sbin", "/sbin"} {
+		if !slices.Contains(parts, d) {
+			parts = append(parts, d)
+		}
+	}
+	os.Setenv("PATH", strings.Join(parts, string(filepath.ListSeparator)))
+}
+
+// puertoGuardado is the port kept in file; the first time it is want, or,
+// when something else already listens there, a free one, which is kept so
+// it stays the same.
+func puertoGuardado(file string, want int) (string, error) {
+	if raw, err := os.ReadFile(file); err == nil {
+		return strings.TrimSpace(string(raw)), nil
+	}
+	port := want
+	if ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", want)); err == nil {
+		ln.Close()
+	} else if ln, err := net.Listen("tcp", "127.0.0.1:0"); err == nil {
+		port = ln.Addr().(*net.TCPAddr).Port
+		ln.Close()
+	}
+	p := strconv.Itoa(port)
+	return p, os.WriteFile(file, []byte(p+"\n"), 0o600)
 }
 
 // registryAnswers reports whether an image registry already answers there

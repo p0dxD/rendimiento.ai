@@ -150,7 +150,7 @@ Wants=containerd.service buildkit.service
 [Service]
 Environment=MODE=local
 Environment=ALLOWED_USERS=$GITHUB
-Environment=PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=$HOME/.local/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 ExecStart=$HOME/.local/bin/rendimiento
 Restart=on-failure
 RestartSec=5
