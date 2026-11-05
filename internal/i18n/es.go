@@ -58,6 +58,7 @@ var catalog = map[string]string{
 	"an organization needs at least one administrator": "una organización necesita al menos un administrador",
 	"no such member": "no existe ese miembro",
 	"no such demo link": "no existe esa liga de demostración",
+	"nothing of this release runs: it keeps its images": "nada de esta versión corre: guarda sus imágenes",
 	"tested; there is nothing to deploy": "probada; no hay nada que desplegar",
 	"at least one service, build or task is required": "se necesita al menos un servicio, una construcción o una tarea",
 	"this computer has no cluster: this page is for rendimiento on Kubernetes": "esta computadora no tiene clúster: esta página es para rendimiento en Kubernetes",

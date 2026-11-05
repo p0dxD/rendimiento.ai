@@ -34,6 +34,7 @@ import (
 	"github.com/rendimiento-ai/rendimiento/api/v1alpha1"
 	"github.com/rendimiento-ai/rendimiento/internal/controller"
 	"github.com/rendimiento-ai/rendimiento/internal/dns"
+	"github.com/rendimiento-ai/rendimiento/internal/destino"
 	"github.com/rendimiento-ai/rendimiento/internal/events"
 	"github.com/rendimiento-ai/rendimiento/internal/generate"
 	gh "github.com/rendimiento-ai/rendimiento/internal/github"
@@ -41,6 +42,7 @@ import (
 	"github.com/rendimiento-ai/rendimiento/internal/pipeline"
 	"github.com/rendimiento-ai/rendimiento/internal/render"
 	"github.com/rendimiento-ai/rendimiento/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/spec/ejemplos"
 	"github.com/rendimiento-ai/rendimiento/internal/store"
 	"github.com/rendimiento-ai/rendimiento/internal/testenv"
 )
@@ -547,6 +549,46 @@ jobs:
 	exec.mu.Unlock()
 	if n != 4 {
 		t.Fatalf("manual build ran %d steps", n)
+	}
+}
+
+// Every example is accepted by the App object's real schema (envtest with
+// the CRDs): created, and given a release when something of it runs; one
+// with nothing to run gets no App object.
+func TestEjemplosEnElEsquema(t *testing.T) {
+	_, _, _, kube := setup(t)
+	ctx := context.Background()
+	todos, err := ejemplos.Todos()
+	if err != nil {
+		t.Fatal(err)
+	}
+	k := destino.Kubernetes{Kube: kube}
+	for i, e := range todos {
+		name := "ejemplo-" + e.Nombre
+		app := &store.App{ID: int64(9000 + i), Name: name, Repo: "p0dxD/" + name, Spec: *e.Spec}
+		if err := k.Crear(ctx, app, false); err != nil {
+			t.Errorf("%s: create: %v", e.Nombre, err)
+			continue
+		}
+		var cr v1alpha1.App
+		err := kube.Get(ctx, client.ObjectKey{Name: name}, &cr)
+		if !e.Spec.Runs() {
+			if !apierrors.IsNotFound(err) {
+				t.Errorf("%s: nothing runs, but it got an App object (%v)", e.Nombre, err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s: %v", e.Nombre, err)
+			continue
+		}
+		images := map[string]string{}
+		for _, s := range e.Spec.Services {
+			images[s.Name] = "registry.example.lan:5000/" + name + "-" + s.Name + "@sha256:1"
+		}
+		if err := k.Aplicar(ctx, name, &store.Release{Number: 1, Spec: *e.Spec, Images: images}); err != nil {
+			t.Errorf("%s: release: %v", e.Nombre, err)
+		}
 	}
 }
 

@@ -1,0 +1,10 @@
+# Two services, a database, a cache, and one calling the other.
+services:
+  - name: web
+    port: 3000
+    needs: [redis, { service: api }]
+  - name: api
+    port: 8000
+    needs: [postgres]
+    health: { path: /health }
+    volume: { size: 1Gi, mount: /data }

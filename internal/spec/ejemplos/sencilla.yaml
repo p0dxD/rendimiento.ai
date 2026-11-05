@@ -1,0 +1,5 @@
+# One web service, as the onboarding wizard proposes it.
+services:
+  - name: web
+    port: 3000
+    test: { image: "node:20", command: "npm ci && npm test" }
