@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/detect"
+	"github.com/rendimiento-ai/rendimiento/internal/detect"
 )
 
 func newApp(t *testing.T, handler http.Handler) (*App, *rsa.PrivateKey) {

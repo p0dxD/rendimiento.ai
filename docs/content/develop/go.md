@@ -11,7 +11,7 @@ This chapter teaches the Go you need to read and change rendimiento, using its o
 
 ## Modules and packages
 
-A **module** is a versioned project: `go.mod` at the root names it (`github.com/p0dxD/rendimiento.ai`) and lists its dependencies with exact versions (`go.sum` holds their checksums). `go mod tidy` keeps both in order.
+A **module** is a versioned project: `go.mod` at the root names it (`github.com/rendimiento-ai/rendimiento`) and lists its dependencies with exact versions (`go.sum` holds their checksums). `go mod tidy` keeps both in order.
 
 A **package** is a folder of `.go` files that share a `package` name. Each file begins with it and its imports:
 
@@ -21,7 +21,7 @@ package controller
 import (
 	"context"                                   // standard library
 	appsv1 "k8s.io/api/apps/v1"                 // a dependency, renamed
-	"github.com/p0dxD/rendimiento.ai/internal/render" // another package of ours
+	"github.com/rendimiento-ai/rendimiento/internal/render" // another package of ours
 )
 ```
 

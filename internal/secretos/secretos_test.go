@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	gh "github.com/p0dxD/rendimiento.ai/internal/github"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	gh "github.com/rendimiento-ai/rendimiento/internal/github"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 type memoria map[string]store.Secreto

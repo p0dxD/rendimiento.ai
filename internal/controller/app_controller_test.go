@@ -26,10 +26,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
-	"github.com/p0dxD/rendimiento.ai/internal/dns"
-	"github.com/p0dxD/rendimiento.ai/internal/render"
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/api/v1alpha1"
+	"github.com/rendimiento-ai/rendimiento/internal/dns"
+	"github.com/rendimiento-ai/rendimiento/internal/render"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
 )
 
 type fakeDNS struct {

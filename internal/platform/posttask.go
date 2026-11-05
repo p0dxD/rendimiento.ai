@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 
-	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
+	. "github.com/rendimiento-ai/rendimiento/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // Deploy tasks run against a release, before or after it goes live, in its

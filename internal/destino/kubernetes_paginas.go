@@ -15,10 +15,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
-	"github.com/p0dxD/rendimiento.ai/internal/controller"
-	"github.com/p0dxD/rendimiento.ai/internal/render"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/api/v1alpha1"
+	"github.com/rendimiento-ai/rendimiento/internal/controller"
+	"github.com/rendimiento-ai/rendimiento/internal/render"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // Situacion reads the App object's status, and whether it is suspended.

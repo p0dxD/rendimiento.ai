@@ -18,8 +18,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/p0dxD/rendimiento.ai/internal/i18n"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/i18n"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 var M = i18n.M

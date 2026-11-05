@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/p0dxD/rendimiento.ai/internal/platform"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/platform"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // CapacityView is the capacity set on the Environment page, with what each

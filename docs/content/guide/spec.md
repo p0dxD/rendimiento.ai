@@ -1,6 +1,6 @@
 # `rendimiento.yaml` reference
 
-`rendimiento.yaml`, at the root of an app's repository, is the only file rendimiento needs. The wizard writes a first version; after that it is ordinary code: edit it in a PR, and the change deploys on merge. It is parsed **strictly** (an unknown or misspelt field is an error), defaults are filled in, and every problem is reported at once with its path (`services[1].port …`). The Go type is `spec.Spec` in [`internal/spec/spec.go`](https://github.com/p0dxD/rendimiento.ai/blob/main/internal/spec/spec.go).
+`rendimiento.yaml`, at the root of an app's repository, is the only file rendimiento needs. The wizard writes a first version; after that it is ordinary code: edit it in a PR, and the change deploys on merge. It is parsed **strictly** (an unknown or misspelt field is an error), defaults are filled in, and every problem is reported at once with its path (`services[1].port …`). The Go type is `spec.Spec` in [`internal/spec/spec.go`](https://github.com/rendimiento-ai/rendimiento/blob/main/internal/spec/spec.go).
 
 ## A complete example
 

@@ -6,7 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
+	"github.com/rendimiento-ai/rendimiento/api/v1alpha1"
 )
 
 // The controller wakes for a person's annotations, not for its own record

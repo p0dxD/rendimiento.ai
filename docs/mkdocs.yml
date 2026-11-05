@@ -1,7 +1,7 @@
 site_name: The rendimiento book
 site_description: How rendimiento works, how it is built and deployed, and how to grow it.
-repo_url: https://github.com/p0dxD/rendimiento.ai
-repo_name: p0dxD/rendimiento.ai
+repo_url: https://github.com/rendimiento-ai/rendimiento
+repo_name: rendimiento-ai/rendimiento
 edit_uri: edit/main/docs/content/
 docs_dir: content
 strict: true

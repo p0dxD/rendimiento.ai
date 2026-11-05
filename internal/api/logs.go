@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/p0dxD/rendimiento.ai/internal/logarchive"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/logarchive"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // archivedLog reads a step log from the log archive, or explains why it

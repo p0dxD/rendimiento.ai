@@ -24,10 +24,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/yaml"
 
-	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
-	"github.com/p0dxD/rendimiento.ai/internal/addon"
+	"github.com/rendimiento-ai/rendimiento/api/v1alpha1"
+	"github.com/rendimiento-ai/rendimiento/internal/addon"
 
-	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
+	. "github.com/rendimiento-ai/rendimiento/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 const (

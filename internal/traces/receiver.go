@@ -14,7 +14,7 @@ import (
 	trace "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // Limits on what one span keeps: long values are cut, extra attributes and

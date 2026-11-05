@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // A turn with tools goes to the organization's Anthropic key with the tools,

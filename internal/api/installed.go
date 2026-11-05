@@ -10,10 +10,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
-	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
-	"github.com/p0dxD/rendimiento.ai/internal/addon"
-	"github.com/p0dxD/rendimiento.ai/internal/controller"
-	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/rendimiento-ai/rendimiento/api/v1alpha1"
+	"github.com/rendimiento-ai/rendimiento/internal/addon"
+	"github.com/rendimiento-ai/rendimiento/internal/controller"
+	gh "github.com/rendimiento-ai/rendimiento/internal/github"
 )
 
 // installedView summarizes an installed add-on.

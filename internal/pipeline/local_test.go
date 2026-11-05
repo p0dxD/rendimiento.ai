@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/p0dxD/rendimiento.ai/internal/motor"
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/motor"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
 )
 
 // fakeEngine records each command and answers like nerdctl would.

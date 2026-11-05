@@ -26,8 +26,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/p0dxD/rendimiento.ai/internal/dns"
-	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/rendimiento-ai/rendimiento/internal/dns"
+	gh "github.com/rendimiento-ai/rendimiento/internal/github"
 )
 
 type pinger struct{ err error }

@@ -10,8 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/api/v1alpha1"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
 )
 
 func svc(ns, name string, labels map[string]string, ports ...int32) corev1.Service {

@@ -1,4 +1,4 @@
-module github.com/p0dxD/rendimiento.ai
+module github.com/rendimiento-ai/rendimiento
 
 go 1.27.1
 

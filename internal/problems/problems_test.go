@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 func queued(r *Recorder) []store.Problem {

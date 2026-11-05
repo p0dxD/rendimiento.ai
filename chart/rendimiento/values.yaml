@@ -8,7 +8,7 @@
 # Then open baseURL and follow the setup page (it makes the GitHub App).
 
 image:
-  repository: ghcr.io/p0dxd/rendimiento
+  repository: ghcr.io/rendimiento-ai/rendimiento
   tag: ""            # empty: the chart's appVersion
   pullPolicy: IfNotPresent
 

@@ -1,6 +1,6 @@
 # Cómo se despliega la plataforma
 
-rendimiento despliega aplicaciones, pero no se despliega a sí mismo. La plataforma se instala con manifiestos simples de Kubernetes en [`deploy/`](https://github.com/p0dxD/rendimiento.ai/tree/main/deploy), aplicados con `kubectl apply -k deploy`. Dejar la plataforma fuera de su propio control significa que un rendimiento descompuesto siempre se puede arreglar con `kubectl`.
+rendimiento despliega aplicaciones, pero no se despliega a sí mismo. La plataforma se instala con manifiestos simples de Kubernetes en [`deploy/`](https://github.com/rendimiento-ai/rendimiento/tree/main/deploy), aplicados con `kubectl apply -k deploy`. Dejar la plataforma fuera de su propio control significa que un rendimiento descompuesto siempre se puede arreglar con `kubectl`.
 
 ## Sus propios ajustes {#your-own-settings}
 
@@ -172,7 +172,7 @@ Al reiniciar, la plataforma:
 
 ### La imagen pública {#the-public-image}
 
-Cada cambio que llega a `main`, y cada etiqueta `v1.2.3`, también se publica para **arm64 y amd64** en `ghcr.io/p0dxd/rendimiento`, con un flujo de GitHub Actions (`.github/workflows/imagen.yml`) que solo construye y publica: las pruebas ya corrieron en rendimiento antes de juntar. Sus etiquetas son `:main` y `:sha-<commit>` para `main`, y `:1.2.3`, `:1.2` y `:latest` para una versión. Para instalarlo en otro clúster, apunte el `image:` de los Deployments a una de ellas en vez de construir la suya. El Dockerfile compila de forma cruzada, así que la imagen de la otra arquitectura no necesita emulación.
+Cada cambio que llega a `main`, y cada etiqueta `v1.2.3`, también se publica para **arm64 y amd64** en `ghcr.io/rendimiento-ai/rendimiento`, con un flujo de GitHub Actions (`.github/workflows/imagen.yml`) que solo construye y publica: las pruebas ya corrieron en rendimiento antes de juntar. Sus etiquetas son `:main` y `:sha-<commit>` para `main`, y `:1.2.3`, `:1.2` y `:latest` para una versión. Para instalarlo en otro clúster, apunte el `image:` de los Deployments a una de ellas en vez de construir la suya. El Dockerfile compila de forma cruzada, así que la imagen de la otra arquitectura no necesita emulación.
 
 ### Instalar con Helm {#installing-with-helm}
 

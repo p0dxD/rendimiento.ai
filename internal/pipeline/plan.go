@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
 )
 
 // Kind is what a step does: test, build, or run a task.

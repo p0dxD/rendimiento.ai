@@ -10,11 +10,11 @@ import (
 
 	networkingv1 "k8s.io/api/networking/v1"
 
-	gh "github.com/p0dxD/rendimiento.ai/internal/github"
-	"github.com/p0dxD/rendimiento.ai/internal/generate"
-	"github.com/p0dxD/rendimiento.ai/internal/platform"
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	gh "github.com/rendimiento-ai/rendimiento/internal/github"
+	"github.com/rendimiento-ai/rendimiento/internal/generate"
+	"github.com/rendimiento-ai/rendimiento/internal/platform"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // Archivo is where a repository keeps its page: the form's answers.

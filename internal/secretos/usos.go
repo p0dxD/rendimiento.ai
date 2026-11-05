@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	gh "github.com/rendimiento-ai/rendimiento/internal/github"
 )
 
 // Credenciales keeps the GitHub App's credentials in the Caja (as

@@ -14,7 +14,7 @@ import (
 	"helm.sh/helm/v3/pkg/chartutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
+	"github.com/rendimiento-ai/rendimiento/api/v1alpha1"
 )
 
 // chartRepo serves a one-chart Helm repository with a relative chart URL.

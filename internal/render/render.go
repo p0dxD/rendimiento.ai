@@ -18,7 +18,7 @@ import (
 
 	"sigs.k8s.io/yaml"
 
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
 )
 
 const (

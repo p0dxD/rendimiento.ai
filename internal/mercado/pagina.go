@@ -14,7 +14,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/p0dxD/rendimiento.ai/internal/i18n"
+	"github.com/rendimiento-ai/rendimiento/internal/i18n"
 )
 
 // Tipos of page; each names its sections and suggests its details.

@@ -14,7 +14,7 @@ func (s *Server) llmsTxt(w http.ResponseWriter, _ *http.Request) {
 	base := strings.TrimRight(s.BaseURL, "/")
 	book := s.BookURL
 	if book == "" {
-		book = "https://github.com/p0dxD/rendimiento.ai/tree/main/docs/content"
+		book = "https://github.com/rendimiento-ai/rendimiento/tree/main/docs/content"
 	}
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 	fmt.Fprintf(w, `# rendimiento

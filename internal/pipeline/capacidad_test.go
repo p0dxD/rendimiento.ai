@@ -3,7 +3,7 @@ package pipeline
 import (
 	"testing"
 
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
 )
 
 // The Environment page lowers what a step asks for, never what it may use,

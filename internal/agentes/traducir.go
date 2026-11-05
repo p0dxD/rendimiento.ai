@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/p0dxD/rendimiento.ai/internal/ia"
+	"github.com/rendimiento-ai/rendimiento/internal/ia"
 	"golang.org/x/sync/singleflight"
 )
 

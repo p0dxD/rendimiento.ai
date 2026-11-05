@@ -18,9 +18,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
-	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
-	"github.com/p0dxD/rendimiento.ai/internal/events"
-	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/rendimiento-ai/rendimiento/api/v1alpha1"
+	"github.com/rendimiento-ai/rendimiento/internal/events"
+	gh "github.com/rendimiento-ai/rendimiento/internal/github"
 )
 
 // Dir is the folder of the gitops repository holding add-on definitions.

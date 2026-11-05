@@ -1,6 +1,6 @@
 # Referencia de `rendimiento.yaml`
 
-`rendimiento.yaml`, en la raíz del repositorio de una aplicación, es el único archivo que rendimiento necesita. El asistente escribe una primera versión; después es código como cualquier otro: edítelo en una solicitud de incorporación, y el cambio se despliega al integrarlo. Se analiza de forma **estricta** (un campo desconocido o mal escrito es un error), se completan los valores predeterminados y cada problema se reporta de una vez con su ruta (`services[1].port …`). El tipo en Go es `spec.Spec`, en [`internal/spec/spec.go`](https://github.com/p0dxD/rendimiento.ai/blob/main/internal/spec/spec.go).
+`rendimiento.yaml`, en la raíz del repositorio de una aplicación, es el único archivo que rendimiento necesita. El asistente escribe una primera versión; después es código como cualquier otro: edítelo en una solicitud de incorporación, y el cambio se despliega al integrarlo. Se analiza de forma **estricta** (un campo desconocido o mal escrito es un error), se completan los valores predeterminados y cada problema se reporta de una vez con su ruta (`services[1].port …`). El tipo en Go es `spec.Spec`, en [`internal/spec/spec.go`](https://github.com/rendimiento-ai/rendimiento/blob/main/internal/spec/spec.go).
 
 ## Un ejemplo completo {#a-complete-example}
 

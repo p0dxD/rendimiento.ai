@@ -13,9 +13,9 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/p0dxD/rendimiento.ai/internal/detect"
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
-	"github.com/p0dxD/rendimiento.ai/templates"
+	"github.com/rendimiento-ai/rendimiento/internal/detect"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/templates"
 )
 
 // Input is what generation works from: the repo, its files and what detection found.

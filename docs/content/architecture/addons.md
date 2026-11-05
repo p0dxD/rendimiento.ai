@@ -108,7 +108,7 @@ For every object, the controller runs a **server-side dry-run apply** (the API s
 
 ### Helm hooks
 
-Hooks run like Helm runs them ([`addon_hooks.go`](https://github.com/p0dxD/rendimiento.ai/blob/main/internal/controller/addon_hooks.go)):
+Hooks run like Helm runs them ([`addon_hooks.go`](https://github.com/rendimiento-ai/rendimiento/blob/main/internal/controller/addon_hooks.go)):
 
 | Situation (`lifecycle`) | Hooks |
 |---|---|

@@ -1,6 +1,6 @@
 # How the platform is deployed
 
-rendimiento deploys apps, but it does not deploy itself. The platform is installed with plain Kubernetes manifests in [`deploy/`](https://github.com/p0dxD/rendimiento.ai/tree/main/deploy), applied with `kubectl apply -k deploy`. Keeping the platform outside its own control means a broken rendimiento can always be fixed with `kubectl`.
+rendimiento deploys apps, but it does not deploy itself. The platform is installed with plain Kubernetes manifests in [`deploy/`](https://github.com/rendimiento-ai/rendimiento/tree/main/deploy), applied with `kubectl apply -k deploy`. Keeping the platform outside its own control means a broken rendimiento can always be fixed with `kubectl`.
 
 ## Your own settings
 
@@ -172,7 +172,7 @@ On restart the platform:
 
 ### The public image {#the-public-image}
 
-Every change that reaches `main`, and every `v1.2.3` tag, is also published for **arm64 and amd64** at `ghcr.io/p0dxd/rendimiento`, by a GitHub Actions workflow (`.github/workflows/imagen.yml`) that only builds and publishes: the tests ran in rendimiento before the merge. Its tags are `:main` and `:sha-<commit>` for `main`, and `:1.2.3`, `:1.2` and `:latest` for a release. To install on another cluster, point the Deployments' `image:` at one of them instead of building your own. The Dockerfile cross-compiles, so the image for the other architecture needs no emulation.
+Every change that reaches `main`, and every `v1.2.3` tag, is also published for **arm64 and amd64** at `ghcr.io/rendimiento-ai/rendimiento`, by a GitHub Actions workflow (`.github/workflows/imagen.yml`) that only builds and publishes: the tests ran in rendimiento before the merge. Its tags are `:main` and `:sha-<commit>` for `main`, and `:1.2.3`, `:1.2` and `:latest` for a release. To install on another cluster, point the Deployments' `image:` at one of them instead of building your own. The Dockerfile cross-compiles, so the image for the other architecture needs no emulation.
 
 ### Installing with Helm {#installing-with-helm}
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
 )
 
 // Secrets rendimiento creates (once, with generated passwords) for needs.

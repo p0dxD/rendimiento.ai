@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	gh "github.com/rendimiento-ai/rendimiento/internal/github"
 )
 
 func TestParse(t *testing.T) {

@@ -5,7 +5,7 @@ type: application
 # The chart's own version; appVersion is the image tag used by default.
 version: 0.1.0
 appVersion: main
-home: https://github.com/p0dxD/rendimiento.ai
+home: https://github.com/rendimiento-ai/rendimiento
 sources:
-  - https://github.com/p0dxD/rendimiento.ai
+  - https://github.com/rendimiento-ai/rendimiento
 keywords: [ci, cd, paas, deploy, gitops, ai]

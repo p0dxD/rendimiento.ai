@@ -1,6 +1,6 @@
 package addon
 
-import "github.com/p0dxD/rendimiento.ai/internal/i18n"
+import "github.com/rendimiento-ai/rendimiento/internal/i18n"
 
 var M = i18n.M
 

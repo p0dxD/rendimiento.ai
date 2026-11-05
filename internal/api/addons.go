@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/i18n"
-	"github.com/p0dxD/rendimiento.ai/internal/renovate"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/i18n"
+	"github.com/rendimiento-ai/rendimiento/internal/renovate"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // addonView is an add-on as the UI shows it.

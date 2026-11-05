@@ -3,8 +3,8 @@ package platform
 import (
 	"testing"
 
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 func TestReusableBuilds(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/p0dxD/rendimiento.ai/internal/caminos"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/internal/caminos"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // CaminosDays is how far back the Caminos tab looks.

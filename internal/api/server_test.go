@@ -30,17 +30,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/p0dxD/rendimiento.ai/api/v1alpha1"
-	"github.com/p0dxD/rendimiento.ai/internal/analytics"
-	"github.com/p0dxD/rendimiento.ai/internal/dns"
-	"github.com/p0dxD/rendimiento.ai/internal/events"
-	gh "github.com/p0dxD/rendimiento.ai/internal/github"
-	"github.com/p0dxD/rendimiento.ai/internal/ia"
-	"github.com/p0dxD/rendimiento.ai/internal/platform"
-	"github.com/p0dxD/rendimiento.ai/internal/render"
-	"github.com/p0dxD/rendimiento.ai/internal/ruta"
-	"github.com/p0dxD/rendimiento.ai/internal/spec"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	"github.com/rendimiento-ai/rendimiento/api/v1alpha1"
+	"github.com/rendimiento-ai/rendimiento/internal/analytics"
+	"github.com/rendimiento-ai/rendimiento/internal/dns"
+	"github.com/rendimiento-ai/rendimiento/internal/events"
+	gh "github.com/rendimiento-ai/rendimiento/internal/github"
+	"github.com/rendimiento-ai/rendimiento/internal/ia"
+	"github.com/rendimiento-ai/rendimiento/internal/platform"
+	"github.com/rendimiento-ai/rendimiento/internal/render"
+	"github.com/rendimiento-ai/rendimiento/internal/ruta"
+	"github.com/rendimiento-ai/rendimiento/internal/spec"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 type memCreds struct{ c *gh.Credentials }

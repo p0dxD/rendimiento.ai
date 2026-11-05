@@ -13,10 +13,10 @@ import (
 	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/p0dxD/rendimiento.ai/internal/dns"
-	gh "github.com/p0dxD/rendimiento.ai/internal/github"
+	"github.com/rendimiento-ai/rendimiento/internal/dns"
+	gh "github.com/rendimiento-ai/rendimiento/internal/github"
 
-	. "github.com/p0dxD/rendimiento.ai/internal/i18n" //nolint:revive // M marks messages for people
+	. "github.com/rendimiento-ai/rendimiento/internal/i18n" //nolint:revive // M marks messages for people
 )
 
 // Status is the state of one check or provider.

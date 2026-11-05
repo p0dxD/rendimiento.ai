@@ -108,7 +108,7 @@ Por cada objeto, el controlador hace una **aplicación en seco del lado del serv
 
 ### Ganchos de Helm {#helm-hooks}
 
-Los ganchos corren como los corre Helm ([`addon_hooks.go`](https://github.com/p0dxD/rendimiento.ai/blob/main/internal/controller/addon_hooks.go)):
+Los ganchos corren como los corre Helm ([`addon_hooks.go`](https://github.com/rendimiento-ai/rendimiento/blob/main/internal/controller/addon_hooks.go)):
 
 | Situación (`lifecycle`) | Ganchos |
 |---|---|

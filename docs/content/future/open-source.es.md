@@ -1,6 +1,6 @@
 # Código abierto
 
-El repositorio [p0dxD/rendimiento.ai](https://github.com/p0dxD/rendimiento.ai) ya es público. Convertirlo en un proyecto que otras personas instalen y al que contribuyan es más que nada *empaque y proceso*, no funciones nuevas. Esta página es la lista de pendientes.
+El repositorio [rendimiento-ai/rendimiento](https://github.com/rendimiento-ai/rendimiento) ya es público. Convertirlo en un proyecto que otras personas instalen y al que contribuyan es más que nada *empaque y proceso*, no funciones nuevas. Esta página es la lista de pendientes.
 
 ## Que se pueda instalar en cualquier lado {#make-it-installable-anywhere}
 

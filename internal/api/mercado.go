@@ -6,9 +6,9 @@ import (
 	"io"
 	"net/http"
 
-	gh "github.com/p0dxD/rendimiento.ai/internal/github"
-	"github.com/p0dxD/rendimiento.ai/internal/mercado"
-	"github.com/p0dxD/rendimiento.ai/internal/store"
+	gh "github.com/rendimiento-ai/rendimiento/internal/github"
+	"github.com/rendimiento-ai/rendimiento/internal/mercado"
+	"github.com/rendimiento-ai/rendimiento/internal/store"
 )
 
 // maxPagina bounds a page sent from the form, photos included (the form
