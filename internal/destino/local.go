@@ -50,6 +50,9 @@ type Local struct {
 	Caja  Caja
 	// Esperar is how long a new release has to answer (default 3m).
 	Esperar time.Duration
+	// Puerto is the proxy's port, for the addresses the app's page shows
+	// ("8000"; "" for 80).
+	Puerto string
 	// Responde checks a service once (nil: an HTTP or TCP check of its
 	// port); tests replace it.
 	Responde func(ctx context.Context, addr string, h *spec.Health) bool
@@ -534,7 +537,7 @@ func (l *Local) Situacion(ctx context.Context, app string) (Situacion, error) {
 			s.ReadyReplicas = 1
 		}
 		if p := info.Etiquetas[etPuerto]; p != "" {
-			s.URL = "http://" + s.Name + "." + app + ".localhost"
+			s.URL = l.url(s.Name + "." + app + ".localhost")
 		}
 		if !ok {
 			if r, err := strconv.ParseInt(info.Etiquetas[etVersion], 10, 64); err == nil && r > st.Release {
@@ -544,6 +547,14 @@ func (l *Local) Situacion(ctx context.Context, app string) (Situacion, error) {
 		st.Services = append(st.Services, s)
 	}
 	return Situacion{Status: st}, nil
+}
+
+// url is the address of a host through the proxy, with its port.
+func (l *Local) url(host string) string {
+	if l.Puerto != "" && l.Puerto != "80" {
+		host += ":" + l.Puerto
+	}
+	return "http://" + host + "/"
 }
 
 // Recursos is what runs for the app: its services' containers, with their

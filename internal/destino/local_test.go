@@ -163,7 +163,9 @@ func TestLocal(t *testing.T) {
 	if route == "" || route != l.Ruta("web.tienda.localhost") || !strings.HasPrefix(route, "127.0.0.1:") {
 		t.Fatalf("routes: %q %q", route, l.Ruta("web.tienda.localhost"))
 	}
-	if st, _ := l.Situacion(ctx, "tienda"); st.Status.Release != 1 || len(st.Status.Services) != 1 || st.Status.Services[0].ReadyReplicas != 1 {
+	l.Puerto = "8000"
+	if st, _ := l.Situacion(ctx, "tienda"); st.Status.Release != 1 || len(st.Status.Services) != 1 || st.Status.Services[0].ReadyReplicas != 1 ||
+		st.Status.Services[0].URL != "http://web.tienda.localhost:8000/" {
 		t.Fatalf("situacion: %+v", st)
 	}
 
