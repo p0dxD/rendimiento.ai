@@ -38,21 +38,3 @@ builds:
       # 881): three tests timed out. Where steps do not fit, the Environment
       # page's Capacity lowers what steps reserve, or turns nodes off.
       resources: { cpu: "2", memory: 2Gi, memoryLimit: 5Gi }
-tasks:
-  # The "rendimiento for …" libraries (sdk/): each is tested on every run
-  # that changes its folder, branches included.
-  - name: sdk-node
-    path: sdk/node
-    when: always
-    image: node:20-bookworm
-    command: npm ci --no-audit --no-fund && npm test
-  - name: sdk-python
-    path: sdk/python
-    when: always
-    image: python:3.12-slim
-    command: pip install --quiet --no-cache-dir '.[test]' && python -m pytest -q tests
-  - name: sdk-java
-    path: sdk/java
-    when: always
-    image: maven:3.9-eclipse-temurin-21
-    command: mvn -B -q verify

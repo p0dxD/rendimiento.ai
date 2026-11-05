@@ -85,4 +85,4 @@ A generated [code map](docs/content/reference/code-map.md) lists every package, 
 
 ## License
 
-[Apache License 2.0](LICENSE), like the observa libraries in `sdk/` and OpenTelemetry they build on.
+[Apache License 2.0](LICENSE), like the observa libraries ([observa-node](https://github.com/rendimiento-ai/observa-node), [-python](https://github.com/rendimiento-ai/observa-python), [-java](https://github.com/rendimiento-ai/observa-java)) and OpenTelemetry they build on.

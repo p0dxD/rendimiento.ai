@@ -2,7 +2,7 @@
 
 With `observe: true`, the [Universe](universe.md#latency-on-every-line) already measures every HTTP call, database query and message a Java, Node or Python service makes, without code changes. The **observa** libraries add what only the code knows: the moments of the business ("charge", "build the report"), events inside them, and feature flags. They are thin layers over [OpenTelemetry](https://opentelemetry.io), so everything they record joins the same traces.
 
-The libraries live in this repository under `sdk/` and are not published to npm, PyPI or Maven Central yet; install them from git.
+Each library has its own repository in the [rendimiento-ai](https://github.com/rendimiento-ai) organization ([observa-node](https://github.com/rendimiento-ai/observa-node), [observa-python](https://github.com/rendimiento-ai/observa-python), [observa-java](https://github.com/rendimiento-ai/observa-java)), tested by rendimiento on every push. They are not published to npm, PyPI or Maven Central yet; install them from git.
 
 ## What each one offers
 
@@ -29,11 +29,10 @@ The collector turns every span into numbers (its `spanmetrics`), and the [Univer
 
 ## Node
 
-npm cannot install a folder of a git repository, so until it is published, install it from a copy:
+Until it is published, install it from its repository:
 
 ```bash
-git clone https://github.com/rendimiento-ai/rendimiento
-npm install ./rendimiento.ai/sdk/node   # or copy sdk/node into your repo and install that folder
+npm install github:rendimiento-ai/observa-node
 ```
 
 ```js
@@ -53,7 +52,7 @@ app.post("/pedidos/:id/cobrar", (req, res) =>
 ## Python
 
 ```bash
-pip install "rendimiento-observa @ git+https://github.com/rendimiento-ai/rendimiento#subdirectory=sdk/python"
+pip install "rendimiento-observa @ git+https://github.com/rendimiento-ai/observa-python"
 # without the agent: add [sdk] for the OpenTelemetry SDK and the OTLP exporter
 ```
 
@@ -71,7 +70,7 @@ def generar(usuario):
 
 ## Java
 
-Build and install it locally (`mvn -f sdk/java install`), then depend on `ai.rendimiento:observa:0.1.0`:
+Build and install it locally (`git clone https://github.com/rendimiento-ai/observa-java && mvn -f observa-java install`), then depend on `ai.rendimiento:observa:0.1.0`:
 
 ```java
 import ai.rendimiento.observa.Observa;
