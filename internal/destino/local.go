@@ -85,8 +85,8 @@ func (l *Local) Aplicar(ctx context.Context, app string, rel *store.Release) err
 			return fmt.Errorf("service %s has no image in release %d", svc.Name, rel.Number)
 		}
 		for _, n := range svc.Needs {
-			if n.Kind == spec.NeedService {
-				return fmt.Errorf("service %s needs %s: one service calling another is not on this computer yet", svc.Name, n.Service)
+			if n.Kind == spec.NeedService && !propio(rel.Spec, n.Service) {
+				return fmt.Errorf("service %s needs %s: on this computer a service can call only the services of its own app", svc.Name, n.Service)
 			}
 		}
 	}
@@ -129,8 +129,15 @@ func (l *Local) desplegar(ctx context.Context, app string, rel *store.Release) {
 	if esperar <= 0 {
 		esperar = 3 * time.Minute
 	}
+	// The services of one release call each other by their containers'
+	// names, which are known before any starts.
+	for _, svc := range rel.Spec.Services {
+		if svc.Port > 0 {
+			needs["service:"+svc.Name] = direccion(contenedor(app, svc.Name, rel.Number), svc.Port)
+		}
+	}
 	for i, svc := range rel.Spec.Services {
-		name := fmt.Sprintf("%s-%s-r%d", app, svc.Name, rel.Number)
+		name := contenedor(app, svc.Name, rel.Number)
 		_ = l.Motor.Quitar(ctx, name) // a retried release starts clean
 		image := rel.Images[svc.Name]
 		if image == "" {
@@ -371,11 +378,44 @@ func (l *Local) entorno(ctx context.Context, app string, svc spec.Service, needs
 		}
 	}
 	for _, n := range svc.Needs {
-		if addr, ok := needs[n.Kind]; ok {
+		key := n.Kind
+		if n.Kind == spec.NeedService {
+			key = "service:" + n.Service
+		}
+		if addr, ok := needs[key]; ok {
 			env[n.EnvName()] = addr
 		}
 	}
 	return env, nil
+}
+
+// contenedor is the name of a service's container in a release.
+func contenedor(app, svc string, release int64) string {
+	return fmt.Sprintf("%s-%s-r%d", app, svc, release)
+}
+
+// direccion is how another service calls one, as in the cluster.
+func direccion(host string, port int) string {
+	switch port {
+	case 80:
+		return "http://" + host
+	case 443:
+		return "https://" + host
+	}
+	return fmt.Sprintf("http://%s:%d", host, port)
+}
+
+// propio reports whether a service the app needs is one of its own.
+func propio(sp spec.Spec, name string) bool {
+	if strings.Contains(name, "/") {
+		return false
+	}
+	for _, svc := range sp.Services {
+		if svc.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func secretoNombre(app, nombre string) string { return "app/" + app + "/secret/" + nombre }
