@@ -356,7 +356,8 @@ echo "checked out $(git rev-parse HEAD)"
 `
 
 // The digest is written to the termination log so the executor can read it
-// from the pod status without parsing logs.
+// from the pod status without parsing logs; it is also the last line of the
+// log, which is how the executor without a cluster reads it.
 const buildScript = `set -eu
 if [ "$(cat /workspace/plan/builder 2>/dev/null || echo dockerfile)" = railpack ]; then
   set -- --frontend gateway.v0 --opt source="$RAILPACK_FRONTEND" \
@@ -370,7 +371,9 @@ buildctl --addr "$BUILDKIT_ADDR" build "$@" \
   --import-cache "type=registry,ref=$IMAGE:buildcache$INSECURE" \
   --export-cache "type=registry,ref=$IMAGE:buildcache,mode=max$INSECURE" \
   --metadata-file /tmp/metadata.json
-grep -o '"containerimage.digest": *"sha256:[a-f0-9]*"' /tmp/metadata.json | grep -o 'sha256:[a-f0-9]*' > /dev/termination-log
+digest=$(grep -o '"containerimage.digest": *"sha256:[a-f0-9]*"' /tmp/metadata.json | grep -o 'sha256:[a-f0-9]*')
+printf '%s' "$digest" > /dev/termination-log
+echo "image digest: $digest"
 `
 
 // --8<-- [end:scripts]
@@ -517,16 +520,7 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 		if tag == "" {
 			tag = "latest"
 		}
-		var dockerArgs, railpackArgs []string
-		keys := make([]string, 0, len(step.BuildArgs))
-		for key := range step.BuildArgs {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		for _, key := range keys {
-			dockerArgs = append(dockerArgs, "--opt", "build-arg:"+key+"="+step.BuildArgs[key])
-			railpackArgs = append(railpackArgs, "--env", key+"="+step.BuildArgs[key])
-		}
+		dockerArgs, railpackArgs := dockerArgs(step), railpackArgs(step)
 		switch {
 		case k.RailpackImage != "":
 			initContainers = append(initContainers, corev1.Container{
@@ -596,6 +590,33 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 			Volumes:                      volumes,
 		},
 	}, nil
+}
+
+// dockerArgs passes a build step's build args to the Dockerfile frontend.
+func dockerArgs(step Step) []string {
+	var args []string
+	for _, key := range sortedKeys(step.BuildArgs) {
+		args = append(args, "--opt", "build-arg:"+key+"="+step.BuildArgs[key])
+	}
+	return args
+}
+
+// railpackArgs passes a build step's build args to railpack prepare.
+func railpackArgs(step Step) []string {
+	var args []string
+	for _, key := range sortedKeys(step.BuildArgs) {
+		args = append(args, "--env", key+"="+step.BuildArgs[key])
+	}
+	return args
+}
+
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // testDatabaseURL is the address of a test's throwaway Postgres.

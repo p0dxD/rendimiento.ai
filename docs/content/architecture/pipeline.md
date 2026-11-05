@@ -74,6 +74,10 @@ The scripts, exactly as they run:
 - **Retries of transient API errors** (`transientRetry`): creating the secret or pod is retried on "database is locked", 5xx and timeouts, which happen when the control plane is busy.
 - **Random pod-name suffixes**, so a retried run never collides with pods its interrupted predecessor left behind.
 
+## Running a step without a cluster: `LocalExecutor` {#running-a-step-without-a-cluster}
+
+`LocalExecutor` runs the same steps on one machine, for rendimiento without Kubernetes. Each part of the pod becomes a container of the machine's engine, through `internal/motor`: `nerdctl` (containerd, recommended) or `docker`, which take almost the same commands. The clone and the step share a named volume; a test's Postgres runs beside it and the test shares its network (`--network container:`), so `DATABASE_URL` is the same `127.0.0.1` as in the pod; a test's cache is a named volume per app and step; a build runs `buildctl` against a local BuildKit (its socket mounted into the container, since with rootless containerd the host's network is not the machine's; or a TCP address on the host's network) and registry, and the executor reads the image's digest from the last line of its log. CPU and memory limits become `--cpus` and `--memory`. What it lacks is the build namespace's NetworkPolicy: a step can reach the local network. Tasks with secrets do not run there yet. `TestLocalReal` runs real steps on a machine with an engine, a BuildKit and a registry at `localhost:5000`; it is skipped unless `RENDIMIENTO_MOTOR_REAL` names the BuildKit.
+
 ## Change detection: building only what changed
 
 For a push to the default branch, `Platform.changes` compares the new commit with the commit of the last release (GitHub's compare API). With that list of files, `reusable` keeps the image of every service whose folder (and `watch:` paths) did not change; its steps show **reused**. `skippedTasks` skips tasks the same way, and also skips `when: deploy` tasks on branches. Anything uncertain means a full build:
