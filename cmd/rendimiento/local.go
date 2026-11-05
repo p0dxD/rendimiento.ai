@@ -246,7 +246,13 @@ func runLocal(ctx context.Context, log *slog.Logger, problemLog *problems.Record
 	}
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return httpSrv.Shutdown(shutdown)
+	// Open pages (live logs) keep their connections: after the wait they are
+	// closed, which is a normal stop.
+	if err := httpSrv.Shutdown(shutdown); err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	log.Info("stopped")
+	return nil
 }
 
 // localBuildkit is the BuildKit daemon builds use: BUILDKIT_ADDR, or the
