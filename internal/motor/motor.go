@@ -7,6 +7,7 @@ package motor
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -232,6 +233,78 @@ func (m *Motor) Volumenes(ctx context.Context, etiqueta string) ([]string, error
 		return nil, fmt.Errorf("%s volume ls: %v: %s", m.Bin, err, strings.TrimSpace(out.String()))
 	}
 	return strings.Fields(out.String()), nil
+}
+
+// CrearRed makes a network for a group of containers, which reach each
+// other there by name (an existing one is kept).
+func (m *Motor) CrearRed(ctx context.Context, nombre string) error {
+	if m.run(ctx, []string{"network", "inspect", nombre}, io.Discard) == nil {
+		return nil
+	}
+	var out bytes.Buffer
+	if err := m.run(ctx, []string{"network", "create", nombre}, &out); err != nil {
+		return fmt.Errorf("%s network create %s: %v: %s", m.Bin, nombre, err, strings.TrimSpace(out.String()))
+	}
+	return nil
+}
+
+// QuitarRed removes a network; one that is not there is gone already.
+func (m *Motor) QuitarRed(ctx context.Context, nombre string) error {
+	_ = m.run(ctx, []string{"network", "rm", nombre}, io.Discard)
+	return nil
+}
+
+// Nombres lists the containers, running or not, with this label (key=value).
+func (m *Motor) Nombres(ctx context.Context, etiqueta string) ([]string, error) {
+	var out bytes.Buffer
+	if err := m.run(ctx, []string{"ps", "-a", "--filter", "label=" + etiqueta, "--format", "{{.Names}}"}, &out); err != nil {
+		return nil, fmt.Errorf("%s ps: %v: %s", m.Bin, err, strings.TrimSpace(out.String()))
+	}
+	return strings.Fields(out.String()), nil
+}
+
+// Info is what the engine says of a container.
+type Info struct {
+	Nombre    string
+	Corriendo bool
+	Imagen    string
+	Etiquetas map[string]string
+	Estado    string // "running", "exited", ...
+}
+
+// Inspeccionar reads a container's state and labels.
+func (m *Motor) Inspeccionar(ctx context.Context, nombre string) (Info, error) {
+	var out bytes.Buffer
+	if err := m.run(ctx, []string{"inspect", "--type", "container", "--format", "{{json .}}", nombre}, &out); err != nil {
+		return Info{}, fmt.Errorf("%s inspect %s: %v", m.Bin, nombre, err)
+	}
+	var raw struct {
+		State struct {
+			Running bool   `json:"Running"`
+			Status  string `json:"Status"`
+		} `json:"State"`
+		Config struct {
+			Image  string            `json:"Image"`
+			Labels map[string]string `json:"Labels"`
+		} `json:"Config"`
+	}
+	line := strings.TrimSpace(out.String())
+	if i := strings.IndexByte(line, '\n'); i >= 0 {
+		line = line[:i]
+	}
+	if err := json.Unmarshal([]byte(line), &raw); err != nil {
+		return Info{}, fmt.Errorf("%s inspect %s: %v", m.Bin, nombre, err)
+	}
+	return Info{Nombre: nombre, Corriendo: raw.State.Running, Imagen: raw.Config.Image, Etiquetas: raw.Config.Labels, Estado: raw.State.Status}, nil
+}
+
+// Reiniciar restarts a container.
+func (m *Motor) Reiniciar(ctx context.Context, nombre string) error {
+	var out bytes.Buffer
+	if err := m.run(ctx, []string{"restart", nombre}, &out); err != nil {
+		return fmt.Errorf("%s restart %s: %v: %s", m.Bin, nombre, err, strings.TrimSpace(out.String()))
+	}
+	return nil
 }
 
 // QuitarVolumen removes a named volume; one that is not there is gone already.
