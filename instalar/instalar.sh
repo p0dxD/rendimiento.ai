@@ -66,6 +66,9 @@ elif need docker && docker info >/dev/null 2>&1; then
 	ENGINE=docker
 	say "Docker is ready. It works; containerd is recommended (lighter, and without root)." \
 		"Docker está listo. Funciona; se recomienda containerd (más ligero, y sin root)."
+elif need nerdctl && need containerd-rootless-setuptool.sh; then
+	ENGINE=nerdctl # installed; it is set up for this user below
+	say "containerd is installed; it gets set up for your user." "containerd está instalado; se configura para su usuario."
 elif need docker; then
 	fail "Docker is installed, but your user cannot use it: add yourself to the docker group (sudo usermod -aG docker $USER), sign in again, and run this again" \
 		"Docker está instalado, pero su usuario no puede usarlo: agréguese al grupo docker (sudo usermod -aG docker $USER), vuelva a entrar y corra esto de nuevo"
@@ -102,9 +105,11 @@ fi
 
 if [ "$ENGINE" = nerdctl ]; then
 	# containerd and BuildKit for this user, started with the computer.
-	sudo -n true 2>/dev/null || say "sudo may ask for your password, to let your services run while you are not signed in." \
-		"sudo puede pedir su contraseña, para que sus servicios corran aunque usted no haya entrado."
-	loginctl show-user "$(id -un)" 2>/dev/null | grep -q '^Linger=yes' || sudo loginctl enable-linger "$(id -un)"
+	if ! loginctl show-user "$(id -un)" 2>/dev/null | grep -q '^Linger=yes'; then
+		say "sudo may ask for your password, to let your services run while you are not signed in." \
+			"sudo puede pedir su contraseña, para que sus servicios corran aunque usted no haya entrado."
+		sudo loginctl enable-linger "$(id -un)"
+	fi
 	nerdctl info >/dev/null 2>&1 || containerd-rootless-setuptool.sh install
 	[ -S "$XDG_RUNTIME_DIR/buildkit/buildkitd.sock" ] || containerd-rootless-setuptool.sh install-buildkit
 fi
