@@ -52,7 +52,7 @@ export interface Job {
 }
 
 export interface Spec {
-  services: Service[];
+  services?: Service[]; // none in a library (only tasks)
   jobs?: Job[];
   tasks?: Task[];
 }
@@ -74,7 +74,7 @@ export interface Task {
 
 /** Every secret an app reads: its services', jobs' and tasks'. */
 export function appSecretNames(s: Spec): string[] {
-  const names = new Set<string>(s.services.flatMap(secretNames));
+  const names = new Set<string>((s.services ?? []).flatMap(secretNames));
   for (const x of [...(s.jobs ?? []), ...(s.tasks ?? [])]) {
     (x.secrets ?? []).forEach((n) => names.add(n));
     Object.values(x.secretEnv ?? {}).forEach((ref) => names.add(ref.split("/")[0]));
