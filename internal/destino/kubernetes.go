@@ -26,8 +26,12 @@ type Kubernetes struct {
 // Nombre is "kubernetes".
 func (k Kubernetes) Nombre() string { return "kubernetes" }
 
-// Crear writes the app's App object, labeled with its id.
+// Crear writes the app's App object, labeled with its id. A library (only
+// tasks: nothing runs in the cluster) gets none.
 func (k Kubernetes) Crear(ctx context.Context, app *store.App, adopt bool) error {
+	if len(app.Spec.Services) == 0 && len(app.Spec.Jobs) == 0 {
+		return nil
+	}
 	cr := &v1alpha1.App{
 		ObjectMeta: metav1.ObjectMeta{Name: app.Name, Labels: map[string]string{"rendimiento.ai/app-id": strconv.FormatInt(app.ID, 10)}},
 		Spec: v1alpha1.AppSpec{Repo: app.Repo, Services: app.Spec.Services, Jobs: app.Spec.Jobs, SharedNamespace: app.Spec.SharedNamespace,

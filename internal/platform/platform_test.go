@@ -550,6 +550,40 @@ jobs:
 	}
 }
 
+// A library has only tasks: it is onboarded without an App object in the
+// cluster (whose schema needs a service), its runs test it, and a run on
+// its default branch succeeds without a release.
+func TestLibrary(t *testing.T) {
+	p, fake, _, kube := setup(t)
+	ctx := context.Background()
+	yaml := "tasks:\n  - name: test\n    image: node:20\n    command: npm test\n    when: always\n"
+	fake.files["main"] = fstest.MapFS{"rendimiento.yaml": {Data: []byte(yaml)}}
+	sha := strings.Repeat("d", 40)
+	fake.files[sha] = fake.files["main"]
+	sp, err := spec.Parse([]byte(yaml))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Onboard(ctx, OnboardRequest{Installation: 7, Repo: "p0dxD/libreria", DefaultBranch: "main", Name: "libreria", Spec: *sp}, false); err != nil {
+		t.Fatalf("onboarding a library: %v", err)
+	}
+	var cr v1alpha1.App
+	if err := kube.Get(ctx, client.ObjectKey{Name: "libreria"}, &cr); !apierrors.IsNotFound(err) {
+		t.Fatalf("a library got an App object: %v", err)
+	}
+	runs, err := p.HandlePush(ctx, PushEvent{Installation: 7, Repo: "p0dxD/libreria", Branch: "main", SHA: sha})
+	if err != nil || len(runs) != 1 {
+		t.Fatalf("push: %v %v", runs, err)
+	}
+	r := waitRun(t, p, runs[0].ID)
+	if r.Status != store.RunSucceeded || !strings.Contains(r.Message, "nothing to deploy") {
+		t.Fatalf("the library's run: %s %q", r.Status, r.Message)
+	}
+	if rels, _ := p.Store.ListReleases(ctx, r.AppID, 10); len(rels) != 0 {
+		t.Fatalf("a library got a release: %+v", rels)
+	}
+}
+
 func TestTasks(t *testing.T) {
 	p, fake, exec, _ := setup(t)
 	ctx := context.Background()
