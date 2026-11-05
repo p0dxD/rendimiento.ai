@@ -92,7 +92,7 @@ export function ReliabilityTab({ app }: { app: App }) {
   const { data, error } = usePoll(() => api.reliability(app.name, range), [app.name, range], 60000);
   const loading = !!data && data.range !== range;
 
-  const services = app.spec.services.filter((s) => (s.replicas ?? 1) > 0);
+  const services = (app.spec.services ?? []).filter((s) => (s.replicas ?? 1) > 0);
   return (
     <>
       <div className={`rel-filters${loading ? " loading" : ""}`} role="group" aria-label={t("Time range")}>

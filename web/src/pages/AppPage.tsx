@@ -219,7 +219,7 @@ function Overview({ name, app }: { name: string; app: Awaited<ReturnType<typeof 
   return (
     <div className="stack resumen-ancho">
       <div className="grid servicios">
-        {app.spec.services.map((svc) => {
+        {(app.spec.services ?? []).map((svc) => {
           const st = app.status.services?.find((s) => s.name === svc.name);
           return (
             <div key={svc.name} className="card stack">
@@ -275,9 +275,9 @@ const needTitle: Record<string, string> = { postgres: "PostgreSQL", redis: "Redi
 
 /** The database and cache rendimiento runs because the app's services need them. */
 function ProvidedNeeds({ name, app }: { name: string; app: Awaited<ReturnType<typeof api.app>> }) {
-  const provided = (app.status.services ?? []).filter((s) => needTitle[s.name] && !app.spec.services.some((x) => x.name === s.name));
+  const provided = (app.status.services ?? []).filter((s) => needTitle[s.name] && !(app.spec.services ?? []).some((x) => x.name === s.name));
   if (provided.length === 0) return null;
-  const users = (kind: string) => app.spec.services
+  const users = (kind: string) => (app.spec.services ?? [])
     .map((svc) => {
       const n = (svc.needs ?? []).find((x) => x === kind || (typeof x === "object" && kind in x));
       if (!n) return null;

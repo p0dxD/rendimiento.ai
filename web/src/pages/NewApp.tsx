@@ -58,7 +58,7 @@ export function NewApp() {
     try {
       const p = await api.propose(inst!, r.full_name, r.default_branch);
       setProposal(p);
-      setServices(p.spec.services);
+      setServices(p.spec.services ?? []); // a library has none
       setName(p.suggestedName ?? r.name.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40));
       setAdopt(false);
       setKeepDockerfiles(!p.railpack);
