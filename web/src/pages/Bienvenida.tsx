@@ -203,6 +203,8 @@ export function Bienvenida({ book, activity }: { book: BookLinks; activity: bool
           </ol>
         </section>
 
+        <Instalar />
+
         <section className="bienv-seccion bienv-ruta">
           <div className="ruta-vuelo" aria-hidden="true">
             <Monarca size={36} /><Monarca size={48} /><Monarca size={40} />
@@ -247,5 +249,27 @@ export function Bienvenida({ book, activity }: { book: BookLinks; activity: bool
       </main>
       <Guardapolvo />
     </div>
+  );
+}
+
+/**
+ * Install it on your own computer: the one command, from this same address, with a copy button. Linux for now;
+ * it uses containerd or Docker, and asks before it installs anything.
+ */
+function Instalar() {
+  const command = `curl -fsSL ${location.origin}/instalar | sh`;
+  const [copiado, setCopiado] = useState(false);
+  return (
+    <section className="bienv-seccion bienv-instalar" aria-labelledby="instalar">
+      <h2 id="instalar">{t("On your own computer")}</h2>
+      <p className="bienv-entrada">{t("One command installs rendimiento on Linux: it uses containerd or Docker, or installs containerd for you, and it asks before it does. Your apps then run on your computer, at <app>.localhost.")}</p>
+      <div className="bienv-comando">
+        <code>{command}</code>
+        <button onClick={() => navigator.clipboard?.writeText(command).then(() => setCopiado(true), () => setCopiado(false))}>
+          {copiado ? t("Copied") : t("Copy")}
+        </button>
+      </div>
+      <p className="small muted">{t("A preview: Windows and Mac come later.")}</p>
+    </section>
   );
 }

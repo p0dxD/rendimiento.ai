@@ -923,6 +923,9 @@ body { background-image: var(--bg-image); background-attachment: fixed; min-heig
 .bienv-cosa { border-top: 5px solid var(--accent); }
 .bienv-cosa p { margin: 0; }
 .bienv-cierre { text-align: center; padding: 16px 0 8px; }
+.bienv-instalar { display: flex; flex-direction: column; gap: 10px; }
+.bienv-comando { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--border); }
+.bienv-comando code { flex: 1; min-width: 0; overflow-wrap: anywhere; font: 15px var(--mono); }
 .bienv-cierre h2 { font-size: clamp(28px, 5vw, 44px); }
 @media (max-width: 640px) {
   .bienv-barra { padding: 10px 16px; gap: 6px; }
