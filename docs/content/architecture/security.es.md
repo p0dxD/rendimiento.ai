@@ -27,7 +27,7 @@ Los demonios de BuildKit corren en modo **privilegiado** (crean contenedores); l
 ## Secretos {#secrets}
 
 - **Nunca en git en texto plano.** Las aplicaciones se refieren a los secretos por su nombre en `rendimiento.yaml`; los valores se definen en la interfaz (**Configuración → Secretos**) o se confirman como **secretos sellados** (cifrados con la llave del clúster).
-- **Nunca en la base de datos de la plataforma.** Postgres guarda huellas de las sesiones, no tokens.
+- **Nunca en claro en la base de datos de la plataforma.** Postgres guarda huellas de las sesiones, no tokens. Los secretos propios de la plataforma (las credenciales de la aplicación de GitHub, las llaves de IA de las organizaciones) son Secrets de Kubernetes en un clúster. En una computadora (`MODE=local`), o en un clúster con `SECRETS_KEY_FILE`, se **sellan en Postgres** con AES-256-GCM, con una llave que vive fuera de la base de datos: un archivo que solo rendimiento lee (`~/.config/rendimiento/llave-secretos` en una computadora). Cada valor queda atado a su nombre, así que un valor sellado copiado con otro nombre no abre (`internal/secretos`). En una computadora, los secretos de las aplicaciones y las contraseñas de su Postgres y su Redis se sellan igual. Quien tenga a la vez la base de datos y el archivo de la llave puede abrirlos: guarde la copia de la llave aparte de los respaldos de la base de datos.
 - **Generados cuando se puede.** Las credenciales de `needs:` se generan una vez, se guardan en un Secret y se inyectan por referencia (`secretKeyRef`), así la contraseña nunca aparece en una especificación ni en un registro.
 - **De corta vida** donde se puede: los tokens de instalación de GitHub duran una hora y se emiten para cada construcción y cada ejecución de Renovate.
 - **Fuera de los registros.** El analizador de registros de Renovate, los registros de construcción y los mensajes de error nunca incluyen tokens.
@@ -48,7 +48,7 @@ Los demonios de BuildKit corren en modo **privilegiado** (crean contenedores); l
 
 Estos son los puntos débiles, dichos con honestidad, más o menos en orden de importancia para una instalación con varios usuarios o pública:
 
-1. **Un solo inquilino.** Cada usuario permitido puede hacer todo con cada aplicación. Hacen falta permisos por aplicación (dueños, observadores) y espacios de nombres por equipo antes de que desconocidos compartan un rendimiento. Vea [Convertirse en un proyecto de código abierto](../future/open-source.md).
+1. **Las organizaciones todavía no son una frontera de seguridad.** Las personas tienen roles (invitado, colaborador, administrador) dentro de organizaciones, y cada aplicación pertenece a una, pero no se ha comprobado que cada ruta y cada herramienta MCP rechace las aplicaciones de otra organización; un rol cubre todas las aplicaciones de su organización (no hay dueños ni observadores por aplicación), y en un clúster la misma cuenta de servicio maneja el espacio de nombres de cada aplicación. Todo eso hace falta antes de que desconocidos compartan un rendimiento. Vea [Convertirse en un proyecto de código abierto](../future/open-source.md).
 2. **Permisos en todo el clúster** para la plataforma (para crear espacios de nombres para cualquier aplicación). Un modo más restringido le daría a cada aplicación un espacio de nombres creado de antemano por un administrador.
 3. Demonios de BuildKit **privilegiados**.
 4. **Registro en HTTP simple** en la red local.

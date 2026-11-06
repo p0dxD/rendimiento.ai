@@ -68,5 +68,5 @@ The pages hold their own data-loading and form logic. As they grow, move shared 
 
 - **Logs in Postgres while a run is going.** Build logs are stored as rows and move to object storage once the run finishes ([the log archive](../architecture/data.md#the-log-archive)). Live logs still go through the database.
 - **Registry over plain HTTP.** `registry.example.lan:5000` is insecure. This is fine on a home LAN, but it needs TLS for anything else.
-- **arm64 only.** Images are built for the cluster's architecture. Multi-arch is covered in [Open source](../future/open-source.md#releases-and-multi-arch-images).
+- **Apps' images for the cluster's architecture only.** CI builds an app for its cluster's nodes (arm64 here). rendimiento's own image is published for amd64 and arm64 by GitHub Actions ([Open source](../future/open-source.md#releases-and-multi-arch-images)).
 - **Retries.** Transient build failures are retried once (`TestTransientRetry`). Other steps are not retried.

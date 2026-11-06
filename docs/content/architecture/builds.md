@@ -161,7 +161,7 @@ Use Railpack to get started quickly; add a Dockerfile when size, hardening or sy
 
 ## Architectures
 
-Every node is **arm64**, so every image is built for `linux/arm64`. A cloud target on x86 (`linux/amd64`) would need either:
+Every node here is **arm64**, so every app image is built for `linux/arm64` (rendimiento's own public image is built for both by GitHub Actions; see [the public image](../environment/deploy.md#the-public-image)). A cloud target on x86 (`linux/amd64`) would need either:
 
 - **multi-platform builds**: `--opt platform=linux/amd64,linux/arm64` produces one image index containing both; an arm64 daemon builds the amd64 half under QEMU emulation, which is slow; or
 - **native builders** for each architecture: an amd64 daemon in the pool, with the executor choosing by platform (the rendezvous key could include it).

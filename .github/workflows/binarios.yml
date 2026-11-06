@@ -1,7 +1,10 @@
 # Publishes the rendimiento program for Linux (amd64 and arm64) with each
 # v* tag, as a GitHub release with its SHA256SUMS: what the installer
-# (curl -fsSL https://rendimiento.ai/instalar | sh) downloads. rendimiento
-# tested the change before it was merged; this only builds and publishes.
+# (curl -fsSL https://rendimiento.ai/instalar | sh) downloads. The Helm
+# chart goes with it, its version and appVersion set to the tag's (so it
+# installs that release's image), attached to the release and pushed to
+# oci://ghcr.io/rendimiento-ai/charts. rendimiento tested the change before
+# it was merged; this only builds and publishes.
 name: binarios
 
 on:
@@ -11,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   publicar:
@@ -32,6 +36,15 @@ jobs:
             CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags="-s -w" -o dist/rendimiento-linux-$arch ./cmd/rendimiento
           done
           cd dist && sha256sum rendimiento-linux-* > SHA256SUMS
+      - name: The Helm chart, with this release's version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          helm package chart/rendimiento --version "$version" --app-version "$version" -d dist
+          echo "$TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          helm push "dist/rendimiento-$version.tgz" "oci://ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/charts"
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         if: startsWith(github.ref, 'refs/tags/')
         with:
@@ -39,4 +52,5 @@ jobs:
             dist/rendimiento-linux-amd64
             dist/rendimiento-linux-arm64
             dist/SHA256SUMS
+            dist/rendimiento-*.tgz
           generate_release_notes: true

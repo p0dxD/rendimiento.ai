@@ -28,7 +28,7 @@ Las tareas están ordenadas por valor según el esfuerzo, primero para este clú
 | **Agentes para varios clústeres** y destinos en la nube (EKS, GKE, servidores físicos) | desplegar la misma aplicación en las Pi y en la nube; vea [Escalar](scaling.md#many-clusters) |
 | **Entornos y promoción** (desarrollo → pruebas → producción, por huella) | la misma imagen, promovida cuando ya se probó |
 | **Aprovisionamiento de clústeres** como extensión (Terraform o Crossplane) | un clúster nuevo con un clic |
-| **Que cualquiera lo pueda instalar** (paquete de Helm, imágenes para varias arquitecturas, sitio de documentación) | vea [Código abierto](open-source.md) |
+| **Que cualquiera lo pueda instalar**: ya están el paquete de Helm, las imágenes para varias arquitecturas, el instalador y el libro público; faltan un inicio rápido probado y revisar las solicitudes de cambios desde forks | vea [Código abierto](open-source.md) |
 
 ## Hecho {#done}
 
