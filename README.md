@@ -1,10 +1,29 @@
-# rendimiento.ai
+# rendimiento
 
-Connect a GitHub repo, press **Deploy**, get a live HTTPS URL. rendimiento is a CI/CD control plane for your own Kubernetes cluster. It combines CI (what Jenkins did), GitOps delivery (what ArgoCD did) and cluster add-ons (Helm charts and manifests from git) in **one small Go binary** with a React UI.
+**Let your coding agents ship to infrastructure you own, safely.**
 
-It runs a small home k3s cluster, and deploys every app on it, including its own documentation.
+Coding agents now write more apps than a platform team can check by hand. rendimiento is the deploy platform that agents and people share. Connect a GitHub repo, press **Deploy**, and get a live HTTPS URL, on your own Kubernetes cluster or on one computer.
 
-**Built for people and AI agents together.** Agents are users of the platform: each connects over **MCP** with a key that has a role (reader or collaborator) and, if wanted, a set of apps. They read apps, runs, logs and request traces, test branches in CI, and keep what they learn in **la Ruta**, the platform's shared memory, in turns of work (*cargos*) they hand over to whoever comes next. People decide what reaches production. See [Built for agents](docs/content/guide/agents.md) and `/llms.txt`.
+- **Agents work on it, people decide what ships.** Each agent connects over **MCP** with a key that has a role (reader or collaborator) and, if you want, a set of apps. It can read apps, runs, logs and request traces, test any branch in CI, and pick up work people asked for. It cannot deploy: a push to the main branch, by a person, does. What each agent did and handed over stays in **la Ruta**, the platform's shared memory.
+- **What breaks explains itself.** A failed run gets an AI diagnosis and a proposed fix. A release that doesn't answer says why ("nothing listens on port 3000; inside its container it listens on 4000"), and it is rolled back.
+- **One binary instead of Jenkins + Argo CD + hand-made DNS and permissions.** CI on BuildKit, GitOps delivery, certificates, DNS, databases on demand (`needs: [postgres]`) and add-ons, in one Go program with its UI. Apache-2.0.
+
+```sh
+# On one computer (Linux, with containerd or Docker):
+curl -fsSL https://rendimiento.ai/instalar | sh
+
+# On a Kubernetes cluster:
+helm install rendimiento oci://ghcr.io/rendimiento-ai/charts/rendimiento --version 0.1.3 \
+  -n rendimiento-system --create-namespace \
+  --set baseURL=https://rendimiento.example.com --set firstAdmins=your-github-login \
+  --set registry.host=registry.example.com
+```
+
+Read the book in [English](https://learn.rendimiento.ai) or [Spanish](https://aprende.rendimiento.ai), and see [Built for agents](docs/content/guide/agents.md) and `/llms.txt`.
+
+## How it fits together
+
+rendimiento runs a small home k3s cluster and deploys every app on it, including its own book, and it tests and builds itself on every push.
 
 ```mermaid
 flowchart LR
