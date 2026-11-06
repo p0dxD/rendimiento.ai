@@ -353,9 +353,9 @@ func TestPuertoEquivocado(t *testing.T) {
 
 func TestPistaLocalhost(t *testing.T) {
 	for log, want := range map[string]string{
-		"Error: connect ECONNREFUSED 127.0.0.1:6379":                                 "REDIS_URL",
+		"Error: connect ECONNREFUSED 127.0.0.1:6379":                               "REDIS_URL",
 		`dial tcp [::1]:5432: connect: connection refused`:                         "DATABASE_URL",
-		"could not connect to localhost:8081: Connection refused":                   "localhost:8081",
+		"could not connect to localhost:8081: Connection refused":                  "localhost:8081",
 		"psql: error: connection to server at \"db\" (10.0.0.2), port 5432 failed": "",
 	} {
 		if got := pistaLocalhost(log); want == "" && got != "" || !strings.Contains(got, want) {

@@ -23,7 +23,7 @@ type Mercado interface {
 // addMercadoTools registers the Mercado's tools: listing and reading stalls
 // for every key; changing and opening them for a key that can write, within
 // a cargo. Photos are added from the UI: a new page has no photo fields.
-func (s *Server) addMercadoTools(srv *mcp.Server, write bool) {
+func (s *Server) addMercadoTools(srv herramientas, write bool) {
 	addTool(s, srv, &mcp.Tool{Name: "mercado_puestos", Description: "Lista los puestos del Mercado (páginas sin código para personas que no programan): nombre, tipo, dueño y dirección."}, s.puestos)
 	addTool(s, srv, &mcp.Tool{Name: "mercado_leer", Description: "Lee la página completa de un puesto: sus textos, colores, detalles y enlaces (las fotos aparecen como rutas)."}, s.leerPuesto)
 	if write {

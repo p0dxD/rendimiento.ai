@@ -107,8 +107,17 @@ type Server struct {
 	Plataforma Plataforma
 	// Encargos adds the encargo tools: work asked of agents (nil: off).
 	Encargos Encargos
+	// Lang is the language of the tools' descriptions and the instructions
+	// when the agent's /mcp address does not ask (?lang=en or ?lang=es):
+	// "en", or Spanish by default. Tool names and the answers' fields stay
+	// the same in both.
+	Lang string
 
-	read, write *mcp.Server
+	// servers[ingles][write]: the four MCP servers, by language and by
+	// whether the key can write.
+	servers [2][2]*mcp.Server
+	// faltan are descriptions with no English translation (see ingles.go).
+	faltan []string
 }
 
 type keyInfo struct {
@@ -121,15 +130,26 @@ func (s *Server) Handler() http.Handler {
 	if s.Log == nil {
 		s.Log = slog.Default()
 	}
-	s.read = s.newServer(false)
-	s.write = s.newServer(true)
+	for _, ingles := range []bool{false, true} {
+		for _, write := range []bool{false, true} {
+			s.servers[b2i(ingles)][b2i(write)] = s.newServer(write, ingles)
+		}
+	}
+	if len(s.faltan) > 0 {
+		s.Log.Warn("MCP descriptions with no English translation", "faltan", s.faltan)
+	}
 	h := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
+		write := false
 		if ti := auth.TokenInfoFromContext(r.Context()); ti != nil {
 			if k, ok := ti.Extra["key"].(keyInfo); ok && k.key.Writes() {
-				return s.write
+				write = true
 			}
 		}
-		return s.read
+		lang := r.URL.Query().Get("lang")
+		if lang == "" {
+			lang = s.Lang
+		}
+		return s.servers[b2i(lang == "en")][b2i(write)]
 	}, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true, Logger: s.Log})
 	return auth.RequireBearerToken(s.verify, nil)(h)
 }
@@ -353,9 +373,13 @@ var agentKinds = map[string]bool{store.KindDecision: true, store.KindManual: tru
 // newServer is the MCP server agents talk to: the Ruta's tools (start,
 // search, read; and, with a key that can write, take a cargo, note, update
 // and hand over), each call audited.
-func (s *Server) newServer(write bool) *mcp.Server {
-	srv := mcp.NewServer(&mcp.Implementation{Name: "rendimiento-ruta", Title: "La Ruta de rendimiento", Version: "1"},
-		&mcp.ServerOptions{Instructions: Instructions})
+func (s *Server) newServer(write, ingles bool) *mcp.Server {
+	impl, instructions := &mcp.Implementation{Name: "rendimiento-ruta", Title: "La Ruta de rendimiento", Version: "1"}, Instructions
+	if ingles {
+		impl.Title, instructions = "rendimiento's Ruta", InstructionsEN
+	}
+	m := mcp.NewServer(impl, &mcp.ServerOptions{Instructions: instructions})
+	srv := herramientas{Server: m, ingles: ingles}
 
 	addTool(s, srv, &mcp.Tool{Name: "ruta_inicio", Description: "Empiece aquí: las últimas entregas de cargo, los pendientes abiertos, lo reciente y si usted tiene un cargo abierto."}, s.inicio)
 	addTool(s, srv, &mcp.Tool{Name: "ruta_buscar", Description: "Busca entradas de la Ruta por texto y tipo (decision, manual, pendiente, nota, vivido). Devuelve resúmenes; use ruta_leer para el contenido completo."}, s.buscar)
@@ -375,12 +399,29 @@ func (s *Server) newServer(write bool) *mcp.Server {
 	if s.Encargos != nil {
 		s.addEncargoTools(srv, write)
 	}
-	return srv
+	return m
+}
+
+// herramientas is an MCP server being filled with tools, and the language
+// of their descriptions.
+type herramientas struct {
+	*mcp.Server
+	ingles bool
+}
+
+func b2i(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // addTool registers a tool whose every call is recorded in the audit log.
-func addTool[In, Out any](s *Server, srv *mcp.Server, t *mcp.Tool, h func(context.Context, store.AgentKey, In) (Out, error)) {
-	mcp.AddTool(srv, t, func(ctx context.Context, req *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
+func addTool[In, Out any](s *Server, srv herramientas, t *mcp.Tool, h func(context.Context, store.AgentKey, In) (Out, error)) {
+	if srv.ingles {
+		t = s.enIngles(t, schemaFor[In]())
+	}
+	mcp.AddTool(srv.Server, t, func(ctx context.Context, req *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
 		var zero Out
 		k, err := keyFrom(req)
 		if err != nil {

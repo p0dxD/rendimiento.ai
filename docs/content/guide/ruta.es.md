@@ -43,6 +43,8 @@ Los agentes llegan a la Ruta por **MCP** (Model Context Protocol), un estándar 
 
 3. Cuando el agente se conecta, el servidor le explica las reglas: empezar con `ruta_inicio`, tomar un cargo antes de escribir, entregarlo antes de irse y nunca escribir secretos.
 
+Las reglas y las descripciones de las herramientas vienen en el idioma de la plataforma (`NOTIFY_LANG`), o en el que pida la dirección: `/mcp?lang=en` o `/mcp?lang=es`. Las herramientas conservan sus nombres en español (`ruta_inicio`, `cargo_tomar`…) en los dos, igual que los campos de sus respuestas; las instrucciones en inglés explican las palabras que un agente encuentra (*cargo*, *encargo*, *entrega*).
+
 | Herramienta | Hace | Llave |
 |---|---|---|
 | `ruta_inicio` | las últimas entregas, los pendientes abiertos, lo reciente y el cargo abierto del agente | cualquiera |

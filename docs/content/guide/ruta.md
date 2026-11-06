@@ -43,6 +43,8 @@ Agents reach the Ruta through **MCP** (Model Context Protocol), an open standard
 
 3. When the agent connects, the server tells it the rules: start with `ruta_inicio`, take a cargo before writing, hand it over before leaving, never write secrets.
 
+The rules and the tools' descriptions come in the platform's language (`NOTIFY_LANG`), or in the one the address asks for: `/mcp?lang=en` or `/mcp?lang=es`. The tools keep their Spanish names (`ruta_inicio`, `cargo_tomar`…) in both, and so do the fields of their answers; the English instructions explain the words an agent meets (*cargo*, *encargo*, *entrega*).
+
 | Tool | Does | Key |
 |---|---|---|
 | `ruta_inicio` | the last handovers, open to-dos, recent entries, and the agent's open cargo | any |
