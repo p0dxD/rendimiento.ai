@@ -38,3 +38,16 @@ builds:
       # 881): three tests timed out. Where steps do not fit, the Environment
       # page's Capacity lowers what steps reserve, or turns nodes off.
       resources: { cpu: "2", memory: 2Gi, memoryLimit: 5Gi }
+tasks:
+  # The UI in a browser (Playwright), on every push: the real API and the
+  # built UI on an empty database, with a fake GitHub serving every example
+  # of internal/spec/ejemplos, walked through "New app" and every page
+  # (web/e2e, hack/ci-interfaz.sh).
+  - name: interfaz
+    image: mcr.microsoft.com/playwright:v1.64.1-noble
+    command: hack/ci-interfaz.sh
+    when: always
+    watch: [web, internal, api, hack/interfaz, hack/ci-interfaz.sh, go.mod, go.sum]
+    postgres: true
+    cache: true
+    resources: { cpu: "1", memory: 1Gi, memoryLimit: 3Gi }

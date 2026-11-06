@@ -45,7 +45,8 @@ function resaltar(text: string, q: string): ReactNode {
 export function Dashboard() {
   const { data: apps, error } = usePoll(api.apps, [], 10000);
   const nav = useNavigate();
-  const { data: env } = usePoll(() => envApi.report(), [], 60000);
+  // The environment report is the cluster's: a computer has none.
+  const { data: env } = usePoll(() => (session.cluster ? envApi.report() : Promise.resolve(undefined)), [], 60000);
 
   // Petals fall when an app's live release changes while the page is open.
   const [lluvia, setLluvia] = useState(0);

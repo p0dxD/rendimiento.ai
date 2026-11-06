@@ -21,6 +21,8 @@ var files embed.FS
 type Ejemplo struct {
 	Nombre string
 	Spec   *spec.Spec
+	// Crudo is the file as written, for a repository that carries it.
+	Crudo []byte
 }
 
 // Todos parses every example, defaulted, in name order.
@@ -41,7 +43,7 @@ func Todos() ([]Ejemplo, error) {
 			return nil, err
 		}
 		s.Default()
-		out = append(out, Ejemplo{Nombre: strings.TrimSuffix(n, ".yaml"), Spec: s})
+		out = append(out, Ejemplo{Nombre: strings.TrimSuffix(n, ".yaml"), Spec: s, Crudo: raw})
 	}
 	return out, nil
 }

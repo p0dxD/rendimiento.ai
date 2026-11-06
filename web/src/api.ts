@@ -297,7 +297,8 @@ export interface DemoLink {
 
 // The signed-in person, set once when the app loads (switching organization
 // reloads the page). Pages read it to show what the person may use.
-export const session: { operator: boolean; role: MemberRole } = { operator: false, role: "guest" };
+/** Who is signed in, for the pages: operator, role, and whether rendimiento runs on a cluster (not on a computer). */
+export const session: { operator: boolean; role: MemberRole; cluster: boolean } = { operator: false, role: "guest", cluster: false };
 
 // The AI gateway (internal/ia, api.IAView).
 export type AIProvider = "local" | "own" | "platform";

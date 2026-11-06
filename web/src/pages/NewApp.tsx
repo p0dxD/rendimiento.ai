@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, catalogApi, timeAgo, type CatalogEntry, type Installation, type Need, type Proposal, type Repo, type Service, type Size } from "../api";
+import { api, catalogApi, session, timeAgo, type CatalogEntry, type Installation, type Need, type Proposal, type Repo, type Service, type Size } from "../api";
 import { ErrorBox } from "../components/ui";
 import { t } from "../i18n";
 
@@ -96,7 +96,7 @@ export function NewApp() {
   // Re-check for an existing deployment whenever the app name changes, so a
   // repo can be migrated from a namespace with a different name (personal → podoi).
   useEffect(() => {
-    if (step !== 2 || !proposal || adopt || !/^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$/.test(name)) return;
+    if (!session.cluster || step !== 2 || !proposal || adopt || !/^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$/.test(name)) return;
     const timer = setTimeout(() => {
       api.migration(name).then(
         (r) => setProposal((p) => (p ? { ...p, migration: r.migration ?? undefined } : p)),

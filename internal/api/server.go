@@ -550,6 +550,16 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
+// Session signs login in, as GitHub's login does: the cookie of a new
+// session. The browser tests' server (hack/interfaz) starts with one.
+func (s *Server) Session(ctx context.Context, login string, ttl time.Duration) (*http.Cookie, error) {
+	token := randomToken()
+	if err := s.Store.CreateSession(ctx, hashToken(token), login, ttl); err != nil {
+		return nil, err
+	}
+	return &http.Cookie{Name: sessionCookie, Value: token, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode}, nil
+}
+
 // logout deletes the session and its cookie.
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(sessionCookie); err == nil {

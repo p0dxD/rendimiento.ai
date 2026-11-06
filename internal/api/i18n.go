@@ -30,7 +30,8 @@ func localized(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		lang := i18n.FromRequest(r)
 		if lang != i18n.Spanish || !strings.HasPrefix(r.URL.Path, "/api/") ||
-			strings.HasSuffix(r.URL.Path, "/events") || strings.HasSuffix(r.URL.Path, "/log") || r.URL.Path == "/api/public/stats" {
+			strings.HasSuffix(r.URL.Path, "/events") || strings.HasSuffix(r.URL.Path, "/log") || r.URL.Path == "/api/public/stats" ||
+			strings.Contains(r.Header.Get("Accept"), "text/event-stream") || strings.HasSuffix(r.URL.Path, "/stream") {
 			next.ServeHTTP(w, r)
 			return
 		}
