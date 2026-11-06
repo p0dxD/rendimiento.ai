@@ -453,7 +453,7 @@ func run(log *slog.Logger, problemLog *problems.Recorder, plain *slog.Logger) er
 	srv.Translator, srv.AgentLang = &agentes.Translator{Model: srv.IA}, env("NOTIFY_LANG", "en")
 	// La Ruta's MCP server, with the Mercado's tools when it is on (an unset
 	// *Mercado must stay a nil interface, or the tools would appear broken).
-	rutaSrv := &ruta.Server{Store: st, Log: log.With("component", "ruta")}
+	rutaSrv := &ruta.Server{Store: st, Log: log.With("component", "ruta"), Lang: env("NOTIFY_LANG", "en")}
 	// The platform's tools for agents: apps, runs, logs, kept requests, CI.
 	rutaSrv.Plataforma = plataformaMCP{Store: st, p: p, srv: srv}
 	// Encargos: work asked of agents, taken, waited on and handed over.

@@ -174,7 +174,7 @@ func short(sha string) string {
 // addPlataformaTools registers the platform's tools: reading for any key,
 // running and cancelling CI for keys that write (with a cargo). A key
 // limited to some apps sees and acts on those only.
-func (s *Server) addPlataformaTools(srv *mcp.Server, write bool) {
+func (s *Server) addPlataformaTools(srv herramientas, write bool) {
 	addTool(s, srv, &mcp.Tool{Name: "apps_listar", Description: "Las aplicaciones que despliega la plataforma, con su última ejecución y su versión en producción."}, s.appsListar)
 	addTool(s, srv, &mcp.Tool{Name: "app_estado", Description: "El estado de una aplicación: sus servicios, sus últimas ejecuciones y versiones (con su verificación) y los problemas abiertos."}, s.appEstado)
 	addTool(s, srv, &mcp.Tool{Name: "ejecucion_leer", Description: "Una ejecución de CI con sus pasos y el estado de cada uno. Para ver por qué falló un paso, use paso_registro."}, s.ejecucionLeer)

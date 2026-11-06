@@ -465,12 +465,12 @@ tasks:
 		t.Fatalf("sized test = %+v", r)
 	}
 	for in, want := range map[string]string{
-		"services: [{name: a}]\nbuilds: [{name: a}]":                                          "already used by a service",
-		"services: [{name: a}]\nbuilds: [{name: B}]":                                          "lowercase DNS label",
-		"services: [{name: a}]\nbuilds: [{name: b, path: ../x}]":                              "relative to the repo root",
-		"services: [{name: a}]\nbuilds: [{name: b, test: {image: x}}]":                        "builds[0].test needs both image and command",
-		"services: [{name: a}]\nbuilds: [{name: b, test: {image: x, command: y, size: xl}}]":  "builds[0].test.size",
-		"services: [{name: a, test: {image: x, command: y, timeout: -1}}]":                    "services[0].test.timeout",
+		"services: [{name: a}]\nbuilds: [{name: a}]":                                           "already used by a service",
+		"services: [{name: a}]\nbuilds: [{name: B}]":                                           "lowercase DNS label",
+		"services: [{name: a}]\nbuilds: [{name: b, path: ../x}]":                               "relative to the repo root",
+		"services: [{name: a}]\nbuilds: [{name: b, test: {image: x}}]":                         "builds[0].test needs both image and command",
+		"services: [{name: a}]\nbuilds: [{name: b, test: {image: x, command: y, size: xl}}]":   "builds[0].test.size",
+		"services: [{name: a, test: {image: x, command: y, timeout: -1}}]":                     "services[0].test.timeout",
 		"services: [{name: a}]\nbuilds: [{name: b}]\ntasks: [{name: b, image: x, command: y}]": "already used by a build",
 	} {
 		if _, err := Parse([]byte(in)); err == nil || !strings.Contains(err.Error(), want) {

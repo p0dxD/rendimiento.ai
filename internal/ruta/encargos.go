@@ -142,7 +142,7 @@ type soltarIn struct {
 // addEncargoTools registers the encargo tools: reading them for any key;
 // creating, taking, waiting, handing over and letting go for keys that
 // write, inside a cargo.
-func (s *Server) addEncargoTools(srv *mcp.Server, write bool) {
+func (s *Server) addEncargoTools(srv herramientas, write bool) {
 	addTool(s, srv, &mcp.Tool{Name: "encargos_listar", Description: "Los encargos: trabajo que una persona (u otro agente) pidió. Los abiertos, o todos. Un encargo pendiente lo puede tomar usted con encargo_tomar."}, s.encargosListar)
 	addTool(s, srv, &mcp.Tool{Name: "encargo_leer", Description: "Un encargo completo: lo que se pide, quién lo tiene, lo que se entregó, el comentario de la persona si lo devolvió, y su historia."}, s.encargoLeer)
 	if !write {

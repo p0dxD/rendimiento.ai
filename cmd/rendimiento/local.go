@@ -215,7 +215,7 @@ func runLocal(ctx context.Context, log *slog.Logger, problemLog *problems.Record
 		PlatformCapMicros: int64(math.Round(aiCap * 1e6))}
 	srv.IAKeys = aiKeys
 	srv.Translator, srv.AgentLang = &agentes.Translator{Model: srv.IA}, env("NOTIFY_LANG", "en")
-	rutaSrv := &ruta.Server{Store: st, Log: log.With("component", "ruta")}
+	rutaSrv := &ruta.Server{Store: st, Log: log.With("component", "ruta"), Lang: env("NOTIFY_LANG", "en")}
 	rutaSrv.Plataforma = plataformaMCP{Store: st, p: p, srv: srv}
 	rutaSrv.Encargos = st
 	srv.MCP = rutaSrv.Handler()
