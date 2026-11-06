@@ -27,7 +27,7 @@ BuildKit daemons themselves run **privileged** (they create containers); build p
 ## Secrets
 
 - **Never in git in plain text.** Apps reference secrets by name in `rendimiento.yaml`; values are set in the UI (**Settings → Secrets**) or committed as **sealed secrets** (encrypted to the cluster's key).
-- **Never in the platform database.** Postgres holds session hashes, not tokens.
+- **Never in the platform database in plain text.** Postgres holds session hashes, not tokens. The platform's own secrets (the GitHub App's credentials, organizations' AI keys) are Kubernetes Secrets on a cluster. On a computer (`MODE=local`), or on a cluster with `SECRETS_KEY_FILE`, they are **sealed in Postgres** with AES-256-GCM, by a key kept outside the database: a file only rendimiento reads (`~/.config/rendimiento/llave-secretos` on a computer). Each value is bound to its name, so a sealed value copied under another name does not open (`internal/secretos`). On a computer, apps' secrets and the passwords of their Postgres and Redis are sealed the same way. Whoever holds both the database and the key file can open them: keep the key's copy apart from the database's backups.
 - **Generated when possible.** `needs:` credentials are generated once, stored in a Secret, and injected by reference (`secretKeyRef`), so the password never appears in a spec or a log.
 - **Short-lived** where possible: GitHub installation tokens last an hour and are minted per build and per Renovate run.
 - **Not logged.** Renovate's log parser, build logs and error messages never include tokens.
@@ -48,7 +48,7 @@ BuildKit daemons themselves run **privileged** (they create containers); build p
 
 These are the honest weak points, in rough order of importance for a multi-user or public deployment:
 
-1. **Single tenant.** Every allowed user can do everything to every app. Per-app permissions (owners, viewers) and per-team namespaces are needed before strangers share a rendimiento. See [Becoming an open-source project](../future/open-source.md).
+1. **Organizations are not yet a security boundary.** People have roles (guest, collaborator, administrator) within organizations, and apps belong to one, but not every route and MCP tool has been checked to refuse another organization's apps, a role covers every app of its organization (no per-app owners or viewers), and on a cluster every app's namespace is managed by the same service account. All of that is needed before strangers share a rendimiento. See [Becoming an open-source project](../future/open-source.md).
 2. **Cluster-wide permissions** for the platform (to create namespaces for any app). A more restricted mode would give each app a namespace that an administrator pre-creates.
 3. **Privileged BuildKit** daemons.
 4. **Plain-HTTP registry** on the LAN.

@@ -68,5 +68,5 @@ Las páginas tienen su propia lógica de carga de datos y de formularios. Confor
 
 - **Registros en Postgres mientras corre una ejecución.** Los registros de construcción se guardan como filas y se mudan al almacenamiento de objetos cuando la ejecución termina ([el archivo de registros](../architecture/data.md#the-log-archive)). Los registros en vivo todavía pasan por la base de datos.
 - **Registro sobre HTTP simple.** `registry.example.lan:5000` no es seguro. Está bien en una red doméstica, pero necesita TLS para cualquier otra cosa.
-- **Solo arm64.** Las imágenes se construyen para la arquitectura del clúster. Las imágenes para varias arquitecturas se tratan en [Código abierto](../future/open-source.md#releases-and-multi-arch-images).
+- **Las imágenes de las aplicaciones, solo para la arquitectura del clúster.** La CI construye una aplicación para los nodos de su clúster (aquí, arm64). La imagen propia de rendimiento se publica para amd64 y arm64 con GitHub Actions ([Código abierto](../future/open-source.md#releases-and-multi-arch-images)).
 - **Reintentos.** Las fallas pasajeras de construcción se reintentan una vez (`TestTransientRetry`). Los demás pasos no se reintentan.

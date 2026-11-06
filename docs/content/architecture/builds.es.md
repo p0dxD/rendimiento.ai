@@ -161,7 +161,7 @@ Use Railpack para empezar rápido; agregue un Dockerfile cuando importen el tama
 
 ## Arquitecturas {#architectures}
 
-Cada nodo es **arm64**, así que cada imagen se construye para `linux/arm64`. Un destino en la nube con x86 (`linux/amd64`) necesitaría una de dos:
+Aquí cada nodo es **arm64**, así que cada imagen de aplicación se construye para `linux/arm64` (la imagen pública de rendimiento se construye para las dos con GitHub Actions; vea [la imagen pública](../environment/deploy.md#the-public-image)). Un destino en la nube con x86 (`linux/amd64`) necesitaría una de dos:
 
 - **construcciones multiplataforma**: `--opt platform=linux/amd64,linux/arm64` produce un índice de imágenes con las dos; un demonio arm64 construye la mitad amd64 bajo emulación con QEMU, que es lenta; o
 - **constructores nativos** para cada arquitectura: un demonio amd64 en el grupo, y el ejecutor elige por plataforma (la llave de encuentro podría incluirla).

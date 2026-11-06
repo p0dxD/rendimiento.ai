@@ -176,7 +176,17 @@ Every change that reaches `main`, and every `v1.2.3` tag, is also published for 
 
 ### Installing with Helm {#installing-with-helm}
 
-`chart/rendimiento` installs the platform on another cluster from the public image, without an overlay of your own:
+`chart/rendimiento` installs the platform on another cluster from the public image, without an overlay of your own. Each release from `v0.1.3` on publishes it with its version, and it installs that release's image:
+
+```bash
+helm install rendimiento oci://ghcr.io/rendimiento-ai/charts/rendimiento --version 0.1.3 \
+  -n rendimiento-system --create-namespace \
+  --set baseURL=https://rendimiento.example.com \
+  --set firstAdmins=your-github-login \
+  --set registry.host=registry.example.com
+```
+
+From a clone of this repository, `./chart/rendimiento` installs the image of `main` (`appVersion: main`):
 
 ```bash
 helm install rendimiento ./chart/rendimiento -n rendimiento-system --create-namespace \

@@ -28,7 +28,7 @@ Items are ordered by value per effort for this cluster first, and for other user
 | **Multi-cluster agents** and cloud targets (EKS, GKE, bare metal) | deploy the same app to the Pis and to the cloud; see [Scaling](scaling.md#many-clusters) |
 | **Environments and promotion** (dev → staging → prod by digest) | the same image, promoted once it's proven |
 | **Cluster provisioning** as a plugin (Terraform or Crossplane) | a new cluster in one click |
-| **Installable by anyone** (Helm chart, multi-arch images, docs site) | see [Open source](open-source.md) |
+| **Installable by anyone**: the Helm chart, multi-arch images, the installer and the public book are done; a tested quickstart and checks for pull requests from forks are left | see [Open source](open-source.md) |
 
 ## Done
 

@@ -2,7 +2,11 @@ apiVersion: v2
 name: rendimiento
 description: Deploy any app from its repository; AI agents explain and fix what breaks.
 type: application
-# The chart's own version; appVersion is the image tag used by default.
+# The chart's own version; appVersion is the image tag used by default. In
+# the repository it is main, the image of the code beside it; each v* tag
+# publishes the chart with both set to the release's version
+# (.github/workflows/binarios.yml), so a released chart installs that
+# release's image.
 version: 0.1.0
 appVersion: main
 home: https://github.com/rendimiento-ai/rendimiento
