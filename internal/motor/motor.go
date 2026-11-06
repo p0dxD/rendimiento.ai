@@ -218,6 +218,13 @@ func (m *Motor) Ejecutar(ctx context.Context, nombre string, comando ...string) 
 	return m.run(ctx, append([]string{"exec", nombre}, comando...), io.Discard)
 }
 
+// Salida runs a command in a running container and returns what it wrote.
+func (m *Motor) Salida(ctx context.Context, nombre string, comando ...string) (string, error) {
+	var out bytes.Buffer
+	err := m.run(ctx, append([]string{"exec", nombre}, comando...), &out)
+	return out.String(), err
+}
+
 // Quitar stops and removes a container, with the anonymous volumes its
 // image made (Postgres's data); one that is not there is gone already.
 func (m *Motor) Quitar(ctx context.Context, nombre string) error {

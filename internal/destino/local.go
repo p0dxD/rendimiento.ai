@@ -5,9 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -259,7 +262,7 @@ func (l *Local) esperar(ctx context.Context, name string, svc spec.Service, ruta
 				why = "exited"
 			}
 			if tail := l.Motor.Registros(ctx, name, 15); tail != "" {
-				return fmt.Errorf("it stopped (%s); its last lines:\n%s", why, tail)
+				return fmt.Errorf("it stopped (%s)%s; its last lines:\n%s", why, pistaLocalhost(tail), tail)
 			}
 			return fmt.Errorf("it stopped (%s) and wrote nothing", why)
 		case err == nil && addr == "" && info.Corriendo && time.Until(deadline) < d-10*time.Second:
@@ -268,7 +271,7 @@ func (l *Local) esperar(ctx context.Context, name string, svc spec.Service, ruta
 			return nil
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("it did not answer within %s", d)
+			return fmt.Errorf("it did not answer within %s%s", d, l.porQueNoResponde(ctx, name, svc))
 		}
 		select {
 		case <-ctx.Done():
@@ -294,7 +297,10 @@ func (l *Local) responde(ctx context.Context, addr string, h *spec.Health) bool 
 }
 
 // responde checks a service once: an HTTP answer below 500 on its health
-// path, or else a TCP connection.
+// path, or else a TCP connection that stays open. A published port accepts
+// the connection itself (Docker's docker-proxy, rootless containerd's port
+// driver), even when nothing listens inside, and then closes it at once:
+// that is no answer.
 func responde(ctx context.Context, addr string, h *spec.Health) bool {
 	if h != nil && h.Path != "" && !h.TCP {
 		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -311,8 +317,108 @@ func responde(ctx context.Context, addr string, h *spec.Health) bool {
 	if err != nil {
 		return false
 	}
-	conn.Close()
-	return true
+	defer conn.Close()
+	_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+	_, err = conn.Read(make([]byte, 1))
+	var ne net.Error
+	return err == nil || errors.As(err, &ne) && ne.Timeout() // it wrote, or it waits for the client
+}
+
+// porQueNoResponde says why a service that is running does not answer:
+// where it listens inside its container, when that is not its port (or
+// only on 127.0.0.1), and its last lines.
+func (l *Local) porQueNoResponde(ctx context.Context, name string, svc spec.Service) string {
+	var why string
+	if svc.Port > 0 {
+		if out, err := l.Motor.Salida(ctx, name, "cat", "/proc/net/tcp", "/proc/net/tcp6"); err == nil {
+			why = puertoEquivocado(svc.Port, escuchando(out))
+		}
+	}
+	if tail := l.Motor.Registros(ctx, name, 15); tail != "" {
+		why += pistaLocalhost(tail) + "; its last lines:\n" + tail
+	}
+	return why
+}
+
+// escucha is a socket listening inside a container.
+type escucha struct {
+	puerto int
+	local  bool // only on 127.0.0.1 or ::1
+}
+
+// escuchando reads the listening sockets from /proc/net/tcp and tcp6.
+func escuchando(proc string) []escucha {
+	var out []escucha
+	seen := map[escucha]bool{}
+	for _, line := range strings.Split(proc, "\n") {
+		f := strings.Fields(line)
+		if len(f) < 4 || f[3] != "0A" { // 0A: LISTEN
+			continue
+		}
+		ip, port, ok := strings.Cut(f[1], ":")
+		n, err := strconv.ParseInt(port, 16, 32)
+		if !ok || err != nil {
+			continue
+		}
+		e := escucha{puerto: int(n), local: ip == "0100007F" || ip == "00000000000000000000000001000000" || ip == "0000000000000000FFFF00000100007F"}
+		if !seen[e] {
+			seen[e] = true
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// puertoEquivocado explains a service that listens elsewhere than its
+// port ("" when it listens there, or nothing can be said).
+func puertoEquivocado(port int, socks []escucha) string {
+	var puertos []int
+	soloLocal := false
+	for _, e := range socks {
+		switch {
+		case e.puerto == port && !e.local:
+			return ""
+		case e.puerto == port:
+			soloLocal = true
+		case !slices.Contains(puertos, e.puerto):
+			puertos = append(puertos, e.puerto)
+		}
+	}
+	slices.Sort(puertos)
+	var otros []string
+	for _, p := range puertos {
+		otros = append(otros, strconv.Itoa(p))
+	}
+	switch {
+	case soloLocal:
+		return fmt.Sprintf("; it listens on port %d only on 127.0.0.1, inside its container, where nothing else reaches it: have it listen on 0.0.0.0", port)
+	case len(otros) > 0:
+		return fmt.Sprintf("; nothing listens on port %d, the port in rendimiento.yaml: inside its container it listens on %s. Set port: to that, or have it listen on $PORT", port, strings.Join(otros, ", "))
+	case socks != nil:
+		return ""
+	}
+	return fmt.Sprintf("; nothing listens on port %d, the port in rendimiento.yaml, nor on any other", port)
+}
+
+// localhostRechazado finds a refused connection to localhost in a log.
+var localhostRechazado = regexp.MustCompile(`(?i)(?:ECONNREFUSED|connection refused|connect: refused)[^\n]*?(?:localhost|127\.0\.0\.1|\[?::1\]?):(\d+)|(?:localhost|127\.0\.0\.1|\[?::1\]?):(\d+)[^\n]*?(?:ECONNREFUSED|connection refused)`)
+
+// pistaLocalhost explains a service that looks for what it needs on
+// localhost: inside a container that is the container itself.
+func pistaLocalhost(logs string) string {
+	m := localhostRechazado.FindStringSubmatch(logs)
+	if m == nil {
+		return ""
+	}
+	port := m[1] + m[2]
+	use := "the address rendimiento gives it (its service's name, or the variable from needs:)"
+	switch port {
+	case "6379":
+		use = "REDIS_URL (needs: [redis])"
+	case "5432":
+		use = "DATABASE_URL (needs: [postgres])"
+	}
+	return fmt.Sprintf("; it tries to reach localhost:%s, which inside a container is the container itself: use %s", port, use)
 }
 
 // hosts are the names the proxy answers a service at.
