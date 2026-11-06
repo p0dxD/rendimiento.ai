@@ -11,4 +11,6 @@ Thanks for helping. The short version:
 
 Good first changes are listed in [Refactoring](docs/content/develop/refactoring.md) and [Roadmap](docs/content/future/roadmap.md).
 
-Report security issues privately through GitHub's *Report a vulnerability*, not as public issues.
+A pull request from a fork is checked by GitHub Actions (`.github/workflows/forks.yml`: the Go tests, the book and the browser tests); a maintainer approves the first run of a first-time contributor. Issues and pull requests are welcome in English or Spanish. Everyone here follows the [code of conduct](CODE_OF_CONDUCT.md).
+
+Report security issues privately, as [SECURITY.md](SECURITY.md) explains, never as public issues.

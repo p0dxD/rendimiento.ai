@@ -1,0 +1,71 @@
+# Checks a pull request from a fork: someone outside the team gets the same
+# feedback a branch of this repository gets from rendimiento (which tests
+# every branch here, but never runs a fork's code: it would run on the
+# cluster with the installation's token). Here the code runs on GitHub's
+# machines, with no secret and a read-only token, and GitHub asks a
+# maintainer to approve the first run of a first-time contributor.
+# The steps are rendimiento's own: hack/ci-test.sh, the book, and the
+# browser tests (hack/ci-interfaz.sh).
+name: forks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env: { POSTGRES_PASSWORD: test, POSTGRES_DB: test }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/test?sslmode=disable
+      CHECK_GENERATED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 20
+      - name: Go tests (vet, envtest, Postgres) and generated files
+        run: TOOLS=$RUNNER_TEMP/bin hack/ci-test.sh
+      - name: UI types and translations
+        run: cd web && npm ci && npm run typecheck
+
+  book:
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: mkdocs build --strict
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv" && "$RUNNER_TEMP/venv/bin/pip" install -q -r docs/requirements.txt
+          cd docs && "$RUNNER_TEMP/venv/bin/mkdocs" build --strict --site-dir "$RUNNER_TEMP/site"
+
+  interfaz:
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.64.1-noble
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env: { POSTGRES_PASSWORD: test, POSTGRES_DB: test }
+        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-retries 30
+    env:
+      DATABASE_URL: postgres://postgres:test@postgres:5432/test?sslmode=disable
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Browser tests
+        run: mkdir -p /cache && hack/ci-interfaz.sh
