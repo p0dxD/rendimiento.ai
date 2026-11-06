@@ -315,14 +315,26 @@ func localBuildkit(ctx context.Context, m *motor.Motor) (string, error) {
 	if m.Recomendado() {
 		return "", errors.New("no BuildKit: start it with containerd-rootless-setuptool.sh install-buildkit, or set BUILDKIT_ADDR")
 	}
-	if err := m.Asegurar(ctx, motor.Contenedor{Nombre: "rendimiento-buildkit", Imagen: env("BUILDKIT_IMAGE", "moby/buildkit:v0.18.2"),
-		Comando: []string{"buildkitd", "--addr", "tcp://0.0.0.0:1234"}, Privilegiado: true, Siempre: true,
-		Montajes: []motor.Montaje{{Volumen: "rendimiento-buildkit", Ruta: "/var/lib/buildkit"}},
-		Puertos:  []string{"127.0.0.1:1234:1234"}}); err != nil {
+	// Under Docker, a daemon of its own on the computer's network: it
+	// pushes to the registry at localhost:5000, which inside a container of
+	// its own network would be itself. One from before (on its own
+	// network, with a published port) is made again.
+	const name = "rendimiento-buildkit"
+	if info, err := m.Inspeccionar(ctx, name); err == nil && info.Etiquetas[etiquetaRedBuildkit] != "host" {
+		_ = m.Quitar(ctx, name)
+	}
+	if err := m.Asegurar(ctx, motor.Contenedor{Nombre: name, Imagen: env("BUILDKIT_IMAGE", "moby/buildkit:v0.18.2"),
+		Comando: []string{"buildkitd", "--addr", "tcp://127.0.0.1:1234"}, Privilegiado: true, Siempre: true, Red: "host",
+		Etiquetas: map[string]string{etiquetaRedBuildkit: "host"},
+		Montajes:  []motor.Montaje{{Volumen: "rendimiento-buildkit", Ruta: "/var/lib/buildkit"}}}); err != nil {
 		return "", fmt.Errorf("BuildKit: %w", err)
 	}
 	return "tcp://127.0.0.1:1234", nil
 }
+
+// etiquetaRedBuildkit marks the BuildKit container made on the computer's
+// network.
+const etiquetaRedBuildkit = "rendimiento.ai/buildkit-network"
 
 // sbin adds the sbin folders to PATH when it lacks them.
 func sbin(path string) {
