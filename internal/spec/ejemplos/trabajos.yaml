@@ -1,4 +1,4 @@
-# A service with a scheduled job and deploy tasks.
+# A service with a scheduled job, a deploy task and a browser test.
 services:
   - name: api
     port: 8000
@@ -12,3 +12,12 @@ tasks:
     stage: pre-deploy
     service: api
     command: ./migrate
+  # A browser test of every push, with its own throwaway database and a
+  # cache kept between runs.
+  - name: navegador
+    image: mcr.microsoft.com/playwright:v1.64.1-noble
+    command: npx playwright test
+    when: always
+    after: [api]
+    postgres: true
+    cache: true

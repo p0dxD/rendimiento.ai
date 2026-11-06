@@ -240,3 +240,4 @@ Commands run as CI steps; see [Tasks](tasks.md) for when they run and how secret
 | `size`, `resources` | as for services | `medium` | |
 | `timeout` | seconds | `STEP_TIMEOUT` | Only shorter than the platform's limit. |
 | `env`, `secrets`, `secretEnv` | as for services | | Secrets are read from the app's namespace when the step starts. |
+| `postgres`, `cache` | bool | `false` | Build tasks only, as for tests: a throwaway Postgres beside the task (`DATABASE_URL`) and a `/cache` kept between runs. For a task that drives the app with its database, such as a browser test. |

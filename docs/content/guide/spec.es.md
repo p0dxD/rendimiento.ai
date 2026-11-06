@@ -240,3 +240,4 @@ Comandos que se ejecutan como pasos de integración continua; vea [Tareas](tasks
 | `size`, `resources` | como en los servicios | `medium` | |
 | `timeout` | segundos | `STEP_TIMEOUT` | Solo puede ser menor que el límite de la plataforma. |
 | `env`, `secrets`, `secretEnv` | como en los servicios | | Los secretos se leen del espacio de nombres de la aplicación cuando empieza el paso. |
+| `postgres`, `cache` | booleano | `false` | Solo en tareas de compilación, como en las pruebas: un Postgres desechable junto a la tarea (`DATABASE_URL`) y un `/cache` que se conserva entre ejecuciones. Para una tarea que maneja la aplicación con su base de datos, como una prueba en el navegador. |

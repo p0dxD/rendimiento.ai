@@ -198,7 +198,7 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 			fmt.Fprintf(w, "rendimiento: building on %s\n", daemon)
 		}
 	}
-	if step.Kind == KindTest && step.Cache {
+	if step.Cache {
 		if err := k.ensureCache(ctx, step); err != nil {
 			return fail("cache volume: %v", err)
 		}
@@ -207,7 +207,7 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 	if err != nil {
 		return fail("%v", err)
 	}
-	if step.Kind == KindTest && step.Cache && k.cacheInUse(ctx, name, step) {
+	if step.Cache && k.cacheInUse(ctx, name, step) {
 		// Another run's test has the cache (a volume one node at a time, like
 		// Longhorn's ReadWriteOnce). With it, a test takes minutes; without it,
 		// everything compiles again, many times longer: wait for it a while.
@@ -231,7 +231,7 @@ func (k *KubeExecutor) Execute(ctx context.Context, runID string, src Source, st
 	// A node-local cache ties the test to one node. When that node has no
 	// room, the cache is only a cache: let it go rather than wait the whole
 	// timeout.
-	if step.Kind == KindTest && step.Cache {
+	if step.Cache {
 		stuck, err := k.stuckOnCache(ctx, name, cacheWait)
 		if err != nil {
 			return fail("%v", err)
@@ -490,16 +490,7 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 		}
 		k.capCPU(&res)
 		env := []corev1.EnvVar{{Name: "CI", Value: "true"}, {Name: "GIT_SHA", Value: src.SHA}}
-		if step.Postgres {
-			env = append(env, corev1.EnvVar{Name: "DATABASE_URL", Value: testDatabaseURL})
-			initContainers = append(initContainers, k.testPostgres())
-		}
-		if step.Cache {
-			env = append(env, cacheEnv...)
-			cacheMount = &corev1.VolumeMount{Name: "cache", MountPath: "/cache"}
-			volumes = append(volumes, corev1.Volume{Name: "cache", VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: cacheName(step)}}})
-		}
+		env = append(env, k.withDatabaseAndCache(step, &initContainers, &volumes, &cacheMount)...)
 		main = corev1.Container{
 			Name:       "step",
 			Image:      step.Image,
@@ -556,6 +547,7 @@ func (k *KubeExecutor) pod(name string, labels map[string]string, src Source, st
 	case KindTask:
 		env := []corev1.EnvVar{{Name: "CI", Value: "true"}, {Name: "GIT_SHA", Value: src.SHA},
 			{Name: "GIT_BRANCH", Value: src.Branch}, {Name: "RENDIMIENTO_APP", Value: step.App}}
+		env = append(env, k.withDatabaseAndCache(step, &initContainers, &volumes, &cacheMount)...)
 		env = append(env, sortedEnv(step.Env)...)
 		res, err := taskResources(step.Resources)
 		if err != nil {
@@ -617,6 +609,24 @@ func sortedKeys(m map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// withDatabaseAndCache adds what a test or task asked for to its pod: the
+// throwaway Postgres (an init container) and the kept /cache volume. It
+// returns their environment variables.
+func (k *KubeExecutor) withDatabaseAndCache(step Step, initContainers *[]corev1.Container, volumes *[]corev1.Volume, cacheMount **corev1.VolumeMount) []corev1.EnvVar {
+	var env []corev1.EnvVar
+	if step.Postgres {
+		env = append(env, corev1.EnvVar{Name: "DATABASE_URL", Value: testDatabaseURL})
+		*initContainers = append(*initContainers, k.testPostgres())
+	}
+	if step.Cache {
+		env = append(env, cacheEnv...)
+		*cacheMount = &corev1.VolumeMount{Name: "cache", MountPath: "/cache"}
+		*volumes = append(*volumes, corev1.Volume{Name: "cache", VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: cacheName(step)}}})
+	}
+	return env
 }
 
 // testDatabaseURL is the address of a test's throwaway Postgres.

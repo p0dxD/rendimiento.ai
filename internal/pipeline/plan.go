@@ -65,8 +65,9 @@ type Step struct {
 	// Optional steps may fail without failing the run.
 	Optional bool `json:"optional,omitempty"`
 
-	// Test steps: a throwaway Postgres next to the tests (DATABASE_URL),
-	// and a /cache kept between runs (one volume per app and step).
+	// Test and task steps: a throwaway Postgres next to the step
+	// (DATABASE_URL), and a /cache kept between runs (one volume per app
+	// and step).
 	Postgres bool `json:"postgres,omitempty"`
 	Cache    bool `json:"cache,omitempty"`
 }
@@ -138,7 +139,7 @@ func Plan(app, registry string, s spec.Spec) []Step {
 			ID: TaskStepID(t.Name), Service: TaskKey(t.Name), Kind: KindTask, Path: t.Path,
 			Image: t.Image, Command: t.Command, App: app, Env: t.Env, Secrets: t.Secrets, SecretEnv: t.SecretEnv,
 			Resources: spec.ResourcesFor(t.Size, t.Resources), Timeout: time.Duration(t.Timeout) * time.Second,
-			Optional: t.Optional,
+			Optional: t.Optional, Postgres: t.Postgres, Cache: t.Cache,
 		}
 		for _, a := range t.After {
 			if isTask(s, a) {
