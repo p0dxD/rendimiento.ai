@@ -4,7 +4,7 @@
 
 Coding agents now write more apps than a platform team can check by hand. rendimiento is the deploy platform that agents and people share. Connect a GitHub repo, press **Deploy**, and get a live HTTPS URL, on your own Kubernetes cluster or on one computer.
 
-- **Agents work on it, people decide what ships.** Each agent connects over **MCP** with a key that has a role (reader or collaborator) and, if you want, a set of apps. It can read apps, runs, logs and request traces, test any branch in CI, and pick up work people asked for. It cannot deploy: a push to the main branch, by a person, does. What each agent did and handed over stays in **la Ruta**, the platform's shared memory.
+- **Agents work on it, people decide what ships.** Each agent connects over **MCP** with a key that has a role (reader or collaborator) and, if you want, a set of apps. It can read apps, runs, logs and request traces, test any branch in CI, and pick up work people asked for. It cannot deploy: a push to the main branch, by a person, does. Every call an agent makes is recorded (the Ruta's Activity tab), and what each agent did and handed over stays in **la Ruta**, the platform's shared memory.
 - **What breaks explains itself.** A failed run gets an AI diagnosis and a proposed fix. A release that doesn't answer says why ("nothing listens on port 3000; inside its container it listens on 4000"), and it is rolled back.
 - **One binary instead of Jenkins + Argo CD + hand-made DNS and permissions.** CI on BuildKit, GitOps delivery, certificates, DNS, databases on demand (`needs: [postgres]`) and add-ons, in one Go program with its UI. Apache-2.0.
 
