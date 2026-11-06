@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -26,6 +27,8 @@ type engine struct {
 	calls      []string
 	// crash makes the service containers it starts stop at once, writing it.
 	crash string
+	// proc is what cat /proc/net/tcp shows inside a container.
+	proc string
 }
 
 type fakeContainer struct {
@@ -68,6 +71,8 @@ func (e *engine) exec(_ context.Context, _ string, args []string, out io.Writer)
 		e.containers[name] = c
 	case "logs":
 		fmt.Fprintln(out, e.crash)
+	case "exec":
+		fmt.Fprint(out, e.proc)
 	case "rm":
 		delete(e.containers, args[len(args)-1])
 	case "ps":
@@ -287,5 +292,112 @@ func TestLocalSeDetiene(t *testing.T) {
 	msg := waitEstado(t, l, "portal", 1, Fallida)
 	if !strings.Contains(msg, "it stopped") || !strings.Contains(msg, "EACCES") {
 		t.Fatalf("message: %q", msg)
+	}
+}
+
+// procTCP is /proc/net/tcp with a server listening on 0.0.0.0:4000 and a
+// connection to Redis (not listening).
+const procTCP = `  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
+   0: 00000000:0FA0 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 1 0 100 0 0 10 0
+   1: 0300140A:A1B2 0200140A:18EB 01 00000000:00000000 00:00000000 00000000  1000        0 2 1 0 20 4 30 10 -1
+`
+
+// A service that runs but does not answer on its port fails with where it
+// listens instead, and with the localhost it cannot reach: ping-demo's
+// backend listened on 4000 for port: 3000 and looked for Redis on
+// localhost.
+func TestLocalNoResponde(t *testing.T) {
+	e := &engine{containers: map[string]*fakeContainer{}, proc: procTCP}
+	l := &Local{Motor: &motor.Motor{Bin: "nerdctl", Exec: func(ctx context.Context, bin string, args []string, out io.Writer) error {
+		if args[0] == "logs" {
+			fmt.Fprintln(out, "listening on 4000\n[ioredis] Unhandled error event: Error: connect ECONNREFUSED 127.0.0.1:6379")
+			return nil
+		}
+		return e.exec(ctx, bin, args, out)
+	}}, Caja: memCaja{}, Esperar: 200 * time.Millisecond,
+		Responde: func(context.Context, string, *spec.Health) bool { return false }}
+	sp := spec.Spec{Services: []spec.Service{{Name: "backend", Port: 3000}}}
+	sp.Default()
+	_ = l.Aplicar(context.Background(), "ping-demo", &store.Release{Number: 1, Spec: sp, Images: map[string]string{"backend": "b@sha256:1"}})
+	msg := waitEstado(t, l, "ping-demo", 1, Fallida)
+	for _, want := range []string{"did not answer", "nothing listens on port 3000", "it listens on 4000", "$PORT",
+		"localhost:6379", "REDIS_URL", "ECONNREFUSED"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("message lacks %q: %s", want, msg)
+		}
+	}
+}
+
+func TestPuertoEquivocado(t *testing.T) {
+	socks := escuchando(procTCP + "   2: 0100007F:1F90 00000000:0000 0A 0 0 0 0 0 0\n" +
+		"   0: 00000000000000000000000001000000:0050 00000000000000000000000000000000:0000 0A 0 0 0 0 0 0\n")
+	if len(socks) != 3 || socks[0] != (escucha{puerto: 4000}) || !socks[1].local || !socks[2].local || socks[2].puerto != 80 {
+		t.Fatalf("socks = %+v", socks)
+	}
+	for _, tc := range []struct {
+		port int
+		want string
+	}{
+		{4000, ""},
+		{8080, "only on 127.0.0.1"},
+		{3000, "it listens on 80, 4000, 8080"},
+	} {
+		if got := puertoEquivocado(tc.port, socks); tc.want == "" && got != "" || !strings.Contains(got, tc.want) {
+			t.Errorf("port %d: %q, want %q", tc.port, got, tc.want)
+		}
+	}
+	if got := puertoEquivocado(3000, nil); !strings.Contains(got, "nor on any other") {
+		t.Errorf("nothing listening: %q", got)
+	}
+}
+
+func TestPistaLocalhost(t *testing.T) {
+	for log, want := range map[string]string{
+		"Error: connect ECONNREFUSED 127.0.0.1:6379":                                 "REDIS_URL",
+		`dial tcp [::1]:5432: connect: connection refused`:                         "DATABASE_URL",
+		"could not connect to localhost:8081: Connection refused":                   "localhost:8081",
+		"psql: error: connection to server at \"db\" (10.0.0.2), port 5432 failed": "",
+	} {
+		if got := pistaLocalhost(log); want == "" && got != "" || !strings.Contains(got, want) {
+			t.Errorf("%s: %q, want %q", log, got, want)
+		}
+	}
+}
+
+// The TCP check counts a connection that the other end closes at once (a
+// published port with nothing listening behind it) as no answer.
+func TestRespondeTCP(t *testing.T) {
+	escuchar := func(cerrar bool) string {
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { ln.Close() })
+		go func() {
+			for {
+				c, err := ln.Accept()
+				if err != nil {
+					return
+				}
+				if cerrar {
+					c.Close()
+				} else {
+					defer c.Close()
+				}
+			}
+		}()
+		return ln.Addr().String()
+	}
+	if !responde(context.Background(), escuchar(false), nil) {
+		t.Error("a server that waits for the client answers")
+	}
+	if responde(context.Background(), escuchar(true), nil) {
+		t.Error("a connection closed at once is no answer")
+	}
+	ln, _ := net.Listen("tcp", "127.0.0.1:0")
+	addr := ln.Addr().String()
+	ln.Close()
+	if responde(context.Background(), addr, nil) {
+		t.Error("nothing listening is no answer")
 	}
 }
