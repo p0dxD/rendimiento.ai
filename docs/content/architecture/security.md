@@ -48,7 +48,7 @@ BuildKit daemons themselves run **privileged** (they create containers); build p
 
 These are the honest weak points, in rough order of importance for a multi-user or public deployment:
 
-1. **Organizations are not yet a security boundary.** People have roles (guest, collaborator, administrator) within organizations, and apps belong to one, but not every route and MCP tool has been checked to refuse another organization's apps, a role covers every app of its organization (no per-app owners or viewers), and on a cluster every app's namespace is managed by the same service account. All of that is needed before strangers share a rendimiento. See [Becoming an open-source project](../future/open-source.md).
+1. **Organizations are a boundary in the API, not yet below it.** People have roles (guest, collaborator, administrator) within organizations, and each app belongs to one. Every API route is called in a test by another organization's administrator with the first one's names and numbers, and finds nothing of it (`TestEveryRouteStaysInItsOrg`, which walks the routes as they are registered, so a new one is checked too). The MCP tools check the key's organization and its apps. What is missing: a role covers every app of its organization (no per-app owners or viewers), and on a cluster one service account manages every app's namespace, so the boundary is the platform's code, not Kubernetes. That is needed before strangers share a cluster. See [Becoming an open-source project](../future/open-source.md).
 2. **Cluster-wide permissions** for the platform (to create namespaces for any app). A more restricted mode would give each app a namespace that an administrator pre-creates.
 3. **Privileged BuildKit** daemons.
 4. **Plain-HTTP registry** on the LAN.

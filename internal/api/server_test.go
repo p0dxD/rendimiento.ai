@@ -1163,3 +1163,115 @@ func TestLocalizedStreams(t *testing.T) {
 		}
 	}
 }
+
+// Every route of an organization, called by another organization's
+// administrator with the first organization's names and numbers, finds
+// nothing of it: a 404 (or a refusal), or an answer of her own
+// organization's that shows none of the first's. The routes are walked
+// from s.routes, so a route added later is checked too; one that must
+// answer differently goes in mayAnswer, with its reason.
+func TestEveryRouteStaysInItsOrg(t *testing.T) {
+	e := newEnv(t, false)
+	ctx := context.Background()
+	sp := spec.Spec{Services: []spec.Service{{Name: "web", Port: 8080}}}
+	sp.Default()
+	app := &store.App{Name: "tienda", Repo: "p0dxD/tienda", DefaultBranch: "main", Spec: sp}
+	if err := e.store.CreateApp(ctx, app); err != nil {
+		t.Fatal(err)
+	}
+	run := &store.Run{AppID: app.ID, SHA: "abc123def", Branch: "main", Event: "push"}
+	if err := e.store.CreateRun(ctx, run, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.store.CreateRelease(ctx, &store.Release{AppID: app.ID, Number: 1, SHA: "abc123def", Images: map[string]string{"web": "web@sha256:1"}, Spec: sp}); err != nil {
+		t.Fatal(err)
+	}
+	ruta, err := e.store.AddRuta(ctx, store.RutaEntry{Kind: store.KindNota, Title: "secreto de la principal", Author: "p0dxD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	enc, err := e.store.CreateEncargo(ctx, store.Encargo{Title: "encargo de la principal", App: "tienda", CreatedBy: "p0dxD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := e.store.CreateAgentKey(ctx, store.DefaultOrg, "llave principal", "h-principal", store.RoleCollaborator, nil, "p0dxD", time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.store.SetMember(ctx, store.DefaultOrg, "solo-principal", store.MemberGuest, "p0dxD"); err != nil {
+		t.Fatal(err)
+	}
+	// Every {id} is the first of its kind, so one number stands for all.
+	for what, id := range map[string]int64{"run": run.ID, "ruta": ruta.ID, "encargo": enc.ID, "key": key.ID} {
+		if id != 1 {
+			t.Fatalf("the %s is number %d, not 1: the database was not empty", what, id)
+		}
+	}
+	if _, err := e.store.CreateOrg(ctx, "otra", "Otra", "ana"); err != nil {
+		t.Fatal(err)
+	}
+	ana := e.session(t, "ana")
+
+	// What of the principal organization must never show.
+	marks := []string{"tienda", "abc123def", "secreto de la principal", "encargo de la principal", "llave principal", "solo-principal", "p0dxD/tienda"}
+	// Routes whose answer may mention a mark, and why.
+	mayAnswer := map[string]string{
+		// She adds "solo-principal" to her own organization: the login is
+		// hers to choose, and the answer is her member.
+		"PUT /api/members/{login}": "adds the login to her own organization",
+	}
+	fill := strings.NewReplacer("{app}", "tienda", "{id}", "1", "{number}", "1", "{task}", "web", "{secret}", "tienda-env",
+		"{step}", "web:build", "{login}", "solo-principal", "{site}", "1", "{session}", "1", "{addon}", "nada", "{name}", "tienda")
+	// Reads first, then what changes things, so a leak in a change does not
+	// hide one in a read.
+	var reads, writes []route
+	for _, rt := range e.s.routes {
+		if rt.platform {
+			continue // the platform's own routes: TestOrgIsolation checks they refuse her
+		}
+		if strings.HasPrefix(rt.pattern, "GET ") {
+			reads = append(reads, rt)
+		} else {
+			writes = append(writes, rt)
+		}
+	}
+	checked := 0
+	for _, rt := range append(reads, writes...) {
+		method, path, _ := strings.Cut(rt.pattern, " ")
+		path = fill.Replace(path)
+		cctx, cancel := context.WithTimeout(ctx, 3*time.Second) // streams end here
+		req, _ := http.NewRequestWithContext(cctx, method, e.srv.URL+path, strings.NewReader(`{"role":"guest"}`))
+		req.AddCookie(ana)
+		status, body := 0, ""
+		if res, err := http.DefaultClient.Do(req); err == nil {
+			b, _ := io.ReadAll(res.Body)
+			res.Body.Close()
+			status, body = res.StatusCode, string(b)
+		}
+		cancel()
+		checked++
+		if status >= 200 && status < 300 && strings.Contains(path, "tienda") && strings.Contains(rt.pattern, "{app}") {
+			t.Errorf("%s from the other organization: %d, want 404 (%.200s)", rt.pattern, status, body)
+			continue
+		}
+		if _, ok := mayAnswer[rt.pattern]; ok {
+			continue
+		}
+		for _, m := range marks {
+			if strings.Contains(body, m) {
+				t.Errorf("%s from the other organization shows %q: %d %.300s", rt.pattern, m, status, body)
+				break
+			}
+		}
+	}
+	if checked < 60 {
+		t.Fatalf("only %d routes: are they registered?", checked)
+	}
+	// Nothing she did changed the principal's.
+	if a, err := e.store.GetApp(ctx, "tienda"); err != nil || a.OrgID != store.DefaultOrg {
+		t.Fatalf("the principal's app after her calls: %+v %v", a, err)
+	}
+	if k, err := e.store.ListAgentKeys(ctx, store.DefaultOrg); err != nil || len(k) != 1 || k[0].RevokedAt != nil {
+		t.Fatalf("the principal's key after her calls: %+v %v", k, err)
+	}
+}
