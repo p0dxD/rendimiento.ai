@@ -1,0 +1,36 @@
+name: Something doesn't work
+description: A bug, a crash, or a page that shows something wrong.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      placeholder: "1. New app → … 2. …"
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release you installed (such as v0.1.3), or the image tag or commit.
+    validations: { required: true }
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where it runs
+      options:
+        - "On one computer (MODE=local), with containerd"
+        - "On one computer (MODE=local), with Docker"
+        - "On Kubernetes, with the Helm chart"
+        - "On Kubernetes, with deploy/"
+    validations: { required: true }
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The run's step log, or `journalctl --user -u rendimiento`, or the platform pod's log. Remove tokens and passwords first.
+      render: text

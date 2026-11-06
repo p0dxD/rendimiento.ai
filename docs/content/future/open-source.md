@@ -27,7 +27,6 @@ Every change is tested by rendimiento itself before it reaches `main` ([on every
 Still to do:
 
 - **Semantic versioning.** Bump the CRD version (`v1alpha1` → `v1beta1`) only with a conversion plan.
-- **A changelog** in `CHANGELOG.md` (the releases' notes are generated from the merged pull requests for now).
 - **Signed images** (cosign keyless) and an SBOM (`buildx --sbom`), both cheap to add in Actions.
 - The Railpack image the same way (`make railpack-image` → an Actions job).
 
@@ -37,11 +36,12 @@ Still to do:
 |---|---|
 | `LICENSE` | **Apache-2.0**: the Kubernetes-ecosystem norm, a patent grant, friendly to businesses |
 | `CONTRIBUTING.md` | there: setup ([Setting up](../develop/setup.md)), tests, the "book in the same change" rule, commit style |
-| `CODE_OF_CONDUCT.md` | to do: Contributor Covenant |
-| `SECURITY.md` | to do: how to report vulnerabilities privately (GitHub private advisories) |
-| `.github/ISSUE_TEMPLATE/` | to do: bug report (version, cluster or computer, logs), feature request |
-| `.github/pull_request_template.md` | to do: what, why, how tested, book updated? |
-| Checks on pull requests | rendimiento runs its steps (Go tests with envtest and Postgres, the browser tests, the book) on every branch of the repository, and reports them on the pull request. **A pull request from a fork gets no check yet**: someone outside the team has no automated feedback. |
+| `CODE_OF_CONDUCT.md` | there: the Contributor Covenant 2.1, English or Spanish welcome |
+| `SECURITY.md` | there: report vulnerabilities privately (GitHub's private vulnerability reporting) |
+| `.github/ISSUE_TEMPLATE/` | there: something doesn't work (version, where it runs, logs), an idea |
+| `.github/pull_request_template.md` | there: what, why, how tested, book updated? |
+| `CHANGELOG.md` | there: what changed in each release, for people who run it |
+| Checks on pull requests | rendimiento runs its steps (Go tests with envtest and Postgres, the browser tests, the book) on every branch of the repository, and reports them on the pull request. A pull request **from a fork** is never run by rendimiento (its code would run on the cluster with the installation's token): `.github/workflows/forks.yml` runs the same steps on GitHub's machines, with no secret, and GitHub asks a maintainer to approve a first-time contributor's first run. |
 
 Label a handful of issues **good first issue**. The refactors in [Refactoring](../develop/refactoring.md) (splitting `server.go`, tygo) are ideal: well-scoped, mechanical, and well tested.
 
@@ -63,11 +63,12 @@ This book is the documentation, published in English at [learn.rendimiento.ai](h
 ## Checklist
 
 - [x] LICENSE (Apache-2.0) and CONTRIBUTING
-- [ ] CODE_OF_CONDUCT and SECURITY
+- [x] CODE_OF_CONDUCT and SECURITY, issue and pull request templates
 - [x] Checks on the repository's own pull requests (rendimiento tests every branch)
-- [ ] Checks on pull requests from forks
+- [x] Checks on pull requests from forks (GitHub Actions)
 - [x] Release workflow: multi-arch images on ghcr.io, Linux programs with checksums
-- [ ] Changelog, signed images, SBOM
+- [x] Changelog
+- [ ] Signed images, SBOM
 - [x] Helm chart, published with each release
 - [x] Install on one computer without Kubernetes (`/instalar`)
 - [ ] Quickstart on a clean machine and on k3d, tested

@@ -27,7 +27,6 @@ rendimiento prueba cada cambio antes de que llegue a `main` ([en cada envío](..
 Falta:
 
 - **Versionado semántico.** Subir la versión de la CRD (`v1alpha1` → `v1beta1`) solo con un plan de conversión.
-- **Un registro de cambios** en `CHANGELOG.md` (por ahora, las notas de cada versión se generan con las solicitudes de cambios juntadas).
 - **Imágenes firmadas** (cosign sin llave) y un SBOM (`buildx --sbom`), las dos fáciles de agregar en Actions.
 - La imagen de Railpack de la misma forma (`make railpack-image` → una tarea de Actions).
 
@@ -37,11 +36,12 @@ Falta:
 |---|---|
 | `LICENSE` | **Apache-2.0**: lo normal en el ecosistema de Kubernetes, con concesión de patentes y amigable con las empresas |
 | `CONTRIBUTING.md` | ya está: preparación ([Preparar y construir](../develop/setup.md)), pruebas, la regla de «el libro en el mismo cambio», estilo de los commits |
-| `CODE_OF_CONDUCT.md` | falta: Contributor Covenant |
-| `SECURITY.md` | falta: cómo reportar vulnerabilidades en privado (avisos privados de GitHub) |
-| `.github/ISSUE_TEMPLATE/` | falta: reporte de error (versión, clúster o computadora, registros), solicitud de función |
-| `.github/pull_request_template.md` | falta: qué, por qué, cómo se probó, ¿se actualizó el libro? |
-| Revisiones de las solicitudes de cambios | rendimiento corre sus pasos (las pruebas de Go con envtest y Postgres, las pruebas en el navegador, el libro) en cada rama del repositorio y los reporta en la solicitud de cambios. **Una solicitud desde un fork todavía no recibe ninguna revisión**: quien no es del equipo no recibe respuesta automática. |
+| `CODE_OF_CONDUCT.md` | ya está: el Contributor Covenant 2.1; se puede escribir en inglés o en español |
+| `SECURITY.md` | ya está: reportar vulnerabilidades en privado (el reporte privado de vulnerabilidades de GitHub) |
+| `.github/ISSUE_TEMPLATE/` | ya está: algo no funciona (versión, dónde corre, registros), una idea |
+| `.github/pull_request_template.md` | ya está: qué, por qué, cómo se probó, ¿se actualizó el libro? |
+| `CHANGELOG.md` | ya está: qué cambió en cada versión, para quien lo opera |
+| Revisiones de las solicitudes de cambios | rendimiento corre sus pasos (las pruebas de Go con envtest y Postgres, las pruebas en el navegador, el libro) en cada rama del repositorio y los reporta en la solicitud de cambios. rendimiento nunca corre una solicitud **desde un fork** (su código correría en el clúster con el token de la instalación): `.github/workflows/forks.yml` corre los mismos pasos en las máquinas de GitHub, sin secretos, y GitHub le pide a alguien del equipo que apruebe la primera ejecución de quien contribuye por primera vez. |
 
 Marque unos cuantos issues como **good first issue**. Las reestructuraciones de [Reestructuración y salud del código](../develop/refactoring.md) (dividir `server.go`, tygo) son ideales: bien acotadas, mecánicas y bien probadas.
 
@@ -63,11 +63,12 @@ Este libro es la documentación, publicada en inglés en [learn.rendimiento.ai](
 ## Lista de pendientes {#checklist}
 
 - [x] LICENSE (Apache-2.0) y CONTRIBUTING
-- [ ] CODE_OF_CONDUCT y SECURITY
+- [x] CODE_OF_CONDUCT y SECURITY, plantillas de issues y de solicitudes de cambios
 - [x] Revisiones de las solicitudes de cambios del propio repositorio (rendimiento prueba cada rama)
-- [ ] Revisiones de las solicitudes de cambios desde forks
+- [x] Revisiones de las solicitudes de cambios desde forks (GitHub Actions)
 - [x] Flujo de versiones: imágenes para varias arquitecturas en ghcr.io, programas para Linux con sumas de verificación
-- [ ] Registro de cambios, imágenes firmadas, SBOM
+- [x] Registro de cambios
+- [ ] Imágenes firmadas, SBOM
 - [x] Paquete de Helm, publicado con cada versión
 - [x] Instalación en una computadora sin Kubernetes (`/instalar`)
 - [ ] Inicio rápido en una máquina limpia y en k3d, probado
