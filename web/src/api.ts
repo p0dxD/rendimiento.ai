@@ -70,6 +70,10 @@ export interface Task {
   env?: Record<string, string>;
   secrets?: string[];
   secretEnv?: Record<string, string>;
+  /** A throwaway Postgres beside the task (DATABASE_URL); build tasks only. */
+  postgres?: boolean;
+  /** A /cache kept between runs; build tasks only. */
+  cache?: boolean;
 }
 
 /** Every secret an app reads: its services', jobs' and tasks'. */

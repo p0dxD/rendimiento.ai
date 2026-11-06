@@ -19,6 +19,7 @@ tasks:
   - {name: mobile, image: node:20, command: npx eas-cli build, path: mobile, secretEnv: {EXPO_TOKEN: expo/token}, timeout: 600}
   - {name: smoke, image: curl, command: curl -f x, after: [api, mobile], optional: true}
   - {name: migrate, stage: post-deploy, service: api, command: ./migrate}
+  - {name: browser, image: playwright, command: npx playwright test, when: always, postgres: true, cache: true}
 `))
 	if err != nil {
 		t.Fatal(err)
@@ -35,6 +36,9 @@ tasks:
 	}
 	if strings.Join(smoke.DependsOn, ",") != "api:build,mobile:task" || !smoke.Optional {
 		t.Fatalf("smoke = %+v", smoke)
+	}
+	if b := byID["browser:task"]; !b.Postgres || !b.Cache || m.Postgres || m.Cache {
+		t.Fatalf("browser = %+v, mobile = %+v", b, m)
 	}
 	if _, ok := byID["migrate:task"]; ok {
 		t.Fatal("a post-deploy task is not a CI step")
@@ -73,6 +77,37 @@ func TestTaskPod(t *testing.T) {
 	}
 	if len(pod.Spec.InitContainers) != 1 || pod.Spec.InitContainers[0].Name != "clone" {
 		t.Fatalf("a task pod clones and nothing else: %+v", pod.Spec.InitContainers)
+	}
+}
+
+// A task with postgres and cache gets them like a test: a browser test
+// drives the app with its database.
+func TestTaskPodWithDatabaseAndCache(t *testing.T) {
+	k := &KubeExecutor{}
+	k.defaults()
+	step := Step{ID: "browser:task", Kind: KindTask, Path: ".", Image: "playwright", Command: "npx playwright test",
+		App: "ai", Postgres: true, Cache: true, Env: map[string]string{"DATABASE_URL": "mine"}}
+	pod, err := k.pod("p", nil, Source{Repo: "o/r", SHA: "abc", Branch: "x"}, step, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pod.Spec.InitContainers) != 2 || pod.Spec.InitContainers[1].Name != "postgres" {
+		t.Fatalf("init containers: %+v", pod.Spec.InitContainers)
+	}
+	c := pod.Spec.Containers[0]
+	var dbURL []string
+	for _, e := range c.Env {
+		if e.Name == "DATABASE_URL" {
+			dbURL = append(dbURL, e.Value)
+		}
+	}
+	// Both are set; the task's own env comes last, so it wins.
+	if strings.Join(dbURL, ",") != testDatabaseURL+",mine" {
+		t.Fatalf("DATABASE_URL: %v", dbURL)
+	}
+	if len(c.VolumeMounts) != 2 || c.VolumeMounts[1].MountPath != "/cache" ||
+		pod.Spec.Volumes[1].PersistentVolumeClaim.ClaimName != "cache-ai-browser-task" {
+		t.Fatalf("mounts %+v volumes %+v", c.VolumeMounts, pod.Spec.Volumes)
 	}
 }
 

@@ -120,6 +120,12 @@ type Task struct {
 	Secrets []string `json:"secrets,omitempty"`
 	// SecretEnv sets single variables from secret keys, as NAME: secret/key.
 	SecretEnv map[string]string `json:"secretEnv,omitempty"`
+	// Postgres and Cache are a test's (build tasks only): a throwaway
+	// PostgreSQL beside the task (DATABASE_URL), and a /cache kept between
+	// runs. For a task that drives the app with its database, such as a
+	// browser test.
+	Postgres bool `json:"postgres,omitempty"`
+	Cache    bool `json:"cache,omitempty"`
 }
 
 const (
@@ -1123,6 +1129,9 @@ func (s *Spec) validateTasks() []error {
 			}
 			if len(t.Watch) > 0 || (t.Path != "" && t.Path != ".") {
 				errs = append(errs, fmt.Errorf("%s: path and watch only apply to build tasks (%s tasks run on every release)", p, t.Stage))
+			}
+			if t.Postgres || t.Cache {
+				errs = append(errs, fmt.Errorf("%s: postgres and cache only apply to build tasks (%s tasks run in the app's place)", p, t.Stage))
 			}
 		default:
 			errs = append(errs, fmt.Errorf("%s.stage %q must be build, pre-deploy or post-deploy", p, t.Stage))

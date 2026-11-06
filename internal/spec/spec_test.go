@@ -420,6 +420,7 @@ tasks:
 		{"[{name: t, stage: post-deploy, image: i, service: api, command: c}]", "exactly one of image or service"},
 		{"[{name: t, stage: post-deploy, service: nope, command: c}]", `service "nope" is not a service`},
 		{"[{name: t, stage: post-deploy, image: i, command: c, path: web}]", "only apply to build tasks"},
+		{"[{name: t, stage: pre-deploy, image: i, command: c, postgres: true}]", "postgres and cache only apply to build tasks"},
 		{"[{name: t, stage: later, image: i, command: c}]", "must be build, pre-deploy or post-deploy"},
 		{"[{name: t, image: i, service: api, command: c}]", "only applies to pre- and post-deploy tasks"},
 		{"[{name: a, image: i, command: c}, {name: b, stage: post-deploy, image: i, command: c, after: [a]}]", "is not a post-deploy task"},
