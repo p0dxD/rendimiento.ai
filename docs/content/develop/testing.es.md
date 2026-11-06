@@ -19,6 +19,7 @@ flowchart LR
 | **Del almacén** | `internal/store`, `internal/api`, `internal/platform` | Postgres (`TEST_DATABASE_URL`) | el SQL, las migraciones, la cola de ejecuciones, las sesiones |
 | **De integración** | `internal/pipeline` (etiqueta de construcción `integration`) | el grupo de BuildKit del clúster | una construcción real con Dockerfile y una real con Railpack, enviadas con huella |
 | **De la interfaz** | `web` | Node | que el TypeScript compila (`npm run typecheck`) |
+| **En el navegador** | `web/e2e` | Playwright, Postgres, Go | la interfaz y la API de verdad en un navegador, en inglés y en español: «Nueva app» con cada ejemplo de `internal/spec/ejemplos`, luego cada página del menú, sin errores en el navegador ni respuestas 500 de la API ([abajo](#browser-tests)) |
 
 ## Ejecutarlas {#running-them}
 
@@ -55,6 +56,10 @@ make itest                                       # construcciones reales en el g
 
 El repositorio de rendimiento es una aplicación más de rendimiento: su `rendimiento.yaml` incluye el libro (un servicio) y la imagen de la plataforma (`builds: platform`). Así, cada envío y cada solicitud de incorporación también corre el mismo `hack/ci-test.sh`, como el paso `platform:test`, con un Postgres desechable (`postgres: true`) y una caché que se conserva (`cache: true`); después `platform:build` construye la imagen, cuyo Dockerfile corre `npm run typecheck`. El resultado es la comprobación de la confirmación en GitHub. En la integración continua, el script también falla si no se confirmaron los archivos generados (deepcopy, CRD) (`CHECK_GENERATED=1`). Para probar cambios **sin confirmar**, se sigue usando `make test-remote`. Vea [Cómo se construye rendimiento a sí mismo](../environment/deploy.md#rendimiento-builds-itself).
 
+## Pruebas en el navegador {#browser-tests}
+
+La tarea `interfaz` de `rendimiento.yaml` corre `hack/ci-interfaz.sh` en la imagen de Playwright en cada envío, con el Postgres desechable y la caché de la tarea (ahí se instala Go la primera vez). Construye la interfaz y `hack/interfaz`, un servidor con la API de verdad sobre esa base vacía, como en una computadora sin Kubernetes, y un GitHub falso que sirve cada ejemplo de `internal/spec/ejemplos` como repositorio (y uno sin `rendimiento.yaml`). Inicia la sesión de una persona, y Playwright recorre las páginas (`web/e2e`). Cada prueba falla ante un error lanzado en el navegador, un error en la consola o una respuesta de la API de 500 o más, aunque lo que buscaba sí estuviera. Un tipo nuevo de aplicación solo necesita su ejemplo: la prueba del asistente los recorre todos. Con caché tarda unos tres minutos.
+
 ## Escribir pruebas {#writing-tests}
 
 ### Pruebas unitarias: con tablas {#unit-tests-table-driven}
@@ -83,7 +88,7 @@ envtest **no tiene kubelet ni más controladores que los suyos**: los pods nunca
 
 ## Lo que todavía no está cubierto {#what-is-not-covered-yet}
 
-- el comportamiento de la interfaz (no hay pruebas en navegador);
+- la interfaz más allá de «Nueva app» y de abrir cada página (ejecuciones, versiones, ajustes);
 - pruebas de punta a punta de toda la plataforma en un clúster desechable (incorporar, enviar, publicar, revertir);
 - pruebas de carga de la cola de ejecuciones y de muchas construcciones simultáneas.
 

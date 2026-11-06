@@ -19,6 +19,7 @@ flowchart LR
 | **Store** | `internal/store`, `internal/api`, `internal/platform` | Postgres (`TEST_DATABASE_URL`) | SQL, migrations, the run queue, sessions |
 | **Integration** | `internal/pipeline` (build tag `integration`) | the cluster's BuildKit pool | a real Dockerfile build and a real Railpack build, pushed with a digest |
 | **UI** | `web` | Node | the TypeScript compiles (`npm run typecheck`) |
+| **Browser** | `web/e2e` | Playwright, Postgres, Go | the real UI and API in a browser, in English and Spanish: "New app" with every example of `internal/spec/ejemplos`, then every page in the menu, with no error in the browser and no 500 from the API ([below](#browser-tests)) |
 
 ## Running them
 
@@ -55,6 +56,10 @@ make itest                                       # real builds on the BuildKit p
 
 rendimiento's own repository is an app on rendimiento: its `rendimiento.yaml` lists the book (a service) and the platform's image (`builds: platform`). So every push and pull request also runs the same `hack/ci-test.sh`, as the `platform:test` step, with a throwaway Postgres (`postgres: true`) and a kept cache (`cache: true`); then `platform:build` builds the image, whose Dockerfile runs `npm run typecheck`. The result is the check on the commit in GitHub. In CI the script also fails when the generated files (deepcopy, CRDs) were not committed (`CHECK_GENERATED=1`). `make test-remote` is still the way to test **uncommitted** changes. See [How rendimiento builds itself](../environment/deploy.md#rendimiento-builds-itself).
 
+## Browser tests {#browser-tests}
+
+The `interfaz` task of `rendimiento.yaml` runs `hack/ci-interfaz.sh` in the Playwright image on every push, with the task's throwaway Postgres and kept cache (Go is installed there the first time). It builds the UI and `hack/interfaz`, a server with the real API on that empty database, as on a computer without Kubernetes, and a fake GitHub that serves every example of `internal/spec/ejemplos` as a repository (and one without a `rendimiento.yaml`). It signs in a person, and Playwright drives the pages (`web/e2e`). Every test fails on an error thrown in the browser, an error in the console, or an API answer of 500 or more, even when what it looked for was there. A new kind of app only needs its example: the wizard test walks every one. With a cache it takes about three minutes.
+
 ## Writing tests
 
 ### Unit tests: table-driven
@@ -83,7 +88,7 @@ envtest has **no kubelet and no controllers besides yours**: pods never run, Dep
 
 ## What is not covered yet
 
-- the UI's behaviour (no browser tests);
+- the UI beyond "New app" and opening each page (runs, releases, settings);
 - end-to-end tests of the whole platform on a disposable cluster (onboard, push, release, rollback);
 - load tests of the run queue and many concurrent builds.
 

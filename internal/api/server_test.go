@@ -1142,3 +1142,24 @@ func TestDiagnosisFeedback(t *testing.T) {
 		t.Fatalf("known failures: %d", len(list))
 	}
 }
+
+// A stream reaches the browser as it is written, in Spanish too: the
+// translating middleware must not hold it (the activity stream answered
+// "streaming unsupported" to every Spanish page).
+func TestLocalizedStreams(t *testing.T) {
+	h := localized(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if _, ok := w.(http.Flusher); !ok {
+			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		}
+	}))
+	for _, path := range []string{"/api/activity/stream", "/api/runs/1/events", "/api/something"} {
+		r := httptest.NewRequest("GET", path, nil)
+		r.Header.Set("Accept-Language", "es-MX")
+		r.Header.Set("Accept", "text/event-stream")
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != http.StatusOK {
+			t.Errorf("%s: %d %s", path, w.Code, w.Body)
+		}
+	}
+}

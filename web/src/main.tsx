@@ -39,6 +39,7 @@ function Shell() {
         const me = await api.me();
         session.operator = me.operator;
         session.role = me.role;
+        session.cluster = !!me.cluster;
         setState({ login: me.login, role: me.role, org: me.org, operator: me.operator, demo: me.demo, cluster: me.cluster, configured: true, loading: false });
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) setState({ configured: true, book: setup.book, activity: setup.activity, loading: false });
